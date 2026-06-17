@@ -1,0 +1,43 @@
+# Cloudflare Worker config for the TSH daily-track backend.
+# Spec: tsh_requirement.md §4, §5, §10.
+#
+# Secrets (set via `wrangler secret put <NAME>`; never commit values):
+#   GITHUB_TOKEN          fine-scoped PAT, issues:write + contents:write on this repo only
+#   BOOTSTRAP_DEVELOPERS  comma-separated emails; read only when config/developers.json is missing
+#   TURNSTILE_SECRET      Cloudflare Turnstile secret key (only when FEATURE_DAILY_TURNSTILE on)
+#
+# Public variables (vars below): may be read by the Worker; safe to commit.
+name = "tsh-worker"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Production environment (default)
+[vars]
+GH_OWNER               = "tadeskops"
+GH_REPO                = "ta-society-helpdesk"
+GH_BRANCH              = "main"
+GOOGLE_OAUTH_CLIENT_ID = "REPLACE_ME.apps.googleusercontent.com"
+TURNSTILE_SITE_KEY     = "REPLACE_ME"
+LOG_LEVEL              = "info"
+
+# CORS allow-list. Comma-separated origins. The Pages site lives at
+# https://tadeskops.github.io and (optionally) a custom domain.
+ALLOWED_ORIGINS = "https://tadeskops.github.io,http://localhost:8080"
+
+# Preview environment (used for branch deploys + local dev)
+[env.preview]
+name = "tsh-worker-preview"
+
+[env.preview.vars]
+GH_OWNER               = "tadeskops"
+GH_REPO                = "ta-society-helpdesk"
+GH_BRANCH              = "main"
+GOOGLE_OAUTH_CLIENT_ID = "REPLACE_ME.apps.googleusercontent.com"
+TURNSTILE_SITE_KEY     = "1x00000000000000000000AA"   # Turnstile always-pass test key
+LOG_LEVEL              = "debug"
+ALLOWED_ORIGINS        = "http://localhost:8080,http://127.0.0.1:8080"
+
+# Local dev defaults (use .dev.vars for secrets in dev — gitignored)
+[dev]
+port = 8787

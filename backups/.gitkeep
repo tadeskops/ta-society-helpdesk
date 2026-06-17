@@ -1,0 +1,4 @@
+# Scheduled PDF reports land here:
+#   TSH_Report.pdf        anonymised (no reporter PII)
+#   TSH_Full_Report.pdf   full content
+# Spec: tsh_requirement.md §11.

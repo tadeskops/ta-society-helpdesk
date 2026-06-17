@@ -1,0 +1,2 @@
+# Per-ticket photo folders go here: photos/DLY-<n>/<NN>.<ext>
+# Spec: tsh_requirement.md §6.2 (photos section), §17.2 (in-repo storage).

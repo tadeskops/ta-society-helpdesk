@@ -9,7 +9,7 @@ The sibling **handover track** lives in a separate repo and uses a separate stac
 - Handover-track spec (single source of truth): https://github.com/tadeskops/ta-issue-manager/blob/main/requirement.md
 - The only cross-link from the handover portal into this site is a single `<a href>` on the handover landing page pointing at this site's public URL.
 
-Everything below is scoped to the daily track. Open design questions are flagged inline as `OPEN:` and will be resolved before implementation begins.
+Everything below is scoped to the daily track. All seven open design questions from the previous draft are resolved — see §17.
 
 ---
 
@@ -79,7 +79,7 @@ Exhaustive list of everything this project depends on. If it's not here, it isn'
 | Resource | Plan | Purpose |
 |---|---|---|
 | GitHub account `tadeskops` | Free | Owns this repo; identity for every commit + push (per `.github/copilot-instructions.md` §0). |
-| GitHub repo `tadeskops/ta-society-helpdesk` | Public **or** private (open question §17.1) | Hosts code, Pages site, Issues (data), Actions, Releases (PDF reports). |
+| GitHub repo `tadeskops/ta-society-helpdesk` | **Public** (required for free GitHub Pages on a personal account; see §17.1) | Hosts code, Pages site, Issues (data), Actions, Releases (PDF reports). |
 | Cloudflare account | Free tier | Hosts the single Worker (`worker/`). |
 | Cloudflare Worker | Free tier (100k requests/day) | API surface for the static pages. Holds the GitHub PAT in encrypted env vars. |
 | Google Cloud project | Free | Issues exactly one OAuth 2.0 Web Client ID for Google Identity Services. No other Google services enabled. |
@@ -452,7 +452,8 @@ Save → `PUT /config` (and/or `PUT /access-lists/:role`) → Worker commits the
     "FEATURE_DAILY_PUBLIC_REJECTED":  false,
     "FEATURE_DAILY_PUBLIC_PHOTOS":    true,
     "FEATURE_DAILY_PUBLIC_PDF":       true,
-    "FEATURE_DAILY_AUDIT_LOG_UI":     true
+    "FEATURE_DAILY_AUDIT_LOG_UI":     true,
+    "FEATURE_DAILY_TURNSTILE":        true
   },
   "tunables": {
     "DAILY_AUTO_ACK_HOURS":    24,
@@ -484,6 +485,8 @@ Defaults are baked into the Worker (`DEFAULT_CONFIG`); when the file is missing 
 | `GITHUB_TOKEN` | Fine-scoped PAT — `issues:write`, `contents:write` on this repo only | Rotatable in seconds via Wrangler. Never logged, never returned in any response. |
 | `GOOGLE_OAUTH_CLIENT_ID` | The web client id used by the page's GIS button | Used only for JWT `aud` verification; not a secret in the strict sense, but kept here for symmetry. |
 | `BOOTSTRAP_DEVELOPERS` | Comma-separated emails | Read **only** when `config/developers.json` is missing — bootstraps the first developer. After file exists, this is ignored. |
+| `TURNSTILE_SECRET` | Cloudflare Turnstile secret key | Verifies the Turnstile token attached to every `POST /issues`. Used only when `FEATURE_DAILY_TURNSTILE` is on (see §17.3). |
+| `TURNSTILE_SITE_KEY` | Cloudflare Turnstile site key | Public-safe; returned by `GET /config` so the intake page can render the widget. Not a secret in the strict sense, kept here for symmetry. |
 
 ## 11. GitHub Actions workflows
 
@@ -575,16 +578,25 @@ If a developer wants to ship a feature "hidden by default", they ship it with th
 7. A change made on the settings page produces a commit on `main` authored by `tadeskops`, an entry in `config/audit.log`, and is visible to all pages within 60 s without a redeploy.
 8. The handover portal at `tadeskops/ta-issue-manager` is byte-for-byte unchanged by anything in this repo, except a single CONFIG-row link (`DAILY_TRACK_URL`) it adds on its own side.
 
-## 17. Open design questions (must be resolved before implementation begins)
+## 15.1 Public-repo PII discipline
 
-| # | Question | Default if unanswered |
+Because the repo is public (§17.1), the issue body is world-readable on github.com regardless of the Worker. Therefore:
+
+- Reporter contact fields (`name`, `flat`, `phone`) are **optional** on the intake form, with a visible note explaining they will be visible.
+- The Worker's public read endpoints (§5.2) scrub these fields and any phone-number-shaped substring before returning them — this protects the in-app surfaces but not direct github.com browsing.
+- Resolution notes posted on `RESOLVED` are visible to everyone; no resident contact info should be quoted in them.
+- A future opt-in switch to Cloudflare Pages + a private repo is documented as a Phase 10 migration path.
+
+## 17. Design decisions (resolved)
+
+All seven questions from the previous draft are answered. Where a decision differs from the original spec default, the reason is given.
+
+| # | Decision | Notes |
 |---|---|---|
-| 1 | **Repo visibility** — public (transparent + free Actions) or private (PII-safe by default, still free for personal accounts)? | Private. Public photos/issues + JSON config + audit log feel like over-disclosure for a society. |
-| 2 | **Photo storage strategy** — `in-repo` under `photos/DLY-<n>/` (free, simple, repo bloat over years) or **Cloudflare R2** free tier (10 GB, faster, slightly more setup)? | `in-repo` for the first year; document a migration path to R2 when the repo crosses 500 MB. |
-| 3 | **Anonymous bot/spam protection** — Google Sign-In alone, or Sign-In + Cloudflare Turnstile captcha on `POST /issues`? | Sign-In + Turnstile. Negligible UX cost, blocks scripted abuse. |
-| 4 | **Manager-list location** — `config/managers.json` in the repo (audit-trail in Git) or a Worker secret (faster to rotate but no Git history)? | `config/managers.json` (in-repo). Aligns with committee + developer lists. |
-| 5 | **Developer self-service** — when a developer adds another developer, does it take effect immediately, or require a second developer's confirmation within 10 minutes? | Immediate effect for the first 12 months; revisit if the developer count grows. |
-| 6 | **Anonymous-submit gating** — keep on (any Gmail can submit), or restrict to a `RESIDENT_DOMAINS` allow-list? | Keep on. Domain restriction adds friction with little real benefit. |
-| 7 | **Committee on settings page** — view-only including the System section, or hidden from System entirely? | View-only including System (better audit story). |
-
-When you confirm 1–7 above, this section folds into the relevant body sections and the OPEN markers are removed.
+| 1 | **Public repo.** Overrides the original "private" default. | GitHub Pages on a free personal account cannot serve from a private repo; private would force a paid plan. Going public preserves the all-free constraint. PII protected by §15.1 + §17.6. |
+| 2 | **In-repo photos** under `photos/DLY-<n>/`. | Free. Simple. R2 migration documented as a Phase 10 task; trigger at ~500 MB repo size. |
+| 3 | **Sign-In + Cloudflare Turnstile** on `POST /issues`. | Free. Blocks scripted abuse. Gated by `FEATURE_DAILY_TURNSTILE` (§9) so it can be toggled off without redeploy. |
+| 4 | **`config/managers.json` in-repo.** | Free Git audit trail. Symmetric with committee + developer lists. |
+| 5 | **Developer self-service: immediate effect.** | Spec already has a one-developer-minimum guard; no deadlock risk. Revisit if developer count grows past ~3. |
+| 6 | **Anonymous Gmail submit kept on.** | Lowest possible friction is the entire purpose of the daily flow. Domain allow-listing adds friction with little real benefit at this scale. |
+| 7 | **Committee view-only, including System section.** | Better audit story than hiding the System section entirely. Developer remains the only role that can write. |

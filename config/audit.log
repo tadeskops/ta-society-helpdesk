@@ -1,0 +1,2 @@
+# Append-only audit log. One JSON object per line.
+# Format: {"at": "<ISO>", "actor": "<email>", "action": "<verb>", "target": "<path-or-id>", "detail": "<free text>"}
