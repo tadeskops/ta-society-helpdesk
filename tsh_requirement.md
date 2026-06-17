@@ -60,6 +60,62 @@ Everything below is scoped to the daily track. Open design questions are flagged
 | Cost | Free (GitHub free tier + Cloudflare Workers free tier) |
 | External services | None outside GitHub + Cloudflare + Google Sign-In |
 
+## 1.1 Tools, clients & resources
+
+Exhaustive list of everything this project depends on. If it's not here, it isn't used.
+
+### 1.1.1 Required developer-workstation tools
+
+| Tool | Why | Notes |
+|---|---|---|
+| `git` | Source control | Local-scope identity must be `tadeskops <ta.deskops@gmail.com>`. |
+| Node.js (LTS) + npm | Runs `wrangler`, local preview server, build helpers | No app code runs on Node in production. |
+| Wrangler CLI (`@cloudflare/wrangler`) | Deploy + tail the Cloudflare Worker | `npm i -g wrangler` or via `npx`. |
+| VS Code (recommended) | Editor | Workspace-level settings only; no required extension. |
+| `gh` CLI (optional) | Inspect Actions runs, manage labels | Not required for any workflow. |
+
+### 1.1.2 Required cloud accounts & resources
+
+| Resource | Plan | Purpose |
+|---|---|---|
+| GitHub account `tadeskops` | Free | Owns this repo; identity for every commit + push (per `.github/copilot-instructions.md` §0). |
+| GitHub repo `tadeskops/ta-society-helpdesk` | Public **or** private (open question §17.1) | Hosts code, Pages site, Issues (data), Actions, Releases (PDF reports). |
+| Cloudflare account | Free tier | Hosts the single Worker (`worker/`). |
+| Cloudflare Worker | Free tier (100k requests/day) | API surface for the static pages. Holds the GitHub PAT in encrypted env vars. |
+| Google Cloud project | Free | Issues exactly one OAuth 2.0 Web Client ID for Google Identity Services. No other Google services enabled. |
+
+### 1.1.3 Required runtime services (in production)
+
+| Service | Role |
+|---|---|
+| **GitHub Pages** | Hosts every static page from `docs/`. |
+| **GitHub Issues** | The database — one issue per ticket, status as labels (§6). |
+| **GitHub Actions** | Scheduled PDF report (`weekly-report.yml`); also runs Pages deploy + Worker deploy on push. |
+| **Cloudflare Workers** | Single Worker = entire backend. Verifies Google JWT, enforces role allow-lists, talks to GitHub. |
+| **Google Identity Services (GIS)** | Browser-side sign-in widget; emits ID tokens (JWT). |
+
+### 1.1.4 Explicitly NOT used
+
+| Service | Why not |
+|---|---|
+| Google Sheets | No external database. GitHub Issues is the database. |
+| Google Apps Script | No server-side Google code. The handover-track repo uses Apps Script; this one does not. |
+| Google Forms | The form is part of the static site. |
+| Google Drive | Photos are stored in-repo (or Cloudflare R2 — see §17.2), not in Drive. |
+| Firebase / Supabase / any other BaaS | Out of scope. The Worker + GitHub is the entire stack. |
+| Twilio / WhatsApp Business API | Not used. WhatsApp interactions are deep-link only (`wa.me/?text=…`). |
+| Any database server (Postgres, Mongo, Redis, KV, D1) | Not used. JSON config + GitHub Issues = state. |
+| Any container / VM host | Not used. The Worker is the only "server". |
+
+### 1.1.5 Cross-track integration with the handover repo
+
+There is exactly **one** cross-link, in each direction, both link-only:
+
+- Handover landing page → this site (link configured in the handover repo's `CONFIG` sheet, key `DAILY_TRACK_URL`).
+- This site's landing page → handover portal (link configured in `config/site.json` → `system.handoverPortalUrl`).
+
+No shared code, assets, builds, secrets, schemas, or workflows. See §0 of `.github/copilot-instructions.md`.
+
 ## 2. Roles
 
 Four roles. Precedence (highest wins for landing-page routing):
@@ -303,6 +359,30 @@ Any other transition is rejected by the Worker with `Forbidden transition: <from
 
 All pages reuse the visual tokens, header, and footer of the handover portal so the experience feels continuous. A teal "Track: Daily" pill in the header is the only at-a-glance signal that the user has crossed over.
 
+### Per-role page matrix
+
+One page per role surface. Routes never branch by role inside a single HTML; the wrong-role redirect happens in the page's `ensureAuthorized()` IIFE before any data is rendered.
+
+| Page | Anonymous | Resident (signed-in) | Manager | Committee | Developer |
+|---|:---:|:---:|:---:|:---:|:---:|
+| `index.html` (landing) | full | full | full | full | full |
+| `daily-report.html` (intake) | when `FEATURE_DAILY_ANONYMOUS_SUBMIT` | full | full | full | full |
+| `daily-confirm.html` | full (id required) | full | full | full | full |
+| `public-board.html` | full (PII redacted) | full (PII redacted) | full | full | full |
+| `manager-dashboard.html` | denied | denied | full | full | full |
+| `committee-dashboard.html` | denied | denied | denied | full | full |
+| `settings.html` | denied | denied | denied | read-only | full write |
+
+Denied = redirect to `index.html` with a one-line toast. Read-only = page renders, every input/button is `disabled`, server-side `PUT`s would be rejected anyway.
+
+### UI principles (apply to every page)
+
+- **Modern minimal aesthetic.** Reuse the handover portal's design tokens (logo, colours, font stack, radius/shadow scale). No decorative imagery, no skeuomorphism, no animation beyond simple state transitions.
+- **Plain English copy.** No jargon in resident-facing surfaces. Manager/committee/developer pages may use product terms (status, severity, allow-list, audit log) only after they appear in `tsh_requirement.md`.
+- **Responsive across three breakpoints — mandatory.** See §14.1.
+- **Every interactive affordance is flag-gated.** See §14.2.
+- **Settings-page reachability.** Every flag, list, and tunable surfaced in any page's behaviour MUST be editable from `settings.html` (developer write, committee read). No CONFIG-only knobs that require a redeploy.
+
 ### 8.1 Landing (`docs/index.html`)
 
 ```
@@ -444,7 +524,36 @@ Defaults are baked into the Worker (`DEFAULT_CONFIG`); when the file is missing 
 - Pages reuse the visual tokens (Tailwind-via-CDN config + the same logo SVG) of the handover portal.
 - Every page calls `GET /whoami` on load and `GET /config` on load (with a 60 s in-memory cache shared across pages of one tab).
 - Every privileged page runs an `ensureAuthorized()` IIFE before rendering data; on role mismatch, redirect to landing.
-- Mobile breakpoints: 360 px / 375 px / 768 px. Page-weight target: < 200 KB compressed for dashboards, < 80 KB for the resident form.
+- Page-weight target: < 200 KB compressed for dashboards, < 80 KB for the resident form.
+
+### 14.1 Responsive across phone, tablet, desktop — mandatory
+
+Every page (landing, intake, confirm, public board, manager dashboard, committee dashboard, settings) **must** render correctly across all three breakpoints. "Renders correctly" means: no horizontal scroll, no clipped controls, every action reachable, tap targets ≥ 44 × 44 px on touch, table-style data collapses to card-style on phone.
+
+| Breakpoint | Range | Reference widths | Layout |
+|---|---|---|---|
+| Phone | ≤ 480 px | 360 / 375 / 414 | Single column. Tables → stacked cards. Bottom-sheet modals. |
+| Tablet | 481 – 1024 px | 768 / 1024 | Two columns where useful. Side-drawer modals. |
+| Desktop | ≥ 1025 px | 1280 / 1440 / 1920 | Multi-column. Side panels. Inline modals. |
+
+- Mobile-first CSS (start with phone styles; widen via `min-width` media queries).
+- Logical flex/grid; no fixed pixel widths on containers.
+- `<meta name="viewport" content="width=device-width, initial-scale=1">` on every page.
+- Test all three breakpoints (DevTools device-toolbar) before declaring a UI change done.
+
+### 14.2 Every UI affordance is flag-gated and Settings-page toggleable
+
+The rule is broader than §2.1 of `.github/copilot-instructions.md` ("significant features"). For this project specifically: **every** user-visible affordance — every button, every form field, every panel, every menu item, every page — is gated by a `FEATURE_*` flag in `config/site.json` (or by an existing role allow-list when role is the only axis). Trivially additive cosmetic changes (whitespace, copy fixes, accessible labels) are exempt; everything else needs a flag.
+
+For every flag in `config/site.json`:
+
+1. The flag has a row in `tsh_requirement.md` §9.
+2. The page reads the flag from the cached `/config` response and hides / disables the affordance when the flag is `false`.
+3. The Worker re-checks the flag inside the action handler (defence in depth).
+4. The `settings.html` page exposes the flag as a labelled toggle in the **Feature flags** section, editable by developers, visible read-only to committee.
+5. Toggling the flag takes effect for all users within the 60 s `/config` cache window. **No redeploy.**
+
+If a developer wants to ship a feature "hidden by default", they ship it with the flag default `false` and flip it from the Settings page when ready. There is no other deployment ceremony.
 
 ## 15. Non-goals / out of scope
 

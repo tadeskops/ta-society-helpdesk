@@ -157,22 +157,27 @@ If any answer is "no", finish the doc update before closing out.
   Cloudflare Worker secrets only. Any code path that requires the PAT
   must run on the Worker.
 
-## 2.1 Significant new features must be feature-flag gated
+## 2.1 Every UI affordance must be feature-flag gated
 
-Any change that adds a **significant new feature** must ship behind a
+For this project, the rule is broader than a typical "significant
+feature" gate: **every** user-visible UI affordance — every button,
+form field, panel, menu item, modal, page — must ship behind a
 `FEATURE_*` flag in `config/site.json`, enforced on both Worker and
-static page, and the agent must explicitly justify the chosen default
-in the PR/commit body.
+static page, and editable from `settings.html` (developer write,
+committee read-only). The agent must explicitly justify the chosen
+default in the PR/commit body. See `tsh_requirement.md` §14.2.
 
 ### How to decide if a change qualifies
 
-A change qualifies as "significant" — and therefore needs a flag —
-if **any** of the following is true:
+A change qualifies — and therefore needs a flag — if **any** of the
+following is true:
 
 - It adds a new Worker endpoint or extends an existing one with a new
   payload shape.
-- It adds a new UI affordance the user can interact with (a new
-  button, panel, page, modal, drag-drop zone, file picker, etc.).
+- It adds **any** new user-visible UI affordance (button, form field,
+  panel, page, modal, drag-drop zone, file picker, filter pill,
+  sort/search control, etc.). "User-visible" includes anonymous,
+  resident, manager, committee, and developer surfaces.
 - It writes to GitHub Issues, the daily-track config files, or the
   photo store in a code path that did not previously write there.
 - It changes a role's capabilities (resident/manager/committee/
@@ -185,9 +190,13 @@ A change does **not** need a flag if it is purely:
 
 - A bug fix that restores documented behavior.
 - A refactor with zero observable change.
-- Cosmetic (whitespace, copy edits, log message tweaks).
+- Cosmetic-only (whitespace, copy fixes, accessible-label additions,
+  log message tweaks).
 - A schema migration / setup helper that an operator runs explicitly.
 - A change to local-dev / preview tooling.
+
+When in doubt, add a flag. Adding one is cheap; needing one after
+release is expensive.
 
 ### Default-state policy
 
@@ -218,25 +227,61 @@ requires a Worker / Pages redeploy to fix.
    - hide / not render the affordance when the flag is false;
    - re-check the flag inside the action handler as a defensive guard
      against stale renders.
-4. `tsh_requirement.md` updates: add a row to the feature-flags
+4. **Settings-page exposure (mandatory).** The flag must appear in
+   `docs/settings.html` under the **Feature flags** section as a
+   labelled toggle. Developer can write; committee sees it disabled;
+   manager and resident never reach the page. The toggle takes
+   effect within the 60 s `/config` cache window with **no
+   redeploy**.
+5. `tsh_requirement.md` updates: add a row to the feature-flags
    section with the default value and effect; if the feature exposes
    a new Worker endpoint, note both the role allow-list AND the gating
    flag(s) in the API table.
-5. If two flags both gate the action (e.g. a master switch + a
+6. If two flags both gate the action (e.g. a master switch + a
    global kill-switch), say so explicitly in `tsh_requirement.md` —
    both must be true for the action to run.
 
 ### How to verify before finishing the task
 
-- [ ] Did this change add a new Worker endpoint, a new visible UI
-      affordance, or a new external write path?
+- [ ] Did this change add a new Worker endpoint, **any** new visible
+      UI affordance, or a new external write path?
 - [ ] If yes → is there a `FEATURE_*` row in `config/site.json`?
 - [ ] Is the flag enforced on both Worker and page (render gate +
       handler re-check)?
+- [ ] Is the flag exposed in `settings.html` under Feature flags?
 - [ ] Is the default explicitly justified in the commit body?
 - [ ] Is `tsh_requirement.md` updated with the new flag row?
 
 If any answer is "no", finish the gating before closing out.
+
+## 2.2 Responsive design — phone, tablet, desktop
+
+Every UI change — new page, new component, edit to an existing page,
+restyle, copy change that affects layout — must work cleanly across
+phone, tablet, and desktop. See `tsh_requirement.md` §14.1 for the
+breakpoint table.
+
+### Hard requirements (apply to every page)
+
+- Mobile-first CSS: write phone styles first; widen via `min-width`
+  media queries.
+- `<meta name="viewport" content="width=device-width, initial-scale=1">`
+  on every HTML page.
+- No horizontal scroll on phone widths (≤ 480 px). No clipped controls.
+- Tap targets ≥ 44 × 44 px on touch surfaces.
+- Tables collapse to stacked cards on phone widths.
+- No fixed pixel widths on layout containers; use flex/grid + relative
+  units.
+
+### How to verify before finishing the task
+
+- [ ] Was a phone width tested (DevTools 360 / 375 / 414)?
+- [ ] Was a tablet width tested (768 / 1024)?
+- [ ] Was a desktop width tested (1280 / 1440)?
+- [ ] Are all interactive controls reachable + tappable at every
+      breakpoint?
+
+If any answer is "no", finish the responsive pass before closing out.
 
 ## 3. Source-control & push policy
 
