@@ -145,9 +145,20 @@ export interface ParsedBody {
 }
 
 const sectionAt = (body: string, header: string): string => {
-  const re = new RegExp(`^### ${header}\\b([\\s\\S]*?)(?=^### |\\s*$)`, 'm');
-  const m = re.exec(body);
-  return (m?.[1] ?? '').trim();
+  // Split body on "### " headers. parts[0] is the preamble (before any
+  // ###); each subsequent piece is "<Header>\n<content...>". Stop at
+  // the next "### " or end of input — no regex lookahead needed.
+  const target = header.toLowerCase();
+  const pieces = body.split(/(?:^|\n)### /);
+  for (let i = 1; i < pieces.length; i++) {
+    const piece = pieces[i]!;
+    const nl = piece.indexOf('\n');
+    const head = (nl === -1 ? piece : piece.slice(0, nl)).trim().toLowerCase();
+    if (head === target) {
+      return nl === -1 ? '' : piece.slice(nl + 1).trimEnd();
+    }
+  }
+  return '';
 };
 
 const kv = (section: string): Record<string, string> => {
@@ -164,7 +175,7 @@ export const parseBody = (body: string): ParsedBody => {
   const reporter = kv(sectionAt(body, 'Reporter'));
   const description = sectionAt(body, 'Description');
   const photos = sectionAt(body, 'Photos');
-  const resolution = kv(sectionAt(body, 'Resolution \\(set on RESOLVED\\)'));
+  const resolution = kv(sectionAt(body, 'Resolution (set on RESOLVED)'));
 
   const photoUrls: string[] = [];
   for (const line of photos.split(/\r?\n/)) {
@@ -299,22 +310,43 @@ export const writeResolution = (body: string, by: string, notes: string, cost?: 
     `- Notes: ${notes}`,
     `- Cost: ${cost ?? ''}`,
   ].join('\n');
-  // Replace any prior Resolution section to keep history clean.
-  if (/^### Resolution/m.test(body)) {
-    return body.replace(/^### Resolution[\s\S]*$/m, replacement);
-  }
-  return body.trimEnd() + '\n\n' + replacement + '\n';
+  return replaceSection(body, 'Resolution (set on RESOLVED)', replacement);
 };
 
-/** Append photo lines to the body's Photos section. */
+/** Append photo lines to the body's Photos section. Removes the
+ *  `- (none)` placeholder if present. */
 export const appendPhotos = (body: string, urls: string[]): string => {
   if (!urls.length) return body;
-  const photoLines = urls.map((u) => `- ![](${u})`).join('\n');
-  if (/^### Photos\b[\s\S]*?(?=^### |\s*$)/m.test(body)) {
-    return body.replace(/^### Photos\b([\s\S]*?)(?=^### |\s*$)/m, (_whole, section: string) => {
-      const cleaned = section.replace(/^- \(none\)\s*$/m, '').trimEnd();
-      return `### Photos${cleaned ? cleaned + '\n' : '\n'}${photoLines}\n\n`;
-    });
+  const newLines = urls.map((u) => `- ![](${u})`);
+  const existing = sectionAt(body, 'Photos');
+  const merged = existing
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter((l) => l && l !== '- (none)');
+  for (const l of newLines) merged.push(l);
+  const next = ['### Photos', ...merged].join('\n');
+  return replaceSection(body, 'Photos', next);
+};
+
+/** Replace (or append) a whole "### Header\n<content>" section. */
+const replaceSection = (body: string, header: string, replacement: string): string => {
+  const target = header.toLowerCase();
+  const headerRe = /(^|\n)### ([^\n]+)/g;
+  type Hit = { start: number; end: number; head: string };
+  const hits: Hit[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = headerRe.exec(body)) !== null) {
+    hits.push({ start: m.index + (m[1] ? 1 : 0), end: -1, head: m[2]!.trim().toLowerCase() });
   }
-  return body.trimEnd() + '\n\n### Photos\n' + photoLines + '\n';
+  for (let i = 0; i < hits.length; i++) {
+    hits[i]!.end = i + 1 < hits.length ? hits[i + 1]!.start : body.length;
+  }
+  const hit = hits.find((h) => h.head === target);
+  if (!hit) {
+    return body.replace(/\s*$/, '\n\n') + replacement + '\n';
+  }
+  const before = body.slice(0, hit.start);
+  const after  = body.slice(hit.end);
+  const sep = replacement.endsWith('\n') ? '' : '\n';
+  return before + replacement + sep + (after.startsWith('\n') ? '' : '\n') + after;
 };
