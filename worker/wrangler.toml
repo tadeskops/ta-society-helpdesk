@@ -17,7 +17,7 @@ compatibility_flags = ["nodejs_compat"]
 GH_OWNER               = "tadeskops"
 GH_REPO                = "ta-society-helpdesk"
 GH_BRANCH              = "main"
-GOOGLE_OAUTH_CLIENT_ID = "REPLACE_ME.apps.googleusercontent.com"
+GOOGLE_OAUTH_CLIENT_ID = "888761828993-d38vmjdjnuns2ubksvpdmkv860qeeap5.apps.googleusercontent.com"
 TURNSTILE_SITE_KEY     = "REPLACE_ME"
 LOG_LEVEL              = "info"
 
@@ -33,7 +33,7 @@ name = "tsh-worker-preview"
 GH_OWNER               = "tadeskops"
 GH_REPO                = "ta-society-helpdesk"
 GH_BRANCH              = "main"
-GOOGLE_OAUTH_CLIENT_ID = "REPLACE_ME.apps.googleusercontent.com"
+GOOGLE_OAUTH_CLIENT_ID = "888761828993-d38vmjdjnuns2ubksvpdmkv860qeeap5.apps.googleusercontent.com"
 TURNSTILE_SITE_KEY     = "1x00000000000000000000AA"   # Turnstile always-pass test key
 LOG_LEVEL              = "debug"
 ALLOWED_ORIGINS        = "http://localhost:8080,http://127.0.0.1:8080"

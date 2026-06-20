@@ -5,4 +5,4 @@
 // To change after deploy: edit this file and push to main — Pages
 // redeploys, browsers pick it up after the next reload.
 window.TSH_WORKER_BASE = 'https://tsh-worker.tadeskops.workers.dev';
-window.TSH_GOOGLE_CLIENT_ID = '__SET_AT_ROLLOUT__.apps.googleusercontent.com';
+window.TSH_GOOGLE_CLIENT_ID = '888761828993-d38vmjdjnuns2ubksvpdmkv860qeeap5.apps.googleusercontent.com';

@@ -30,6 +30,10 @@ yarn-error.log*
 .env
 .env.*
 
+### OAuth client secret JSON downloads — never commit, even under config/
+client_secret*.json
+**/client_secret*.json
+
 ### Reference material — local notes, source PDFs, sample images
 ref/
 
