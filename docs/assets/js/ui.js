@@ -123,6 +123,15 @@
     const userEl  = document.querySelector('[data-tsh-user]');
     if (!signin || !signout || !userEl || !root.Auth) return;
 
+    // Mark the active nav entry so the gold-pill style applies (aria-current).
+    try {
+      const here = (location.pathname.split('/').pop() || 'index.html').toLowerCase();
+      for (const a of document.querySelectorAll('.tsh-nav a[href]')) {
+        const target = (a.getAttribute('href') || '').split('/').pop().toLowerCase();
+        if (target === here) a.setAttribute('aria-current', 'page');
+      }
+    } catch (_e) { /* ignore */ }
+
     signin.addEventListener('click', () => root.Auth.signIn());
     signout.addEventListener('click', () => { root.Auth.signOut(); root.Flags && root.Flags.invalidate(); location.reload(); });
 

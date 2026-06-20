@@ -18,7 +18,6 @@
   --c-primary:      #d4af37;       /* gold — daily-track brand */
   --c-primary-2:    #b8961f;
   --c-primary-soft: rgba(212, 175, 55, 0.14);
-  --c-accent:       #0d6f6f;       /* teal kept for accents */
   --c-success:      #22c55e;
   --c-warn:         #f59e0b;
   --c-danger:       #ef4444;
@@ -82,6 +81,7 @@
 
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
+[hidden] { display: none !important; }   /* enforce HTML5 hidden over class rules */
 body {
   margin: 0;
   font-family: var(--font-sans);

@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <title>Report a daily issue · TSH</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="theme-color" content="#0d6f6f" />
+  <meta name="theme-color" content="#1a1f2e" />
   <link rel="icon" href="./assets/images/logo.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="./assets/css/theme.css" />
@@ -153,16 +153,18 @@
     catSel.addEventListener('change', refreshSubcats);
     refreshSubcats();
 
-    // Turnstile widget (only if FEATURE_DAILY_TURNSTILE).
+    // Turnstile widget (only if FEATURE_DAILY_TURNSTILE and a real site key is configured).
     let turnstileToken = null;
-    if (Flags.on('FEATURE_DAILY_TURNSTILE') && cfg.system && cfg.system.turnstileSiteKey) {
+    const turnstileKey = cfg.system && cfg.system.turnstileSiteKey;
+    const turnstileEnabled = Flags.on('FEATURE_DAILY_TURNSTILE') && turnstileKey && !/REPLACE_ME/i.test(turnstileKey);
+    if (turnstileEnabled) {
       await new Promise((r) => {
         const s = document.createElement('script');
         s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
         s.async = true; s.defer = true; s.onload = r; document.head.appendChild(s);
       });
       window.turnstile.render(document.querySelector('[data-tsh-turnstile]'), {
-        sitekey: cfg.system.turnstileSiteKey,
+        sitekey: turnstileKey,
         callback: (t) => { turnstileToken = t; },
       });
     }
