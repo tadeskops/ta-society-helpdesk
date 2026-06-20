@@ -1,8 +1,8 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Settings Â· TSH</title>
+  <title>Settings · TSH</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#1a1f2e" />
   <link rel="icon" href="./assets/images/logo.svg" type="image/svg+xml" />
@@ -19,7 +19,7 @@
       <header class="tsh-card-head tsh-card-head-row">
         <div>
           <h1><i class="fas fa-sliders gold-accent"></i> Settings</h1>
-          <p class="tsh-sub" id="roleHint">Developer: write Â· Committee: read-only.</p>
+          <p class="tsh-sub" id="roleHint">Developer: write · Committee: read-only.</p>
         </div>
         <div class="tsh-toolbar">
           <button type="button" class="tsh-btn tsh-btn-primary" id="saveBtn" disabled><i class="fas fa-floppy-disk"></i>Save changes</button>
@@ -170,7 +170,7 @@
       form.elements['committee'].value  = (access.committee || []).join('\n');
       form.elements['managers'].value   = (access.managers || []).join('\n');
 
-      // Feature flags â€” generate one toggle per flag from the config snapshot.
+      // Feature flags — generate one toggle per flag from the config snapshot.
       const flagsGrid = document.getElementById('flagsGrid');
       for (const [name, val] of Object.entries(cfg.features || {})) {
         const row = UI.el('label', { class: 'tsh-field tsh-field-inline' },

@@ -1,8 +1,8 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Report a daily issue Â· TSH</title>
+  <title>Report a daily issue · TSH</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#1a1f2e" />
   <link rel="icon" href="./assets/images/logo.svg" type="image/svg+xml" />
@@ -75,7 +75,7 @@
           <label class="tsh-field">
             <span class="tsh-label">Phone (WhatsApp)</span>
             <input type="tel" name="reporterPhone" maxlength="20" autocomplete="tel"
-                   placeholder="10-digit Indian mobile or +countryâ€¦" />
+                   placeholder="10-digit Indian mobile or +country…" />
           </label>
           <label class="tsh-field tsh-field-inline" data-tsh-flag="FEATURE_DAILY_WHATSAPP_SHARE">
             <input type="checkbox" name="reporterNotifyWhatsApp" />
@@ -189,7 +189,7 @@
 
       const btn = document.getElementById('submitBtn');
       const status = document.getElementById('formStatus');
-      btn.disabled = true; status.textContent = 'Submittingâ€¦';
+      btn.disabled = true; status.textContent = 'Submitting…';
       try {
         const created = await Api.post('/issues', payload);
 
@@ -197,7 +197,7 @@
         const files = form.querySelector('input[name="photos"]').files;
         const photoCount = Math.min(files.length, 5);
         for (let i = 0; i < photoCount; i++) {
-          status.textContent = `Uploading photo ${i + 1} of ${photoCount}â€¦`;
+          status.textContent = `Uploading photo ${i + 1} of ${photoCount}…`;
           const b64 = await fileToBase64(files[i]);
           await Api.post(`/issues/${created.id}/photos`, {
             filename: files[i].name || `photo-${i + 1}.jpg`,

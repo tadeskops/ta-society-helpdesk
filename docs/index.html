@@ -1,11 +1,11 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <title>TA Society Helpdesk</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#1a1f2e" />
-  <meta name="description" content="Tower Apartments â€” report daily issues or handover snags." />
+  <meta name="description" content="Tower Apartments — report daily issues or handover snags." />
   <link rel="icon" href="./assets/images/logo.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="./assets/css/theme.css?v=2" />
@@ -18,14 +18,14 @@
   <main class="tsh-main">
     <section class="tsh-hero">
       <h1>What would you like to report?</h1>
-      <p class="tsh-sub">Pick the track that fits â€” both are free and tracked.</p>
+      <p class="tsh-sub">Pick the track that fits — both are free and tracked.</p>
     </section>
 
     <section class="tsh-card-grid" aria-label="Report tracks">
       <a class="tsh-track-card tsh-track-daily" href="./daily-report.html">
         <span class="tsh-track-icon" aria-hidden="true"><i class="fas fa-screwdriver-wrench"></i></span>
         <h2>Daily issue</h2>
-        <p>Lift, water, lights, cleaning, security â€” anything that needs the manager's attention today.</p>
+        <p>Lift, water, lights, cleaning, security — anything that needs the manager's attention today.</p>
         <span class="tsh-cta">Report now <i class="fas fa-arrow-right"></i></span>
       </a>
       <a class="tsh-track-card tsh-track-handover" data-tsh-handover-link href="#" hidden>
@@ -72,13 +72,13 @@
         card.hidden = false;
       }
 
-      // Master kill switch for daily track (Â§14.2).
+      // Master kill switch for daily track (§14.2).
       if (!Flags.on('FEATURE_DAILY_TRACK')) {
         document.querySelector('.tsh-track-daily').classList.add('tsh-disabled');
         UI.toast('Daily reporting is temporarily disabled.', { kind: 'warn', ttl: 8000 });
       }
     } catch (e) {
-      UI.toast('Couldnâ€™t load site config â€” some links may be missing.', { kind: 'warn' });
+      UI.toast('Couldn’t load site config — some links may be missing.', { kind: 'warn' });
       console.error(e);
     }
   })();

@@ -1,8 +1,8 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Report received Â· TSH</title>
+  <title>Report received · TSH</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#1a1f2e" />
   <link rel="icon" href="./assets/images/logo.svg" type="image/svg+xml" />
@@ -25,15 +25,15 @@
       <div class="tsh-tracking-row">
         <span class="tsh-eyebrow">Ticket ID</span>
         <div class="tsh-tracking-id">
-          <code id="ticketId">â€”</code>
+          <code id="ticketId">—</code>
           <button type="button" class="tsh-btn tsh-btn-ghost tsh-btn-sm" id="copyBtn"><i class="fas fa-copy"></i>Copy</button>
         </div>
       </div>
 
       <div class="tsh-meta-grid" id="ticketMeta" hidden>
-        <div><span class="tsh-eyebrow">Tower</span><span data-field="tower">â€”</span></div>
-        <div><span class="tsh-eyebrow">Category</span><span data-field="category">â€”</span></div>
-        <div><span class="tsh-eyebrow">Status</span><span data-field="status">â€”</span></div>
+        <div><span class="tsh-eyebrow">Tower</span><span data-field="tower">—</span></div>
+        <div><span class="tsh-eyebrow">Category</span><span data-field="category">—</span></div>
+        <div><span class="tsh-eyebrow">Status</span><span data-field="status">—</span></div>
       </div>
 
       <ol class="tsh-steps">
@@ -66,7 +66,7 @@
 
     const params = new URLSearchParams(location.search);
     const id = (params.get('id') || '').trim().toUpperCase();
-    document.getElementById('ticketId').textContent = id || 'â€”';
+    document.getElementById('ticketId').textContent = id || '—';
     document.getElementById('copyBtn').addEventListener('click', () => UI.copyToClipboard(id));
 
     if (!id) return;
@@ -79,13 +79,13 @@
       const pub = await Api.get(`/issues/${encodeURIComponent(id)}/public`);
       const meta = document.getElementById('ticketMeta');
       meta.hidden = false;
-      meta.querySelector('[data-field="tower"]').textContent = pub.tower || 'â€”';
-      meta.querySelector('[data-field="category"]').textContent = pub.category || 'â€”';
+      meta.querySelector('[data-field="tower"]').textContent = pub.tower || '—';
+      meta.querySelector('[data-field="category"]').textContent = pub.category || '—';
       const statusEl = meta.querySelector('[data-field="status"]');
       statusEl.textContent = '';
       statusEl.appendChild(UI.statusPill(pub.status));
     } catch (e) {
-      // Public read may legitimately 404 if the issue was deleted â€” keep id visible.
+      // Public read may legitimately 404 if the issue was deleted — keep id visible.
       console.warn(e);
     }
 
