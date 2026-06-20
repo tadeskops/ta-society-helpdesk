@@ -135,6 +135,25 @@
     signin.addEventListener('click', () => root.Auth.signIn());
     signout.addEventListener('click', () => { root.Auth.signOut(); root.Flags && root.Flags.invalidate(); location.reload(); });
 
+    const hideRoleLinks = () => {
+      for (const a of document.querySelectorAll('[data-tsh-role-link]')) a.hidden = true;
+    };
+
+    const refreshRoleLinks = () => {
+      if (!root.Flags) return Promise.resolve();
+      // Force /whoami to re-fetch with the (new) bearer token — but DON'T
+      // invalidate the rest of the Flags cache (config/lists) because the
+      // page may already be using it for the form / table.
+      if (root.Api && root.Api.invalidate) root.Api.invalidate('/whoami');
+      return root.Flags.whoami(true).then((who) => {
+        for (const a of document.querySelectorAll('[data-tsh-role-link]')) {
+          const need = a.getAttribute('data-tsh-role-link');
+          a.hidden = !root.Flags.isAtLeast(who.primary, need);
+        }
+      }).catch(() => hideRoleLinks());
+    };
+
+    let lastSignedIn = null;
     root.Auth.onChange((s) => {
       if (s.signedIn) {
         userEl.textContent = s.email;
@@ -146,18 +165,20 @@
         userEl.classList.add('tsh-user-anon');
         signin.hidden = false;
         signout.hidden = true;
+        hideRoleLinks();
+      }
+      // Re-fetch /whoami whenever the auth state actually flips so role-gated
+      // nav links (Manager / Committee / Settings) appear immediately after
+      // sign-in instead of only on the next full page load.
+      if (s.signedIn !== lastSignedIn) {
+        lastSignedIn = s.signedIn;
+        if (s.signedIn) refreshRoleLinks();
       }
     });
 
-    // Reveal role-gated nav links after /whoami resolves.
-    if (root.Flags) {
-      root.Flags.whoami(true).then((who) => {
-        for (const a of document.querySelectorAll('[data-tsh-role-link]')) {
-          const need = a.getAttribute('data-tsh-role-link');
-          a.hidden = !root.Flags.isAtLeast(who.primary, need);
-        }
-      }).catch(() => { /* anon — nav stays hidden */ });
-    }
+    // Anonymous initial reveal — runs even without a token so cached /whoami
+    // (e.g. silent re-auth completed before bindHeader fires) is honoured.
+    refreshRoleLinks();
   }
 
   root.UI = { el, $, toast, modal, confirmModal, formatRel, copyToClipboard, statusPill, severityPill, bindHeader };

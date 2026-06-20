@@ -55,6 +55,9 @@
     state.name = claims.name || null;
     state.picture = claims.picture || null;
     state.expiry = (claims.exp || 0) * 1000;
+    // Tab-scoped hint (NOT the token, NOT the email) so the next page in
+    // this tab knows to ask GIS for silent re-auth. Cleared on signOut.
+    try { sessionStorage.setItem('tsh_signed_in', '1'); } catch (_e) { /* ignore */ }
     notify();
   }
 
@@ -64,6 +67,7 @@
     state.name = null;
     state.picture = null;
     state.expiry = 0;
+    try { sessionStorage.removeItem('tsh_signed_in'); } catch (_e) { /* ignore */ }
     notify();
   }
 
@@ -85,9 +89,18 @@
     window.google.accounts.id.initialize({
       client_id: state.clientId,
       callback: (resp) => { if (resp && resp.credential) applyToken(resp.credential); },
-      auto_select: false,
+      auto_select: true,           // silent re-auth for returning users
       cancel_on_tap_outside: true,
     });
+    // Silent re-auth: only ask GIS to re-emit a credential if THIS tab
+    // has previously seen the user signed in. Avoids surprising anonymous
+    // landing-page visitors with a One Tap prompt. No PII is stored — the
+    // JWT is fetched fresh from Google on every page load (spec §3.3).
+    let hint = '';
+    try { hint = sessionStorage.getItem('tsh_signed_in') || ''; } catch (_e) { /* ignore */ }
+    if (hint === '1') {
+      try { window.google.accounts.id.prompt(); } catch (_e) { /* ignore */ }
+    }
     // Re-trigger UI even if no user yet — surfaces sign-in button etc.
     notify();
   }
