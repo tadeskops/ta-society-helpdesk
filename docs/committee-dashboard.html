@@ -1,13 +1,13 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Committee dashboard · TSH</title>
+  <title>Committee dashboard Â· TSH</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#1a1f2e" />
   <link rel="icon" href="./assets/images/logo.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="./assets/css/theme.css" />
+  <link rel="stylesheet" href="./assets/css/theme.css?v=2" />
 </head>
 <body class="tsh-page">
   <div data-include="header"></div>
@@ -19,7 +19,7 @@
       <header class="tsh-card-head tsh-card-head-row">
         <div>
           <h1><i class="fas fa-people-group gold-accent"></i> Committee dashboard</h1>
-          <p class="tsh-sub">Full lifecycle control — delete, redact, bulk archive, audit.</p>
+          <p class="tsh-sub">Full lifecycle control â€” delete, redact, bulk archive, audit.</p>
         </div>
         <div class="tsh-toolbar">
           <select id="filterTower"><option value="">All towers</option></select>
@@ -32,7 +32,7 @@
             <option value="low">Low</option>
           </select>
           <button type="button" class="tsh-btn tsh-btn-ghost" id="refreshBtn"><i class="fas fa-sync-alt"></i>Refresh</button>
-          <button type="button" class="tsh-btn tsh-btn-ghost" id="bulkArchiveBtn"><i class="fas fa-box-archive"></i>Bulk archive…</button>
+          <button type="button" class="tsh-btn tsh-btn-ghost" id="bulkArchiveBtn"><i class="fas fa-box-archive"></i>Bulk archiveâ€¦</button>
           <button type="button" class="tsh-btn tsh-btn-ghost" id="auditBtn" data-tsh-flag="FEATURE_DAILY_AUDIT_LOG_UI"><i class="fas fa-clipboard-list"></i>View audit log</button>
         </div>
       </header>
@@ -69,13 +69,13 @@
 
   <div data-include="footer"></div>
 
-  <script src="./assets/js/config.js"></script>
-  <script src="./assets/js/partials.js"></script>
-  <script src="./assets/js/api.js"></script>
-  <script src="./assets/js/auth.js"></script>
-  <script src="./assets/js/flags.js"></script>
-  <script src="./assets/js/ui.js"></script>
-  <script src="./assets/js/dashboard.js"></script>
+  <script src="./assets/js/config.js?v=2"></script>
+  <script src="./assets/js/partials.js?v=2"></script>
+  <script src="./assets/js/api.js?v=2"></script>
+  <script src="./assets/js/auth.js?v=2"></script>
+  <script src="./assets/js/flags.js?v=2"></script>
+  <script src="./assets/js/ui.js?v=2"></script>
+  <script src="./assets/js/dashboard.js?v=2"></script>
   <script>
   (async () => {
     await Partials.mount();

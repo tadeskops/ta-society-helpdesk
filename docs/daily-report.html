@@ -1,13 +1,13 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Report a daily issue · TSH</title>
+  <title>Report a daily issue Â· TSH</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#1a1f2e" />
   <link rel="icon" href="./assets/images/logo.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="./assets/css/theme.css" />
+  <link rel="stylesheet" href="./assets/css/theme.css?v=2" />
 </head>
 <body class="tsh-page">
   <div data-include="header"></div>
@@ -75,7 +75,7 @@
           <label class="tsh-field">
             <span class="tsh-label">Phone (WhatsApp)</span>
             <input type="tel" name="reporterPhone" maxlength="20" autocomplete="tel"
-                   placeholder="10-digit Indian mobile or +country…" />
+                   placeholder="10-digit Indian mobile or +countryâ€¦" />
           </label>
           <label class="tsh-field tsh-field-inline" data-tsh-flag="FEATURE_DAILY_WHATSAPP_SHARE">
             <input type="checkbox" name="reporterNotifyWhatsApp" />
@@ -96,12 +96,12 @@
 
   <div data-include="footer"></div>
 
-  <script src="./assets/js/config.js"></script>
-  <script src="./assets/js/partials.js"></script>
-  <script src="./assets/js/api.js"></script>
-  <script src="./assets/js/auth.js"></script>
-  <script src="./assets/js/flags.js"></script>
-  <script src="./assets/js/ui.js"></script>
+  <script src="./assets/js/config.js?v=2"></script>
+  <script src="./assets/js/partials.js?v=2"></script>
+  <script src="./assets/js/api.js?v=2"></script>
+  <script src="./assets/js/auth.js?v=2"></script>
+  <script src="./assets/js/flags.js?v=2"></script>
+  <script src="./assets/js/ui.js?v=2"></script>
   <script>
   (async () => {
     await Partials.mount();
@@ -189,7 +189,7 @@
 
       const btn = document.getElementById('submitBtn');
       const status = document.getElementById('formStatus');
-      btn.disabled = true; status.textContent = 'Submitting…';
+      btn.disabled = true; status.textContent = 'Submittingâ€¦';
       try {
         const created = await Api.post('/issues', payload);
 
@@ -197,7 +197,7 @@
         const files = form.querySelector('input[name="photos"]').files;
         const photoCount = Math.min(files.length, 5);
         for (let i = 0; i < photoCount; i++) {
-          status.textContent = `Uploading photo ${i + 1} of ${photoCount}…`;
+          status.textContent = `Uploading photo ${i + 1} of ${photoCount}â€¦`;
           const b64 = await fileToBase64(files[i]);
           await Api.post(`/issues/${created.id}/photos`, {
             filename: files[i].name || `photo-${i + 1}.jpg`,

@@ -8,10 +8,11 @@
 (function (root) {
   'use strict';
   const cache = new Map();
+  const VERSION = 'v=2';   // bump when partials change so browsers refresh
 
   async function load(name) {
     if (cache.has(name)) return cache.get(name);
-    const p = fetch(`./partials/${name}.html`, { credentials: 'omit' })
+    const p = fetch(`./partials/${name}.html?${VERSION}`, { credentials: 'omit' })
       .then((r) => {
         if (!r.ok) throw new Error(`partial ${name}: HTTP ${r.status}`);
         return r.text();

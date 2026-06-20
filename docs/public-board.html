@@ -1,13 +1,13 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Public board · TSH</title>
+  <title>Public board Â· TSH</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#1a1f2e" />
   <link rel="icon" href="./assets/images/logo.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="./assets/css/theme.css" />
+  <link rel="stylesheet" href="./assets/css/theme.css?v=2" />
 </head>
 <body class="tsh-page">
   <div data-include="header"></div>
@@ -23,7 +23,7 @@
         </div>
         <label class="tsh-field tsh-field-inline tsh-search">
           <span class="tsh-visually-hidden">Search ticket id</span>
-          <input type="search" id="searchInput" placeholder="DLY-00042…" autocomplete="off" />
+          <input type="search" id="searchInput" placeholder="DLY-00042â€¦" autocomplete="off" />
         </label>
       </header>
 
@@ -44,12 +44,12 @@
 
   <div data-include="footer"></div>
 
-  <script src="./assets/js/config.js"></script>
-  <script src="./assets/js/partials.js"></script>
-  <script src="./assets/js/api.js"></script>
-  <script src="./assets/js/auth.js"></script>
-  <script src="./assets/js/flags.js"></script>
-  <script src="./assets/js/ui.js"></script>
+  <script src="./assets/js/config.js?v=2"></script>
+  <script src="./assets/js/partials.js?v=2"></script>
+  <script src="./assets/js/api.js?v=2"></script>
+  <script src="./assets/js/auth.js?v=2"></script>
+  <script src="./assets/js/flags.js?v=2"></script>
+  <script src="./assets/js/ui.js?v=2"></script>
   <script>
   (async () => {
     await Partials.mount();
@@ -57,7 +57,7 @@
     UI.bindHeader();
 
     try { await Flags.ready(); }
-    catch (_e) { /* fall through — list still works */ }
+    catch (_e) { /* fall through â€” list still works */ }
 
     // Hide flag-gated tabs.
     for (const el of document.querySelectorAll('.tsh-tab[data-tsh-flag]')) {
@@ -96,10 +96,10 @@
         UI.el('code', { class: 'tsh-id' }, i.id),
         UI.statusPill(i.status));
       const meta = UI.el('div', { class: 'tsh-board-card-meta' },
-        UI.el('span', null, i.tower || '—'),
-        UI.el('span', null, ' · '),
-        UI.el('span', null, i.category || '—'),
-        UI.el('span', null, ' · '),
+        UI.el('span', null, i.tower || 'â€”'),
+        UI.el('span', null, ' Â· '),
+        UI.el('span', null, i.category || 'â€”'),
+        UI.el('span', null, ' Â· '),
         UI.el('span', { class: 'tsh-text-muted' }, UI.formatRel(i.updatedAt || i.createdAt)));
       const body = UI.el('p', { class: 'tsh-board-card-body' }, (i.description || '').slice(0, 200));
       return UI.el('article', { class: 'tsh-board-card' }, head, meta, body);
