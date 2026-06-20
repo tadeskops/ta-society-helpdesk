@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#0d6f6f" />
   <link rel="icon" href="./assets/images/logo.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="./assets/css/theme.css" />
 </head>
 <body class="tsh-page">
@@ -16,7 +17,7 @@
   <main class="tsh-main">
     <section class="tsh-card tsh-card-confirm" id="confirmCard">
       <header class="tsh-card-head">
-        <span class="tsh-check" aria-hidden="true">✓</span>
+        <span class="tsh-check" aria-hidden="true"><i class="fas fa-check"></i></span>
         <h1>Your report is in.</h1>
         <p class="tsh-sub">Track the status with your ticket id.</p>
       </header>
@@ -25,7 +26,7 @@
         <span class="tsh-eyebrow">Ticket ID</span>
         <div class="tsh-tracking-id">
           <code id="ticketId">—</code>
-          <button type="button" class="tsh-btn tsh-btn-ghost" id="copyBtn">Copy</button>
+          <button type="button" class="tsh-btn tsh-btn-ghost tsh-btn-sm" id="copyBtn"><i class="fas fa-copy"></i>Copy</button>
         </div>
       </div>
 
@@ -42,9 +43,9 @@
       </ol>
 
       <div class="tsh-form-actions">
-        <button type="button" class="tsh-btn tsh-btn-primary" id="shareBtn" hidden>Share on WhatsApp</button>
-        <a class="tsh-btn tsh-btn-ghost" href="./public-board.html">View public board</a>
-        <a class="tsh-btn tsh-btn-ghost" href="./daily-report.html">Report another</a>
+        <button type="button" class="tsh-btn tsh-btn-primary" id="shareBtn" hidden><i class="fab fa-whatsapp"></i>Share on WhatsApp</button>
+        <a class="tsh-btn tsh-btn-ghost" href="./public-board.html"><i class="fas fa-list-check"></i>View public board</a>
+        <a class="tsh-btn tsh-btn-ghost" href="./daily-report.html"><i class="fas fa-plus"></i>Report another</a>
       </div>
     </section>
   </main>

@@ -7,6 +7,7 @@
   <meta name="theme-color" content="#0d6f6f" />
   <meta name="description" content="Tower Apartments — report daily issues or handover snags." />
   <link rel="icon" href="./assets/images/logo.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="./assets/css/theme.css" />
 </head>
 <body class="tsh-page tsh-page-landing">
@@ -22,24 +23,24 @@
 
     <section class="tsh-card-grid" aria-label="Report tracks">
       <a class="tsh-track-card tsh-track-daily" href="./daily-report.html">
-        <span class="tsh-track-icon" aria-hidden="true">🔧</span>
+        <span class="tsh-track-icon" aria-hidden="true"><i class="fas fa-screwdriver-wrench"></i></span>
         <h2>Daily issue</h2>
         <p>Lift, water, lights, cleaning, security — anything that needs the manager's attention today.</p>
-        <span class="tsh-cta">Report now →</span>
+        <span class="tsh-cta">Report now <i class="fas fa-arrow-right"></i></span>
       </a>
       <a class="tsh-track-card tsh-track-handover" data-tsh-handover-link href="#" hidden>
-        <span class="tsh-track-icon" aria-hidden="true">🏗</span>
+        <span class="tsh-track-icon" aria-hidden="true"><i class="fas fa-building"></i></span>
         <h2>Handover snag</h2>
         <p>Construction defects and builder warranty work go to the TA Committee tracker.</p>
-        <span class="tsh-cta">Open handover portal →</span>
+        <span class="tsh-cta">Open handover portal <i class="fas fa-arrow-up-right-from-square"></i></span>
       </a>
     </section>
 
     <section class="tsh-sub-actions">
       <p class="tsh-eyebrow">Already reported?</p>
       <div class="tsh-button-row">
-        <a class="tsh-btn tsh-btn-ghost" href="./public-board.html">View public board</a>
-        <a class="tsh-btn tsh-btn-ghost" data-tsh-fullreport href="#" hidden>View full report</a>
+        <a class="tsh-btn tsh-btn-ghost" href="./public-board.html"><i class="fas fa-list-check"></i>View public board</a>
+        <a class="tsh-btn tsh-btn-ghost" data-tsh-fullreport href="#" hidden><i class="fas fa-file-pdf"></i>View full report</a>
       </div>
     </section>
   </main>
