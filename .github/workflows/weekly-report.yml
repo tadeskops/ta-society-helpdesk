@@ -1,0 +1,75 @@
+# Scheduled weekly report.
+#
+# Generates two PDFs from the GitHub Issues data:
+#   - backups/TSH_Report.pdf       (anonymised — no reporter PII)
+#   - backups/TSH_Full_Report.pdf  (full content — for committee + developer)
+#
+# Commits both back to main on completion. The Worker's REST surface is
+# used for the data read so PII redaction lives in one place (spec §15.1).
+#
+# Cron: Mondays 07:00 IST = 01:30 UTC. Manual dispatch supported.
+#
+# Policy: ubuntu-latest only; uses the public registry pinned by .npmrc.
+name: weekly-report
+
+on:
+  schedule:
+    - cron: '30 1 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: weekly-report
+  cancel-in-progress: false
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install report deps
+        run: |
+          mkdir -p .ci-tools
+          cd .ci-tools
+          cat > package.json <<'JSON'
+          {
+            "name": "tsh-report-tools",
+            "private": true,
+            "type": "module",
+            "dependencies": {
+              "pdfkit": "^0.15.0"
+            }
+          }
+          JSON
+          cat > .npmrc <<'NPMRC'
+          registry=https://registry.npmjs.org/
+          fund=false
+          audit=false
+          NPMRC
+          npm install --no-audit --no-fund
+
+      - name: Generate PDFs
+        env:
+          WORKER_URL: ${{ secrets.TSH_WORKER_URL }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: node scripts/weekly-report.mjs
+
+      - name: Commit reports
+        run: |
+          git config user.name  'tadeskops'
+          git config user.email 'ta.deskops@gmail.com'
+          if [ -n "$(git status --porcelain backups/)" ]; then
+            git add backups/
+            git commit -m "chore(report): weekly PDFs $(date -u +%Y-%m-%d)"
+            git push
+          else
+            echo "No PDF changes to commit."
+          fi

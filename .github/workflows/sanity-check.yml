@@ -1,0 +1,50 @@
+# Sanity check on every PR + push to main.
+# Typecheck + tests for the worker.
+#
+# Policy: public npm registry only; ubuntu-latest only.
+name: sanity-check
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  worker:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: worker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: worker/package-lock.json
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npx vitest run --reporter=verbose
+
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint HTML for obvious issues
+        run: |
+          set -e
+          # Cheap syntax sanity: every <script> tag has a closing </script>.
+          for f in docs/*.html; do
+            opens=$(grep -c '<script' "$f" || true)
+            closes=$(grep -c '</script>' "$f" || true)
+            if [ "$opens" != "$closes" ]; then
+              echo "::error file=$f::unbalanced <script> tags ($opens open, $closes close)"
+              exit 1
+            fi
+          done
+          echo "HTML script-tag balance OK across docs/"

@@ -1,0 +1,55 @@
+# Deploys the Cloudflare Worker via wrangler.
+#
+# Requires repository secrets (set under tadeskops account):
+#   CLOUDFLARE_API_TOKEN   - scoped to Workers Edit
+#   CLOUDFLARE_ACCOUNT_ID  - cloudflare account id
+#
+# Spec: tsh_requirement.md §11.
+# Policy: public npm registry pinned via worker/.npmrc; runners must be
+# the hosted ubuntu-latest (no self-hosted, no corp registries).
+name: deploy-worker
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'worker/**'
+      - '.github/workflows/deploy-worker.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-worker
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: worker
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: worker/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Unit tests
+        run: npx vitest run
+
+      - name: Publish to Cloudflare Workers
+        run: npx wrangler deploy --minify
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
