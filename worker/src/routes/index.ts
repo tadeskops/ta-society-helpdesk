@@ -1,33 +1,23 @@
-// Route registry. Phase 1 ships the bare-minimum read endpoints
-// (whoami + config). Phase 2 adds the rest (issues CRUD, settings PUT,
-// access-list PUT, audit GET). Spec: tsh_requirement.md §5.
+// Route registry. All 13 spec routes (§5) are mounted here. Per-area
+// handlers live alongside this file (whoami, config, issues, public,
+// access, audit).
 
 import { Router } from '../lib/router.ts';
-import type { Ctx } from '../lib/ctx.ts';
-import { ok } from '../lib/envelope.ts';
-import { ensureAllowed } from '../middleware/rbac.ts';
+import { mountWhoami } from './whoami.ts';
+import { mountConfig } from './config.ts';
+import { mountIssues } from './issues.ts';
+import { mountPublic } from './public.ts';
+import { mountAccess } from './access.ts';
+import { mountAudit } from './audit.ts';
 
 export const buildRouter = (): Router => {
   const r = new Router();
-
-  // ---- whoami (any verified caller; anonymous returns UNKNOWN) ----
-  r.get('/whoami', (ctx: Ctx) => {
-    ensureAllowed(ctx, {}); // no role / flag constraints
-    return ok(ctx.env, ctx.req, {
-      email: ctx.roles.email,
-      roles: ctx.roles.all,
-      primary: ctx.roles.primary,
-    });
-  });
-
-  // ---- config (anonymous; PII-free) ----
-  r.get('/config', (ctx: Ctx) => {
-    ensureAllowed(ctx, {});
-    return ok(ctx.env, ctx.req, ctx.config);
-  });
-
-  // ---- TODO Phase 2: issues, photos, redact, delete, bulk-archive,
-  //                    access-lists GET/PUT, config PUT, audit GET ----
-
+  mountWhoami(r);
+  mountConfig(r);
+  mountIssues(r);
+  mountPublic(r);
+  mountAccess(r);
+  mountAudit(r);
   return r;
 };
+

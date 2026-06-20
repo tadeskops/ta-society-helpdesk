@@ -104,6 +104,34 @@ export const appendToFile = async (
   await putFile(env, path, next, message, authorEmail, existing?.sha);
 };
 
+/** Upload a binary file whose content is already base64-encoded. */
+export const putBinaryB64 = async (
+  env: Env,
+  path: string,
+  contentB64: string,
+  message: string,
+  authorEmail: string,
+): Promise<{ sha: string }> => {
+  const url = `${API}/repos/${repoPath(env)}/contents/${encodeURI(path)}`;
+  const existing = await getFile(env, path);
+  const body: Record<string, unknown> = {
+    message,
+    content: contentB64,
+    branch: env.GH_BRANCH,
+    committer: { name: 'tsh-worker', email: 'tsh-worker@users.noreply.github.com' },
+    author: { name: 'tsh-worker', email: authorEmail },
+  };
+  if (existing) body['sha'] = existing.sha;
+  const res = await fetch(url, { method: 'PUT', headers: { ...headers(env), 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!res.ok) {
+    const text = await res.text();
+    log.error(env, 'github_put_binary_failed', { path, status: res.status, body: text.slice(0, 200) });
+    throw new UpstreamError(`GitHub putBinary ${path} -> ${res.status}`);
+  }
+  const json = (await res.json()) as { content: { sha: string } };
+  return { sha: json.content.sha };
+};
+
 // ---- Issues ---------------------------------------------------------------
 
 export interface GhIssue {

@@ -55,12 +55,15 @@ export const verifyGoogleJwt = async (env: Env, req: Request): Promise<Identity 
   const email = typeof payload['email'] === 'string' ? (payload['email'] as string).toLowerCase() : undefined;
   if (!email) throw new Unauthorized('JWT has no email claim');
 
+  const name = typeof payload['name'] === 'string' ? (payload['name'] as string) : undefined;
+  const picture = typeof payload['picture'] === 'string' ? (payload['picture'] as string) : undefined;
+
   return {
     email,
     emailVerified: payload['email_verified'] === true,
-    name: typeof payload['name'] === 'string' ? (payload['name'] as string) : undefined,
-    picture: typeof payload['picture'] === 'string' ? (payload['picture'] as string) : undefined,
     sub: String(payload.sub ?? ''),
+    ...(name !== undefined ? { name } : {}),
+    ...(picture !== undefined ? { picture } : {}),
   };
 };
 

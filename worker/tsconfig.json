@@ -13,6 +13,7 @@
     "noUnusedParameters": true,
     "exactOptionalPropertyTypes": true,
     "isolatedModules": true,
+    "allowImportingTsExtensions": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,

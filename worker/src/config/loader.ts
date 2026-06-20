@@ -7,6 +7,8 @@ import { getJson } from '../github/client.ts';
 import { DEFAULT_CONFIG, type SiteConfig, tunable } from './defaults.ts';
 import { log } from '../lib/log.ts';
 
+export type { SiteConfig };
+
 export interface AccessLists {
   managers: string[];
   committee: string[];
