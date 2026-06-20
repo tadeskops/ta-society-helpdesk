@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Report received · TSH</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0d6f6f" />
+  <link rel="icon" href="./assets/images/logo.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="./assets/css/theme.css" />
+</head>
+<body class="tsh-page">
+  <div data-include="header"></div>
+  <div data-include="toast"></div>
+  <div data-include="modal"></div>
+
+  <main class="tsh-main">
+    <section class="tsh-card tsh-card-confirm" id="confirmCard">
+      <header class="tsh-card-head">
+        <span class="tsh-check" aria-hidden="true">✓</span>
+        <h1>Your report is in.</h1>
+        <p class="tsh-sub">Track the status with your ticket id.</p>
+      </header>
+
+      <div class="tsh-tracking-row">
+        <span class="tsh-eyebrow">Ticket ID</span>
+        <div class="tsh-tracking-id">
+          <code id="ticketId">—</code>
+          <button type="button" class="tsh-btn tsh-btn-ghost" id="copyBtn">Copy</button>
+        </div>
+      </div>
+
+      <div class="tsh-meta-grid" id="ticketMeta" hidden>
+        <div><span class="tsh-eyebrow">Tower</span><span data-field="tower">—</span></div>
+        <div><span class="tsh-eyebrow">Category</span><span data-field="category">—</span></div>
+        <div><span class="tsh-eyebrow">Status</span><span data-field="status">—</span></div>
+      </div>
+
+      <ol class="tsh-steps">
+        <li><strong>Manager review.</strong> The on-site manager triages and assigns within working hours.</li>
+        <li><strong>Action.</strong> Your issue moves to <em>In progress</em>. Updates appear on the public board.</li>
+        <li><strong>Resolution.</strong> You'll see <em>Resolved</em> here. If you opted in, WhatsApp will ping you.</li>
+      </ol>
+
+      <div class="tsh-form-actions">
+        <button type="button" class="tsh-btn tsh-btn-primary" id="shareBtn" hidden>Share on WhatsApp</button>
+        <a class="tsh-btn tsh-btn-ghost" href="./public-board.html">View public board</a>
+        <a class="tsh-btn tsh-btn-ghost" href="./daily-report.html">Report another</a>
+      </div>
+    </section>
+  </main>
+
+  <div data-include="footer"></div>
+
+  <script src="./assets/js/config.js"></script>
+  <script src="./assets/js/partials.js"></script>
+  <script src="./assets/js/api.js"></script>
+  <script src="./assets/js/auth.js"></script>
+  <script src="./assets/js/flags.js"></script>
+  <script src="./assets/js/ui.js"></script>
+  <script>
+  (async () => {
+    await Partials.mount();
+    await Auth.init({ clientId: window.TSH_GOOGLE_CLIENT_ID });
+    UI.bindHeader();
+
+    const params = new URLSearchParams(location.search);
+    const id = (params.get('id') || '').trim().toUpperCase();
+    document.getElementById('ticketId').textContent = id || '—';
+    document.getElementById('copyBtn').addEventListener('click', () => UI.copyToClipboard(id));
+
+    if (!id) return;
+
+    try {
+      await Flags.ready();
+    } catch (_e) { /* non-fatal */ }
+
+    try {
+      const pub = await Api.get(`/issues/${encodeURIComponent(id)}/public`);
+      const meta = document.getElementById('ticketMeta');
+      meta.hidden = false;
+      meta.querySelector('[data-field="tower"]').textContent = pub.tower || '—';
+      meta.querySelector('[data-field="category"]').textContent = pub.category || '—';
+      const statusEl = meta.querySelector('[data-field="status"]');
+      statusEl.textContent = '';
+      statusEl.appendChild(UI.statusPill(pub.status));
+    } catch (e) {
+      // Public read may legitimately 404 if the issue was deleted — keep id visible.
+      console.warn(e);
+    }
+
+    if (window.Flags && Flags.on && Flags.on('FEATURE_DAILY_WHATSAPP_SHARE')) {
+      const share = document.getElementById('shareBtn');
+      share.hidden = false;
+      share.addEventListener('click', () => {
+        const text = `I just reported issue ${id} on TA Society Helpdesk. Track it at ${location.origin}${location.pathname}?id=${encodeURIComponent(id)}`;
+        const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+        window.open(url, '_blank', 'noopener');
+      });
+    }
+  })();
+  </script>
+</body>
+</html>

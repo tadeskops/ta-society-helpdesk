@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>TA Society Helpdesk</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0d6f6f" />
+  <meta name="description" content="Tower Apartments — report daily issues or handover snags." />
+  <link rel="icon" href="./assets/images/logo.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="./assets/css/theme.css" />
+</head>
+<body class="tsh-page tsh-page-landing">
+  <div data-include="header"></div>
+  <div data-include="toast"></div>
+  <div data-include="modal"></div>
+
+  <main class="tsh-main">
+    <section class="tsh-hero">
+      <h1>What would you like to report?</h1>
+      <p class="tsh-sub">Pick the track that fits — both are free and tracked.</p>
+    </section>
+
+    <section class="tsh-card-grid" aria-label="Report tracks">
+      <a class="tsh-track-card tsh-track-daily" href="./daily-report.html">
+        <span class="tsh-track-icon" aria-hidden="true">🔧</span>
+        <h2>Daily issue</h2>
+        <p>Lift, water, lights, cleaning, security — anything that needs the manager's attention today.</p>
+        <span class="tsh-cta">Report now →</span>
+      </a>
+      <a class="tsh-track-card tsh-track-handover" data-tsh-handover-link href="#" hidden>
+        <span class="tsh-track-icon" aria-hidden="true">🏗</span>
+        <h2>Handover snag</h2>
+        <p>Construction defects and builder warranty work go to the TA Committee tracker.</p>
+        <span class="tsh-cta">Open handover portal →</span>
+      </a>
+    </section>
+
+    <section class="tsh-sub-actions">
+      <p class="tsh-eyebrow">Already reported?</p>
+      <div class="tsh-button-row">
+        <a class="tsh-btn tsh-btn-ghost" href="./public-board.html">View public board</a>
+        <a class="tsh-btn tsh-btn-ghost" data-tsh-fullreport href="#" hidden>View full report</a>
+      </div>
+    </section>
+  </main>
+
+  <div data-include="footer"></div>
+
+  <script src="./assets/js/config.js"></script>
+  <script src="./assets/js/partials.js"></script>
+  <script src="./assets/js/api.js"></script>
+  <script src="./assets/js/auth.js"></script>
+  <script src="./assets/js/flags.js"></script>
+  <script src="./assets/js/ui.js"></script>
+  <script>
+  (async () => {
+    await Partials.mount();
+    await Auth.init({ clientId: window.TSH_GOOGLE_CLIENT_ID });
+    UI.bindHeader();
+
+    try {
+      await Flags.ready();
+      // Wire the handover portal link from config (site.system.handoverPortalUrl).
+      const cfg = Flags.raw || {};
+      const handoverUrl = cfg.system && cfg.system.handoverPortalUrl;
+      const card = document.querySelector('[data-tsh-handover-link]');
+      if (handoverUrl) { card.href = handoverUrl; card.hidden = false; }
+
+      // Master kill switch for daily track (§14.2).
+      if (!Flags.on('FEATURE_DAILY_TRACK')) {
+        document.querySelector('.tsh-track-daily').classList.add('tsh-disabled');
+        UI.toast('Daily reporting is temporarily disabled.', { kind: 'warn', ttl: 8000 });
+      }
+    } catch (e) {
+      UI.toast('Couldn’t load site config — some links may be missing.', { kind: 'warn' });
+      console.error(e);
+    }
+  })();
+  </script>
+</body>
+</html>

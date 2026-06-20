@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Public board · TSH</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0d6f6f" />
+  <link rel="icon" href="./assets/images/logo.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="./assets/css/theme.css" />
+</head>
+<body class="tsh-page">
+  <div data-include="header"></div>
+  <div data-include="toast"></div>
+  <div data-include="modal"></div>
+
+  <main class="tsh-main">
+    <section class="tsh-card">
+      <header class="tsh-card-head tsh-card-head-row">
+        <div>
+          <h1>Public board</h1>
+          <p class="tsh-sub">All current daily issues. Personal details are hidden.</p>
+        </div>
+        <label class="tsh-field tsh-field-inline tsh-search">
+          <span class="tsh-visually-hidden">Search ticket id</span>
+          <input type="search" id="searchInput" placeholder="DLY-00042…" autocomplete="off" />
+        </label>
+      </header>
+
+      <nav class="tsh-tabs" role="tablist" aria-label="Status filter">
+        <button type="button" role="tab" aria-selected="true" data-filter="all"        class="tsh-tab tsh-tab-active">All</button>
+        <button type="button" role="tab" aria-selected="false" data-filter="new"        class="tsh-tab">New</button>
+        <button type="button" role="tab" aria-selected="false" data-filter="triaging"   class="tsh-tab">Triaging</button>
+        <button type="button" role="tab" aria-selected="false" data-filter="assigned"   class="tsh-tab">Assigned</button>
+        <button type="button" role="tab" aria-selected="false" data-filter="in_progress" class="tsh-tab">In progress</button>
+        <button type="button" role="tab" aria-selected="false" data-filter="resolved"   class="tsh-tab" data-tsh-flag="FEATURE_DAILY_PUBLIC_RESOLVED">Resolved</button>
+        <button type="button" role="tab" aria-selected="false" data-filter="rejected"   class="tsh-tab" data-tsh-flag="FEATURE_DAILY_PUBLIC_REJECTED">Rejected</button>
+      </nav>
+
+      <div id="boardList" class="tsh-board-list" aria-live="polite"></div>
+      <p id="boardEmpty" class="tsh-hint" hidden>No issues match this filter.</p>
+    </section>
+  </main>
+
+  <div data-include="footer"></div>
+
+  <script src="./assets/js/config.js"></script>
+  <script src="./assets/js/partials.js"></script>
+  <script src="./assets/js/api.js"></script>
+  <script src="./assets/js/auth.js"></script>
+  <script src="./assets/js/flags.js"></script>
+  <script src="./assets/js/ui.js"></script>
+  <script>
+  (async () => {
+    await Partials.mount();
+    await Auth.init({ clientId: window.TSH_GOOGLE_CLIENT_ID });
+    UI.bindHeader();
+
+    try { await Flags.ready(); }
+    catch (_e) { /* fall through — list still works */ }
+
+    // Hide flag-gated tabs.
+    for (const el of document.querySelectorAll('.tsh-tab[data-tsh-flag]')) {
+      const flag = el.getAttribute('data-tsh-flag');
+      if (Flags.raw && !Flags.on(flag)) el.hidden = true;
+    }
+
+    let all = [];
+    try {
+      const res = await Api.get('/issues/public');
+      all = Array.isArray(res) ? res : (res.items || []);
+    } catch (e) {
+      UI.toast('Could not load the board.', { kind: 'danger' });
+      console.error(e); return;
+    }
+
+    let filter = 'all';
+    let query  = '';
+    const list  = document.getElementById('boardList');
+    const empty = document.getElementById('boardEmpty');
+
+    function render() {
+      list.innerHTML = '';
+      const q = query.trim().toUpperCase();
+      const filtered = all.filter((i) => {
+        if (filter !== 'all' && i.status !== filter) return false;
+        if (q && !(i.id || '').toUpperCase().includes(q)) return false;
+        return true;
+      });
+      empty.hidden = filtered.length !== 0;
+      for (const i of filtered) list.appendChild(card(i));
+    }
+
+    function card(i) {
+      const head = UI.el('div', { class: 'tsh-board-card-head' },
+        UI.el('code', { class: 'tsh-id' }, i.id),
+        UI.statusPill(i.status));
+      const meta = UI.el('div', { class: 'tsh-board-card-meta' },
+        UI.el('span', null, i.tower || '—'),
+        UI.el('span', null, ' · '),
+        UI.el('span', null, i.category || '—'),
+        UI.el('span', null, ' · '),
+        UI.el('span', { class: 'tsh-text-muted' }, UI.formatRel(i.updatedAt || i.createdAt)));
+      const body = UI.el('p', { class: 'tsh-board-card-body' }, (i.description || '').slice(0, 200));
+      return UI.el('article', { class: 'tsh-board-card' }, head, meta, body);
+    }
+
+    for (const tab of document.querySelectorAll('.tsh-tab')) {
+      tab.addEventListener('click', () => {
+        for (const t of document.querySelectorAll('.tsh-tab')) {
+          t.classList.remove('tsh-tab-active');
+          t.setAttribute('aria-selected', 'false');
+        }
+        tab.classList.add('tsh-tab-active');
+        tab.setAttribute('aria-selected', 'true');
+        filter = tab.dataset.filter;
+        render();
+      });
+    }
+    document.getElementById('searchInput').addEventListener('input', (e) => {
+      query = e.target.value; render();
+    });
+
+    render();
+  })();
+  </script>
+</body>
+</html>

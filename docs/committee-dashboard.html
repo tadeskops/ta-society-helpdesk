@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Committee dashboard · TSH</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0d6f6f" />
+  <link rel="icon" href="./assets/images/logo.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="./assets/css/theme.css" />
+</head>
+<body class="tsh-page">
+  <div data-include="header"></div>
+  <div data-include="toast"></div>
+  <div data-include="modal"></div>
+
+  <main class="tsh-main tsh-main-wide">
+    <section class="tsh-card">
+      <header class="tsh-card-head tsh-card-head-row">
+        <div>
+          <h1>Committee dashboard</h1>
+          <p class="tsh-sub">Full lifecycle control — delete, redact, bulk archive, audit.</p>
+        </div>
+        <div class="tsh-toolbar">
+          <select id="filterTower"><option value="">All towers</option></select>
+          <select id="filterCategory"><option value="">All categories</option></select>
+          <select id="filterSeverity">
+            <option value="">All severities</option>
+            <option value="critical">Critical</option>
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+          </select>
+          <button type="button" class="tsh-btn tsh-btn-ghost" id="refreshBtn">↻ Refresh</button>
+          <button type="button" class="tsh-btn tsh-btn-ghost" id="bulkArchiveBtn">Bulk archive…</button>
+          <button type="button" class="tsh-btn tsh-btn-ghost" id="auditBtn" data-tsh-flag="FEATURE_DAILY_AUDIT_LOG_UI">View audit log</button>
+        </div>
+      </header>
+
+      <nav class="tsh-tabs" role="tablist" aria-label="Status">
+        <button type="button" role="tab" aria-selected="true"  data-status="new"         class="tsh-tab tsh-tab-active">New</button>
+        <button type="button" role="tab" aria-selected="false" data-status="triaging"    class="tsh-tab">Triaging</button>
+        <button type="button" role="tab" aria-selected="false" data-status="assigned"    class="tsh-tab">Assigned</button>
+        <button type="button" role="tab" aria-selected="false" data-status="in_progress" class="tsh-tab">In progress</button>
+        <button type="button" role="tab" aria-selected="false" data-status="resolved"    class="tsh-tab">Resolved</button>
+        <button type="button" role="tab" aria-selected="false" data-status="rejected"    class="tsh-tab">Rejected</button>
+        <button type="button" role="tab" aria-selected="false" data-status=""            class="tsh-tab">All</button>
+      </nav>
+
+      <div class="tsh-table-wrap">
+        <table class="tsh-table" id="issuesTable" aria-live="polite">
+          <thead>
+            <tr>
+              <th scope="col">ID</th>
+              <th scope="col">Tower</th>
+              <th scope="col">Category</th>
+              <th scope="col">Severity</th>
+              <th scope="col">Status</th>
+              <th scope="col">Age</th>
+              <th scope="col" class="tsh-actions-col">Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p id="dashEmpty" class="tsh-hint" hidden>No issues match this filter.</p>
+    </section>
+  </main>
+
+  <div data-include="footer"></div>
+
+  <script src="./assets/js/config.js"></script>
+  <script src="./assets/js/partials.js"></script>
+  <script src="./assets/js/api.js"></script>
+  <script src="./assets/js/auth.js"></script>
+  <script src="./assets/js/flags.js"></script>
+  <script src="./assets/js/ui.js"></script>
+  <script src="./assets/js/dashboard.js"></script>
+  <script>
+  (async () => {
+    await Partials.mount();
+    await Auth.init({ clientId: window.TSH_GOOGLE_CLIENT_ID });
+    UI.bindHeader();
+
+    let who;
+    try {
+      who = await Flags.ensureAuthorized('COMMITTEE');
+    } catch (_e) { return; }
+
+    Dashboard.boot({ role: who.primary, allowDelete: true });
+
+    document.getElementById('bulkArchiveBtn').addEventListener('click', async () => {
+      const ok = await UI.confirmModal('Bulk archive resolved/rejected issues',
+        'This soft-deletes every resolved or rejected ticket older than the configured cutoff. Audit-logged. Continue?');
+      if (!ok) return;
+      try {
+        const res = await Api.post('/issues/bulk-archive', { confirm: true });
+        UI.toast(`Archived ${res.archived || 0} ticket(s).`, { kind: 'success' });
+        Dashboard.reload();
+      } catch (e) {
+        UI.toast(e.message || 'Bulk archive failed.', { kind: 'danger' });
+      }
+    });
+
+    const auditBtn = document.getElementById('auditBtn');
+    if (Flags.on('FEATURE_DAILY_AUDIT_LOG_UI')) {
+      auditBtn.hidden = false;
+      auditBtn.addEventListener('click', async () => {
+        try {
+          const entries = await Api.get('/audit?limit=200');
+          const body = document.createElement('div');
+          body.className = 'tsh-audit-list';
+          for (const e of entries) {
+            const row = UI.el('div', { class: 'tsh-audit-row' },
+              UI.el('span', { class: 'tsh-mono tsh-text-muted' }, new Date(e.at).toLocaleString()),
+              UI.el('span', { class: 'tsh-mono' }, e.actor),
+              UI.el('span', null, e.action),
+              UI.el('span', { class: 'tsh-text-muted' }, e.target || ''),
+              UI.el('span', { class: 'tsh-text-faint' }, e.detail || ''));
+            body.appendChild(row);
+          }
+          UI.modal({ title: 'Audit log (most recent first)', body, actions: [{ label: 'Close', value: true }] });
+        } catch (e) { UI.toast(e.message || 'Audit log unavailable.', { kind: 'danger' }); }
+      });
+    } else {
+      auditBtn.hidden = true;
+    }
+  })();
+  </script>
+</body>
+</html>

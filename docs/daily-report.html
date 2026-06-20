@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Report a daily issue · TSH</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0d6f6f" />
+  <link rel="icon" href="./assets/images/logo.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="./assets/css/theme.css" />
+</head>
+<body class="tsh-page">
+  <div data-include="header"></div>
+  <div data-include="toast"></div>
+  <div data-include="modal"></div>
+
+  <main class="tsh-main">
+    <section class="tsh-card tsh-card-form" id="reportCard">
+      <header class="tsh-card-head">
+        <h1>Report a daily issue</h1>
+        <p class="tsh-sub">Takes about 30 seconds. Photos help us fix it faster.</p>
+      </header>
+
+      <form id="reportForm" novalidate>
+        <fieldset class="tsh-field-group">
+          <legend>What's broken?</legend>
+
+          <label class="tsh-field">
+            <span class="tsh-label">Tower <span class="tsh-req">*</span></span>
+            <select name="tower" required data-tsh-list="towers"></select>
+          </label>
+
+          <label class="tsh-field">
+            <span class="tsh-label">Category <span class="tsh-req">*</span></span>
+            <select name="category" required data-tsh-list="categories"></select>
+          </label>
+
+          <label class="tsh-field">
+            <span class="tsh-label">What kind? <span class="tsh-req">*</span></span>
+            <select name="subCategory" required></select>
+          </label>
+
+          <label class="tsh-field">
+            <span class="tsh-label">Where exactly? <span class="tsh-req">*</span></span>
+            <input type="text" name="location" required maxlength="120"
+                   placeholder="e.g. Lobby, Lift A, Flat B-204" />
+          </label>
+
+          <label class="tsh-field">
+            <span class="tsh-label">Describe the issue <span class="tsh-req">*</span></span>
+            <textarea name="description" required rows="4" maxlength="2000"
+                      placeholder="What did you notice? When did it start?"></textarea>
+          </label>
+        </fieldset>
+
+        <fieldset class="tsh-field-group" data-tsh-flag="FEATURE_DAILY_PHOTO_UPLOAD">
+          <legend>Photos (optional)</legend>
+          <label class="tsh-field">
+            <span class="tsh-label">Up to 5 photos</span>
+            <input type="file" name="photos" accept="image/*" multiple capture="environment" />
+          </label>
+          <p class="tsh-hint">Photos are uploaded to the public repository alongside the ticket.</p>
+        </fieldset>
+
+        <fieldset class="tsh-field-group">
+          <legend>Your details (optional)</legend>
+          <label class="tsh-field">
+            <span class="tsh-label">Name</span>
+            <input type="text" name="reporterName" maxlength="80" autocomplete="name" />
+          </label>
+          <label class="tsh-field">
+            <span class="tsh-label">Flat</span>
+            <input type="text" name="reporterFlat" maxlength="20" placeholder="e.g. T2-1204" />
+          </label>
+          <label class="tsh-field">
+            <span class="tsh-label">Phone (WhatsApp)</span>
+            <input type="tel" name="reporterPhone" maxlength="20" autocomplete="tel"
+                   placeholder="10-digit Indian mobile or +country…" />
+          </label>
+          <label class="tsh-field tsh-field-inline" data-tsh-flag="FEATURE_DAILY_WHATSAPP_SHARE">
+            <input type="checkbox" name="reporterNotifyWhatsApp" />
+            <span>Notify me on WhatsApp when status changes</span>
+          </label>
+        </fieldset>
+
+        <div data-tsh-turnstile></div>
+
+        <div class="tsh-form-actions">
+          <button type="submit" class="tsh-btn tsh-btn-primary" id="submitBtn">Submit</button>
+          <a class="tsh-btn tsh-btn-ghost" href="./index.html">Cancel</a>
+        </div>
+        <p class="tsh-hint" id="formStatus" aria-live="polite"></p>
+      </form>
+    </section>
+  </main>
+
+  <div data-include="footer"></div>
+
+  <script src="./assets/js/config.js"></script>
+  <script src="./assets/js/partials.js"></script>
+  <script src="./assets/js/api.js"></script>
+  <script src="./assets/js/auth.js"></script>
+  <script src="./assets/js/flags.js"></script>
+  <script src="./assets/js/ui.js"></script>
+  <script>
+  (async () => {
+    await Partials.mount();
+    await Auth.init({ clientId: window.TSH_GOOGLE_CLIENT_ID });
+    UI.bindHeader();
+
+    let cfg;
+    try {
+      cfg = await Flags.ready();
+    } catch (e) {
+      UI.toast('Could not load site config. Try again later.', { kind: 'danger' });
+      console.error(e); return;
+    }
+
+    if (!Flags.on('FEATURE_DAILY_TRACK')) {
+      document.getElementById('reportCard').innerHTML =
+        '<h1>Daily reporting is temporarily disabled.</h1><p>Please check back later.</p>';
+      return;
+    }
+
+    // Anonymous gate.
+    if (!Flags.on('FEATURE_DAILY_ANONYMOUS_SUBMIT')) {
+      Auth.onChange((s) => {
+        const btn = document.getElementById('submitBtn');
+        btn.disabled = !s.signedIn;
+        if (!s.signedIn) document.getElementById('formStatus').textContent = 'Please sign in to submit.';
+        else document.getElementById('formStatus').textContent = '';
+      });
+    }
+
+    // Hide flag-gated sections.
+    for (const el of document.querySelectorAll('[data-tsh-flag]')) {
+      const flag = el.getAttribute('data-tsh-flag');
+      if (!Flags.on(flag)) el.hidden = true;
+    }
+
+    // Populate selects.
+    const towerSel = document.querySelector('select[name="tower"]');
+    for (const t of Flags.list('towers')) towerSel.appendChild(UI.el('option', { value: t }, t));
+
+    const catSel = document.querySelector('select[name="category"]');
+    const subSel = document.querySelector('select[name="subCategory"]');
+    for (const c of Flags.list('categories')) catSel.appendChild(UI.el('option', { value: c }, c));
+
+    function refreshSubcats() {
+      subSel.innerHTML = '';
+      for (const s of Flags.subcats(catSel.value)) subSel.appendChild(UI.el('option', { value: s }, s));
+    }
+    catSel.addEventListener('change', refreshSubcats);
+    refreshSubcats();
+
+    // Turnstile widget (only if FEATURE_DAILY_TURNSTILE).
+    let turnstileToken = null;
+    if (Flags.on('FEATURE_DAILY_TURNSTILE') && cfg.system && cfg.system.turnstileSiteKey) {
+      await new Promise((r) => {
+        const s = document.createElement('script');
+        s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
+        s.async = true; s.defer = true; s.onload = r; document.head.appendChild(s);
+      });
+      window.turnstile.render(document.querySelector('[data-tsh-turnstile]'), {
+        sitekey: cfg.system.turnstileSiteKey,
+        callback: (t) => { turnstileToken = t; },
+      });
+    }
+
+    // Submit.
+    document.getElementById('reportForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const data = Object.fromEntries(new FormData(form));
+      const payload = {
+        tower: data.tower,
+        category: data.category,
+        subCategory: data.subCategory,
+        location: data.location,
+        description: data.description,
+      };
+      if (data.reporterName)  payload.reporterName = data.reporterName;
+      if (data.reporterFlat)  payload.reporterFlat = data.reporterFlat;
+      if (data.reporterPhone) payload.reporterPhone = data.reporterPhone;
+      if (data.reporterNotifyWhatsApp) payload.reporterNotifyWhatsApp = true;
+      if (turnstileToken) payload.turnstileToken = turnstileToken;
+
+      const btn = document.getElementById('submitBtn');
+      const status = document.getElementById('formStatus');
+      btn.disabled = true; status.textContent = 'Submitting…';
+      try {
+        const created = await Api.post('/issues', payload);
+
+        // Photo upload (one POST per file, max 5).
+        const files = form.querySelector('input[name="photos"]').files;
+        const photoCount = Math.min(files.length, 5);
+        for (let i = 0; i < photoCount; i++) {
+          status.textContent = `Uploading photo ${i + 1} of ${photoCount}…`;
+          const b64 = await fileToBase64(files[i]);
+          await Api.post(`/issues/${created.id}/photos`, {
+            filename: files[i].name || `photo-${i + 1}.jpg`,
+            contentB64: b64,
+          });
+        }
+
+        location.replace(`./daily-confirm.html?id=${encodeURIComponent(created.id)}`);
+      } catch (err) {
+        btn.disabled = false;
+        status.textContent = err.message || 'Submit failed.';
+        UI.toast(err.message || 'Submit failed.', { kind: 'danger' });
+      }
+    });
+  })();
+
+  function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onerror = reject;
+      r.onload = () => {
+        const s = String(r.result);
+        const c = s.indexOf(',');
+        resolve(c === -1 ? s : s.slice(c + 1));
+      };
+      r.readAsDataURL(file);
+    });
+  }
+  </script>
+</body>
+</html>

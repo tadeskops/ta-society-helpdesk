@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Settings · TSH</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0d6f6f" />
+  <link rel="icon" href="./assets/images/logo.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="./assets/css/theme.css" />
+</head>
+<body class="tsh-page">
+  <div data-include="header"></div>
+  <div data-include="toast"></div>
+  <div data-include="modal"></div>
+
+  <main class="tsh-main tsh-main-wide">
+    <section class="tsh-card">
+      <header class="tsh-card-head tsh-card-head-row">
+        <div>
+          <h1>Settings</h1>
+          <p class="tsh-sub" id="roleHint">Developer: write · Committee: read-only.</p>
+        </div>
+        <div class="tsh-toolbar">
+          <button type="button" class="tsh-btn tsh-btn-primary" id="saveBtn" disabled>Save changes</button>
+        </div>
+      </header>
+
+      <form id="settingsForm" novalidate>
+        <details class="tsh-section" open>
+          <summary><h2>Access lists</h2></summary>
+          <div class="tsh-grid-3">
+            <label class="tsh-field">
+              <span class="tsh-label">Developers <span class="tsh-hint">(at least one)</span></span>
+              <textarea name="developers" rows="4" placeholder="one email per line"></textarea>
+            </label>
+            <label class="tsh-field">
+              <span class="tsh-label">Committee</span>
+              <textarea name="committee" rows="4" placeholder="one email per line"></textarea>
+            </label>
+            <label class="tsh-field">
+              <span class="tsh-label">Managers</span>
+              <textarea name="managers" rows="4" placeholder="one email per line"></textarea>
+            </label>
+          </div>
+        </details>
+
+        <details class="tsh-section" open>
+          <summary><h2>Feature flags</h2></summary>
+          <div class="tsh-grid-2" id="flagsGrid"></div>
+        </details>
+
+        <details class="tsh-section">
+          <summary><h2>Tunables</h2></summary>
+          <div class="tsh-grid-2" id="tunablesGrid"></div>
+        </details>
+
+        <details class="tsh-section">
+          <summary><h2>Lists (towers, categories, sub-categories)</h2></summary>
+          <label class="tsh-field">
+            <span class="tsh-label">Towers (comma-separated)</span>
+            <input type="text" name="lists.towers" />
+          </label>
+          <label class="tsh-field">
+            <span class="tsh-label">Categories (comma-separated)</span>
+            <input type="text" name="lists.categories" />
+          </label>
+          <label class="tsh-field">
+            <span class="tsh-label">Sub-categories (JSON: { "Category": ["sub", ...] })</span>
+            <textarea name="lists.subCategories" rows="6" class="tsh-mono"></textarea>
+          </label>
+        </details>
+
+        <details class="tsh-section" data-tsh-dev-only>
+          <summary><h2>System</h2></summary>
+          <div class="tsh-grid-2">
+            <label class="tsh-field">
+              <span class="tsh-label">issuesRepo</span>
+              <input type="text" name="system.issuesRepo" />
+            </label>
+            <label class="tsh-field">
+              <span class="tsh-label">backupBranch</span>
+              <input type="text" name="system.backupBranch" />
+            </label>
+            <label class="tsh-field">
+              <span class="tsh-label">workerUrl</span>
+              <input type="text" name="system.workerUrl" />
+            </label>
+            <label class="tsh-field">
+              <span class="tsh-label">handoverPortalUrl</span>
+              <input type="text" name="system.handoverPortalUrl" />
+            </label>
+            <label class="tsh-field">
+              <span class="tsh-label">turnstileSiteKey</span>
+              <input type="text" name="system.turnstileSiteKey" />
+            </label>
+            <label class="tsh-field">
+              <span class="tsh-label">photoStorage</span>
+              <select name="system.photoStorage">
+                <option value="repo">In-repo (default)</option>
+                <option value="r2">Cloudflare R2 (future)</option>
+              </select>
+            </label>
+          </div>
+        </details>
+      </form>
+    </section>
+  </main>
+
+  <div data-include="footer"></div>
+
+  <script src="./assets/js/config.js"></script>
+  <script src="./assets/js/partials.js"></script>
+  <script src="./assets/js/api.js"></script>
+  <script src="./assets/js/auth.js"></script>
+  <script src="./assets/js/flags.js"></script>
+  <script src="./assets/js/ui.js"></script>
+  <script>
+  (async () => {
+    await Partials.mount();
+    await Auth.init({ clientId: window.TSH_GOOGLE_CLIENT_ID });
+    UI.bindHeader();
+
+    let who;
+    try { who = await Flags.ensureAuthorized('COMMITTEE'); }
+    catch (_e) { return; }
+
+    const readOnly = who.primary !== 'DEVELOPER';
+    document.getElementById('roleHint').textContent =
+      readOnly ? 'Committee read-only view. Ask a developer to make changes.'
+               : 'Developer write access. Changes apply within 60 s for all users.';
+
+    const cfg = await Flags.ready();
+    const access = await Api.get('/access-lists').catch(() => ({ managers: [], committee: [], developers: [] }));
+
+    fill(cfg, access);
+
+    if (readOnly) {
+      // Disable every input; hide the dev-only section.
+      for (const el of document.querySelectorAll('#settingsForm input, #settingsForm select, #settingsForm textarea, #settingsForm button')) {
+        el.disabled = true;
+      }
+      for (const el of document.querySelectorAll('[data-tsh-dev-only]')) el.hidden = true;
+      return;
+    }
+
+    const saveBtn = document.getElementById('saveBtn');
+    saveBtn.disabled = false;
+    document.getElementById('settingsForm').addEventListener('input', () => { saveBtn.disabled = false; });
+    saveBtn.addEventListener('click', async () => {
+      saveBtn.disabled = true;
+      try {
+        const payload = collect();
+        await Api.put('/config', { config: payload.config });
+        // Access lists are saved separately.
+        for (const role of ['developers', 'committee', 'managers']) {
+          await Api.put(`/access-lists/${role}`, { emails: payload.access[role] });
+        }
+        UI.toast('Saved. Changes will reach all users within 60 s.', { kind: 'success' });
+        Flags.invalidate();
+      } catch (e) {
+        UI.toast(e.message || 'Save failed.', { kind: 'danger' });
+        saveBtn.disabled = false;
+      }
+    });
+
+    function fill(cfg, access) {
+      const form = document.getElementById('settingsForm');
+      form.elements['developers'].value = (access.developers || []).join('\n');
+      form.elements['committee'].value  = (access.committee || []).join('\n');
+      form.elements['managers'].value   = (access.managers || []).join('\n');
+
+      // Feature flags — generate one toggle per flag from the config snapshot.
+      const flagsGrid = document.getElementById('flagsGrid');
+      for (const [name, val] of Object.entries(cfg.features || {})) {
+        const row = UI.el('label', { class: 'tsh-field tsh-field-inline' },
+          UI.el('input', { type: 'checkbox', name: `features.${name}`, ...(val ? { checked: '' } : {}) }),
+          UI.el('span', null, name));
+        flagsGrid.appendChild(row);
+      }
+
+      const tunGrid = document.getElementById('tunablesGrid');
+      for (const [name, val] of Object.entries(cfg.tunables || {})) {
+        const row = UI.el('label', { class: 'tsh-field' },
+          UI.el('span', { class: 'tsh-label' }, name),
+          UI.el('input', { type: 'text', name: `tunables.${name}`, value: String(val) }));
+        tunGrid.appendChild(row);
+      }
+
+      const lists = cfg.lists || {};
+      form.elements['lists.towers'].value = (lists.towers || []).join(', ');
+      form.elements['lists.categories'].value = (lists.categories || []).join(', ');
+      form.elements['lists.subCategories'].value = JSON.stringify(lists.subCategories || {}, null, 2);
+
+      const sys = cfg.system || {};
+      form.elements['system.issuesRepo'].value = sys.issuesRepo || '';
+      form.elements['system.backupBranch'].value = sys.backupBranch || '';
+      form.elements['system.workerUrl'].value = sys.workerUrl || '';
+      form.elements['system.handoverPortalUrl'].value = sys.handoverPortalUrl || '';
+      form.elements['system.turnstileSiteKey'].value = sys.turnstileSiteKey || '';
+      if (sys.photoStorage) form.elements['system.photoStorage'].value = sys.photoStorage;
+    }
+
+    function collect() {
+      const form = document.getElementById('settingsForm');
+      const cfg = JSON.parse(JSON.stringify(Flags.raw)); // start from current to preserve unknown keys
+
+      // Features
+      cfg.features = cfg.features || {};
+      for (const el of form.querySelectorAll('input[name^="features."]')) {
+        cfg.features[el.name.slice('features.'.length)] = el.checked;
+      }
+      // Tunables
+      cfg.tunables = cfg.tunables || {};
+      for (const el of form.querySelectorAll('input[name^="tunables."]')) {
+        const k = el.name.slice('tunables.'.length);
+        const raw = el.value.trim();
+        const asNum = Number(raw);
+        cfg.tunables[k] = raw !== '' && !isNaN(asNum) ? asNum : raw;
+      }
+      // Lists
+      cfg.lists = cfg.lists || {};
+      cfg.lists.towers     = csv(form.elements['lists.towers'].value);
+      cfg.lists.categories = csv(form.elements['lists.categories'].value);
+      try { cfg.lists.subCategories = JSON.parse(form.elements['lists.subCategories'].value || '{}'); }
+      catch (e) { throw new Error('Sub-categories JSON is invalid: ' + e.message); }
+      // System
+      cfg.system = cfg.system || {};
+      cfg.system.issuesRepo        = form.elements['system.issuesRepo'].value.trim();
+      cfg.system.backupBranch      = form.elements['system.backupBranch'].value.trim();
+      cfg.system.workerUrl         = form.elements['system.workerUrl'].value.trim();
+      cfg.system.handoverPortalUrl = form.elements['system.handoverPortalUrl'].value.trim();
+      cfg.system.turnstileSiteKey  = form.elements['system.turnstileSiteKey'].value.trim();
+      cfg.system.photoStorage      = form.elements['system.photoStorage'].value;
+
+      const access = {
+        developers: lines(form.elements['developers'].value),
+        committee:  lines(form.elements['committee'].value),
+        managers:   lines(form.elements['managers'].value),
+      };
+      return { config: cfg, access };
+    }
+
+    function csv(s) { return s.split(',').map((x) => x.trim()).filter(Boolean); }
+    function lines(s) { return s.split(/\r?\n/).map((x) => x.trim()).filter(Boolean); }
+  })();
+  </script>
+</body>
+</html>

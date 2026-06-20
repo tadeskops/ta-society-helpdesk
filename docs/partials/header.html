@@ -1,0 +1,24 @@
+<!-- TSH header partial. Loaded via partials.js#include('header').
+     Placeholder slots: data-slot="title" sets the page title;
+     [data-tsh-user] is filled by auth.js when signed in. -->
+<header class="tsh-header" role="banner">
+  <a class="tsh-brand" href="./index.html" aria-label="TSH home">
+    <img src="./assets/images/logo.svg" alt="" width="32" height="32" />
+    <span class="tsh-brand-text">
+      <span class="tsh-brand-name">TA Society Helpdesk</span>
+      <span class="tsh-brand-tag">Daily Track</span>
+    </span>
+  </a>
+  <nav class="tsh-nav" aria-label="Primary">
+    <a href="./daily-report.html">Report</a>
+    <a href="./public-board.html">Board</a>
+    <a data-tsh-role-link="MANAGER" href="./manager-dashboard.html" hidden>Manager</a>
+    <a data-tsh-role-link="COMMITTEE" href="./committee-dashboard.html" hidden>Committee</a>
+    <a data-tsh-role-link="DEVELOPER" href="./settings.html" hidden>Settings</a>
+  </nav>
+  <div class="tsh-userbox">
+    <span data-tsh-user class="tsh-user-anon">Not signed in</span>
+    <button type="button" class="tsh-btn tsh-btn-ghost" data-tsh-signin hidden>Sign in</button>
+    <button type="button" class="tsh-btn tsh-btn-ghost" data-tsh-signout hidden>Sign out</button>
+  </div>
+</header>

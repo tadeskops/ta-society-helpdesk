@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Tower Apartments helpdesk">
+  <defs>
+    <linearGradient id="tg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0d6f6f"/>
+      <stop offset="100%" stop-color="#0a5757"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="12" fill="url(#tg)"/>
+  <g fill="#fff" fill-opacity="0.95">
+    <rect x="14" y="14" width="14" height="36" rx="2"/>
+    <rect x="36" y="22" width="14" height="28" rx="2"/>
+    <rect x="17" y="18" width="2.5" height="2.5"/>
+    <rect x="22" y="18" width="2.5" height="2.5"/>
+    <rect x="17" y="24" width="2.5" height="2.5"/>
+    <rect x="22" y="24" width="2.5" height="2.5"/>
+    <rect x="17" y="30" width="2.5" height="2.5"/>
+    <rect x="22" y="30" width="2.5" height="2.5"/>
+    <rect x="17" y="36" width="2.5" height="2.5"/>
+    <rect x="22" y="36" width="2.5" height="2.5"/>
+    <rect x="39" y="26" width="2.5" height="2.5"/>
+    <rect x="44" y="26" width="2.5" height="2.5"/>
+    <rect x="39" y="32" width="2.5" height="2.5"/>
+    <rect x="44" y="32" width="2.5" height="2.5"/>
+    <rect x="39" y="38" width="2.5" height="2.5"/>
+    <rect x="44" y="38" width="2.5" height="2.5"/>
+  </g>
+</svg>
