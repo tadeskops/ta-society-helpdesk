@@ -61,6 +61,56 @@ This workspace contains **two sibling repos** under `C:\CR7\TAMC\IRP_Repo\`:
    `git -C <repo-path> config user.email ta.deskops@gmail.com`,
    never `git config --global`.
 
+7. **`tadeskops`-only services. No corporate accounts, registries, or
+   tooling — ever.** This is a personal `tadeskops` project hosted on
+   free public infrastructure. The workstation running the agent may
+   also be a corporate dev machine (with its own GitHub Enterprise
+   account, internal npm registry, internal PyPI mirror, internal
+   container registry, internal CA bundle, VPN-only DNS, etc.). None
+   of that may bleed into this repo.
+
+   **Allowed services for this repo:**
+   - `github.com/tadeskops/*` only (never any GHE/internal mirror).
+   - Public npm registry: `https://registry.npmjs.org/` only.
+   - Public Cloudflare account owned by the `tadeskops` identity.
+   - Public Google Cloud project (one OAuth Web Client) owned by the
+     `tadeskops` identity.
+   - Public GitHub Actions runners (`ubuntu-latest`, etc.) — no
+     self-hosted corporate runners.
+
+   **Forbidden — refuse, surface to user, do NOT silently work around:**
+   - Any corporate / internal package registry (npm, PyPI, NuGet,
+     Maven, container, etc.).
+   - Any corporate Git remote (GHE, Bitbucket Server, internal GitLab).
+   - Any corporate identity (work email as commit author, work
+     Cloudflare account, work GCP project).
+   - Any corporate CI runner, build farm, secret store, or VPN-gated
+     resource.
+
+   **Concrete defences (apply when adding/changing tooling):**
+   - When adding or changing anything `npm`-related (deps, scripts,
+     install instructions, CI), this repo MUST ship a committed
+     `.npmrc` that pins `registry=https://registry.npmjs.org/` and
+     clears any auth tokens. The repo-local `.npmrc` overrides the
+     user-global one, so a corporate `~/.npmrc` cannot redirect this
+     project's installs.
+   - When adding any `pip`, `poetry`, `cargo`, `nuget`, `docker`
+     config — if it ever ships in this repo — it MUST similarly pin
+     the public registry index.
+   - If a command in this repo ever hits a corporate hostname (e.g.
+     `*.deere.com`, `artifactory.*`, internal `*.corp.*`), that is a
+     bug. Stop, tell the user, and fix the registry pinning.
+   - GitHub Actions workflows MUST use `runs-on: ubuntu-latest` (or
+     equivalent public runner), never `runs-on: self-hosted` or any
+     corporate runner label.
+   - Never import or read `~/.gitconfig`, `~/.npmrc`, `~/.docker/...`,
+     or any other user-global config to "make it work" — that is
+     exactly how corporate config leaks in.
+
+   The reverse direction is also forbidden: do not use the `tadeskops`
+   identity, this repo's Cloudflare account, or any other personal
+   resource for corporate work. The two contexts are airtight.
+
 ## 1. `tsh_requirement.md` is the spec — keep it in sync
 
 `tsh_requirement.md` at the repo root is the **single source of truth**
