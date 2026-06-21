@@ -27,12 +27,14 @@
       border-color:var(--tsh-gold, #d4a017);
     }
     .tsh-help-panel {
+      display: none;        /* default-hidden; .is-open below shows it */
       margin-top:.45em; padding:.55em .75em;
       background:rgba(212,160,23,.08);
       border-left:3px solid var(--tsh-gold, #d4a017);
       border-radius:4px; font-size:.85em; line-height:1.45;
       color:var(--tsh-text, inherit);
     }
+    .tsh-help-panel.is-open { display: block; }
     .tsh-help-panel p { margin:.2em 0; }
     .tsh-help-panel code {
       background:rgba(0,0,0,.25); padding:.05em .35em; border-radius:3px;
@@ -45,11 +47,22 @@
        Checkbox only toggles when its box is clicked (not the name). */
     .tsh-field .tsh-label {
       cursor: help;
-      transition: color .12s;
+      transition: color .12s, background .12s;
+      text-decoration: underline dotted rgba(212,160,23,.6);
+      text-underline-offset: 3px;
+      border-radius: 3px;
+      padding: 1px 4px;
+      margin-left: -4px;
     }
     .tsh-field .tsh-label:hover,
+    .tsh-field .tsh-label:focus-visible {
+      color: var(--tsh-gold, #d4a017);
+      background: rgba(212,160,23,.08);
+      outline: none;
+    }
     .tsh-field .tsh-label[aria-expanded="true"] {
       color: var(--tsh-gold, #d4a017);
+      background: rgba(212,160,23,.12);
     }
     .tsh-field-inline {
       display: flex; align-items: center; gap: .55em;
@@ -75,6 +88,7 @@
         <div>
           <h1><i class="fas fa-sliders gold-accent"></i> Settings</h1>
           <p class="tsh-sub" id="roleHint">Developer: write · Committee: read-only.</p>
+          <p class="tsh-sub" style="font-size:.85em;opacity:.8;margin-top:.3em"><i class="fas fa-circle-info" aria-hidden="true"></i> Tip: click any parameter <em>name</em> to read what it does and its valid range. Click the tick box to toggle a feature.</p>
         </div>
         <div class="tsh-toolbar">
           <button type="button" class="tsh-btn tsh-btn-primary" id="saveBtn" disabled><i class="fas fa-floppy-disk"></i>Save changes</button>
@@ -650,6 +664,7 @@
     function attachHelp(form) {
       const inputs = form.querySelectorAll('input[name], select[name], textarea[name]');
       let panelSeq = 0;
+      let bound = 0;
       for (const el of inputs) {
         const info = lookupHelp(el.name);
         if (!info) continue;
@@ -671,12 +686,13 @@
         labelSpan.setAttribute('aria-expanded', 'false');
         labelSpan.setAttribute('aria-controls', panelId);
         labelSpan.setAttribute('title', tooltip);
+        labelSpan.dataset.tshHelpPanel = panelId;
 
         // Add a small "i" icon as a visual cue that the name is clickable.
         const icon = document.createElement('button');
         icon.type = 'button';
         icon.className = 'tsh-info';
-        icon.tabIndex = -1;  // name span is the real control; avoid double-tab
+        icon.tabIndex = -1;
         icon.setAttribute('aria-hidden', 'true');
         icon.innerHTML = '<i class="fas fa-circle-info" aria-hidden="true"></i>';
         labelSpan.appendChild(document.createTextNode(' '));
@@ -685,23 +701,37 @@
         const panel = document.createElement('div');
         panel.id = panelId;
         panel.className = 'tsh-help-panel';
-        panel.hidden = true;
         panel.innerHTML = helpPanelHtml(info);
         field.appendChild(panel);
+        bound++;
+      }
 
-        const toggle = (e) => {
+      // ONE delegated handler on the form — robust to any DOM weirdness.
+      if (!form.dataset.tshHelpBound) {
+        form.dataset.tshHelpBound = '1';
+        form.addEventListener('click', (e) => {
+          const ls = e.target && e.target.closest && e.target.closest('.tsh-label[data-tsh-help-panel]');
+          if (!ls) return;
           e.preventDefault();
           e.stopPropagation();
-          const open = panel.hidden;
-          panel.hidden = !open;
-          labelSpan.setAttribute('aria-expanded', String(open));
-          icon.setAttribute('aria-expanded', String(open));
-        };
-        labelSpan.addEventListener('click', toggle);
-        labelSpan.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter' || e.key === ' ') toggle(e);
+          const panel = document.getElementById(ls.dataset.tshHelpPanel);
+          if (!panel) return;
+          const willOpen = !panel.classList.contains('is-open');
+          panel.classList.toggle('is-open', willOpen);
+          panel.style.display = willOpen ? 'block' : 'none';
+          ls.setAttribute('aria-expanded', String(willOpen));
+          const ico = ls.querySelector('.tsh-info');
+          if (ico) ico.setAttribute('aria-expanded', String(willOpen));
+        });
+        form.addEventListener('keydown', (e) => {
+          if (e.key !== 'Enter' && e.key !== ' ') return;
+          const ls = e.target && e.target.closest && e.target.closest('.tsh-label[data-tsh-help-panel]');
+          if (!ls) return;
+          e.preventDefault();
+          ls.click();
         });
       }
+      try { console.log('[TSH settings] help attached to', bound, 'fields'); } catch (_e) {}
     }
   })();
   </script>
