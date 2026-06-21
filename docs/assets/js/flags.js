@@ -20,7 +20,25 @@
     if (cfg) return cfg;
     if (!cfgPromise) {
       cfgPromise = root.Api.get('/config')
-        .then((c) => { cfg = c; return c; })
+        .then((c) => {
+          cfg = c;
+          // Expose UI defaults to ui.js so FontSize/ThemeSwitcher can use
+          // server-side defaults when the user hasn't picked yet.
+          root.TSH_UI_DEFAULTS = (c && c.ui) || {};
+          // Re-apply with the new defaults (no-op if user already chose).
+          if (root.UI && root.UI.FontSize) root.UI.FontSize.init();
+          if (root.UI && root.UI.ThemeSwitcher) root.UI.ThemeSwitcher.init();
+          // Apply optional logo overrides (system.logoUrl / system.logoNameUrl).
+          // Blank means "keep the bundled asset".
+          const sys = (c && c.system) || {};
+          if (sys.logoUrl) {
+            for (const img of document.querySelectorAll('[data-tsh-logo]')) img.src = sys.logoUrl;
+          }
+          if (sys.logoNameUrl) {
+            for (const img of document.querySelectorAll('[data-tsh-logo-name]')) img.src = sys.logoNameUrl;
+          }
+          return c;
+        })
         .catch((e) => { cfgPromise = null; throw e; });
     }
     return cfgPromise;
@@ -130,9 +148,29 @@
     }
   }
 
+  // Page-level guard for whole pages that can be turned off via a flag.
+  // Renders an inline "disabled" placeholder and throws when the flag is off.
+  // Caller pattern (after Flags.ready()):
+  //   try { Flags.ensureFeature('FEATURE_DAILY_PUBLIC_BOARD', 'Public board'); }
+  //   catch (_e) { return; }
+  function ensureFeature(flag, friendlyName) {
+    if (on(flag)) return;
+    const main = document.querySelector('main') || document.body;
+    const name = friendlyName || flag;
+    main.innerHTML =
+      '<section class="tsh-card" style="max-width:560px;margin:8vh auto;text-align:center;">' +
+      '  <header class="tsh-card-head"><h1><i class="fas fa-circle-pause gold-accent"></i> ' + name + ' is disabled</h1></header>' +
+      '  <p class="tsh-sub">This section is currently turned off. Ask a developer to re-enable <code>' + flag + '</code> in Settings.</p>' +
+      '  <div class="tsh-toolbar" style="justify-content:center;margin-top:1rem;">' +
+      '    <a class="tsh-btn tsh-btn-ghost" href="./index.html"><i class="fas fa-house"></i> Home</a>' +
+      '  </div>' +
+      '</section>';
+    throw new Error('FeatureDisabled:' + flag);
+  }
+
   root.Flags = {
     ready, on, tunable, list, subcats,
-    whoami, isAtLeast, hasRole, ensureAuthorized,
+    whoami, isAtLeast, hasRole, ensureAuthorized, ensureFeature,
     invalidate,
     get raw() { return cfg; },
   };

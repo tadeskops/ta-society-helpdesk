@@ -30,6 +30,35 @@ import { parseJson, str, optStr, optBool, optNum, oneOf, normalisePhone, isObj }
 import { verifyTurnstile } from '../lib/turnstile.ts';
 import { writeAudit } from '../lib/audit.ts';
 
+// ---- In-memory submission throttle (per Worker isolate) ------------------
+// Soft cap. Cloudflare can spawn multiple isolates so the cap is approximate
+// across the fleet — adequate as an abuse brake for a small society app.
+// Promote to KV/Durable Object if you need a strict global limit.
+interface Throttle { last: number; daily: { date: string; count: number } }
+const throttle = new Map<string, Throttle>();
+
+const dayUtc = (ms: number): string => new Date(ms).toISOString().slice(0, 10);
+
+const checkSubmitThrottle = (ctx: Ctx, key: string): void => {
+  const now = Date.now();
+  const cooldownS = tunable(ctx.config, 'DAILY_RATE_LIMIT_SECONDS', 20);
+  const dailyMax  = tunable(ctx.config, 'DAILY_DAILY_LIMIT', 20);
+  const today = dayUtc(now);
+  const entry = throttle.get(key) ?? { last: 0, daily: { date: today, count: 0 } };
+  if (entry.daily.date !== today) entry.daily = { date: today, count: 0 };
+  const elapsedS = (now - entry.last) / 1000;
+  if (entry.last && elapsedS < cooldownS) {
+    const wait = Math.ceil(cooldownS - elapsedS);
+    throw new BadRequest(`Please wait ${wait}s before submitting another issue (DAILY_RATE_LIMIT_SECONDS=${cooldownS}).`);
+  }
+  if (entry.daily.count >= dailyMax) {
+    throw new BadRequest(`Daily submission limit reached (DAILY_DAILY_LIMIT=${dailyMax}). Try again tomorrow.`);
+  }
+  entry.last = now;
+  entry.daily.count++;
+  throttle.set(key, entry);
+};
+
 // ---- Photo helpers --------------------------------------------------------
 
 interface PhotoIn { dataUrl: string; name?: string | undefined }
@@ -105,8 +134,11 @@ const validateCreateInput = (ctx: Ctx, raw: Record<string, unknown>) => {
   const category = oneOf(raw['category'], 'category', cats);
   const subList = ctx.config.lists.subCategories[category] ?? ['Other'];
   const subCategory = oneOf(raw['subCategory'], 'subCategory', subList);
-  const location = str(raw['location'], 'location', { min: 1, max: 200 });
-  const description = str(raw['description'], 'description', { min: 5, max: 4000 });
+  const locMax = tunable(ctx.config, 'DAILY_LOCATION_MAX', 120);
+  const descMin = tunable(ctx.config, 'DAILY_DESC_MIN', 5);
+  const descMax = tunable(ctx.config, 'DAILY_DESC_MAX', 2000);
+  const location = str(raw['location'], 'location', { min: 1, max: locMax });
+  const description = str(raw['description'], 'description', { min: descMin, max: descMax });
   const reporterName  = optStr(raw['reporterName'],  'reporterName',  { max: 80 });
   const reporterFlat  = optStr(raw['reporterFlat'],  'reporterFlat',  { max: 30 });
   const phoneRaw      = optStr(raw['reporterPhone'], 'reporterPhone', { max: 30 });
@@ -133,6 +165,11 @@ const mountCreate = (r: Router): void => {
     if (isFeatureOn(ctx.config, 'FEATURE_DAILY_TURNSTILE')) {
       await verifyTurnstile(ctx.env, input.turnstileToken, ctx.ip);
     }
+
+    // Per-submitter throttle. Key on identity email when signed in,
+    // otherwise the source IP — keeps anonymous flow rate-limited too.
+    const throttleKey = ctx.identity?.email ?? `ip:${ctx.ip || 'unknown'}`;
+    checkSubmitThrottle(ctx, throttleKey);
 
     if (input.photos.length && !isFeatureOn(ctx.config, 'FEATURE_DAILY_PHOTO_UPLOAD')) {
       throw new FeatureDisabled('FEATURE_DAILY_PHOTO_UPLOAD');

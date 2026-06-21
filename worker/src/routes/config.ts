@@ -29,6 +29,13 @@ const validateSiteShape = (raw: unknown): SiteConfig => {
   for (const [k, v] of Object.entries(raw['tunables'] as Record<string, unknown>)) {
     if (typeof v !== 'number' || !Number.isFinite(v)) throw new BadRequest(`tunables.${k} must be a number`);
   }
+  // ui block is optional but, if present, must be a plain object of strings.
+  if (raw['ui'] !== undefined) {
+    if (!isObj(raw['ui'])) throw new BadRequest('config.ui must be an object');
+    for (const [k, v] of Object.entries(raw['ui'] as Record<string, unknown>)) {
+      if (typeof v !== 'string') throw new BadRequest(`ui.${k} must be a string`);
+    }
+  }
   return raw as unknown as SiteConfig;
 };
 

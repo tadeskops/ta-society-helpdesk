@@ -218,16 +218,24 @@
   // Three scales: md (16px, default), lg (17.5px), xl (19px).  Persisted in
   // localStorage as `tsh_fontsize`.  Applied via html[data-fontsize] which
   // theme.css picks up to scale all rem-sized tokens.
+  //
+  // Server default (cfg.ui.defaultFontScale) is consulted only when the user
+  // has not yet chosen a size in this browser.  Populated by flags.js into
+  // window.TSH_UI_DEFAULTS after /config loads.
   const FontSize = (function () {
     const KEY = 'tsh_fontsize';
     const ALLOWED = ['md', 'lg', 'xl'];
 
+    function serverDefault() {
+      const d = (root.TSH_UI_DEFAULTS && root.TSH_UI_DEFAULTS.defaultFontScale) || '';
+      return ALLOWED.includes(d) ? d : 'md';
+    }
     function get() {
       try { const v = localStorage.getItem(KEY); if (ALLOWED.includes(v)) return v; } catch (_e) {}
-      return 'md';
+      return serverDefault();
     }
     function apply(size) {
-      const v = ALLOWED.includes(size) ? size : 'md';
+      const v = ALLOWED.includes(size) ? size : serverDefault();
       document.documentElement.setAttribute('data-fontsize', v);
       try { localStorage.setItem(KEY, v); } catch (_e) {}
       // Update any switcher widgets on the page.
@@ -261,12 +269,16 @@
     const KEY = 'tsh_theme';
     const ALLOWED = ['dark', 'light', 'medium'];
 
+    function serverDefault() {
+      const d = (root.TSH_UI_DEFAULTS && root.TSH_UI_DEFAULTS.defaultTheme) || '';
+      return ALLOWED.includes(d) ? d : 'dark';
+    }
     function get() {
       try { const v = localStorage.getItem(KEY); if (ALLOWED.includes(v)) return v; } catch (_e) {}
-      return 'dark';
+      return serverDefault();
     }
     function apply(tone) {
-      const v = ALLOWED.includes(tone) ? tone : 'dark';
+      const v = ALLOWED.includes(tone) ? tone : serverDefault();
       if (v === 'dark') document.documentElement.removeAttribute('data-theme');
       else document.documentElement.setAttribute('data-theme', v);
       try { localStorage.setItem(KEY, v); } catch (_e) {}
@@ -354,10 +366,23 @@
       // invalidate the rest of the Flags cache (config/lists) because the
       // page may already be using it for the form / table.
       if (root.Api && root.Api.invalidate) root.Api.invalidate('/whoami');
-      return root.Flags.whoami(true).then((who) => {
+      // Wait for config too so we can AND role checks with feature flags.
+      const pCfg = root.Flags.ready ? root.Flags.ready().catch(() => null) : Promise.resolve(null);
+      const pWho = root.Flags.whoami(true);
+      return Promise.all([pCfg, pWho]).then(([_c, who]) => {
+        // Role-gated nav links: visible only if the user's role is high enough
+        // AND the optional feature flag (if any) is on.
         for (const a of document.querySelectorAll('[data-tsh-role-link]')) {
           const need = a.getAttribute('data-tsh-role-link');
-          a.hidden = !root.Flags.isAtLeast(who.primary, need);
+          const flag = a.getAttribute('data-tsh-feature');
+          const roleOk = root.Flags.isAtLeast(who.primary, need);
+          const flagOk = !flag || root.Flags.on(flag);
+          a.hidden = !(roleOk && flagOk);
+        }
+        // Pure feature-gated nav links (no role requirement) — e.g. Board.
+        for (const a of document.querySelectorAll('a[data-tsh-feature]:not([data-tsh-role-link])')) {
+          const flag = a.getAttribute('data-tsh-feature');
+          a.hidden = !root.Flags.on(flag);
         }
       }).catch(() => hideRoleLinks());
     };

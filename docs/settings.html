@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#1a1f2e" />
   <link rel="icon" href="./assets/images/TaLogo.png" type="image/png" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="./assets/css/theme.css?v=6" />
+  <link rel="stylesheet" href="./assets/css/theme.css?v=7" />
 </head>
 <body class="tsh-page">
   <div data-include="header"></div>
@@ -101,6 +101,53 @@
                 <option value="r2">Cloudflare R2 (future)</option>
               </select>
             </label>
+            <label class="tsh-field">
+              <span class="tsh-label">logoUrl <span class="tsh-hint">(blank = bundled asset)</span></span>
+              <input type="text" name="system.logoUrl" placeholder="https://&hellip; or leave blank" />
+            </label>
+            <label class="tsh-field">
+              <span class="tsh-label">logoNameUrl <span class="tsh-hint">(landing-page wordmark; blank = bundled)</span></span>
+              <input type="text" name="system.logoNameUrl" placeholder="https://&hellip; or leave blank" />
+            </label>
+            <label class="tsh-field">
+              <span class="tsh-label">weeklyReportUrl</span>
+              <input type="text" name="system.weeklyReportUrl" placeholder="public URL of the weekly PDF" />
+            </label>
+            <label class="tsh-field">
+              <span class="tsh-label">fullReportUrl</span>
+              <input type="text" name="system.fullReportUrl" placeholder="public URL of the full PDF" />
+            </label>
+            <label class="tsh-field">
+              <span class="tsh-label">reportBackupFreq</span>
+              <select name="system.reportBackupFreq">
+                <option value="weekly">Weekly</option>
+                <option value="daily">Daily</option>
+                <option value="3x-daily">3x daily</option>
+              </select>
+            </label>
+          </div>
+        </details>
+
+        <details class="tsh-section">
+          <summary><h2>UI defaults</h2></summary>
+          <p class="tsh-hint">Applied for users who have not yet chosen a theme or text size on this device.</p>
+          <div class="tsh-grid-2">
+            <label class="tsh-field">
+              <span class="tsh-label">Default theme</span>
+              <select name="ui.defaultTheme">
+                <option value="dark">Dark</option>
+                <option value="light">Light</option>
+                <option value="medium">Medium</option>
+              </select>
+            </label>
+            <label class="tsh-field">
+              <span class="tsh-label">Default text size</span>
+              <select name="ui.defaultFontScale">
+                <option value="md">Default (md)</option>
+                <option value="lg">Comfortable (lg)</option>
+                <option value="xl">Spacious (xl)</option>
+              </select>
+            </label>
           </div>
         </details>
       </form>
@@ -109,12 +156,12 @@
 
   <div data-include="footer"></div>
 
-  <script src="./assets/js/config.js?v=6"></script>
-  <script src="./assets/js/partials.js?v=6"></script>
-  <script src="./assets/js/api.js?v=6"></script>
-  <script src="./assets/js/auth.js?v=6"></script>
-  <script src="./assets/js/flags.js?v=6"></script>
-  <script src="./assets/js/ui.js?v=6"></script>
+  <script src="./assets/js/config.js?v=7"></script>
+  <script src="./assets/js/partials.js?v=7"></script>
+  <script src="./assets/js/api.js?v=7"></script>
+  <script src="./assets/js/auth.js?v=7"></script>
+  <script src="./assets/js/flags.js?v=7"></script>
+  <script src="./assets/js/ui.js?v=7"></script>
   <script>
   (async () => {
     await Partials.mount();
@@ -199,6 +246,15 @@
       form.elements['system.handoverPortalUrl'].value = sys.handoverPortalUrl || '';
       form.elements['system.turnstileSiteKey'].value = sys.turnstileSiteKey || '';
       if (sys.photoStorage) form.elements['system.photoStorage'].value = sys.photoStorage;
+      form.elements['system.logoUrl'].value           = sys.logoUrl || '';
+      form.elements['system.logoNameUrl'].value       = sys.logoNameUrl || '';
+      form.elements['system.weeklyReportUrl'].value   = sys.weeklyReportUrl || '';
+      form.elements['system.fullReportUrl'].value     = sys.fullReportUrl || '';
+      if (sys.reportBackupFreq) form.elements['system.reportBackupFreq'].value = sys.reportBackupFreq;
+
+      const ui = cfg.ui || {};
+      if (ui.defaultTheme)     form.elements['ui.defaultTheme'].value     = ui.defaultTheme;
+      if (ui.defaultFontScale) form.elements['ui.defaultFontScale'].value = ui.defaultFontScale;
     }
 
     function collect() {
@@ -232,6 +288,16 @@
       cfg.system.handoverPortalUrl = form.elements['system.handoverPortalUrl'].value.trim();
       cfg.system.turnstileSiteKey  = form.elements['system.turnstileSiteKey'].value.trim();
       cfg.system.photoStorage      = form.elements['system.photoStorage'].value;
+      cfg.system.logoUrl           = form.elements['system.logoUrl'].value.trim();
+      cfg.system.logoNameUrl       = form.elements['system.logoNameUrl'].value.trim();
+      cfg.system.weeklyReportUrl   = form.elements['system.weeklyReportUrl'].value.trim();
+      cfg.system.fullReportUrl     = form.elements['system.fullReportUrl'].value.trim();
+      cfg.system.reportBackupFreq  = form.elements['system.reportBackupFreq'].value;
+
+      // UI defaults
+      cfg.ui = cfg.ui || {};
+      cfg.ui.defaultTheme     = form.elements['ui.defaultTheme'].value;
+      cfg.ui.defaultFontScale = form.elements['ui.defaultFontScale'].value;
 
       const access = {
         developers: lines(form.elements['developers'].value),
