@@ -91,6 +91,8 @@
       callback: (resp) => { if (resp && resp.credential) applyToken(resp.credential); },
       auto_select: true,           // silent re-auth for returning users
       cancel_on_tap_outside: true,
+      use_fedcm_for_prompt: true,  // Chrome 117+ requires FedCM for One Tap
+      itp_support: true,
     });
     // Silent re-auth: only ask GIS to re-emit a credential if THIS tab
     // has previously seen the user signed in. Avoids surprising anonymous
@@ -140,16 +142,89 @@
     notify();
   }
 
+  // Rendered Google Sign-In button used as a reliable fallback when One Tap
+  // is suppressed (FedCM off, third-party cookies blocked, GIS exponential
+  // backoff after a previous dismissal, etc.). The rendered button always
+  // opens the OAuth popup directly, no cookies/FedCM dependency.
+  let renderedBtnHost = null;
+
+  function ensureRenderedButton() {
+    if (renderedBtnHost && document.body.contains(renderedBtnHost)) return renderedBtnHost;
+    if (!window.google || !window.google.accounts || !window.google.accounts.id) return null;
+    renderedBtnHost = document.createElement('div');
+    // Off-screen but interactable — visibility:hidden suppresses GIS click events.
+    renderedBtnHost.style.cssText = 'position:fixed;left:-9999px;top:-9999px;opacity:0;pointer-events:auto;';
+    renderedBtnHost.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(renderedBtnHost);
+    try {
+      window.google.accounts.id.renderButton(renderedBtnHost, {
+        type: 'standard', theme: 'filled_blue', size: 'large', text: 'signin_with', shape: 'rectangular',
+      });
+    } catch (e) {
+      console.warn('TSH auth: renderButton failed', e);
+    }
+    return renderedBtnHost;
+  }
+
+  function clickRenderedButton() {
+    const host = ensureRenderedButton();
+    if (!host) return false;
+    // GIS renders an inner clickable element. Try common selectors.
+    const target =
+      host.querySelector('div[role="button"]') ||
+      host.querySelector('button') ||
+      host.querySelector('div[tabindex]') ||
+      host.firstElementChild;
+    if (!target) return false;
+    try { target.click(); return true; } catch (_e) { return false; }
+  }
+
   async function signIn() {
     if (!state.clientId) throw new Error('Auth.init() not called');
     return new Promise((resolve) => {
-      window.google.accounts.id.prompt((notification) => {
-        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-          resolve(false);
-        } else {
-          resolve(true);
-        }
+      let settled = false;
+      const finish = (ok) => { if (settled) return; settled = true; resolve(ok); };
+
+      // Resolve as soon as a credential actually arrives.
+      const off = onChange((s) => {
+        if (s.signedIn) { try { off(); } catch (_e) {} finish(true); }
       });
+
+      let promptTried = false;
+      try {
+        window.google.accounts.id.prompt((notification) => {
+          // If One Tap can't show, fall back to the rendered button click —
+          // which opens the OAuth popup synchronously and is not affected by
+          // FedCM / third-party-cookie suppression.
+          const blocked =
+            (notification && (
+              (typeof notification.isNotDisplayed === 'function' && notification.isNotDisplayed()) ||
+              (typeof notification.isSkippedMoment === 'function' && notification.isSkippedMoment()) ||
+              (typeof notification.isDismissedMoment === 'function' && notification.isDismissedMoment())
+            ));
+          if (blocked && !settled) {
+            const clicked = clickRenderedButton();
+            if (!clicked) { try { off(); } catch (_e) {} finish(false); }
+          }
+        });
+        promptTried = true;
+      } catch (_e) {
+        // GIS not ready — go straight to the rendered button.
+        const clicked = clickRenderedButton();
+        if (!clicked) { try { off(); } catch (_e2) {} finish(false); }
+      }
+
+      // Safety net: if neither path produces a credential within 8 s, give up
+      // so the caller's UI can recover.
+      setTimeout(() => {
+        if (settled) return;
+        if (promptTried) {
+          // Try the rendered button explicitly in case the prompt callback
+          // never fired (rare, but documented in GIS issues).
+          clickRenderedButton();
+        }
+        setTimeout(() => { try { off(); } catch (_e) {} finish(false); }, 4000);
+      }, 4000);
     });
   }
 
@@ -182,3 +257,4 @@
 
   root.Auth = { init, signIn, signOut, token: tokenIfFresh, onChange, email: () => state.email };
 })(window);
+
