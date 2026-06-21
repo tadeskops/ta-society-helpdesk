@@ -261,7 +261,7 @@
   },
   "_comment": "Single source of truth for runtime configuration. Edited from docs/settings.html (developer only); committed by the Worker. Defaults baked into DEFAULT_CONFIG in worker/src/config/defaults.ts.",
   "ui": {
-    "defaultTheme": "dark",
+    "defaultTheme": "light",
     "defaultFontScale": "md"
   }
 }

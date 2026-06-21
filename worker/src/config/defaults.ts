@@ -131,7 +131,7 @@ export const DEFAULT_CONFIG: SiteConfig = {
     reportBackupFreq:  'weekly',
   },
   ui: {
-    defaultTheme:     'dark',
+    defaultTheme:     'light',
     defaultFontScale: 'md',
   },
 };

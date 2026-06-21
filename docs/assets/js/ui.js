@@ -271,7 +271,7 @@
 
     function serverDefault() {
       const d = (root.TSH_UI_DEFAULTS && root.TSH_UI_DEFAULTS.defaultTheme) || '';
-      return ALLOWED.includes(d) ? d : 'dark';
+      return ALLOWED.includes(d) ? d : 'light';
     }
     function get() {
       try { const v = localStorage.getItem(KEY); if (ALLOWED.includes(v)) return v; } catch (_e) {}
