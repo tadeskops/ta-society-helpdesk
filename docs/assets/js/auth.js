@@ -99,7 +99,42 @@
     let hint = '';
     try { hint = sessionStorage.getItem('tsh_signed_in') || ''; } catch (_e) { /* ignore */ }
     if (hint === '1') {
-      try { window.google.accounts.id.prompt(); } catch (_e) { /* ignore */ }
+      // Wait briefly for the silent credential callback so page guards
+      // (Flags.ensureAuthorized) don't run before the token arrives.
+      await new Promise((resolve) => {
+        let done = false;
+        const off = onChange((s) => {
+          if (done || !s.signedIn) return;
+          done = true;
+          try { off(); } catch (_e) { /* ignore */ }
+          resolve();
+        });
+        const timer = setTimeout(() => {
+          if (done) return;
+          done = true;
+          try { off(); } catch (_e) { /* ignore */ }
+          resolve();
+        }, 2500);
+        try {
+          window.google.accounts.id.prompt((notification) => {
+            if (done) return;
+            if (notification && (notification.isNotDisplayed() || notification.isSkippedMoment())) {
+              done = true;
+              clearTimeout(timer);
+              try { off(); } catch (_e) { /* ignore */ }
+              // Stale hint (user signed out elsewhere / cookies cleared) — drop it
+              // so we don't re-prompt on every page load.
+              try { sessionStorage.removeItem('tsh_signed_in'); } catch (_e) { /* ignore */ }
+              resolve();
+            }
+          });
+        } catch (_e) {
+          done = true;
+          clearTimeout(timer);
+          try { off(); } catch (_e2) { /* ignore */ }
+          resolve();
+        }
+      });
     }
     // Re-trigger UI even if no user yet — surfaces sign-in button etc.
     notify();
