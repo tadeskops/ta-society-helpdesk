@@ -1,45 +1,49 @@
 {
   "version": 1,
-  "_comment": "Single source of truth for runtime configuration. Edited from docs/settings.html (developer only); committed by the Worker. Defaults baked into DEFAULT_CONFIG in worker/src/config/defaults.ts.",
   "features": {
-    "FEATURE_DAILY_TRACK":               true,
-    "FEATURE_DAILY_ANONYMOUS_SUBMIT":    true,
-    "FEATURE_DAILY_PHOTO_UPLOAD":        true,
-    "FEATURE_DAILY_WHATSAPP_SHARE":      true,
-    "FEATURE_DAILY_COST_FIELD":          false,
-    "FEATURE_DAILY_PUBLIC_RESOLVED":     true,
-    "FEATURE_DAILY_PUBLIC_REJECTED":     false,
-    "FEATURE_DAILY_PUBLIC_PHOTOS":       true,
-    "FEATURE_DAILY_PUBLIC_PDF":          true,
-    "FEATURE_DAILY_AUDIT_LOG_UI":        true,
-    "FEATURE_DAILY_TURNSTILE":           true,
-    "FEATURE_DAILY_AUTOSAVE_DRAFT":      true,
-    "FEATURE_DAILY_REJECTED_FILTER":     true,
-    "FEATURE_DAILY_COMMITTEE_PHOTO":     false,
-    "FEATURE_DAILY_SEVERITY":            false,
-    "FEATURE_DAILY_SLA":                 false,
-    "FEATURE_DAILY_WEEKLY_REPORT":       false,
-    "FEATURE_DAILY_PUBLIC_BOARD":        true,
-    "FEATURE_DAILY_MANAGER_DASHBOARD":   true,
+    "FEATURE_DAILY_TRACK": true,
+    "FEATURE_DAILY_ANONYMOUS_SUBMIT": true,
+    "FEATURE_DAILY_PHOTO_UPLOAD": true,
+    "FEATURE_DAILY_WHATSAPP_SHARE": true,
+    "FEATURE_DAILY_COST_FIELD": false,
+    "FEATURE_DAILY_PUBLIC_RESOLVED": true,
+    "FEATURE_DAILY_PUBLIC_REJECTED": false,
+    "FEATURE_DAILY_PUBLIC_PHOTOS": true,
+    "FEATURE_DAILY_PUBLIC_PDF": true,
+    "FEATURE_DAILY_AUDIT_LOG_UI": true,
+    "FEATURE_DAILY_TURNSTILE": true,
+    "FEATURE_DAILY_AUTOSAVE_DRAFT": true,
+    "FEATURE_DAILY_REJECTED_FILTER": true,
+    "FEATURE_DAILY_COMMITTEE_PHOTO": false,
+    "FEATURE_DAILY_SEVERITY": false,
+    "FEATURE_DAILY_SLA": false,
+    "FEATURE_DAILY_WEEKLY_REPORT": false,
+    "FEATURE_DAILY_PUBLIC_BOARD": true,
+    "FEATURE_DAILY_MANAGER_DASHBOARD": true,
     "FEATURE_DAILY_COMMITTEE_DASHBOARD": true
   },
   "tunables": {
-    "DAILY_AUTO_ACK_HOURS":       24,
-    "DAILY_ARCHIVE_AFTER_DAYS":   90,
-    "DAILY_PHOTO_MAX_PER_ISSUE":  6,
-    "DAILY_PHOTO_MAX_BYTES":      5242880,
-    "DAILY_PHOTO_MAX_DIM":        1600,
-    "DAILY_PHOTO_JPEG_QUALITY":   0.85,
-    "DAILY_RATE_LIMIT_SECONDS":   20,
-    "DAILY_DAILY_LIMIT":          20,
-    "DAILY_DESC_MIN":             5,
-    "DAILY_DESC_MAX":             2000,
-    "DAILY_LOCATION_MAX":         120,
-    "CONFIG_CACHE_SECONDS":       60,
-    "WHOAMI_CACHE_SECONDS":       5
+    "DAILY_AUTO_ACK_HOURS": 24,
+    "DAILY_ARCHIVE_AFTER_DAYS": 90,
+    "DAILY_PHOTO_MAX_PER_ISSUE": 6,
+    "DAILY_PHOTO_MAX_BYTES": 5242880,
+    "CONFIG_CACHE_SECONDS": 60,
+    "WHOAMI_CACHE_SECONDS": 5,
+    "DAILY_PHOTO_MAX_DIM": 1600,
+    "DAILY_PHOTO_JPEG_QUALITY": 0.85,
+    "DAILY_RATE_LIMIT_SECONDS": 20,
+    "DAILY_DAILY_LIMIT": 20,
+    "DAILY_DESC_MIN": 5,
+    "DAILY_DESC_MAX": 2000,
+    "DAILY_LOCATION_MAX": 120
   },
   "lists": {
-    "towers": ["A", "B", "C", "Common Area"],
+    "towers": [
+      "A",
+      "B",
+      "C",
+      "Common Area"
+    ],
     "categories": [
       "Lift",
       "Water",
@@ -63,43 +67,200 @@
       "Other"
     ],
     "subCategories": {
-      "Lift":             ["Stuck", "Doors not closing", "Buttons faulty", "Display faulty", "Noise", "Slow / Erratic", "Floor levelling", "Power outage", "Other"],
-      "Water":            ["No supply", "Low pressure", "Leak", "Discolouration", "Quality / Taste", "Hot water", "Tank overflow", "Other"],
-      "Electricity":      ["Common-area outage", "Flat outage", "Lights flickering", "Damaged fixture", "Bulb replacement", "Tripping / MCB", "Inverter / UPS", "Wiring exposed", "Other"],
-      "Plumbing":         ["Leak", "Blockage", "Tap / faucet", "Drainage", "Sewage", "Geyser", "Other"],
-      "Cleaning":         ["Common area", "Lift", "Staircase", "Garbage", "Spillage", "Pet waste", "Other"],
-      "Security":         ["Gate", "Intercom", "Visitor management", "Patrolling", "Theft / Damage", "Suspicious activity", "Other"],
-      "Garden":           ["Watering", "Pruning", "Damaged planter", "Tree fall risk", "Pest in plants", "Lawn", "Other"],
-      "Pest Control":     ["Cockroach", "Rodent", "Mosquito", "Bees / Wasp", "Termite", "Bird nest", "Snake", "Other"],
-      "Parking":          ["Unauthorised vehicle", "Damage to vehicle", "Lighting", "Signage", "Barrier / Boom faulty", "EV charging", "Other"],
-      "Waste Management": ["Missed pickup", "Overflow", "Segregation", "Smell", "Bin damaged", "Other"],
-      "Intercom":         ["Not working", "Line noise", "Wrong number", "Display faulty", "Other"],
-      "Building & Civil": ["Wall crack", "Seepage", "Paint peeling", "Damaged tile", "Door / Window", "Lift lobby", "Roof / Terrace", "Other"],
-      "Clubhouse":        ["Booking issue", "Equipment", "Hygiene", "Lighting", "AC", "Other"],
-      "Swimming Pool":    ["Water quality", "Filter", "Heating", "Hygiene", "Lifeguard", "Equipment", "Other"],
-      "Gym":              ["Equipment broken", "Hygiene", "AC", "Lighting", "Music", "Other"],
-      "CCTV":             ["Camera offline", "Footage request", "Angle / position", "Recording fault", "Other"],
-      "Fire Safety":      ["Extinguisher", "Hose / Pipe", "Alarm", "Smoke detector", "Sprinkler", "Emergency exit", "Other"],
-      "Noise / Nuisance": ["Loud music", "Construction noise", "Pet noise", "Party", "Other"],
-      "Vendor / Service": ["Delivery issue", "Service quality", "Billing", "Schedule", "Other"],
-      "Other":            ["Other"]
+      "Lift": [
+        "Stuck",
+        "Doors not closing",
+        "Buttons faulty",
+        "Display faulty",
+        "Noise",
+        "Slow / Erratic",
+        "Floor levelling",
+        "Power outage",
+        "Other"
+      ],
+      "Water": [
+        "No supply",
+        "Low pressure",
+        "Leak",
+        "Discolouration",
+        "Quality / Taste",
+        "Hot water",
+        "Tank overflow",
+        "Other"
+      ],
+      "Lights": [
+        "Common area dark",
+        "Flickering",
+        "Damaged fixture",
+        "Other"
+      ],
+      "Cleaning": [
+        "Common area",
+        "Lift",
+        "Staircase",
+        "Garbage",
+        "Spillage",
+        "Pet waste",
+        "Other"
+      ],
+      "Security": [
+        "Gate",
+        "Intercom",
+        "Visitor management",
+        "Patrolling",
+        "Theft / Damage",
+        "Suspicious activity",
+        "Other"
+      ],
+      "Other": [
+        "Other"
+      ],
+      "Electricity": [
+        "Common-area outage",
+        "Flat outage",
+        "Lights flickering",
+        "Damaged fixture",
+        "Bulb replacement",
+        "Tripping / MCB",
+        "Inverter / UPS",
+        "Wiring exposed",
+        "Other"
+      ],
+      "Plumbing": [
+        "Leak",
+        "Blockage",
+        "Tap / faucet",
+        "Drainage",
+        "Sewage",
+        "Geyser",
+        "Other"
+      ],
+      "Garden": [
+        "Watering",
+        "Pruning",
+        "Damaged planter",
+        "Tree fall risk",
+        "Pest in plants",
+        "Lawn",
+        "Other"
+      ],
+      "Pest Control": [
+        "Cockroach",
+        "Rodent",
+        "Mosquito",
+        "Bees / Wasp",
+        "Termite",
+        "Bird nest",
+        "Snake",
+        "Other"
+      ],
+      "Parking": [
+        "Unauthorised vehicle",
+        "Damage to vehicle",
+        "Lighting",
+        "Signage",
+        "Barrier / Boom faulty",
+        "EV charging",
+        "Other"
+      ],
+      "Waste Management": [
+        "Missed pickup",
+        "Overflow",
+        "Segregation",
+        "Smell",
+        "Bin damaged",
+        "Other"
+      ],
+      "Intercom": [
+        "Not working",
+        "Line noise",
+        "Wrong number",
+        "Display faulty",
+        "Other"
+      ],
+      "Building & Civil": [
+        "Wall crack",
+        "Seepage",
+        "Paint peeling",
+        "Damaged tile",
+        "Door / Window",
+        "Lift lobby",
+        "Roof / Terrace",
+        "Other"
+      ],
+      "Clubhouse": [
+        "Booking issue",
+        "Equipment",
+        "Hygiene",
+        "Lighting",
+        "AC",
+        "Other"
+      ],
+      "Swimming Pool": [
+        "Water quality",
+        "Filter",
+        "Heating",
+        "Hygiene",
+        "Lifeguard",
+        "Equipment",
+        "Other"
+      ],
+      "Gym": [
+        "Equipment broken",
+        "Hygiene",
+        "AC",
+        "Lighting",
+        "Music",
+        "Other"
+      ],
+      "CCTV": [
+        "Camera offline",
+        "Footage request",
+        "Angle / position",
+        "Recording fault",
+        "Other"
+      ],
+      "Fire Safety": [
+        "Extinguisher",
+        "Hose / Pipe",
+        "Alarm",
+        "Smoke detector",
+        "Sprinkler",
+        "Emergency exit",
+        "Other"
+      ],
+      "Noise / Nuisance": [
+        "Loud music",
+        "Construction noise",
+        "Pet noise",
+        "Party",
+        "Other"
+      ],
+      "Vendor / Service": [
+        "Delivery issue",
+        "Service quality",
+        "Billing",
+        "Schedule",
+        "Other"
+      ]
     }
   },
   "system": {
-    "issuesRepo":         "tadeskops/ta-society-helpdesk",
-    "backupBranch":       "main",
-    "workerUrl":          "https://tsh-worker.tadeskops.workers.dev",
-    "handoverPortalUrl":  "https://script.google.com/macros/s/REPLACE_ME/exec",
-    "photoStorage":       "in-repo",
-    "turnstileSiteKey":   "REPLACE_ME_AT_DEPLOY",
-    "logoUrl":            "",
-    "logoNameUrl":        "",
-    "weeklyReportUrl":    "",
-    "fullReportUrl":      "",
-    "reportBackupFreq":   "weekly"
+    "issuesRepo": "tadeskops/ta-society-helpdesk",
+    "backupBranch": "main",
+    "workerUrl": "https://tsh-worker.tadeskops.workers.dev",
+    "handoverPortalUrl": "https://script.google.com/macros/s/REPLACE_ME/exec",
+    "photoStorage": "",
+    "turnstileSiteKey": "REPLACE_ME_AT_DEPLOY",
+    "logoUrl": "",
+    "logoNameUrl": "",
+    "weeklyReportUrl": "",
+    "fullReportUrl": "",
+    "reportBackupFreq": "weekly"
   },
+  "_comment": "Single source of truth for runtime configuration. Edited from docs/settings.html (developer only); committed by the Worker. Defaults baked into DEFAULT_CONFIG in worker/src/config/defaults.ts.",
   "ui": {
-    "defaultTheme":     "dark",
+    "defaultTheme": "dark",
     "defaultFontScale": "md"
   }
 }
