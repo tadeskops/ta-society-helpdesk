@@ -40,6 +40,28 @@
       font-size:.92em;
     }
     .tsh-field-inline .tsh-info { margin-left:.3em; }
+
+    /* Parameter NAME is the primary click target for help.
+       Checkbox only toggles when its box is clicked (not the name). */
+    .tsh-field .tsh-label {
+      cursor: help;
+      transition: color .12s;
+    }
+    .tsh-field .tsh-label:hover,
+    .tsh-field .tsh-label[aria-expanded="true"] {
+      color: var(--tsh-gold, #d4a017);
+    }
+    .tsh-field-inline {
+      display: flex; align-items: center; gap: .55em;
+      flex-wrap: wrap;
+    }
+    .tsh-field-inline > input[type="checkbox"] {
+      flex: 0 0 auto; margin: 0;
+    }
+    .tsh-field-inline > .tsh-label {
+      flex: 1 1 auto; padding: 0;
+    }
+    .tsh-field-inline > .tsh-help-panel { flex-basis: 100%; }
   </style>
 </head>
 <body class="tsh-page">
@@ -63,18 +85,18 @@
         <details class="tsh-section" open>
           <summary><h2>Access lists</h2></summary>
           <div class="tsh-grid-3">
-            <label class="tsh-field">
+            <div class="tsh-field">
               <span class="tsh-label">Developers <span class="tsh-hint">(at least one)</span></span>
               <textarea name="developers" rows="4" placeholder="one email per line"></textarea>
-            </label>
-            <label class="tsh-field">
+            </div>
+            <div class="tsh-field">
               <span class="tsh-label">Committee</span>
               <textarea name="committee" rows="4" placeholder="one email per line"></textarea>
-            </label>
-            <label class="tsh-field">
+            </div>
+            <div class="tsh-field">
               <span class="tsh-label">Managers</span>
               <textarea name="managers" rows="4" placeholder="one email per line"></textarea>
-            </label>
+            </div>
           </div>
         </details>
 
@@ -90,74 +112,74 @@
 
         <details class="tsh-section">
           <summary><h2>Lists (towers, categories, sub-categories)</h2></summary>
-          <label class="tsh-field">
+          <div class="tsh-field">
             <span class="tsh-label">Towers (comma-separated)</span>
             <input type="text" name="lists.towers" />
-          </label>
-          <label class="tsh-field">
+          </div>
+          <div class="tsh-field">
             <span class="tsh-label">Categories (comma-separated)</span>
             <input type="text" name="lists.categories" />
-          </label>
-          <label class="tsh-field">
+          </div>
+          <div class="tsh-field">
             <span class="tsh-label">Sub-categories (JSON: { "Category": ["sub", ...] })</span>
             <textarea name="lists.subCategories" rows="6" class="tsh-mono"></textarea>
-          </label>
+          </div>
         </details>
 
         <details class="tsh-section" data-tsh-dev-only>
           <summary><h2>System</h2></summary>
           <div class="tsh-grid-2">
-            <label class="tsh-field">
+            <div class="tsh-field">
               <span class="tsh-label">issuesRepo</span>
               <input type="text" name="system.issuesRepo" />
-            </label>
-            <label class="tsh-field">
+            </div>
+            <div class="tsh-field">
               <span class="tsh-label">backupBranch</span>
               <input type="text" name="system.backupBranch" />
-            </label>
-            <label class="tsh-field">
+            </div>
+            <div class="tsh-field">
               <span class="tsh-label">workerUrl</span>
               <input type="text" name="system.workerUrl" />
-            </label>
-            <label class="tsh-field">
+            </div>
+            <div class="tsh-field">
               <span class="tsh-label">handoverPortalUrl</span>
               <input type="text" name="system.handoverPortalUrl" />
-            </label>
-            <label class="tsh-field">
+            </div>
+            <div class="tsh-field">
               <span class="tsh-label">turnstileSiteKey</span>
               <input type="text" name="system.turnstileSiteKey" />
-            </label>
-            <label class="tsh-field">
+            </div>
+            <div class="tsh-field">
               <span class="tsh-label">photoStorage</span>
               <select name="system.photoStorage">
                 <option value="repo">In-repo (default)</option>
                 <option value="r2">Cloudflare R2 (future)</option>
               </select>
-            </label>
-            <label class="tsh-field">
+            </div>
+            <div class="tsh-field">
               <span class="tsh-label">logoUrl <span class="tsh-hint">(blank = bundled asset)</span></span>
               <input type="text" name="system.logoUrl" placeholder="https://&hellip; or leave blank" />
-            </label>
-            <label class="tsh-field">
+            </div>
+            <div class="tsh-field">
               <span class="tsh-label">logoNameUrl <span class="tsh-hint">(landing-page wordmark; blank = bundled)</span></span>
               <input type="text" name="system.logoNameUrl" placeholder="https://&hellip; or leave blank" />
-            </label>
-            <label class="tsh-field">
+            </div>
+            <div class="tsh-field">
               <span class="tsh-label">weeklyReportUrl</span>
               <input type="text" name="system.weeklyReportUrl" placeholder="public URL of the weekly PDF" />
-            </label>
-            <label class="tsh-field">
+            </div>
+            <div class="tsh-field">
               <span class="tsh-label">fullReportUrl</span>
               <input type="text" name="system.fullReportUrl" placeholder="public URL of the full PDF" />
-            </label>
-            <label class="tsh-field">
+            </div>
+            <div class="tsh-field">
               <span class="tsh-label">reportBackupFreq</span>
               <select name="system.reportBackupFreq">
                 <option value="weekly">Weekly</option>
                 <option value="daily">Daily</option>
                 <option value="3x-daily">3x daily</option>
               </select>
-            </label>
+            </div>
           </div>
         </details>
 
@@ -165,22 +187,22 @@
           <summary><h2>UI defaults</h2></summary>
           <p class="tsh-hint">Applied for users who have not yet chosen a theme or text size on this device.</p>
           <div class="tsh-grid-2">
-            <label class="tsh-field">
+            <div class="tsh-field">
               <span class="tsh-label">Default theme</span>
               <select name="ui.defaultTheme">
                 <option value="dark">Dark</option>
                 <option value="light">Light</option>
                 <option value="medium">Medium</option>
               </select>
-            </label>
-            <label class="tsh-field">
+            </div>
+            <div class="tsh-field">
               <span class="tsh-label">Default text size</span>
               <select name="ui.defaultFontScale">
                 <option value="md">Default (md)</option>
                 <option value="lg">Comfortable (lg)</option>
                 <option value="xl">Spacious (xl)</option>
               </select>
-            </label>
+            </div>
           </div>
         </details>
       </form>
@@ -253,15 +275,15 @@
       // Feature flags — generate one toggle per flag from the config snapshot.
       const flagsGrid = document.getElementById('flagsGrid');
       for (const [name, val] of Object.entries(cfg.features || {})) {
-        const row = UI.el('label', { class: 'tsh-field tsh-field-inline' },
+        const row = UI.el('div', { class: 'tsh-field tsh-field-inline' },
           UI.el('input', { type: 'checkbox', name: `features.${name}`, ...(val ? { checked: '' } : {}) }),
-          UI.el('span', null, name));
+          UI.el('span', { class: 'tsh-label' }, name));
         flagsGrid.appendChild(row);
       }
 
       const tunGrid = document.getElementById('tunablesGrid');
       for (const [name, val] of Object.entries(cfg.tunables || {})) {
-        const row = UI.el('label', { class: 'tsh-field' },
+        const row = UI.el('div', { class: 'tsh-field' },
           UI.el('span', { class: 'tsh-label' }, name),
           UI.el('input', { type: 'text', name: `tunables.${name}`, value: String(val) }));
         tunGrid.appendChild(row);
@@ -631,28 +653,34 @@
       for (const el of inputs) {
         const info = lookupHelp(el.name);
         if (!info) continue;
-        const field = el.closest('label.tsh-field, .tsh-field');
-        if (!field || field.querySelector(':scope > .tsh-info, :scope > .tsh-label .tsh-info, :scope > span .tsh-info')) continue;
-        // Pick the label-ish element to attach the icon to.
-        const labelSpan = field.querySelector(':scope > .tsh-label')
-                       || field.querySelector(':scope > span');
+        const field = el.closest('.tsh-field');
+        if (!field || field.querySelector(':scope > .tsh-help-panel')) continue;
+        const labelSpan = field.querySelector(':scope > .tsh-label');
         if (!labelSpan) continue;
 
         const panelId = `tshHelp_${++panelSeq}`;
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'tsh-info';
-        btn.setAttribute('aria-label', `Info about ${el.name}`);
-        btn.setAttribute('aria-expanded', 'false');
-        btn.setAttribute('aria-controls', panelId);
         const tipBits = [info.summary || ''];
         if (info.range)   tipBits.push(`Range: ${info.range}`);
         if (info.options) tipBits.push(`Options: ${info.options}`);
         if (info.default !== undefined) tipBits.push(`Default: ${info.default}`);
-        btn.title = tipBits.filter(Boolean).join('\n');
-        btn.innerHTML = '<i class="fas fa-circle-info" aria-hidden="true"></i>';
+        const tooltip = tipBits.filter(Boolean).join('\n');
+
+        // Make the parameter NAME itself the click target for help.
+        labelSpan.setAttribute('role', 'button');
+        labelSpan.setAttribute('tabindex', '0');
+        labelSpan.setAttribute('aria-expanded', 'false');
+        labelSpan.setAttribute('aria-controls', panelId);
+        labelSpan.setAttribute('title', tooltip);
+
+        // Add a small "i" icon as a visual cue that the name is clickable.
+        const icon = document.createElement('button');
+        icon.type = 'button';
+        icon.className = 'tsh-info';
+        icon.tabIndex = -1;  // name span is the real control; avoid double-tab
+        icon.setAttribute('aria-hidden', 'true');
+        icon.innerHTML = '<i class="fas fa-circle-info" aria-hidden="true"></i>';
         labelSpan.appendChild(document.createTextNode(' '));
-        labelSpan.appendChild(btn);
+        labelSpan.appendChild(icon);
 
         const panel = document.createElement('div');
         panel.id = panelId;
@@ -661,12 +689,17 @@
         panel.innerHTML = helpPanelHtml(info);
         field.appendChild(panel);
 
-        btn.addEventListener('click', (e) => {
+        const toggle = (e) => {
           e.preventDefault();
-          e.stopPropagation(); // labels propagate clicks to inputs; don't toggle the checkbox
+          e.stopPropagation();
           const open = panel.hidden;
           panel.hidden = !open;
-          btn.setAttribute('aria-expanded', String(open));
+          labelSpan.setAttribute('aria-expanded', String(open));
+          icon.setAttribute('aria-expanded', String(open));
+        };
+        labelSpan.addEventListener('click', toggle);
+        labelSpan.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') toggle(e);
         });
       }
     }
