@@ -252,6 +252,43 @@
   // page renders at the user's chosen scale without a visible jump.
   FontSize.init();
 
+  // ----- Theme switcher (3 tones: dark / light / medium) -----
+  // Persisted in localStorage as `tsh_theme`.  Applied via html[data-theme]
+  // which theme.css uses to swap the surface + text + border tokens.
+  // `dark` is the default and is represented by the ABSENCE of the attribute
+  // (so first-paint matches the base :root variables — no FOUC).
+  const ThemeSwitcher = (function () {
+    const KEY = 'tsh_theme';
+    const ALLOWED = ['dark', 'light', 'medium'];
+
+    function get() {
+      try { const v = localStorage.getItem(KEY); if (ALLOWED.includes(v)) return v; } catch (_e) {}
+      return 'dark';
+    }
+    function apply(tone) {
+      const v = ALLOWED.includes(tone) ? tone : 'dark';
+      if (v === 'dark') document.documentElement.removeAttribute('data-theme');
+      else document.documentElement.setAttribute('data-theme', v);
+      try { localStorage.setItem(KEY, v); } catch (_e) {}
+      for (const btn of document.querySelectorAll('[data-tsh-theme]')) {
+        btn.setAttribute('aria-pressed', btn.getAttribute('data-tsh-theme') === v ? 'true' : 'false');
+      }
+    }
+    function bind(scope) {
+      const container = (scope && scope.querySelectorAll) ? scope : document;
+      for (const btn of container.querySelectorAll('[data-tsh-theme]')) {
+        if (btn.dataset.tshThemeBound === '1') continue;
+        btn.dataset.tshThemeBound = '1';
+        btn.addEventListener('click', () => apply(btn.getAttribute('data-tsh-theme')));
+      }
+      apply(get());
+    }
+    function init() { apply(get()); }
+    return { init, bind, apply, get };
+  })();
+
+  ThemeSwitcher.init();
+
   // ----- Draft (localStorage form persistence) -----
   // Draft.bind(form, 'TSH_KEY') auto-saves every input change and restores
   // on next visit.  Call Draft.clear('TSH_KEY') after a successful submit.
@@ -354,12 +391,13 @@
 
     // Wire the font-size switcher embedded in the header partial.
     FontSize.bind(document);
+    ThemeSwitcher.bind(document);
   }
 
   root.UI = {
     el, $, toast, modal, confirmModal, formatRel, copyToClipboard,
     statusPill, severityPill, bindHeader,
     stateLoading, stateEmpty, stateError,
-    Lightbox, FontSize, Draft,
+    Lightbox, FontSize, ThemeSwitcher, Draft,
   };
 })(window);
