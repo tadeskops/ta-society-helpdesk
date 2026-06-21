@@ -250,7 +250,7 @@
     "backupBranch": "main",
     "workerUrl": "https://tsh-worker.tadeskops.workers.dev",
     "handoverPortalUrl": "https://script.google.com/macros/s/REPLACE_ME/exec",
-    "photoStorage": "",
+    "photoStorage": "repo",
     "turnstileSiteKey": "REPLACE_ME_AT_DEPLOY",
     "logoUrl": "",
     "logoNameUrl": "",
