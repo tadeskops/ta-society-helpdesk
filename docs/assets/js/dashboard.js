@@ -120,7 +120,7 @@
       actions.push({ label: `→ ${labelFor(to)}`, value: { kind: 'transition', to }, primary: to === 'assigned' || to === 'resolved' });
     }
     if (opts.allowDelete) {
-      actions.push({ label: 'Delete (soft)', value: { kind: 'delete' }, danger: true });
+      actions.push({ label: 'Delete', value: { kind: 'delete' }, danger: true });
     }
     actions.push({ label: 'Close', value: null });
 
@@ -132,7 +132,7 @@
   }
 
   function labelFor(s) {
-    return ({ triaging: 'Triage', assigned: 'Assign', in_progress: 'In progress', resolved: 'Resolve', rejected: 'Reject', reopened: 'Reopen' }[s]) || s;
+    return ({ triaging: 'Start review', assigned: 'Assign', in_progress: 'In progress', resolved: 'Resolve', rejected: 'Reject', reopened: 'Reopen' }[s]) || s;
   }
 
   function detailMeta(issue) {

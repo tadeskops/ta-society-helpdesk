@@ -1,8 +1,8 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Manage · TSH</title>
+  <title>Manage Â· TSH</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#1a1f2e" />
   <link rel="icon" href="./assets/images/TaLogo.png" type="image/png" />
@@ -20,7 +20,7 @@
       <header class="tsh-card-head tsh-card-head-row">
         <div>
           <h1 id="dashTitle"><i class="fas fa-user-shield gold-accent"></i> Manage</h1>
-          <p class="tsh-sub" id="dashRoleHint">Triage and assign daily issues.</p>
+          <p class="tsh-sub" id="dashRoleHint">Review and assign daily issues.</p>
         </div>
         <div class="tsh-toolbar">
           <select id="filterTower" aria-label="Filter by tower"><option value="">All towers</option></select>
@@ -33,14 +33,14 @@
             <option value="low">Low</option>
           </select>
           <button type="button" class="tsh-btn tsh-btn-ghost" id="refreshBtn"><i class="fas fa-sync-alt"></i>Refresh</button>
-          <button type="button" class="tsh-btn tsh-btn-ghost" id="bulkArchiveBtn" hidden><i class="fas fa-box-archive"></i>Bulk archive…</button>
-          <button type="button" class="tsh-btn tsh-btn-ghost" id="auditBtn" hidden><i class="fas fa-clipboard-list"></i>Audit log</button>
+          <button type="button" class="tsh-btn tsh-btn-ghost" id="bulkArchiveBtn" hidden><i class="fas fa-box-archive"></i>Archive old ticketsâ€¦</button>
+          <button type="button" class="tsh-btn tsh-btn-ghost" id="auditBtn" hidden><i class="fas fa-clipboard-list"></i>Activity log</button>
         </div>
       </header>
 
       <nav class="tsh-tabs" role="tablist" aria-label="Status">
         <button type="button" role="tab" aria-selected="true"  data-status="new"         class="tsh-tab tsh-tab-active">New</button>
-        <button type="button" role="tab" aria-selected="false" data-status="triaging"    class="tsh-tab">Triaging</button>
+        <button type="button" role="tab" aria-selected="false" data-status="triaging"    class="tsh-tab">Reviewing</button>
         <button type="button" role="tab" aria-selected="false" data-status="assigned"    class="tsh-tab">Assigned</button>
         <button type="button" role="tab" aria-selected="false" data-status="in_progress" class="tsh-tab">In progress</button>
         <button type="button" role="tab" aria-selected="false" data-status="resolved"    class="tsh-tab">Resolved</button>
@@ -79,8 +79,8 @@
   <script src="./assets/js/api.js?v=11"></script>
   <script src="./assets/js/auth.js?v=11"></script>
   <script src="./assets/js/flags.js?v=11"></script>
-  <script src="./assets/js/ui.js?v=14"></script>
-  <script src="./assets/js/dashboard.js?v=14"></script>
+  <script src="./assets/js/ui.js?v=15"></script>
+  <script src="./assets/js/dashboard.js?v=15"></script>
   <script>
   (async () => {
     await Partials.mount();
@@ -102,7 +102,7 @@
     const hint  = document.getElementById('dashRoleHint');
     if (isCommittee) {
       title.innerHTML = '<i class="fas fa-people-group gold-accent"></i> Manage (Committee)';
-      hint.textContent = 'Triage, assign, resolve — plus delete, bulk archive, and audit log.';
+      hint.textContent = 'Review, assign, resolve â€” plus delete, archive old tickets, and activity log.';
     }
 
     Dashboard.boot({ role: who.primary, allowDelete: isCommittee });
@@ -112,14 +112,14 @@
       const auditBtn = document.getElementById('auditBtn');
       bulkBtn.hidden = false;
       bulkBtn.addEventListener('click', async () => {
-        const ok = await UI.confirmModal('Bulk archive resolved/rejected issues',
-          'This soft-deletes every resolved or rejected ticket older than the configured cutoff. Audit-logged. Continue?');
+        const ok = await UI.confirmModal('Archive old resolved/rejected tickets',
+          'Removes every resolved or rejected ticket older than the configured cutoff. The action is recorded in the activity log. Continue?');
         if (!ok) return;
         try {
           const res = await Api.post('/issues/bulk-archive', { confirm: true });
           UI.toast(`Archived ${res.archived || 0} ticket(s).`, { kind: 'success' });
           Dashboard.reload();
-        } catch (e) { UI.toast(e.message || 'Bulk archive failed.', { kind: 'danger' }); }
+        } catch (e) { UI.toast(e.message || 'Archive failed.', { kind: 'danger' }); }
       });
 
       if (Flags.on('FEATURE_DAILY_AUDIT_LOG_UI')) {
@@ -138,8 +138,8 @@
                 UI.el('span', { class: 'tsh-text-faint' }, e.detail || ''));
               body.appendChild(row);
             }
-            UI.modal({ title: 'Audit log (most recent first)', body, actions: [{ label: 'Close', value: true }] });
-          } catch (e) { UI.toast(e.message || 'Audit log unavailable.', { kind: 'danger' }); }
+            UI.modal({ title: 'Activity log (most recent first)', body, actions: [{ label: 'Close', value: true }] });
+          } catch (e) { UI.toast(e.message || 'Activity log unavailable.', { kind: 'danger' }); }
         });
       }
     }

@@ -118,7 +118,7 @@
   <script src="./assets/js/api.js?v=11"></script>
   <script src="./assets/js/auth.js?v=11"></script>
   <script src="./assets/js/flags.js?v=11"></script>
-  <script src="./assets/js/ui.js?v=14"></script>
+  <script src="./assets/js/ui.js?v=15"></script>
   <script>
   (async () => {
     await Partials.mount();
@@ -291,7 +291,7 @@
       const body = UI.el('div', { class: 'tsh-success-box' },
         UI.el('div', { class: 'tsh-success-icon' }, UI.el('i', { class: 'fas fa-check' })),
         UI.el('p', { class: 'tsh-success-msg' },
-          'Your report has been received. The on-site manager will triage it shortly.'),
+          'Your report has been received. The on-site manager will review it shortly.'),
         UI.el('div', { class: 'tsh-success-ticket' },
           UI.el('code', null, ticket),
           UI.el('button', {

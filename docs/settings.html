@@ -231,7 +231,7 @@
   <script src="./assets/js/api.js?v=11"></script>
   <script src="./assets/js/auth.js?v=11"></script>
   <script src="./assets/js/flags.js?v=11"></script>
-  <script src="./assets/js/ui.js?v=14"></script>
+  <script src="./assets/js/ui.js?v=15"></script>
   <script>
   (async () => {
     await Partials.mount();
@@ -395,11 +395,11 @@
       },
       'committee': {
         summary: 'Content moderation + read-only settings view.',
-        detail: 'One email per line. Committee members can read settings, redact and soft-delete issues, and run committee dashboards. They cannot edit settings.',
+        detail: 'One email per line. Committee members can read settings, redact reporter details, and delete issues, and use the Manage page with full powers. They cannot edit settings.',
       },
       'managers': {
-        summary: 'Day-to-day issue triage and status transitions.',
-        detail: 'One email per line. Managers can transition issue status, assign, attach photos, and use the manager dashboard. They cannot edit settings or moderate.',
+        summary: 'Day-to-day issue review and status transitions.',
+        detail: 'One email per line. Managers can change issue status, assign, attach photos, and use the Manage page. They cannot edit settings or moderate.',
       },
 
       // Lists

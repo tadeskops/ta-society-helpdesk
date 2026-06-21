@@ -107,8 +107,25 @@
     }
   }
 
+  // Status wire value -> human label. Keep wire values stable (they're the
+  // GitHub label names on stored issues); the UI just prints something a
+  // resident can read. 'triaging' historically came from incident-management
+  // tooling — we surface it as 'Reviewing' for clarity.
+  const STATUS_TEXT = {
+    new:           'New',
+    triaging:      'Reviewing',
+    assigned:      'Assigned',
+    'in-progress': 'In progress',
+    in_progress:   'In progress',
+    resolved:      'Resolved',
+    rejected:      'Rejected',
+    reopened:      'Reopened',
+    deleted:       'Deleted',
+  };
+  function statusText(s) { return STATUS_TEXT[s] || (s ? String(s) : '—'); }
+
   function statusPill(status) {
-    return el('span', { class: `tsh-pill tsh-pill-${status}` }, status);
+    return el('span', { class: `tsh-pill tsh-pill-${status}` }, statusText(status));
   }
 
   function severityPill(sev) {
@@ -543,7 +560,7 @@
 
   root.UI = {
     el, $, toast, modal, confirmModal, formatRel, copyToClipboard,
-    statusPill, severityPill, bindHeader,
+    statusPill, statusText, severityPill, bindHeader,
     stateLoading, stateEmpty, stateError,
     Lightbox, FontSize, ThemeSwitcher, Draft, MyReports, PhotoTray,
   };
