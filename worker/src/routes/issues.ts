@@ -235,9 +235,11 @@ const mountList = (r: Router): void => {
     if (towerFilter) labels.push(`tower:${towerFilter}`);
 
     const issues = await listIssues(ctx.env, { state: 'all', labels, per_page: 100 });
+    const showDemo = isFeatureOn(ctx.config, 'FEATURE_DAILY_SHOW_DEMO_ISSUES');
     // Privileged callers see the full body; we still hide deleted.
     const items = issues
       .filter((i) => !isDeleted(i))
+      .filter((i) => showDemo || !i.labels.some((l) => l.name === 'seed:demo'))
       .map((i) => ({
         id: padId(i.number),
         number: i.number,

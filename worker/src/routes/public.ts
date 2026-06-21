@@ -18,9 +18,11 @@ export const mountPublic = (r: Router): void => {
     const includePhotos = isFeatureOn(ctx.config, 'FEATURE_DAILY_PUBLIC_PHOTOS');
     const showResolved  = isFeatureOn(ctx.config, 'FEATURE_DAILY_PUBLIC_RESOLVED');
     const showRejected  = isFeatureOn(ctx.config, 'FEATURE_DAILY_PUBLIC_REJECTED');
+    const showDemo      = isFeatureOn(ctx.config, 'FEATURE_DAILY_SHOW_DEMO_ISSUES');
 
     const visible = all.filter((i) => {
       if (isDeleted(i)) return false;
+      if (!showDemo && i.labels.some((l) => l.name === 'seed:demo')) return false;
       const s = statusOf(i.labels);
       if (s === 'resolved' && !showResolved) return false;
       if (s === 'rejected' && !showRejected) return false;
@@ -42,6 +44,10 @@ export const mountPublic = (r: Router): void => {
     if (!issue || isDeleted(issue)) throw new NotFound(`No public issue ${raw}`);
     // System filter: must carry the 'daily' label to be a daily-track issue.
     if (!issue.labels.some((l) => l.name === 'daily')) throw new NotFound(`No public issue ${raw}`);
+    if (!isFeatureOn(ctx.config, 'FEATURE_DAILY_SHOW_DEMO_ISSUES') &&
+        issue.labels.some((l) => l.name === 'seed:demo')) {
+      throw new NotFound(`No public issue ${raw}`);
+    }
     const includePhotos = isFeatureOn(ctx.config, 'FEATURE_DAILY_PUBLIC_PHOTOS');
     return ok(ctx.env, ctx.req, toPublicIssue(issue, { includePhotos }));
   });
