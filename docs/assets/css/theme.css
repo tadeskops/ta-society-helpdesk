@@ -81,6 +81,11 @@
 
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
+/* Font-size scaling (a11y). Default = md (16px). lg/xl bump the rem base so
+   every rem-sized token scales together. Persisted by ui.js#FontSize. */
+html { font-size: 16px; }
+html[data-fontsize="lg"] { font-size: 17.5px; }
+html[data-fontsize="xl"] { font-size: 19px; }
 [hidden] { display: none !important; }   /* enforce HTML5 hidden over class rules */
 body {
   margin: 0;
@@ -435,6 +440,14 @@ input, select, textarea {
 }
 .tsh-btn-danger:hover { filter: brightness(1.1); }
 
+.tsh-btn-info {
+  background: linear-gradient(135deg, #3b82f6 0%, #0891b2 100%);  /* blue-600 -> cyan-600 */
+  color: #fff;
+  border-color: rgba(59, 130, 246, 0.4);
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.18);
+}
+.tsh-btn-info:hover { background: linear-gradient(135deg, #60a5fa 0%, #06b6d4 100%); color: #fff; }
+
 .tsh-btn-sm { min-height: 32px; padding: var(--sp-1) var(--sp-3); font-size: var(--fs-xs); }
 
 .tsh-btn[disabled], .tsh-btn[aria-disabled="true"] {
@@ -702,15 +715,17 @@ input:focus, select:focus, textarea:focus {
 
 .tsh-toasts {
   position: fixed;
-  inset: auto 0 var(--sp-5) 0;
+  bottom: var(--sp-5);
+  right: var(--sp-4);
+  left: var(--sp-4);                    /* on narrow phones the toast still has room */
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-end;                /* TIM parity: bottom-right corner */
   gap: var(--sp-2);
   z-index: 200;
   pointer-events: none;
-  padding: 0 var(--sp-4);
 }
+@media (min-width: 480px) { .tsh-toasts { left: auto; } }
 .tsh-toast {
   pointer-events: auto;
   background: linear-gradient(135deg, #1f2638 0%, #161b27 100%);
@@ -868,7 +883,118 @@ input:focus, select:focus, textarea:focus {
   border-radius: var(--rad-md);
   aspect-ratio: 1 / 1;
   object-fit: cover;
+  cursor: zoom-in;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
+.tsh-photo-grid img:hover { transform: scale(1.02); box-shadow: var(--shadow-md); }
+
+/* ===== Lightbox (photo viewer) ========================================= */
+
+.tsh-lightbox {
+  position: fixed; inset: 0;
+  background: rgba(5, 10, 20, 0.92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 300;
+  padding: var(--sp-4);
+}
+.tsh-lightbox-img {
+  max-width: 95vw; max-height: 90vh;
+  border-radius: var(--rad-lg);
+  box-shadow: var(--shadow-lg);
+  background: #000;
+}
+.tsh-lightbox-close,
+.tsh-lightbox-drive,
+.tsh-lightbox-prev,
+.tsh-lightbox-next {
+  position: absolute;
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: var(--sp-2);
+  background: rgba(15, 23, 42, 0.75);
+  color: var(--c-text);
+  border: 1px solid var(--c-border-soft);
+  border-radius: var(--rad-pill);
+  font-size: var(--fs-sm); font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+.tsh-lightbox-close { top: var(--sp-4); right: var(--sp-4); width: 40px; height: 40px; font-size: var(--fs-lg); }
+.tsh-lightbox-drive { top: var(--sp-4); left: var(--sp-4); padding: var(--sp-2) var(--sp-4); }
+.tsh-lightbox-prev  { left:  var(--sp-4); top: 50%; transform: translateY(-50%); width: 44px; height: 44px; }
+.tsh-lightbox-next  { right: var(--sp-4); top: 50%; transform: translateY(-50%); width: 44px; height: 44px; }
+.tsh-lightbox-close:hover,
+.tsh-lightbox-drive:hover,
+.tsh-lightbox-prev:hover,
+.tsh-lightbox-next:hover { background: rgba(212, 175, 55, 0.25); color: var(--c-primary); }
+.tsh-lightbox-counter {
+  position: absolute; bottom: var(--sp-4); left: 50%; transform: translateX(-50%);
+  background: rgba(15, 23, 42, 0.75); color: var(--c-text-muted);
+  padding: var(--sp-1) var(--sp-3); border-radius: var(--rad-pill);
+  font-size: var(--fs-xs); font-weight: 600;
+}
+
+/* ===== State components (loading / empty / error) ====================== */
+
+.tsh-state {
+  text-align: center;
+  padding: var(--sp-8) var(--sp-4);
+  border-radius: var(--rad-lg);
+  margin: var(--sp-3) 0;
+}
+.tsh-state-icon { font-size: 2rem; display: block; margin-bottom: var(--sp-3); }
+.tsh-state-title { margin: 0 0 var(--sp-1); font-size: var(--fs-base); font-weight: 600; color: var(--c-text); }
+.tsh-state-msg   { margin: 0; font-size: var(--fs-sm); color: var(--c-text-muted); }
+.tsh-state-loading {
+  background: rgba(212, 175, 55, 0.06);
+  border: 1px solid var(--c-border);
+}
+.tsh-state-loading .tsh-state-icon { color: var(--c-primary); }
+.tsh-state-empty {
+  background: rgba(148, 163, 184, 0.04);
+  border: 1px dashed var(--c-border-soft);
+}
+.tsh-state-empty .tsh-state-icon { color: var(--c-text-faint); }
+.tsh-state-error {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+}
+.tsh-state-error .tsh-state-icon,
+.tsh-state-error .tsh-state-title { color: var(--c-danger); }
+
+/* ===== Font-size switcher (in header) ================================== */
+
+.tsh-fontsize {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-right: var(--sp-2);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--c-border-soft);
+  border-radius: var(--rad-pill);
+  padding: 2px;
+}
+.tsh-fontsize button {
+  background: transparent;
+  border: 0;
+  color: var(--c-text-muted);
+  width: 28px; height: 24px;
+  border-radius: var(--rad-pill);
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.tsh-fontsize button[aria-pressed="true"] {
+  background: var(--c-primary-soft);
+  color: var(--c-primary);
+}
+.tsh-fontsize button:hover { color: var(--c-text); }
+.tsh-fontsize-md { font-size: 11px; }
+.tsh-fontsize-lg { font-size: 13px; }
+.tsh-fontsize-xl { font-size: 15px; }
 
 /* ===== Confirm page ==================================================== */
 

@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#1a1f2e" />
   <link rel="icon" href="./assets/images/logo.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="./assets/css/theme.css?v=3" />
+  <link rel="stylesheet" href="./assets/css/theme.css?v=4" />
 </head>
 <body class="tsh-page">
   <div data-include="header"></div>
@@ -38,18 +38,22 @@
       </nav>
 
       <div id="boardList" class="tsh-board-list" aria-live="polite"></div>
-      <p id="boardEmpty" class="tsh-hint" hidden>No issues match this filter.</p>
+      <div id="boardEmpty" class="tsh-state tsh-state-empty" hidden>
+        <i class="tsh-state-icon fas fa-inbox"></i>
+        <p class="tsh-state-title">No issues match this filter</p>
+        <p class="tsh-state-msg">Try a different tab or clear the search.</p>
+      </div>
     </section>
   </main>
 
   <div data-include="footer"></div>
 
-  <script src="./assets/js/config.js?v=3"></script>
-  <script src="./assets/js/partials.js?v=3"></script>
-  <script src="./assets/js/api.js?v=3"></script>
-  <script src="./assets/js/auth.js?v=3"></script>
-  <script src="./assets/js/flags.js?v=3"></script>
-  <script src="./assets/js/ui.js?v=3"></script>
+  <script src="./assets/js/config.js?v=4"></script>
+  <script src="./assets/js/partials.js?v=4"></script>
+  <script src="./assets/js/api.js?v=4"></script>
+  <script src="./assets/js/auth.js?v=4"></script>
+  <script src="./assets/js/flags.js?v=4"></script>
+  <script src="./assets/js/ui.js?v=4"></script>
   <script>
   (async () => {
     await Partials.mount();
@@ -66,18 +70,21 @@
     }
 
     let all = [];
+    const list  = document.getElementById('boardList');
+    const empty = document.getElementById('boardEmpty');
+    list.appendChild(UI.stateLoading('Loading board\u2026'));
     try {
       const res = await Api.get('/issues/public');
       all = Array.isArray(res) ? res : (res.items || []);
     } catch (e) {
+      list.innerHTML = '';
+      list.appendChild(UI.stateError('Could not load the board.'));
       UI.toast('Could not load the board.', { kind: 'danger' });
       console.error(e); return;
     }
 
     let filter = 'all';
     let query  = '';
-    const list  = document.getElementById('boardList');
-    const empty = document.getElementById('boardEmpty');
 
     function render() {
       list.innerHTML = '';

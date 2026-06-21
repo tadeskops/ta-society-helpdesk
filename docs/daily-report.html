@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#1a1f2e" />
   <link rel="icon" href="./assets/images/logo.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="./assets/css/theme.css?v=3" />
+  <link rel="stylesheet" href="./assets/css/theme.css?v=4" />
 </head>
 <body class="tsh-page">
   <div data-include="header"></div>
@@ -90,18 +90,19 @@
           <a class="tsh-btn tsh-btn-ghost" href="./index.html"><i class="fas fa-xmark"></i>Cancel</a>
         </div>
         <p class="tsh-hint" id="formStatus" aria-live="polite"></p>
+        <p class="tsh-hint"><i class="fas fa-info-circle"></i> Your draft is auto-saved on this device.</p>
       </form>
     </section>
   </main>
 
   <div data-include="footer"></div>
 
-  <script src="./assets/js/config.js?v=3"></script>
-  <script src="./assets/js/partials.js?v=3"></script>
-  <script src="./assets/js/api.js?v=3"></script>
-  <script src="./assets/js/auth.js?v=3"></script>
-  <script src="./assets/js/flags.js?v=3"></script>
-  <script src="./assets/js/ui.js?v=3"></script>
+  <script src="./assets/js/config.js?v=4"></script>
+  <script src="./assets/js/partials.js?v=4"></script>
+  <script src="./assets/js/api.js?v=4"></script>
+  <script src="./assets/js/auth.js?v=4"></script>
+  <script src="./assets/js/flags.js?v=4"></script>
+  <script src="./assets/js/ui.js?v=4"></script>
   <script>
   (async () => {
     await Partials.mount();
@@ -152,6 +153,10 @@
     }
     catSel.addEventListener('change', refreshSubcats);
     refreshSubcats();
+
+    // Auto-save form draft to localStorage (file inputs intentionally excluded).
+    const DRAFT_KEY = 'tsh_daily_report_draft_v1';
+    UI.Draft.bind(document.getElementById('reportForm'), DRAFT_KEY);
 
     // Turnstile widget (only if FEATURE_DAILY_TURNSTILE and a real site key is configured).
     let turnstileToken = null;
@@ -210,7 +215,9 @@
         btn.disabled = false;
         status.textContent = err.message || 'Submit failed.';
         UI.toast(err.message || 'Submit failed.', { kind: 'danger' });
+        return;
       }
+      UI.Draft.clear(DRAFT_KEY);
     });
   })();
 

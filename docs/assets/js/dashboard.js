@@ -21,7 +21,10 @@
 
   async function reload() {
     const tbody = document.querySelector('#issuesTable tbody');
-    tbody.innerHTML = '<tr><td colspan="7" class="tsh-text-muted">Loading…</td></tr>';
+    tbody.innerHTML = '';
+    const loader = root.UI.el('tr', null,
+      root.UI.el('td', { colspan: '7' }, root.UI.stateLoading('Loading issues…')));
+    tbody.appendChild(loader);
     try {
       const params = new URLSearchParams();
       if (currentStatus) params.set('status', currentStatus);
@@ -30,6 +33,9 @@
       render();
     } catch (e) {
       tbody.innerHTML = '';
+      const errRow = root.UI.el('tr', null,
+        root.UI.el('td', { colspan: '7' }, root.UI.stateError(e.message || 'Could not load issues.')));
+      tbody.appendChild(errRow);
       root.UI.toast(e.message || 'Could not load issues.', { kind: 'danger' });
     }
   }
@@ -84,7 +90,7 @@
   function actionsFor(issue) {
     const wrap = root.UI.el('div', { class: 'tsh-row-actions' });
     wrap.appendChild(root.UI.el('button', {
-      type: 'button', class: 'tsh-btn tsh-btn-ghost tsh-btn-sm',
+      type: 'button', class: 'tsh-btn tsh-btn-info tsh-btn-sm',
       onclick: () => openDetail(issue),
     }, 'View'));
     return wrap;
@@ -97,8 +103,12 @@
     if (issue.description) body.appendChild(root.UI.el('p', { class: 'tsh-detail-desc' }, issue.description));
     if (issue.photos && issue.photos.length) {
       const ph = root.UI.el('div', { class: 'tsh-photo-grid' });
-      for (const url of issue.photos) ph.appendChild(root.UI.el('a', { href: url, target: '_blank', rel: 'noopener' }, root.UI.el('img', { src: url, alt: '', loading: 'lazy' })));
+      for (const url of issue.photos) {
+        ph.appendChild(root.UI.el('img', { src: url, 'data-tsh-full': url, alt: '', loading: 'lazy' }));
+      }
       body.appendChild(ph);
+      // Bind the lightbox after the modal paints (next microtask).
+      setTimeout(() => root.UI.Lightbox.attach(body), 0);
     }
 
     const actions = [];
