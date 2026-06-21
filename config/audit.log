@@ -1,2 +1,3 @@
 # Append-only audit log. One JSON object per line.
 # Format: {"at": "<ISO>", "actor": "<email>", "action": "<verb>", "target": "<path-or-id>", "detail": "<free text>"}
+{"at":"2026-06-21T12:14:43.125Z","actor":"ta.deskops@gmail.com","action":"config:put","target":"config/site.json","detail":"version=1"}
