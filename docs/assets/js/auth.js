@@ -44,6 +44,8 @@
     }
   }
 
+  const STORAGE_KEY = 'tsh_id_token';
+
   function applyToken(jwt) {
     const claims = decodeJwt(jwt);
     if (!claims || !claims.email) {
@@ -55,9 +57,15 @@
     state.name = claims.name || null;
     state.picture = claims.picture || null;
     state.expiry = (claims.exp || 0) * 1000;
-    // Tab-scoped hint (NOT the token, NOT the email) so the next page in
-    // this tab knows to ask GIS for silent re-auth. Cleared on signOut.
-    try { sessionStorage.setItem('tsh_signed_in', '1'); } catch (_e) { /* ignore */ }
+    // Tab-scoped cache (sessionStorage is cleared when the tab closes; not
+    // shared with other tabs and never written to disk persistently). This
+    // lets page reloads restore the session immediately instead of relying
+    // on Google's One Tap silent re-auth, which is often suppressed by
+    // FedCM / third-party-cookie restrictions.
+    try {
+      sessionStorage.setItem('tsh_signed_in', '1');
+      sessionStorage.setItem(STORAGE_KEY, jwt);
+    } catch (_e) { /* ignore */ }
     notify();
   }
 
@@ -67,8 +75,34 @@
     state.name = null;
     state.picture = null;
     state.expiry = 0;
-    try { sessionStorage.removeItem('tsh_signed_in'); } catch (_e) { /* ignore */ }
+    try {
+      sessionStorage.removeItem('tsh_signed_in');
+      sessionStorage.removeItem(STORAGE_KEY);
+    } catch (_e) { /* ignore */ }
     notify();
+  }
+
+  function restoreFromStorage() {
+    let jwt = '';
+    try { jwt = sessionStorage.getItem(STORAGE_KEY) || ''; } catch (_e) { return false; }
+    if (!jwt) return false;
+    const claims = decodeJwt(jwt);
+    if (!claims || !claims.exp) return false;
+    const expMs = claims.exp * 1000;
+    // 60 s clock-skew buffer — if it's already about to expire, drop it.
+    if (Date.now() > expMs - 60_000) {
+      try {
+        sessionStorage.removeItem(STORAGE_KEY);
+        sessionStorage.removeItem('tsh_signed_in');
+      } catch (_e) { /* ignore */ }
+      return false;
+    }
+    state.token = jwt;
+    state.email = String(claims.email || '').toLowerCase();
+    state.name = claims.name || null;
+    state.picture = claims.picture || null;
+    state.expiry = expMs;
+    return true;
   }
 
   async function loadGisScript() {
@@ -85,6 +119,11 @@
 
   async function init(opts) {
     state.clientId = opts.clientId;
+
+    // 1) Restore from tab-scoped cache first. If it works, the page can
+    //    proceed immediately without waiting on Google.
+    const restored = restoreFromStorage();
+
     await loadGisScript();
     window.google.accounts.id.initialize({
       client_id: state.clientId,
@@ -94,15 +133,13 @@
       use_fedcm_for_prompt: true,  // Chrome 117+ requires FedCM for One Tap
       itp_support: true,
     });
-    // Silent re-auth: only ask GIS to re-emit a credential if THIS tab
-    // has previously seen the user signed in. Avoids surprising anonymous
-    // landing-page visitors with a One Tap prompt. No PII is stored — the
-    // JWT is fetched fresh from Google on every page load (spec §3.3).
+
+    // 2) Only when there was no cached token AND a previous tab-session hint
+    //    exists, attempt the GIS silent re-auth as a fallback. Otherwise we
+    //    just notify (anonymous) and let the UI offer Sign in.
     let hint = '';
     try { hint = sessionStorage.getItem('tsh_signed_in') || ''; } catch (_e) { /* ignore */ }
-    if (hint === '1') {
-      // Wait briefly for the silent credential callback so page guards
-      // (Flags.ensureAuthorized) don't run before the token arrives.
+    if (!restored && hint === '1') {
       await new Promise((resolve) => {
         let done = false;
         const off = onChange((s) => {
@@ -120,12 +157,13 @@
         try {
           window.google.accounts.id.prompt((notification) => {
             if (done) return;
-            if (notification && (notification.isNotDisplayed() || notification.isSkippedMoment())) {
+            if (notification && (
+              (typeof notification.isNotDisplayed === 'function' && notification.isNotDisplayed()) ||
+              (typeof notification.isSkippedMoment === 'function' && notification.isSkippedMoment())
+            )) {
               done = true;
               clearTimeout(timer);
               try { off(); } catch (_e) { /* ignore */ }
-              // Stale hint (user signed out elsewhere / cookies cleared) — drop it
-              // so we don't re-prompt on every page load.
               try { sessionStorage.removeItem('tsh_signed_in'); } catch (_e) { /* ignore */ }
               resolve();
             }
@@ -138,7 +176,7 @@
         }
       });
     }
-    // Re-trigger UI even if no user yet — surfaces sign-in button etc.
+    // Re-trigger UI — surfaces restored session (if any) or the Sign in button.
     notify();
   }
 
