@@ -111,6 +111,58 @@ This workspace contains **two sibling repos** under `C:\CR7\TAMC\IRP_Repo\`:
    identity, this repo's Cloudflare account, or any other personal
    resource for corporate work. The two contexts are airtight.
 
+## 0.1 Spec-first workflow — mandatory loop for every task
+
+Every task in this repo follows this three-step loop, in order. No
+step is optional and no step may be skipped because the user didn't
+restate it.
+
+**Step 1 — Read `tsh_requirement.md` BEFORE writing code.**
+
+- At the start of every task that could touch observable behavior
+  (roles, Worker API, GitHub Issue conventions, config keys, feature
+  flags, pages, setup runbook), open `tsh_requirement.md` and read
+  the section(s) relevant to the request. Use the §1 trigger list
+  below to identify which sections apply.
+- For pure-cosmetic / pure-refactor / local-tooling-only tasks, this
+  read can be skipped — but the agent must explicitly note in its
+  plan that the change is non-observable and therefore exempt.
+- If the request contradicts the spec, **stop and surface the
+  conflict to the user** before coding. Do not silently "implement
+  what the user asked" if the spec says otherwise — either the spec
+  is wrong (update it first, then implement) or the request is wrong
+  (confirm the deviation, then implement).
+- If the spec is silent on what the user is asking for, treat it as
+  a spec gap. State the gap, propose the smallest spec addition that
+  would cover it, get user confirmation, then implement against the
+  updated spec.
+
+**Step 2 — Implement against the spec.**
+
+- Code, tests, and config changes must match the spec section(s) you
+  just read. If during implementation you discover the spec is
+  ambiguous, incomplete, or wrong, pause and resolve the spec first
+  (loop back to Step 1) — do not push code that diverges from the
+  spec with a "will fix the doc later" note.
+
+**Step 3 — Update `tsh_requirement.md` IN THE SAME COMMIT.**
+
+- Every commit that changes observable behavior must include the
+  matching `tsh_requirement.md` edit. Never split spec updates into
+  a follow-up commit; never push code that leaves the spec stale.
+- The full update rules — what to update, what to skip, how to edit
+  in place, README runbook cross-check, and the pre-finish
+  verification checklist — live in §1 below. Step 3 of this loop
+  delegates to §1; treat them as the same rule.
+- If the loop produced no observable change (refactor, cosmetic,
+  local tooling), the spec stays untouched — and the commit message
+  must say so explicitly (`refactor: …, no spec change`).
+
+The loop applies to every turn, including small follow-ups ("also
+fix this typo", "now add a column", "rename the button"). Re-read
+the affected section each time — do not rely on a stale mental model
+from an earlier turn.
+
 ## 1. `tsh_requirement.md` is the spec — keep it in sync
 
 `tsh_requirement.md` at the repo root is the **single source of truth**
