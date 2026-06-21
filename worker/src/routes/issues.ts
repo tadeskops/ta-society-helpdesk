@@ -38,6 +38,10 @@ import { writeAudit } from '../lib/audit.ts';
 interface Throttle { last: number; daily: { date: string; count: number } }
 const throttle = new Map<string, Throttle>();
 
+/** Test-only escape hatch. Not used at runtime; the throttle map is otherwise
+ *  module-private. Call from a test `beforeEach` to keep submissions isolated. */
+export const _resetThrottleForTests = (): void => { throttle.clear(); };
+
 const dayUtc = (ms: number): string => new Date(ms).toISOString().slice(0, 10);
 
 const checkSubmitThrottle = (ctx: Ctx, key: string): void => {

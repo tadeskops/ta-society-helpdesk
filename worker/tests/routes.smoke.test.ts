@@ -83,6 +83,7 @@ vi.mock('../src/config/loader.ts', async () => {
 // ---- Imports under test ---------------------------------------------------
 
 import worker from '../src/index.ts';
+import { _resetThrottleForTests } from '../src/routes/issues.ts';
 
 const env = {
   GH_OWNER: 'tadeskops',
@@ -109,6 +110,7 @@ beforeEach(() => {
   ghCalls.length = 0;
   for (const k of Object.keys(issuesByNum)) delete issuesByNum[Number(k)];
   nextIssueNum = 1;
+  _resetThrottleForTests();
 });
 
 // ---- Tests ----------------------------------------------------------------
@@ -156,7 +158,7 @@ describe('GET /whoami', () => {
 describe('POST /issues — full create flow', () => {
   it('creates an issue with DLY-padded title and daily labels', async () => {
     const r = await send('POST', '/issues', {
-      tower: 'T2', category: 'Lift', subCategory: 'Doors not closing',
+      tower: 'A', category: 'Lift', subCategory: 'Doors not closing',
       location: 'Lobby G', description: 'Doors keep sticking',
     });
     expect(r.status).toBe(201);
@@ -164,10 +166,10 @@ describe('POST /issues — full create flow', () => {
     expect(j.data.id).toBe('DLY-00001');
     const created = ghCalls.find((c) => c.fn === 'createIssue');
     expect(created.params.labels).toContain('daily');
-    expect(created.params.labels).toContain('tower:T2');
+    expect(created.params.labels).toContain('tower:A');
     expect(created.params.labels).toContain('cat:lift');
     const titlePatch = ghCalls.find((c) => c.fn === 'updateIssue' && c.patch.title);
-    expect(titlePatch.patch.title).toBe('DLY-00001 · Lift · T2');
+    expect(titlePatch.patch.title).toBe('DLY-00001 · Lift · A');
   });
 
   it('rejects an unknown tower', async () => {
@@ -182,7 +184,7 @@ describe('POST /issues — full create flow', () => {
 describe('lifecycle PATCH', () => {
   it('rejects forbidden transition', async () => {
     await send('POST', '/issues', {
-      tower: 'T1', category: 'Water', subCategory: 'Leak',
+      tower: 'A', category: 'Water', subCategory: 'Leak',
       location: 'Pump', description: 'leak in basement',
     });
     const r = await send('PATCH', '/issues/DLY-00001', { to: 'resolved' }, 'mgr@x.com');
@@ -193,7 +195,7 @@ describe('lifecycle PATCH', () => {
 
   it('allows new -> assigned and posts an audit comment', async () => {
     await send('POST', '/issues', {
-      tower: 'T1', category: 'Water', subCategory: 'Leak',
+      tower: 'A', category: 'Water', subCategory: 'Leak',
       location: 'Pump', description: 'leak in basement',
     });
     const r = await send('PATCH', '/issues/DLY-00001',
@@ -211,7 +213,7 @@ describe('lifecycle PATCH', () => {
 describe('soft-delete (committee+)', () => {
   it('manager cannot delete', async () => {
     await send('POST', '/issues', {
-      tower: 'T1', category: 'Lift', subCategory: 'Stuck',
+      tower: 'A', category: 'Lift', subCategory: 'Stuck',
       location: 'lift 1', description: 'lift stuck on G',
     });
     const r = await send('POST', '/issues/DLY-00001/delete', { reason: 'spam' }, 'mgr@x.com');
@@ -219,7 +221,7 @@ describe('soft-delete (committee+)', () => {
   });
   it('committee can delete; subsequent public read returns 404', async () => {
     await send('POST', '/issues', {
-      tower: 'T1', category: 'Lift', subCategory: 'Stuck',
+      tower: 'A', category: 'Lift', subCategory: 'Stuck',
       location: 'lift 1', description: 'lift stuck on G',
     });
     const del = await send('POST', '/issues/DLY-00001/delete', { reason: 'duplicate' }, 'cmt@x.com');
@@ -232,7 +234,7 @@ describe('soft-delete (committee+)', () => {
 describe('GET /issues/public', () => {
   it('omits reporter PII', async () => {
     await send('POST', '/issues', {
-      tower: 'T3', category: 'Cleaning', subCategory: 'Other',
+      tower: 'A', category: 'Cleaning', subCategory: 'Other',
       location: 'Block A', description: 'Garbage piling up',
       reporterName: 'Asha', reporterFlat: 'B-204', reporterPhone: '+919876543210',
     });
