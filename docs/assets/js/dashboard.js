@@ -68,20 +68,24 @@
       const overdue = i.status === 'new' && (now - created) > overdueMs;
       const tr = root.UI.el('tr', { class: overdue ? 'tsh-row-overdue' : '' });
       tr.append(
-        td(root.UI.el('code', { class: 'tsh-id' }, i.id)),
-        td(i.tower || '—'),
-        td(i.category || '—'),
-        td(root.UI.severityPill(i.severity)),
-        td(root.UI.statusPill(i.status)),
-        td(root.UI.formatRel(i.updatedAt || i.createdAt)),
-        td(actionsFor(i)),
+        td('ID',       root.UI.el('code', { class: 'tsh-id' }, i.id)),
+        td('Tower',    i.tower || '—'),
+        td('Category', i.category || '—'),
+        td('Severity', root.UI.severityPill(i.severity)),
+        td('Status',   root.UI.statusPill(i.status)),
+        td('Age',      root.UI.formatRel(i.updatedAt || i.createdAt)),
+        td('Actions',  actionsFor(i), 'tsh-actions-col'),
       );
       tbody.appendChild(tr);
     }
   }
 
-  function td(content) {
+  // data-label drives the responsive stacked layout on phones (theme.css
+  // ".tsh-table td::before { content: attr(data-label); }").
+  function td(label, content, cls) {
     const cell = document.createElement('td');
+    cell.setAttribute('data-label', label);
+    if (cls) cell.className = cls;
     if (content && content.nodeType) cell.appendChild(content);
     else cell.textContent = content == null ? '' : String(content);
     return cell;

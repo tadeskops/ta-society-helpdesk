@@ -1,14 +1,14 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Settings · TSH</title>
+  <title>Settings Â· TSH</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#1a1f2e" />
   <link rel="icon" href="./assets/images/TaLogo.png" type="image/png" />
   <script>(function(){try{var t=localStorage.getItem('tsh_theme');if(t!=='dark'&&t!=='light'&&t!=='medium')t='light';if(t!=='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="./assets/css/theme.css?v=13" />
+  <link rel="stylesheet" href="./assets/css/theme.css?v=14" />
   <style>
     /* Info-icon + click-to-expand help panels for each setting */
     .tsh-info {
@@ -88,7 +88,7 @@
       <header class="tsh-card-head tsh-card-head-row">
         <div>
           <h1><i class="fas fa-sliders gold-accent"></i> Settings</h1>
-          <p class="tsh-sub" id="roleHint">Developer: write · Committee: read-only.</p>
+          <p class="tsh-sub" id="roleHint">Developer: write Â· Committee: read-only.</p>
           <p class="tsh-sub" style="font-size:.85em;opacity:.8;margin-top:.3em"><i class="fas fa-circle-info" aria-hidden="true"></i> Tip: click any parameter <em>name</em> to read what it does and its valid range. Click the tick box to toggle a feature.</p>
         </div>
         <div class="tsh-toolbar">
@@ -227,11 +227,11 @@
   <div data-include="footer"></div>
 
   <script src="./assets/js/config.js?v=11"></script>
-  <script src="./assets/js/partials.js?v=13"></script>
+  <script src="./assets/js/partials.js?v=14"></script>
   <script src="./assets/js/api.js?v=11"></script>
   <script src="./assets/js/auth.js?v=11"></script>
   <script src="./assets/js/flags.js?v=11"></script>
-  <script src="./assets/js/ui.js?v=13"></script>
+  <script src="./assets/js/ui.js?v=14"></script>
   <script>
   (async () => {
     await Partials.mount();
@@ -287,7 +287,7 @@
       form.elements['committee'].value  = (access.committee || []).join('\n');
       form.elements['managers'].value   = (access.managers || []).join('\n');
 
-      // Feature flags — generate one toggle per flag from the config snapshot.
+      // Feature flags â€” generate one toggle per flag from the config snapshot.
       const flagsGrid = document.getElementById('flagsGrid');
       for (const [name, val] of Object.entries(cfg.features || {})) {
         const row = UI.el('div', { class: 'tsh-field tsh-field-inline' },
@@ -707,7 +707,7 @@
         bound++;
       }
 
-      // ONE delegated handler on the form — robust to any DOM weirdness.
+      // ONE delegated handler on the form â€” robust to any DOM weirdness.
       if (!form.dataset.tshHelpBound) {
         form.dataset.tshHelpBound = '1';
         form.addEventListener('click', (e) => {

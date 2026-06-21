@@ -1,98 +1,14 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Manager dashboard · TSH</title>
+  <title>Manage · TSH</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="theme-color" content="#1a1f2e" />
-  <link rel="icon" href="./assets/images/TaLogo.png" type="image/png" />
-  <script>(function(){try{var t=localStorage.getItem('tsh_theme');if(t!=='dark'&&t!=='light'&&t!=='medium')t='light';if(t!=='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="./assets/css/theme.css?v=13" />
+  <meta http-equiv="refresh" content="0; url=./manage.html" />
+  <link rel="canonical" href="./manage.html" />
+  <script>location.replace('./manage.html' + location.search + location.hash);</script>
 </head>
-<body class="tsh-page">
-  <div data-include="header"></div>
-  <div data-include="toast"></div>
-  <div data-include="modal"></div>
-
-  <main class="tsh-main tsh-main-wide">
-    <section class="tsh-card">
-      <header class="tsh-card-head tsh-card-head-row">
-        <div>
-          <h1><i class="fas fa-user-shield gold-accent"></i> Manager dashboard</h1>
-          <p class="tsh-sub" id="dashRoleHint">Triage and assign daily issues.</p>
-        </div>
-        <div class="tsh-toolbar">
-          <select id="filterTower"><option value="">All towers</option></select>
-          <select id="filterCategory"><option value="">All categories</option></select>
-          <select id="filterSeverity">
-            <option value="">All severities</option>
-            <option value="critical">Critical</option>
-            <option value="high">High</option>
-            <option value="medium">Medium</option>
-            <option value="low">Low</option>
-          </select>
-          <button type="button" class="tsh-btn tsh-btn-ghost" id="refreshBtn"><i class="fas fa-sync-alt"></i>Refresh</button>
-        </div>
-      </header>
-
-      <nav class="tsh-tabs" role="tablist" aria-label="Status">
-        <button type="button" role="tab" aria-selected="true"  data-status="new"         class="tsh-tab tsh-tab-active">New</button>
-        <button type="button" role="tab" aria-selected="false" data-status="triaging"    class="tsh-tab">Triaging</button>
-        <button type="button" role="tab" aria-selected="false" data-status="assigned"    class="tsh-tab">Assigned</button>
-        <button type="button" role="tab" aria-selected="false" data-status="in_progress" class="tsh-tab">In progress</button>
-        <button type="button" role="tab" aria-selected="false" data-status="resolved"    class="tsh-tab">Resolved</button>
-        <button type="button" role="tab" aria-selected="false" data-status="rejected"    class="tsh-tab">Rejected</button>
-        <button type="button" role="tab" aria-selected="false" data-status=""            class="tsh-tab">All</button>
-      </nav>
-
-      <div class="tsh-table-wrap">
-        <table class="tsh-table" id="issuesTable" aria-live="polite">
-          <thead>
-            <tr>
-              <th scope="col">ID</th>
-              <th scope="col">Tower</th>
-              <th scope="col">Category</th>
-              <th scope="col">Severity</th>
-              <th scope="col">Status</th>
-              <th scope="col">Age</th>
-              <th scope="col" class="tsh-actions-col">Actions</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-      <div id="dashEmpty" class="tsh-state tsh-state-empty" hidden>
-        <i class="tsh-state-icon fas fa-inbox"></i>
-        <p class="tsh-state-title">No issues match this filter</p>
-        <p class="tsh-state-msg">Adjust the tower / category / severity filters above.</p>
-      </div>
-    </section>
-  </main>
-
-  <div data-include="footer"></div>
-
-  <script src="./assets/js/config.js?v=11"></script>
-  <script src="./assets/js/partials.js?v=13"></script>
-  <script src="./assets/js/api.js?v=11"></script>
-  <script src="./assets/js/auth.js?v=11"></script>
-  <script src="./assets/js/flags.js?v=11"></script>
-  <script src="./assets/js/ui.js?v=13"></script>
-  <script src="./assets/js/dashboard.js?v=11"></script>
-  <script>
-  (async () => {
-    await Partials.mount();
-    await Auth.init({ clientId: window.TSH_GOOGLE_CLIENT_ID });
-    UI.bindHeader();
-
-    let who;
-    try {
-      who = await Flags.ensureAuthorized('MANAGER');
-      Flags.ensureFeature('FEATURE_DAILY_MANAGER_DASHBOARD', 'Manager dashboard');
-    } catch (_e) { return; }
-
-    Dashboard.boot({ role: who.primary, allowDelete: false });
-  })();
-  </script>
+<body>
+  <p>Redirecting to <a href="./manage.html">Manage</a>…</p>
 </body>
 </html>

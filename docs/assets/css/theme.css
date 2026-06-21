@@ -1433,3 +1433,31 @@ html[data-theme="medium"] .tsh-floatdock {
   font: inherit;
   margin-left: auto;
 }
+
+/* ===== Responsive polish (v=14) ====================================== */
+
+/* Toolbar selects/buttons fill the row on phones so they're easy to tap
+   and never get clipped by the card edge. */
+@media (max-width: 640px) {
+  .tsh-toolbar { display: flex; width: 100%; }
+  .tsh-toolbar > * { flex: 1 1 auto; min-width: 0; }
+  .tsh-toolbar select { flex-basis: 45%; }
+  .tsh-card-head-row > div:first-child { width: 100%; }
+}
+
+/* Detail-modal meta switches to single column so long values
+   (locations, vendor notes) don't overflow horizontally. */
+@media (max-width: 560px) {
+  .tsh-detail-meta { grid-template-columns: 1fr; gap: 0; }
+  .tsh-detail-meta dt { padding-top: var(--sp-2); }
+  .tsh-detail-meta dt:first-of-type { padding-top: 0; }
+  .tsh-modal-panel { padding: var(--sp-4); }
+  .tsh-modal { padding: var(--sp-2); }
+}
+
+/* Stacked-card mobile table: actions stay right-aligned, no "Actions" label. */
+@media (max-width: 720px) {
+  .tsh-table td.tsh-actions-col { justify-content: flex-end; }
+  .tsh-table td.tsh-actions-col::before { display: none; }
+  .tsh-row-actions { justify-content: flex-end; }
+}

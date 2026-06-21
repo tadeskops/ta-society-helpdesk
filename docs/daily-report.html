@@ -1,14 +1,14 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Report a daily issue · TSH</title>
+  <title>Report a daily issue Â· TSH</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#1a1f2e" />
   <link rel="icon" href="./assets/images/TaLogo.png" type="image/png" />
   <script>(function(){try{var t=localStorage.getItem('tsh_theme');if(t!=='dark'&&t!=='light'&&t!=='medium')t='light';if(t!=='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="./assets/css/theme.css?v=13" />
+  <link rel="stylesheet" href="./assets/css/theme.css?v=14" />
 </head>
 <body class="tsh-page">
   <div data-include="header"></div>
@@ -91,7 +91,7 @@
           <label class="tsh-field">
             <span class="tsh-label">Phone (WhatsApp)</span>
             <input type="tel" name="reporterPhone" maxlength="20" autocomplete="tel"
-                   placeholder="10-digit Indian mobile or +country…" />
+                   placeholder="10-digit Indian mobile or +countryâ€¦" />
           </label>
           <label class="tsh-field tsh-field-inline" data-tsh-flag="FEATURE_DAILY_WHATSAPP_SHARE">
             <input type="checkbox" name="reporterNotifyWhatsApp" />
@@ -114,11 +114,11 @@
   <div data-include="footer"></div>
 
   <script src="./assets/js/config.js?v=11"></script>
-  <script src="./assets/js/partials.js?v=13"></script>
+  <script src="./assets/js/partials.js?v=14"></script>
   <script src="./assets/js/api.js?v=11"></script>
   <script src="./assets/js/auth.js?v=11"></script>
   <script src="./assets/js/flags.js?v=11"></script>
-  <script src="./assets/js/ui.js?v=13"></script>
+  <script src="./assets/js/ui.js?v=14"></script>
   <script>
   (async () => {
     await Partials.mount();
@@ -190,7 +190,7 @@
     if (photoLabel) photoLabel.textContent = `Up to ${maxPhotos} photos`;
 
     // PhotoTray: client-side resize + thumbnail grid. We OWN the selection,
-    // not the native FileList — submit packs items into the create payload.
+    // not the native FileList â€” submit packs items into the create payload.
     const photoTray = (photoInput && Flags.on('FEATURE_DAILY_PHOTO_UPLOAD'))
       ? UI.PhotoTray.create({
           input: photoInput,
@@ -215,7 +215,7 @@
     refreshSubcats();
 
     // Auto-save form draft to localStorage (file inputs intentionally excluded).
-    // Gated by FEATURE_DAILY_AUTOSAVE_DRAFT — when off, the hint is hidden too.
+    // Gated by FEATURE_DAILY_AUTOSAVE_DRAFT â€” when off, the hint is hidden too.
     const DRAFT_KEY = 'tsh_daily_report_draft_v1';
     const autosaveHint = document.getElementById('autosaveHint');
     if (Flags.on('FEATURE_DAILY_AUTOSAVE_DRAFT')) {
@@ -260,14 +260,14 @@
       if (turnstileToken) payload.turnstileToken = turnstileToken;
 
       // Photos: send inline with the create call (single round-trip,
-      // atomic — no orphan issue if a photo fails).
+      // atomic â€” no orphan issue if a photo fails).
       const photos = photoTray ? photoTray.photos() : [];
       if (photos.length) payload.photos = photos;
 
       const btn = document.getElementById('submitBtn');
       const status = document.getElementById('formStatus');
       btn.disabled = true;
-      status.textContent = photos.length ? `Submitting (${photos.length} photo${photos.length > 1 ? 's' : ''})…` : 'Submitting…';
+      status.textContent = photos.length ? `Submitting (${photos.length} photo${photos.length > 1 ? 's' : ''})â€¦` : 'Submittingâ€¦';
       let created;
       try {
         created = await Api.post('/issues', payload);
@@ -282,7 +282,7 @@
       await showSuccessModal(created);
     });
 
-    // Inline success modal — keeps the user on the report page so they can
+    // Inline success modal â€” keeps the user on the report page so they can
     // file another without a full navigation. The dedicated /daily-confirm.html
     // page still exists for deep-links (WhatsApp shares etc.).
     async function showSuccessModal(created) {
@@ -300,7 +300,7 @@
             onclick: () => UI.copyToClipboard(ticket),
           }, UI.el('i', { class: 'fas fa-copy' }), ' Copy')),
         UI.el('p', { class: 'tsh-hint' },
-          'Saved on this device — see ', UI.el('strong', null, 'My reports'), ' in the menu.'));
+          'Saved on this device â€” see ', UI.el('strong', null, 'My reports'), ' in the menu.'));
 
       const choice = await UI.modal({
         title: 'Report received',
