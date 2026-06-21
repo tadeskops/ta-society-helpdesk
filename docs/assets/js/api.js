@@ -71,6 +71,24 @@
     }
 
     if (!res.ok || json.ok === false) {
+      // 401: token missing / invalid / expired. Try one silent re-auth then
+      // retry once. If still 401, drop the cached session and let the page
+      // re-render its sign-in gate or the user click Sign in.
+      if (res.status === 401 && !opts.__retried && root.Auth) {
+        const hadToken = !!tok;
+        if (hadToken) {
+          // Force the next request to omit the stale bearer.
+          try { root.Auth.signOut(); } catch (_e) { /* ignore */ }
+        }
+        try { await root.Auth.signIn(); } catch (_e) { /* user dismissed */ }
+        if (root.Auth.token()) {
+          // Invalidate any 401-poisoned caches before retry.
+          invalidate('/whoami');
+          return request(method, path, Object.assign({}, opts, { __retried: true }));
+        }
+        // Couldn't re-auth. Make sure callers don't see stale role data.
+        if (root.Flags && root.Flags.invalidate) root.Flags.invalidate();
+      }
       throw new ApiError(json.code || 'ApiError', json.error || `HTTP ${res.status}`, res.status, json);
     }
 

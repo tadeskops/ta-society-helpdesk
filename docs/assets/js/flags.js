@@ -67,7 +67,7 @@
 
   async function whoami(force) {
     const now = Date.now();
-    if (!force && whoamiCache && now - whoamiAt < 5000) return whoamiCache;
+    if (!force && whoamiCache && now - whoamiAt < 2000) return whoamiCache;
     try {
       whoamiCache = await root.Api.get('/whoami');
       whoamiAt = now;
@@ -90,22 +90,28 @@
   // Page-level guard. Call near the top of a privileged page body.
   //   const who = await Flags.ensureAuthorized('MANAGER');
   // - Anonymous visitor: renders an inline sign-in gate; throws.
-  // - Signed in but wrong role: redirects to home; throws.
+  // - Signed-in but role too low: renders a "not authorised" panel; throws.
   async function ensureAuthorized(minRole, redirectTo) {
     await ready();
     const tok = root.Auth ? root.Auth.token() : null;
     const who = await whoami();
 
-    // Anonymous: don't bounce — let the user sign in here.
-    if (!tok || !who.email) {
+    // No client token at all — show the sign-in gate.
+    if (!tok) {
       renderSignInGate(minRole);
       throw new Error('Unauthenticated');
     }
-
+    // Client thinks we're signed in, but the server rejected /whoami
+    // (token expired, invalidated, signature failure). Drop the stale
+    // session and offer Sign in again.
+    if (!who.email) {
+      try { root.Auth && root.Auth.signOut(); } catch (_e) { /* ignore */ }
+      renderSignInGate(minRole);
+      throw new Error('SessionExpired');
+    }
+    // Authenticated but the role isn't high enough for this page.
     if (!isAtLeast(who.primary, minRole)) {
-      const target = redirectTo || './index.html';
-      // eslint-disable-next-line no-restricted-globals
-      location.replace(target);
+      renderForbiddenGate(minRole, who, redirectTo);
       throw new Error('Forbidden');
     }
     return who;
@@ -117,7 +123,7 @@
     main.innerHTML =
       '<section class="tsh-card" style="max-width:560px;margin:8vh auto;text-align:center;">' +
       '  <header class="tsh-card-head"><h1><i class="fas fa-lock gold-accent"></i> Sign in required</h1></header>' +
-      '  <p class="tsh-sub">This page is restricted to <strong>' + need + '</strong> access and above. ' +
+      '  <p class="tsh-sub">This page is restricted to <strong id="tshGateRole"></strong> access and above. ' +
       '     Please sign in with your authorised Google account.</p>' +
       '  <div class="tsh-toolbar" style="justify-content:center;margin-top:1rem;gap:.5rem;">' +
       '    <button type="button" class="tsh-btn tsh-btn-primary" id="tshGateSignIn">' +
@@ -127,6 +133,8 @@
       '  <p class="tsh-sub" style="margin-top:1rem;font-size:.85rem;">' +
       '    Tip: you can also use the <em>Sign in</em> button in the top-right.</p>' +
       '</section>';
+    const roleEl = document.getElementById('tshGateRole');
+    if (roleEl) roleEl.textContent = need;
     const btn = document.getElementById('tshGateSignIn');
     if (btn && root.Auth) {
       btn.addEventListener('click', async () => {
@@ -135,6 +143,43 @@
       // When sign-in succeeds, reload so the page re-runs its bootstrap.
       const off = root.Auth.onChange((s) => {
         if (s.signedIn) { try { off && off(); } catch (_e) {} location.reload(); }
+      });
+    }
+  }
+
+  function renderForbiddenGate(minRole, who, redirectTo) {
+    const main = document.querySelector('main') || document.body;
+    const need = String(minRole || '').toLowerCase();
+    const cur = String((who && who.primary) || 'unknown').toLowerCase();
+    const back = redirectTo || './index.html';
+    main.innerHTML =
+      '<section class="tsh-card" style="max-width:560px;margin:8vh auto;text-align:center;">' +
+      '  <header class="tsh-card-head"><h1><i class="fas fa-ban gold-accent"></i> Not authorised</h1></header>' +
+      '  <p class="tsh-sub">You are signed in as <strong id="tshFbEmail"></strong> ' +
+      '     (role: <strong id="tshFbRole"></strong>), but this page requires ' +
+      '     <strong id="tshFbNeed"></strong> access or higher.</p>' +
+      '  <p class="tsh-sub">Ask a developer to add you to the correct access list ' +
+      '     in <em>Settings</em>, or sign in with a different account.</p>' +
+      '  <div class="tsh-toolbar" style="justify-content:center;margin-top:1rem;gap:.5rem;flex-wrap:wrap;">' +
+      '    <a class="tsh-btn tsh-btn-primary" id="tshFbBack"><i class="fas fa-arrow-left"></i> Back</a>' +
+      '    <button type="button" class="tsh-btn tsh-btn-ghost" id="tshFbSwitch">' +
+      '      <i class="fas fa-right-from-bracket"></i> Sign out &amp; switch account</button>' +
+      '  </div>' +
+      '</section>';
+    const emailEl = document.getElementById('tshFbEmail');
+    if (emailEl) emailEl.textContent = (who && who.email) || '—';
+    const roleEl  = document.getElementById('tshFbRole');
+    if (roleEl)  roleEl.textContent = cur;
+    const needEl  = document.getElementById('tshFbNeed');
+    if (needEl)  needEl.textContent = need;
+    const backBtn = document.getElementById('tshFbBack');
+    if (backBtn) backBtn.setAttribute('href', back);
+    const out = document.getElementById('tshFbSwitch');
+    if (out && root.Auth) {
+      out.addEventListener('click', () => {
+        try { root.Auth.signOut(); } catch (_e) { /* ignore */ }
+        invalidate();
+        location.replace('./index.html');
       });
     }
   }
