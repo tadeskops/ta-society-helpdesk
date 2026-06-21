@@ -335,6 +335,13 @@ input, select, textarea {
   text-align: center;
   margin-bottom: var(--sp-8);
 }
+.tsh-hero-logo {
+  display: block;
+  margin: 0 auto var(--sp-4);
+  width: auto;
+  height: clamp(72px, 12vw, 110px);
+  filter: drop-shadow(0 6px 20px rgba(212, 175, 55, 0.30));
+}
 .tsh-hero h1 {
   margin: 0 0 var(--sp-3);
   font-size: clamp(1.6rem, 4.5vw, 2.5rem);
