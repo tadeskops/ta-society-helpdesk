@@ -8,6 +8,39 @@
   <link rel="icon" href="./assets/images/TaLogo.png" type="image/png" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="./assets/css/theme.css?v=11" />
+  <style>
+    /* Info-icon + click-to-expand help panels for each setting */
+    .tsh-info {
+      display:inline-flex; align-items:center; justify-content:center;
+      width:1.4em; height:1.4em; margin-left:.4em; padding:0;
+      border:1px solid var(--tsh-border, #444); border-radius:50%;
+      background:transparent; color:var(--tsh-muted, #8a93a6);
+      font-size:.75em; line-height:1; cursor:pointer; vertical-align:middle;
+      transition:color .12s, border-color .12s, background .12s;
+    }
+    .tsh-info:hover, .tsh-info:focus-visible {
+      color:var(--tsh-gold, #d4a017); border-color:var(--tsh-gold, #d4a017);
+      outline:none;
+    }
+    .tsh-info[aria-expanded="true"] {
+      background:var(--tsh-gold, #d4a017); color:#1a1f2e;
+      border-color:var(--tsh-gold, #d4a017);
+    }
+    .tsh-help-panel {
+      margin-top:.45em; padding:.55em .75em;
+      background:rgba(212,160,23,.08);
+      border-left:3px solid var(--tsh-gold, #d4a017);
+      border-radius:4px; font-size:.85em; line-height:1.45;
+      color:var(--tsh-text, inherit);
+    }
+    .tsh-help-panel p { margin:.2em 0; }
+    .tsh-help-panel code {
+      background:rgba(0,0,0,.25); padding:.05em .35em; border-radius:3px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size:.92em;
+    }
+    .tsh-field-inline .tsh-info { margin-left:.3em; }
+  </style>
 </head>
 <body class="tsh-page">
   <div data-include="header"></div>
@@ -255,6 +288,8 @@
       const ui = cfg.ui || {};
       if (ui.defaultTheme)     form.elements['ui.defaultTheme'].value     = ui.defaultTheme;
       if (ui.defaultFontScale) form.elements['ui.defaultFontScale'].value = ui.defaultFontScale;
+
+      attachHelp(form);
     }
 
     function collect() {
@@ -309,6 +344,332 @@
 
     function csv(s) { return s.split(',').map((x) => x.trim()).filter(Boolean); }
     function lines(s) { return s.split(/\r?\n/).map((x) => x.trim()).filter(Boolean); }
+
+    // ----- Help dictionary ---------------------------------------------------
+    // Keyed by either:
+    //   - bare form name (e.g. 'developers', 'lists.towers', 'system.issuesRepo')
+    //   - feature flag short name (without 'features.' prefix)
+    //   - tunable short name (without 'tunables.' prefix)
+    const HELP = {
+      // Access lists
+      'developers': {
+        summary: 'Full read/write on settings and content. At least one required.',
+        detail: 'One email per line. Developers can edit feature flags, tunables, lists, system settings, and the access lists themselves.',
+      },
+      'committee': {
+        summary: 'Content moderation + read-only settings view.',
+        detail: 'One email per line. Committee members can read settings, redact and soft-delete issues, and run committee dashboards. They cannot edit settings.',
+      },
+      'managers': {
+        summary: 'Day-to-day issue triage and status transitions.',
+        detail: 'One email per line. Managers can transition issue status, assign, attach photos, and use the manager dashboard. They cannot edit settings or moderate.',
+      },
+
+      // Lists
+      'lists.towers': {
+        summary: 'Tower / block names shown in the submit form and filters.',
+        detail: 'Comma-separated. Order is preserved. Use "Common Area" for shared facilities not tied to a tower.',
+        example: 'A, B, C, Common Area',
+      },
+      'lists.categories': {
+        summary: 'Top-level issue categories shown in the submit form.',
+        detail: 'Comma-separated. Each entry should also appear as a key in Sub-categories below.',
+      },
+      'lists.subCategories': {
+        summary: 'Sub-category options per category (JSON object).',
+        detail: 'JSON of the shape { "Category": ["sub", "sub", ...] }. Every category in the list above must have a key here. Use "Other" as the final entry of each list.',
+      },
+
+      // System
+      'system.issuesRepo': {
+        summary: 'GitHub repository storing issues + config (owner/name).',
+        detail: 'The Worker reads and writes issues here. The PAT in Worker secrets must have repo scope on this repository.',
+        example: 'tadeskops/ta-society-helpdesk',
+      },
+      'system.backupBranch': {
+        summary: 'Branch where config + access-list audit commits are pushed.',
+        detail: 'Usually "main". Each settings save produces a commit on this branch authored by the Worker.',
+      },
+      'system.workerUrl': {
+        summary: 'Base URL of the Cloudflare Worker.',
+        detail: 'The static site calls this URL for all API requests. Change only when migrating Workers.',
+        example: 'https://tsh-worker.tadeskops.workers.dev',
+      },
+      'system.handoverPortalUrl': {
+        summary: 'External handover-portal URL (Apps Script web app).',
+        detail: 'Linked from header when present. Leave blank to hide the link.',
+      },
+      'system.turnstileSiteKey': {
+        summary: 'Cloudflare Turnstile public site key.',
+        detail: 'Pairs with the Turnstile SECRET held in Worker secrets. Used by FEATURE_DAILY_TURNSTILE on the submit form.',
+      },
+      'system.photoStorage': {
+        summary: 'Where uploaded photos are stored.',
+        options: 'repo | r2',
+        detail: '"repo" commits photos under photos/DLY-NNNNN/ in the issues repo (current). "r2" is reserved for a future Cloudflare R2 backend.',
+      },
+      'system.logoUrl': {
+        summary: 'Override URL for the header logo.',
+        detail: 'Leave blank to use the bundled asset under assets/images/. Supply an absolute URL to use a custom image.',
+      },
+      'system.logoNameUrl': {
+        summary: 'Override URL for the landing-page wordmark image.',
+        detail: 'Leave blank to use the bundled asset. Absolute URL to use a custom wordmark.',
+      },
+      'system.weeklyReportUrl': {
+        summary: 'Public URL of the latest weekly PDF report.',
+        detail: 'Updated by the weekly report job. Used by FEATURE_DAILY_WEEKLY_REPORT links.',
+      },
+      'system.fullReportUrl': {
+        summary: 'Public URL of the full PDF report (all open + recent).',
+        detail: 'Updated alongside the weekly report.',
+      },
+      'system.reportBackupFreq': {
+        summary: 'How often the report backup job runs.',
+        options: 'weekly | daily | 3x-daily',
+      },
+
+      // UI defaults
+      'ui.defaultTheme': {
+        summary: 'Theme applied to first-time visitors.',
+        options: 'dark | light | medium',
+        detail: 'Per-user choice in the floating dock overrides this once they pick.',
+      },
+      'ui.defaultFontScale': {
+        summary: 'Text-size scale for first-time visitors.',
+        options: 'md (default) | lg (comfortable) | xl (spacious)',
+        detail: 'Per-user choice in the floating dock overrides this once they pick.',
+      },
+
+      // Feature flags (short name, used by features.<NAME>)
+      'FEATURE_DAILY_TRACK': {
+        summary: 'Master switch for the Daily Track issue tracker.',
+        detail: 'When OFF, all /issues* endpoints return feature-disabled and every Daily-Track UI page is gated.',
+        default: 'true',
+      },
+      'FEATURE_DAILY_ANONYMOUS_SUBMIT': {
+        summary: 'Allow issue submissions without sign-in.',
+        detail: 'Anonymous submitters are still rate-limited and required to pass Turnstile (if enabled).',
+        default: 'true',
+      },
+      'FEATURE_DAILY_PHOTO_UPLOAD': {
+        summary: 'Allow attaching photos at submit time.',
+        default: 'true',
+      },
+      'FEATURE_DAILY_WHATSAPP_SHARE': {
+        summary: 'Show "Share via WhatsApp" buttons on issue cards.',
+        default: 'true',
+      },
+      'FEATURE_DAILY_COST_FIELD': {
+        summary: 'Capture optional resolution cost when an issue is closed.',
+        default: 'false',
+      },
+      'FEATURE_DAILY_PUBLIC_RESOLVED': {
+        summary: 'Show resolved issues on the public board.',
+        detail: 'Turn off to hide closed issues from non-signed-in visitors.',
+        default: 'true',
+      },
+      'FEATURE_DAILY_PUBLIC_REJECTED': {
+        summary: 'Show rejected issues on the public board.',
+        default: 'false',
+      },
+      'FEATURE_DAILY_PUBLIC_PHOTOS': {
+        summary: 'Include attached photos in public issue payloads.',
+        detail: 'When OFF, photo URLs are stripped from /issues/public responses (privacy).',
+        default: 'true',
+      },
+      'FEATURE_DAILY_PUBLIC_PDF': {
+        summary: 'Allow public PDF export of resolved issues.',
+        default: 'true',
+      },
+      'FEATURE_DAILY_AUDIT_LOG_UI': {
+        summary: 'Show the audit-log viewer in committee+ UI.',
+        default: 'true',
+      },
+      'FEATURE_DAILY_TURNSTILE': {
+        summary: 'Require a Cloudflare Turnstile challenge on the submit form.',
+        detail: 'Pairs with system.turnstileSiteKey + the Worker TURNSTILE_SECRET.',
+        default: 'true',
+      },
+      'FEATURE_DAILY_AUTOSAVE_DRAFT': {
+        summary: 'Auto-save submit-form drafts to the visitor\u2019s localStorage.',
+        default: 'true',
+      },
+      'FEATURE_DAILY_REJECTED_FILTER': {
+        summary: 'Show the "Rejected" filter tab on the public board.',
+        detail: 'Also gated by FEATURE_DAILY_PUBLIC_REJECTED.',
+        default: 'true',
+      },
+      'FEATURE_DAILY_COMMITTEE_PHOTO': {
+        summary: 'Allow committee members to attach photos during redaction.',
+        default: 'false',
+      },
+      'FEATURE_DAILY_SEVERITY': {
+        summary: 'Capture severity at submit and display it in lists.',
+        detail: 'Severity values: critical, high, medium, low.',
+        default: 'false',
+      },
+      'FEATURE_DAILY_SLA': {
+        summary: 'Track per-status SLA timers and surface breaches.',
+        default: 'false',
+      },
+      'FEATURE_DAILY_WEEKLY_REPORT': {
+        summary: 'Enable the weekly PDF report job and report links.',
+        default: 'false',
+      },
+      'FEATURE_DAILY_PUBLIC_BOARD': {
+        summary: 'Enable the public board page entirely.',
+        detail: 'When OFF, /public-board.html shows a feature-disabled gate.',
+        default: 'true',
+      },
+      'FEATURE_DAILY_MANAGER_DASHBOARD': {
+        summary: 'Enable the manager dashboard page.',
+        default: 'true',
+      },
+      'FEATURE_DAILY_COMMITTEE_DASHBOARD': {
+        summary: 'Enable the committee dashboard page.',
+        default: 'true',
+      },
+      'FEATURE_DAILY_SHOW_DEMO_ISSUES': {
+        summary: 'Show demo issues (label seed:demo) in lists and on the public board.',
+        detail: 'Demo issues are created by scripts/seed-sample-issues.mjs. Turn OFF in production to hide them without deleting. Run "node scripts/seed-sample-issues.mjs --cleanup --apply" to remove them entirely.',
+        default: 'true',
+      },
+
+      // Tunables (short name, used by tunables.<NAME>)
+      'DAILY_AUTO_ACK_HOURS': {
+        summary: 'Hours before an unattended new issue is auto-acknowledged.',
+        range: '1 \u2013 168 hours (1 week)',
+        default: '24',
+      },
+      'DAILY_ARCHIVE_AFTER_DAYS': {
+        summary: 'Days after which resolved / rejected issues auto-archive.',
+        range: '7 \u2013 365 days',
+        default: '90',
+      },
+      'DAILY_PHOTO_MAX_PER_ISSUE': {
+        summary: 'Maximum number of photos that can be attached to one issue.',
+        range: '1 \u2013 20',
+        default: '6',
+      },
+      'DAILY_PHOTO_MAX_BYTES': {
+        summary: 'Maximum size of a single uploaded photo, in bytes (pre-resize).',
+        range: '524288 (0.5 MB) \u2013 10485760 (10 MB)',
+        default: '5242880 (5 MB)',
+      },
+      'DAILY_PHOTO_MAX_DIM': {
+        summary: 'Maximum longest side (pixels) after client-side resize.',
+        range: '800 \u2013 4096 px',
+        default: '1600',
+      },
+      'DAILY_PHOTO_JPEG_QUALITY': {
+        summary: 'JPEG quality factor used when re-encoding photos client-side.',
+        range: '0.5 \u2013 1.0',
+        default: '0.85',
+      },
+      'DAILY_RATE_LIMIT_SECONDS': {
+        summary: 'Cooldown between submissions from the same submitter.',
+        range: '0 \u2013 600 seconds',
+        default: '20',
+      },
+      'DAILY_DAILY_LIMIT': {
+        summary: 'Max submissions per submitter per UTC day.',
+        range: '1 \u2013 500',
+        default: '20',
+      },
+      'DAILY_DESC_MIN': {
+        summary: 'Minimum description length, in characters.',
+        range: '1 \u2013 500 chars',
+        default: '5',
+      },
+      'DAILY_DESC_MAX': {
+        summary: 'Maximum description length, in characters.',
+        range: '100 \u2013 10000 chars',
+        default: '2000',
+      },
+      'DAILY_LOCATION_MAX': {
+        summary: 'Maximum location-string length (Flat / location field).',
+        range: '20 \u2013 500 chars',
+        default: '120',
+      },
+      'CONFIG_CACHE_SECONDS': {
+        summary: 'How long the Worker caches config/site.json before re-reading from GitHub.',
+        range: '5 \u2013 600 seconds',
+        detail: 'Lower = faster propagation of settings changes, but more GitHub reads. 60 is a good default.',
+        default: '60',
+      },
+      'WHOAMI_CACHE_SECONDS': {
+        summary: 'How long the browser caches the /whoami response.',
+        range: '1 \u2013 60 seconds',
+        detail: 'Lower means role/access changes reach the user faster after a re-login.',
+        default: '5',
+      },
+    };
+
+    function lookupHelp(formName) {
+      if (HELP[formName]) return HELP[formName];
+      if (formName.startsWith('features.'))  return HELP[formName.slice('features.'.length)];
+      if (formName.startsWith('tunables.'))  return HELP[formName.slice('tunables.'.length)];
+      return null;
+    }
+
+    function helpPanelHtml(info) {
+      const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[c]));
+      const parts = [];
+      if (info.detail) parts.push(`<p>${esc(info.detail)}</p>`);
+      else if (info.summary) parts.push(`<p>${esc(info.summary)}</p>`);
+      if (info.range)   parts.push(`<p><strong>Range:</strong> <code>${esc(info.range)}</code></p>`);
+      if (info.options) parts.push(`<p><strong>Options:</strong> <code>${esc(info.options)}</code></p>`);
+      if (info.default !== undefined) parts.push(`<p><strong>Default:</strong> <code>${esc(info.default)}</code></p>`);
+      if (info.example) parts.push(`<p><strong>Example:</strong> <code>${esc(info.example)}</code></p>`);
+      return parts.join('');
+    }
+
+    function attachHelp(form) {
+      const inputs = form.querySelectorAll('input[name], select[name], textarea[name]');
+      let panelSeq = 0;
+      for (const el of inputs) {
+        const info = lookupHelp(el.name);
+        if (!info) continue;
+        const field = el.closest('label.tsh-field, .tsh-field');
+        if (!field || field.querySelector(':scope > .tsh-info, :scope > .tsh-label .tsh-info, :scope > span .tsh-info')) continue;
+        // Pick the label-ish element to attach the icon to.
+        const labelSpan = field.querySelector(':scope > .tsh-label')
+                       || field.querySelector(':scope > span');
+        if (!labelSpan) continue;
+
+        const panelId = `tshHelp_${++panelSeq}`;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'tsh-info';
+        btn.setAttribute('aria-label', `Info about ${el.name}`);
+        btn.setAttribute('aria-expanded', 'false');
+        btn.setAttribute('aria-controls', panelId);
+        const tipBits = [info.summary || ''];
+        if (info.range)   tipBits.push(`Range: ${info.range}`);
+        if (info.options) tipBits.push(`Options: ${info.options}`);
+        if (info.default !== undefined) tipBits.push(`Default: ${info.default}`);
+        btn.title = tipBits.filter(Boolean).join('\n');
+        btn.innerHTML = '<i class="fas fa-circle-info" aria-hidden="true"></i>';
+        labelSpan.appendChild(document.createTextNode(' '));
+        labelSpan.appendChild(btn);
+
+        const panel = document.createElement('div');
+        panel.id = panelId;
+        panel.className = 'tsh-help-panel';
+        panel.hidden = true;
+        panel.innerHTML = helpPanelHtml(info);
+        field.appendChild(panel);
+
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation(); // labels propagate clicks to inputs; don't toggle the checkbox
+          const open = panel.hidden;
+          panel.hidden = !open;
+          btn.setAttribute('aria-expanded', String(open));
+        });
+      }
+    }
   })();
   </script>
 </body>
