@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
@@ -287,7 +287,7 @@
       form.elements['committee'].value  = (access.committee || []).join('\n');
       form.elements['managers'].value   = (access.managers || []).join('\n');
 
-      // Feature flags â€” generate one toggle per flag from the config snapshot.
+      // Feature flags — generate one toggle per flag from the config snapshot.
       const flagsGrid = document.getElementById('flagsGrid');
       for (const [name, val] of Object.entries(cfg.features || {})) {
         const row = UI.el('div', { class: 'tsh-field tsh-field-inline' },
@@ -707,7 +707,7 @@
         bound++;
       }
 
-      // ONE delegated handler on the form â€” robust to any DOM weirdness.
+      // ONE delegated handler on the form — robust to any DOM weirdness.
       if (!form.dataset.tshHelpBound) {
         form.dataset.tshHelpBound = '1';
         form.addEventListener('click', (e) => {

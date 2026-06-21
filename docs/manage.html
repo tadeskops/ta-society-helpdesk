@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
@@ -33,7 +33,7 @@
             <option value="low">Low</option>
           </select>
           <button type="button" class="tsh-btn tsh-btn-ghost" id="refreshBtn"><i class="fas fa-sync-alt"></i>Refresh</button>
-          <button type="button" class="tsh-btn tsh-btn-ghost" id="bulkArchiveBtn" hidden><i class="fas fa-box-archive"></i>Archive old ticketsâ€¦</button>
+          <button type="button" class="tsh-btn tsh-btn-ghost" id="bulkArchiveBtn" hidden><i class="fas fa-box-archive"></i>Archive old tickets…</button>
           <button type="button" class="tsh-btn tsh-btn-ghost" id="auditBtn" hidden><i class="fas fa-clipboard-list"></i>Activity log</button>
         </div>
       </header>
@@ -102,7 +102,7 @@
     const hint  = document.getElementById('dashRoleHint');
     if (isCommittee) {
       title.innerHTML = '<i class="fas fa-people-group gold-accent"></i> Manage (Committee)';
-      hint.textContent = 'Review, assign, resolve â€” plus delete, archive old tickets, and activity log.';
+      hint.textContent = 'Review, assign, resolve — plus delete, archive old tickets, and activity log.';
     }
 
     Dashboard.boot({ role: who.primary, allowDelete: isCommittee });
