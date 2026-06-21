@@ -8,7 +8,7 @@
   <link rel="icon" href="./assets/images/TaLogo.png" type="image/png" />
   <script>(function(){try{var t=localStorage.getItem('tsh_theme');if(t!=='dark'&&t!=='light'&&t!=='medium')t='light';if(t!=='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="./assets/css/theme.css?v=12" />
+  <link rel="stylesheet" href="./assets/css/theme.css?v=13" />
 </head>
 <body class="tsh-page">
   <div data-include="header"></div>
@@ -52,11 +52,11 @@
   <div data-include="footer"></div>
 
   <script src="./assets/js/config.js?v=11"></script>
-  <script src="./assets/js/partials.js?v=12"></script>
+  <script src="./assets/js/partials.js?v=13"></script>
   <script src="./assets/js/api.js?v=11"></script>
   <script src="./assets/js/auth.js?v=11"></script>
   <script src="./assets/js/flags.js?v=11"></script>
-  <script src="./assets/js/ui.js?v=12"></script>
+  <script src="./assets/js/ui.js?v=13"></script>
   <script>
   (async () => {
     await Partials.mount();
@@ -130,6 +130,9 @@
       });
       empty.hidden = filtered.length !== 0;
       for (const i of filtered) list.appendChild(card(i));
+      // Attach lightbox to any photo thumbs that were just rendered. Re-runs
+      // are cheap — attach() skips grids already bound.
+      if (UI.Lightbox && UI.Lightbox.attach) UI.Lightbox.attach(list);
     }
 
     function card(i) {
@@ -143,7 +146,16 @@
         UI.el('span', null, ' · '),
         UI.el('span', { class: 'tsh-text-muted' }, UI.formatRel(i.updatedAt || i.createdAt)));
       const body = UI.el('p', { class: 'tsh-board-card-body' }, (i.description || '').slice(0, 200));
-      return UI.el('article', { class: 'tsh-board-card' }, head, meta, body);
+      const article = UI.el('article', { class: 'tsh-board-card' }, head, meta, body);
+      const urls = Array.isArray(i.photoUrls) ? i.photoUrls : (Array.isArray(i.photos) ? i.photos : []);
+      if (urls.length) {
+        const thumbs = UI.el('div', { class: 'tsh-photo-grid tsh-board-thumbs' });
+        for (const url of urls.slice(0, 4)) {
+          thumbs.appendChild(UI.el('img', { src: url, 'data-tsh-full': url, alt: '', loading: 'lazy' }));
+        }
+        article.appendChild(thumbs);
+      }
+      return article;
     }
 
     for (const tab of document.querySelectorAll('.tsh-tab')) {

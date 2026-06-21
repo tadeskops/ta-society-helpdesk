@@ -13,7 +13,7 @@ import type { Router } from '../lib/router.ts';
 import type { Ctx } from '../lib/ctx.ts';
 import { ok } from '../lib/envelope.ts';
 import { ensureAllowed } from '../middleware/rbac.ts';
-import { BadRequest, NotFound, Forbidden, FeatureDisabled } from '../lib/errors.ts';
+import { BadRequest, NotFound, Forbidden, FeatureDisabled, Unauthorized } from '../lib/errors.ts';
 import {
   createIssue, listIssues, getIssue, updateIssue, lockIssue, commentOnIssue, putBinaryB64,
   type GhIssue,
@@ -24,6 +24,7 @@ import {
   statusOf, isDeleted, isAllowedTransition, auditComment,
   toPublicIssue, tombstoneBody, writeResolution, appendPhotos,
   photoRawUrl, photoRepoPath,
+  parseBody, towerOf, categoryFromLabels, severityOf,
 } from '../lib/issue.ts';
 import { isFeatureOn, tunable } from '../config/defaults.ts';
 import { parseJson, str, optStr, optBool, optNum, oneOf, normalisePhone, isObj } from '../lib/validate.ts';
@@ -155,8 +156,9 @@ const mountCreate = (r: Router): void => {
       flags: ['FEATURE_DAILY_TRACK'],
       // requireIdentity is conditional: depends on FEATURE_DAILY_ANONYMOUS_SUBMIT.
     });
-    if (!isFeatureOn(ctx.config, 'FEATURE_DAILY_ANONYMOUS_SUBMIT') && !ctx.identity) {
-      throw new Forbidden('Anonymous submission is disabled');
+    if (!isFeatureOn(ctx.config, 'FEATURE_DAILY_ANONYMOUS_SUBMIT')) {
+      if (!ctx.identity) throw new Unauthorized('Sign in with Google to submit a report');
+      if (!ctx.identity.emailVerified) throw new Unauthorized('Google email is not verified');
     }
 
     const raw = await parseJson<Record<string, unknown>>(ctx.req);
@@ -236,22 +238,36 @@ const mountList = (r: Router): void => {
 
     const issues = await listIssues(ctx.env, { state: 'all', labels, per_page: 100 });
     const showDemo = isFeatureOn(ctx.config, 'FEATURE_DAILY_SHOW_DEMO_ISSUES');
-    // Privileged callers see the full body; we still hide deleted.
+    // Privileged callers see the full body; we still hide deleted. We also
+    // parse the body once on the server so the dashboard UI can render tower,
+    // category, description and photos directly without re-parsing markdown
+    // on the client.
     const items = issues
       .filter((i) => !isDeleted(i))
       .filter((i) => showDemo || !i.labels.some((l) => l.name === 'seed:demo'))
-      .map((i) => ({
-        id: padId(i.number),
-        number: i.number,
-        title: i.title,
-        body: i.body,
-        labels: i.labels.map((l) => l.name),
-        status: statusOf(i.labels) ?? 'unknown',
-        url: i.html_url,
-        createdAt: i.created_at,
-        updatedAt: i.updated_at,
-        locked: i.locked,
-      }));
+      .map((i) => {
+        const parsed = parseBody(i.body ?? '');
+        const tower = parsed.reported.tower ?? towerOf(i.labels);
+        const category = parsed.reported.category ?? categoryFromLabels(i.labels);
+        const sev = severityOf(i.labels);
+        return {
+          id: padId(i.number),
+          number: i.number,
+          title: i.title,
+          body: i.body,
+          labels: i.labels.map((l) => l.name),
+          status: statusOf(i.labels) ?? 'unknown',
+          url: i.html_url,
+          createdAt: i.created_at,
+          updatedAt: i.updated_at,
+          locked: i.locked,
+          ...(tower ? { tower } : {}),
+          ...(category ? { category } : {}),
+          ...(sev ? { severity: sev } : {}),
+          description: parsed.description,
+          photos: parsed.photoUrls,
+        };
+      });
     return ok(ctx.env, ctx.req, { items, count: items.length });
   });
 };

@@ -1361,3 +1361,75 @@ html[data-theme="medium"] .tsh-floatdock {
   color: var(--c-accent, var(--c-primary));
   text-decoration: underline;
 }
+
+
+/* ===== Board card thumb strip (smaller than detail-modal photo grid) === */
+
+.tsh-board-thumbs {
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  gap: 6px;
+  margin-top: var(--sp-2);
+}
+.tsh-board-thumbs img {
+  aspect-ratio: 1 / 1;
+  height: auto;
+  max-height: 80px;
+}
+
+/* ===== Sign-in gate (daily-report) ===================================== */
+
+.tsh-signin-gate {
+  display: flex; align-items: center;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  background: rgba(212, 175, 55, 0.08);
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  border-left: 3px solid var(--c-accent, var(--c-primary));
+  border-radius: var(--rad-md);
+}
+.tsh-signin-gate-icon {
+  font-size: 1.4rem;
+  color: var(--c-accent, var(--c-primary));
+  flex-shrink: 0;
+}
+.tsh-signin-gate-body {
+  flex: 1;
+  min-width: 0;
+}
+.tsh-signin-gate-title {
+  font-weight: 600;
+  color: var(--c-text);
+}
+.tsh-signin-gate-msg {
+  margin: 2px 0 0;
+  font-size: var(--fs-sm);
+  color: var(--c-text-muted);
+}
+.tsh-signin-gate-action {
+  flex-shrink: 0;
+}
+@media (max-width: 560px) {
+  .tsh-signin-gate { flex-wrap: wrap; }
+  .tsh-signin-gate-action { margin-left: auto; }
+}
+
+.tsh-signin-confirmed {
+  display: flex; align-items: center;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-3);
+  padding: 6px var(--sp-3);
+  font-size: var(--fs-sm);
+  color: var(--c-text-muted);
+  background: rgba(0, 0, 0, 0.12);
+  border-radius: var(--rad-md);
+}
+.tsh-signin-confirmed i { color: #2ea043; }
+.tsh-signin-confirmed strong { color: var(--c-text); }
+.tsh-linkbtn {
+  background: none; border: 0; padding: 0; cursor: pointer;
+  color: var(--c-accent, var(--c-primary));
+  text-decoration: underline;
+  font: inherit;
+  margin-left: auto;
+}

@@ -2,7 +2,7 @@
   "version": 1,
   "features": {
     "FEATURE_DAILY_TRACK": true,
-    "FEATURE_DAILY_ANONYMOUS_SUBMIT": true,
+    "FEATURE_DAILY_ANONYMOUS_SUBMIT": false,
     "FEATURE_DAILY_PHOTO_UPLOAD": true,
     "FEATURE_DAILY_WHATSAPP_SHARE": true,
     "FEATURE_DAILY_COST_FIELD": false,
