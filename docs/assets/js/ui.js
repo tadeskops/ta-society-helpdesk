@@ -417,12 +417,134 @@
     // Wire the font-size switcher embedded in the header partial.
     FontSize.bind(document);
     ThemeSwitcher.bind(document);
+    MyReports.refreshBadge();
   }
+
+  // MyReports: lightweight per-device memory of tickets the visitor filed
+  // on this browser. No PII; just the ticket id + timestamp. The header
+  // badge stays hidden until at least one ticket is recorded, so first-time
+  // visitors see no extra UI.
+  const MyReports = (function () {
+    const KEY = 'tsh_my_tickets';
+    const CAP = 20;
+    function readSafe() {
+      try { const a = JSON.parse(localStorage.getItem(KEY) || '[]'); return Array.isArray(a) ? a : []; }
+      catch (_e) { return []; }
+    }
+    function writeSafe(arr) {
+      try { localStorage.setItem(KEY, JSON.stringify(arr.slice(-CAP))); } catch (_e) { /* quota */ }
+    }
+    function add(id) {
+      if (!id) return;
+      const now = new Date().toISOString();
+      const cur = readSafe().filter((e) => e && e.id !== id);
+      cur.push({ id, ts: now });
+      writeSafe(cur);
+      refreshBadge();
+    }
+    function list() { return readSafe().slice().reverse(); }   // newest first
+    function ids()  { return list().map((e) => e.id); }
+    function count() { return readSafe().length; }
+    function clear() { try { localStorage.removeItem(KEY); } catch (_e) { /* ignore */ } refreshBadge(); }
+    function refreshBadge() {
+      const link = document.querySelector('[data-tsh-myreports]');
+      if (!link) return;
+      const n = count();
+      const c = link.querySelector('[data-tsh-myreports-count]');
+      if (c) c.textContent = n ? `(${n})` : '';
+      link.hidden = n === 0;
+    }
+    return { add, list, ids, count, clear, refreshBadge };
+  })();
+
+  // PhotoTray: client-side resize + thumbnail grid for the report form.
+  // - Reads File objects, downscales to maxDim, encodes as JPEG at quality.
+  // - Renders a live grid of thumbnails with per-item delete.
+  // - Owner reads selected photos via .photos() which returns
+  //   [{ dataUrl, name }] ready to POST inline with the issue create call.
+  // The native <input type="file"> stays in the form for accessibility
+  // and mobile camera capture, but its FileList is NOT what we submit;
+  // we own the processed list.
+  const PhotoTray = (function () {
+    function create({ input, tray, max = 6, maxDim = 1600, quality = 0.85, onChange }) {
+      const items = [];   // [{ dataUrl, name, w, h, bytes }]
+
+      async function processFile(file) {
+        if (!/^image\//.test(file.type)) throw new Error(`${file.name}: not an image`);
+        const bmp = await readImage(file);
+        const { canvas, w, h } = downscale(bmp, maxDim);
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        return { dataUrl, name: file.name || `photo-${items.length + 1}.jpg`, w, h, bytes: estimateBytes(dataUrl) };
+      }
+
+      async function add(files) {
+        const list = Array.from(files || []);
+        for (const f of list) {
+          if (items.length >= max) { toast(`Max ${max} photos`, { kind: 'warn' }); break; }
+          try { items.push(await processFile(f)); }
+          catch (err) { toast(err.message || 'Image error', { kind: 'danger' }); }
+        }
+        input.value = '';   // allow re-selecting the same file
+        render();
+        if (onChange) onChange(items.slice());
+      }
+      function removeAt(i) { items.splice(i, 1); render(); if (onChange) onChange(items.slice()); }
+      function clear()     { items.length = 0; render(); if (onChange) onChange(items.slice()); }
+      function photos()    { return items.map((p) => ({ dataUrl: p.dataUrl, name: p.name })); }
+      function count()     { return items.length; }
+
+      function render() {
+        tray.innerHTML = '';
+        if (!items.length) { tray.hidden = true; return; }
+        tray.hidden = false;
+        items.forEach((p, i) => {
+          const thumb = el('div', { class: 'tsh-photo-thumb' },
+            el('img', { src: p.dataUrl, alt: p.name }),
+            el('button', {
+              type: 'button', class: 'tsh-photo-thumb-x',
+              title: `Remove ${p.name}`, 'aria-label': `Remove ${p.name}`,
+              onclick: () => removeAt(i),
+            }, '×'));
+          tray.appendChild(thumb);
+        });
+      }
+
+      input.addEventListener('change', (e) => add(e.target.files));
+      return { add, removeAt, clear, photos, count };
+    }
+
+    function readImage(file) {
+      return new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload  = () => { URL.revokeObjectURL(url); resolve(img); };
+        img.onerror = () => { URL.revokeObjectURL(url); reject(new Error(`${file.name}: decode failed`)); };
+        img.src = url;
+      });
+    }
+    function downscale(img, maxDim) {
+      let w = img.naturalWidth || img.width;
+      let h = img.naturalHeight || img.height;
+      const scale = Math.min(1, maxDim / Math.max(w, h));
+      w = Math.round(w * scale); h = Math.round(h * scale);
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      return { canvas: c, w, h };
+    }
+    function estimateBytes(dataUrl) {
+      const i = dataUrl.indexOf(','); if (i < 0) return 0;
+      const b64 = dataUrl.slice(i + 1);
+      const pad = b64.endsWith('==') ? 2 : b64.endsWith('=') ? 1 : 0;
+      return Math.floor((b64.length * 3) / 4) - pad;
+    }
+    return { create };
+  })();
 
   root.UI = {
     el, $, toast, modal, confirmModal, formatRel, copyToClipboard,
     statusPill, severityPill, bindHeader,
     stateLoading, stateEmpty, stateError,
-    Lightbox, FontSize, ThemeSwitcher, Draft,
+    Lightbox, FontSize, ThemeSwitcher, Draft, MyReports, PhotoTray,
   };
 })(window);

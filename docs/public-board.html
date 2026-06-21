@@ -8,7 +8,7 @@
   <link rel="icon" href="./assets/images/TaLogo.png" type="image/png" />
   <script>(function(){try{var t=localStorage.getItem('tsh_theme');if(t!=='dark'&&t!=='light'&&t!=='medium')t='light';if(t!=='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="./assets/css/theme.css?v=11" />
+  <link rel="stylesheet" href="./assets/css/theme.css?v=12" />
 </head>
 <body class="tsh-page">
   <div data-include="header"></div>
@@ -38,6 +38,8 @@
         <button type="button" role="tab" aria-selected="false" data-filter="rejected"   class="tsh-tab" data-tsh-flag="FEATURE_DAILY_PUBLIC_REJECTED">Rejected</button>
       </nav>
 
+      <div id="myReportsBanner" class="tsh-filter-banner" hidden></div>
+
       <div id="boardList" class="tsh-board-list" aria-live="polite"></div>
       <div id="boardEmpty" class="tsh-state tsh-state-empty" hidden>
         <i class="tsh-state-icon fas fa-inbox"></i>
@@ -50,11 +52,11 @@
   <div data-include="footer"></div>
 
   <script src="./assets/js/config.js?v=11"></script>
-  <script src="./assets/js/partials.js?v=11"></script>
+  <script src="./assets/js/partials.js?v=12"></script>
   <script src="./assets/js/api.js?v=11"></script>
   <script src="./assets/js/auth.js?v=11"></script>
   <script src="./assets/js/flags.js?v=11"></script>
-  <script src="./assets/js/ui.js?v=11"></script>
+  <script src="./assets/js/ui.js?v=12"></script>
   <script>
   (async () => {
     await Partials.mount();
@@ -90,10 +92,38 @@
     let filter = 'all';
     let query  = '';
 
+    // "My reports" filter: client-side narrowing keyed off the visitor's own
+    // tsh_my_tickets entries (or a ?ids= deep-link). When active, the status
+    // tabs still work — they further narrow the my-set.
+    const banner = document.getElementById('myReportsBanner');
+    const params = new URLSearchParams(location.search);
+    const myFlag = params.get('my') === '1';
+    const idsParam = (params.get('ids') || '').split(',').map((s) => s.trim()).filter(Boolean);
+    const myIds = idsParam.length ? idsParam : (myFlag ? UI.MyReports.ids() : []);
+    const myActive = myFlag || idsParam.length > 0;
+    const mySet = new Set(myIds.map((s) => s.toUpperCase()));
+
+    function paintBanner() {
+      if (!myActive) { banner.hidden = true; return; }
+      banner.hidden = false;
+      banner.innerHTML = '';
+      const n = mySet.size;
+      banner.appendChild(UI.el('span', null,
+        n
+          ? `Showing your ${n} report${n > 1 ? 's' : ''} filed from this device.`
+          : 'You have no reports filed from this device yet.'));
+      banner.appendChild(UI.el('button', {
+        type: 'button', class: 'tsh-filter-banner-clear',
+        onclick: () => { location.href = './public-board.html'; },
+      }, 'Show all'));
+    }
+    paintBanner();
+
     function render() {
       list.innerHTML = '';
       const q = query.trim().toUpperCase();
       const filtered = all.filter((i) => {
+        if (myActive && !mySet.has(String(i.id || '').toUpperCase())) return false;
         if (filter !== 'all' && i.status !== filter) return false;
         if (q && !(i.id || '').toUpperCase().includes(q)) return false;
         return true;

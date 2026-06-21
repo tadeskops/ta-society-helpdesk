@@ -8,7 +8,7 @@
   <link rel="icon" href="./assets/images/TaLogo.png" type="image/png" />
   <script>(function(){try{var t=localStorage.getItem('tsh_theme');if(t!=='dark'&&t!=='light'&&t!=='medium')t='light';if(t!=='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="./assets/css/theme.css?v=11" />
+  <link rel="stylesheet" href="./assets/css/theme.css?v=12" />
 </head>
 <body class="tsh-page">
   <div data-include="header"></div>
@@ -60,7 +60,8 @@
             <span class="tsh-label">Up to 5 photos</span>
             <input type="file" name="photos" accept="image/*" multiple capture="environment" />
           </label>
-          <p class="tsh-hint">Photos are uploaded to the public repository alongside the ticket.</p>
+          <div id="photoTray" class="tsh-photo-tray" hidden></div>
+          <p class="tsh-hint">Photos are resized in your browser before upload &mdash; saves data on mobile.</p>
         </fieldset>
 
         <fieldset class="tsh-field-group">
@@ -99,11 +100,11 @@
   <div data-include="footer"></div>
 
   <script src="./assets/js/config.js?v=11"></script>
-  <script src="./assets/js/partials.js?v=11"></script>
+  <script src="./assets/js/partials.js?v=12"></script>
   <script src="./assets/js/api.js?v=11"></script>
   <script src="./assets/js/auth.js?v=11"></script>
   <script src="./assets/js/flags.js?v=11"></script>
-  <script src="./assets/js/ui.js?v=11"></script>
+  <script src="./assets/js/ui.js?v=12"></script>
   <script>
   (async () => {
     await Partials.mount();
@@ -144,10 +145,23 @@
     const locMax  = Flags.tunable('DAILY_LOCATION_MAX', 120);
     const descMax = Flags.tunable('DAILY_DESC_MAX', 2000);
     const maxPhotos = Flags.tunable('DAILY_PHOTO_MAX_PER_ISSUE', 6);
+    const maxDim    = Flags.tunable('DAILY_PHOTO_MAX_DIM', 1600);
+    const jpegQual  = Flags.tunable('DAILY_PHOTO_JPEG_QUALITY', 0.85);
     document.querySelector('input[name="location"]').maxLength = locMax;
     document.querySelector('textarea[name="description"]').maxLength = descMax;
-    const photoLabel = document.querySelector('input[name="photos"]')?.closest('.tsh-field')?.querySelector('.tsh-label');
+    const photoInput = document.querySelector('input[name="photos"]');
+    const photoLabel = photoInput?.closest('.tsh-field')?.querySelector('.tsh-label');
     if (photoLabel) photoLabel.textContent = `Up to ${maxPhotos} photos`;
+
+    // PhotoTray: client-side resize + thumbnail grid. We OWN the selection,
+    // not the native FileList — submit packs items into the create payload.
+    const photoTray = (photoInput && Flags.on('FEATURE_DAILY_PHOTO_UPLOAD'))
+      ? UI.PhotoTray.create({
+          input: photoInput,
+          tray: document.getElementById('photoTray'),
+          max: maxPhotos, maxDim, quality: jpegQual,
+        })
+      : null;
 
     // Populate selects.
     const towerSel = document.querySelector('select[name="tower"]');
@@ -209,25 +223,18 @@
       if (data.reporterNotifyWhatsApp) payload.reporterNotifyWhatsApp = true;
       if (turnstileToken) payload.turnstileToken = turnstileToken;
 
+      // Photos: send inline with the create call (single round-trip,
+      // atomic — no orphan issue if a photo fails).
+      const photos = photoTray ? photoTray.photos() : [];
+      if (photos.length) payload.photos = photos;
+
       const btn = document.getElementById('submitBtn');
       const status = document.getElementById('formStatus');
-      btn.disabled = true; status.textContent = 'Submitting…';
+      btn.disabled = true;
+      status.textContent = photos.length ? `Submitting (${photos.length} photo${photos.length > 1 ? 's' : ''})…` : 'Submitting…';
+      let created;
       try {
-        const created = await Api.post('/issues', payload);
-
-        // Photo upload (one POST per file, capped at DAILY_PHOTO_MAX_PER_ISSUE).
-        const files = form.querySelector('input[name="photos"]').files;
-        const photoCount = Math.min(files.length, maxPhotos);
-        for (let i = 0; i < photoCount; i++) {
-          status.textContent = `Uploading photo ${i + 1} of ${photoCount}…`;
-          const b64 = await fileToBase64(files[i]);
-          await Api.post(`/issues/${created.id}/photos`, {
-            filename: files[i].name || `photo-${i + 1}.jpg`,
-            contentB64: b64,
-          });
-        }
-
-        location.replace(`./daily-confirm.html?id=${encodeURIComponent(created.id)}`);
+        created = await Api.post('/issues', payload);
       } catch (err) {
         btn.disabled = false;
         status.textContent = err.message || 'Submit failed.';
@@ -235,21 +242,58 @@
         return;
       }
       UI.Draft.clear(DRAFT_KEY);
+      UI.MyReports.add(created.id);
+      await showSuccessModal(created);
     });
-  })();
 
-  function fileToBase64(file) {
-    return new Promise((resolve, reject) => {
-      const r = new FileReader();
-      r.onerror = reject;
-      r.onload = () => {
-        const s = String(r.result);
-        const c = s.indexOf(',');
-        resolve(c === -1 ? s : s.slice(c + 1));
-      };
-      r.readAsDataURL(file);
-    });
-  }
+    // Inline success modal — keeps the user on the report page so they can
+    // file another without a full navigation. The dedicated /daily-confirm.html
+    // page still exists for deep-links (WhatsApp shares etc.).
+    async function showSuccessModal(created) {
+      const ticket = String(created.id || '');
+      const confirmHref = `./daily-confirm.html?id=${encodeURIComponent(ticket)}`;
+      const body = UI.el('div', { class: 'tsh-success-box' },
+        UI.el('div', { class: 'tsh-success-icon' }, UI.el('i', { class: 'fas fa-check' })),
+        UI.el('p', { class: 'tsh-success-msg' },
+          'Your report has been received. The on-site manager will triage it shortly.'),
+        UI.el('div', { class: 'tsh-success-ticket' },
+          UI.el('code', null, ticket),
+          UI.el('button', {
+            type: 'button', class: 'tsh-btn tsh-btn-ghost',
+            title: 'Copy ticket id',
+            onclick: () => UI.copyToClipboard(ticket),
+          }, UI.el('i', { class: 'fas fa-copy' }), ' Copy')),
+        UI.el('p', { class: 'tsh-hint' },
+          'Saved on this device — see ', UI.el('strong', null, 'My reports'), ' in the menu.'));
+
+      const choice = await UI.modal({
+        title: 'Report received',
+        body,
+        actions: [
+          { label: 'Report another', value: 'another' },
+          { label: 'Track this one', value: 'track', primary: true },
+        ],
+      });
+
+      if (choice === 'track') {
+        location.href = confirmHref;
+        return;
+      }
+      // Default / 'another' / backdrop-close: reset the form for the next submission.
+      const form = document.getElementById('reportForm');
+      form.reset();
+      if (photoTray) photoTray.clear();
+      if (turnstileEnabled && window.turnstile) {
+        try { window.turnstile.reset(); turnstileToken = null; } catch (_e) { /* ignore */ }
+      }
+      // Re-apply the cascading subcategory list after reset.
+      refreshSubcats();
+      document.getElementById('formStatus').textContent = '';
+      document.getElementById('submitBtn').disabled = false;
+      // Hint that they can find it later.
+      UI.toast(`Saved ${ticket}. Filed under "My reports".`, { kind: 'success' });
+    }
+  })();
   </script>
 </body>
 </html>

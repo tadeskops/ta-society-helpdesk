@@ -1276,3 +1276,88 @@ html[data-theme="medium"] .tsh-floatdock {
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 .tsh-error                   { color: var(--c-danger); padding: var(--sp-3); }
+
+/* ===== Photo tray (submit form thumbnails) ============================ */
+
+.tsh-photo-tray {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+}
+.tsh-photo-thumb {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border-radius: var(--rad-md);
+  overflow: hidden;
+  border: 1px solid var(--c-border-soft);
+  background: rgba(0, 0, 0, 0.25);
+}
+.tsh-photo-thumb img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.tsh-photo-thumb-x {
+  position: absolute; top: 4px; right: 4px;
+  width: 24px; height: 24px;
+  border: 0; border-radius: 50%;
+  background: rgba(220, 38, 38, 0.9);
+  color: #fff;
+  font-size: 18px; line-height: 22px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+.tsh-photo-thumb-x:hover { background: rgb(220, 38, 38); }
+
+/* ===== Submit success modal ticket-id box ============================= */
+
+.tsh-success-box {
+  display: flex; flex-direction: column; align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-4) 0 var(--sp-2);
+}
+.tsh-success-icon {
+  width: 64px; height: 64px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  background: rgba(34, 197, 94, 0.15);
+  color: var(--c-success, #22c55e);
+  font-size: 32px;
+}
+.tsh-success-ticket {
+  display: flex; align-items: center; gap: var(--sp-2);
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px dashed var(--c-accent, var(--c-primary));
+  border-radius: var(--rad-md);
+  padding: var(--sp-2) var(--sp-3);
+}
+.tsh-success-ticket code {
+  font-size: var(--fs-lg);
+  letter-spacing: 0.05em;
+}
+.tsh-success-msg {
+  text-align: center;
+  color: var(--c-text-muted);
+  max-width: 32em;
+  margin: 0;
+}
+
+/* ===== Filter banner (e.g. "Showing your reports") ==================== */
+
+.tsh-filter-banner {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--sp-3);
+  margin: var(--sp-3) 0;
+  padding: var(--sp-2) var(--sp-3);
+  background: rgba(212, 175, 55, 0.08);
+  border-left: 3px solid var(--c-accent, var(--c-primary));
+  border-radius: var(--rad-md);
+  font-size: var(--fs-sm);
+}
+.tsh-filter-banner-clear {
+  background: none; border: 0; cursor: pointer;
+  color: var(--c-accent, var(--c-primary));
+  text-decoration: underline;
+}
