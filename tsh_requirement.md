@@ -470,7 +470,7 @@ Save → `PUT /config` (and/or `PUT /access-lists/:role`) → Worker commits the
     "issuesRepo":         "tadeskops/ta-society-helpdesk",
     "backupBranch":       "main",
     "workerUrl":          "https://daily-worker.tadeskops.workers.dev",
-    "handoverPortalUrl":  "https://script.google.com/macros/s/.../exec",
+    "handoverPortalUrl":  "https://tadeskops.github.io/ta-issue-manager/",
     "photoStorage":       "in-repo"
   }
 }

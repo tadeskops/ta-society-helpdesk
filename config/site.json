@@ -250,7 +250,7 @@
     "issuesRepo": "tadeskops/ta-society-helpdesk",
     "backupBranch": "main",
     "workerUrl": "https://tsh-worker.tadeskops.workers.dev",
-    "handoverPortalUrl": "https://script.google.com/macros/s/REPLACE_ME/exec",
+    "handoverPortalUrl": "https://tadeskops.github.io/ta-issue-manager/",
     "photoStorage": "repo",
     "turnstileSiteKey": "REPLACE_ME_AT_DEPLOY",
     "logoUrl": "",
