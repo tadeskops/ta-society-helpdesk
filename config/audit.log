@@ -2,3 +2,4 @@
 # Format: {"at": "<ISO>", "actor": "<email>", "action": "<verb>", "target": "<path-or-id>", "detail": "<free text>"}
 {"at":"2026-06-21T12:14:43.125Z","actor":"ta.deskops@gmail.com","action":"config:put","target":"config/site.json","detail":"version=1"}
 {"at":"2026-06-21T12:14:46.523Z","actor":"ta.deskops@gmail.com","action":"access-list:put","target":"config/developers.json","detail":"count=1"}
+{"at":"2026-06-21T12:14:49.391Z","actor":"ta.deskops@gmail.com","action":"access-list:put","target":"config/committee.json","detail":"count=1"}
