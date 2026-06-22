@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Directory · TSH</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#1a1f2e" />
+  <meta name="description" content="Vendors, community contacts and resources for The Address residents." />
+  <link rel="icon" href="./assets/images/TaLogo.png" type="image/png" />
+  <script>(function(){try{var t=localStorage.getItem('tsh_theme');if(t!=='dark'&&t!=='light'&&t!=='medium')t='light';if(t!=='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="./assets/css/theme.css?v=17" />
+</head>
+<body class="tsh-page">
+  <div data-include="header"></div>
+  <div data-include="toast"></div>
+  <div data-include="modal"></div>
+
+  <main class="tsh-main tsh-main-wide">
+    <section class="tsh-card">
+      <header class="tsh-card-head tsh-card-head-row">
+        <div>
+          <h1><i class="fas fa-address-book gold-accent"></i> Society Directory</h1>
+          <p class="tsh-sub" id="dirRoleHint">Vendor contacts, community numbers and shared resources.</p>
+        </div>
+        <div class="tsh-toolbar" id="dirToolbar" hidden>
+          <button type="button" class="tsh-btn tsh-btn-primary" id="dirSaveBtn" disabled>
+            <i class="fas fa-floppy-disk"></i>Save changes
+          </button>
+          <button type="button" class="tsh-btn tsh-btn-ghost" id="dirDiscardBtn" disabled>
+            <i class="fas fa-rotate-left"></i>Discard
+          </button>
+        </div>
+      </header>
+
+      <div class="tsh-dir-search-row">
+        <div class="tsh-search">
+          <input type="search" id="dirSearch" placeholder="Search name, phone, category, notes…" autocomplete="off" />
+        </div>
+      </div>
+
+      <div class="tsh-tabs" role="tablist" aria-label="Directory sections">
+        <button type="button" class="tsh-tab tsh-tab-active" role="tab" aria-selected="true"  data-dir-tab="vendors"><i class="fas fa-toolbox"></i> Vendors <span class="tsh-tab-count" data-dir-count="vendors">0</span></button>
+        <button type="button" class="tsh-tab"               role="tab" aria-selected="false" data-dir-tab="contacts"><i class="fas fa-users"></i> Community <span class="tsh-tab-count" data-dir-count="contacts">0</span></button>
+        <button type="button" class="tsh-tab"               role="tab" aria-selected="false" data-dir-tab="resources"><i class="fas fa-link"></i> Resources <span class="tsh-tab-count" data-dir-count="resources">0</span></button>
+      </div>
+
+      <!-- VENDORS -->
+      <section class="tsh-dir-section" data-dir-section="vendors">
+        <div class="tsh-dir-section-actions">
+          <div class="tsh-dir-filter-pills" id="dirCategoryPills" role="group" aria-label="Filter by category"></div>
+          <div class="tsh-dir-section-buttons" data-dir-edit-only hidden>
+            <button type="button" class="tsh-btn tsh-btn-ghost tsh-btn-sm" id="dirManageCategoriesBtn"><i class="fas fa-tags"></i>Manage categories</button>
+            <button type="button" class="tsh-btn tsh-btn-ghost tsh-btn-sm" id="dirImportVendorsBtn"><i class="fas fa-file-csv"></i>Import CSV</button>
+            <button type="button" class="tsh-btn tsh-btn-primary tsh-btn-sm" data-dir-add="vendors"><i class="fas fa-plus"></i>Add vendor</button>
+          </div>
+        </div>
+        <div class="tsh-dir-grid" data-dir-grid="vendors"></div>
+      </section>
+
+      <!-- COMMUNITY CONTACTS -->
+      <section class="tsh-dir-section" data-dir-section="contacts" hidden>
+        <div class="tsh-dir-section-actions">
+          <p class="tsh-hint">Committee members, security desk, on-site manager, emergency numbers.</p>
+          <div class="tsh-dir-section-buttons" data-dir-edit-only hidden>
+            <button type="button" class="tsh-btn tsh-btn-primary tsh-btn-sm" data-dir-add="contacts"><i class="fas fa-plus"></i>Add contact</button>
+          </div>
+        </div>
+        <div class="tsh-dir-grid" data-dir-grid="contacts"></div>
+      </section>
+
+      <!-- RESOURCES -->
+      <section class="tsh-dir-section" data-dir-section="resources" hidden>
+        <div class="tsh-dir-section-actions">
+          <p class="tsh-hint">Bye-laws, useful PDFs, vendor catalogues, community-shared links.</p>
+          <div class="tsh-dir-section-buttons" data-dir-edit-only hidden>
+            <button type="button" class="tsh-btn tsh-btn-primary tsh-btn-sm" data-dir-add="resources"><i class="fas fa-plus"></i>Add resource</button>
+          </div>
+        </div>
+        <div class="tsh-dir-grid" data-dir-grid="resources"></div>
+      </section>
+    </section>
+  </main>
+
+  <div data-include="footer"></div>
+
+  <script src="./assets/js/config.js?v=11"></script>
+  <script src="./assets/js/partials.js?v=15"></script>
+  <script src="./assets/js/api.js?v=11"></script>
+  <script src="./assets/js/auth.js?v=11"></script>
+  <script src="./assets/js/flags.js?v=12"></script>
+  <script src="./assets/js/ui.js?v=17"></script>
+  <script src="./assets/js/directory.js?v=2"></script>
+  <script>
+  (async () => {
+    await Partials.mount();
+    await Auth.init({ clientId: window.TSH_GOOGLE_CLIENT_ID });
+    UI.bindHeader();
+
+    try {
+      await Flags.ready();
+      if (!Flags.on('FEATURE_DAILY_DIRECTORY')) {
+        document.querySelector('.tsh-card').innerHTML =
+          '<div class="tsh-state tsh-state-empty"><i class="tsh-state-icon fas fa-circle-pause"></i>' +
+          '<p class="tsh-state-title">Directory is disabled</p>' +
+          '<p class="tsh-state-msg">A developer can re-enable it from Settings → Feature flags.</p></div>';
+        return;
+      }
+    } catch (e) {
+      UI.toast('Couldn’t load site config — directory may be unavailable.', { kind: 'warn' });
+    }
+
+    let who = { primary: 'PUBLIC' };
+    try { who = await Flags.whoami(true); } catch (_e) {}
+    const canEdit = ['MANAGER', 'COMMITTEE', 'DEVELOPER'].includes(who.primary);
+
+    Directory.init({ canEdit });
+  })();
+  </script>
+</body>
+</html>

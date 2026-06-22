@@ -35,7 +35,15 @@
             for (const img of document.querySelectorAll('[data-tsh-logo]')) img.src = sys.logoUrl;
           }
           if (sys.logoNameUrl) {
-            for (const img of document.querySelectorAll('[data-tsh-logo-name]')) img.src = sys.logoNameUrl;
+            for (const img of document.querySelectorAll('[data-tsh-logo-name]')) {
+              img.src = sys.logoNameUrl;
+              img.hidden = false;
+            }
+            // Hide the composed live-text wordmark on the landing hero so
+            // the custom bitmap takes its place cleanly.
+            for (const brand of document.querySelectorAll('[data-tsh-brand]')) {
+              brand.classList.add('has-bitmap-wordmark');
+            }
           }
           return c;
         })

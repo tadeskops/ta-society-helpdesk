@@ -9,6 +9,7 @@ import { mountIssues } from './issues.ts';
 import { mountPublic } from './public.ts';
 import { mountAccess } from './access.ts';
 import { mountAudit } from './audit.ts';
+import { mountDirectory } from './directory.ts';
 
 export const buildRouter = (): Router => {
   const r = new Router();
@@ -18,6 +19,7 @@ export const buildRouter = (): Router => {
   mountPublic(r);
   mountAccess(r);
   mountAudit(r);
+  mountDirectory(r);
   return r;
 };
 

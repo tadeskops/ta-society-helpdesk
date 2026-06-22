@@ -8,7 +8,7 @@
   <link rel="icon" href="./assets/images/TaLogo.png" type="image/png" />
   <script>(function(){try{var t=localStorage.getItem('tsh_theme');if(t!=='dark'&&t!=='light'&&t!=='medium')t='light';if(t!=='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="./assets/css/theme.css?v=14" />
+  <link rel="stylesheet" href="./assets/css/theme.css?v=17" />
   <style>
     /* Info-icon + click-to-expand help panels for each setting */
     .tsh-info {
@@ -76,6 +76,9 @@
       flex: 1 1 auto; padding: 0;
     }
     .tsh-field-inline > .tsh-help-panel { flex-basis: 100%; }
+
+    /* Shared bottom-of-screen tip lives in theme.css (.tsh-tip) and is
+       driven by UI.Tip in ui.js. No page-local styles needed. */
   </style>
 </head>
 <body class="tsh-page">
@@ -224,14 +227,16 @@
     </section>
   </main>
 
+  <!-- Per-field help is rendered by UI.Tip (assets/js/ui.js). -->
+
   <div data-include="footer"></div>
 
   <script src="./assets/js/config.js?v=11"></script>
-  <script src="./assets/js/partials.js?v=14"></script>
+  <script src="./assets/js/partials.js?v=15"></script>
   <script src="./assets/js/api.js?v=11"></script>
   <script src="./assets/js/auth.js?v=11"></script>
-  <script src="./assets/js/flags.js?v=11"></script>
-  <script src="./assets/js/ui.js?v=15"></script>
+  <script src="./assets/js/flags.js?v=12"></script>
+  <script src="./assets/js/ui.js?v=17"></script>
   <script>
   (async () => {
     await Partials.mount();
@@ -387,7 +392,10 @@
     //   - bare form name (e.g. 'developers', 'lists.towers', 'system.issuesRepo')
     //   - feature flag short name (without 'features.' prefix)
     //   - tunable short name (without 'tunables.' prefix)
-    const HELP = {
+    // Wrapped in a function so it is hoisted alongside other declarations
+    // and safe to call before this line executes (avoids TDZ when
+    // attachHelp runs from inside fill() earlier in the IIFE).
+    function HELP() { return {
       // Access lists
       'developers': {
         summary: 'Full read/write on settings and content. At least one required.',
@@ -572,6 +580,11 @@
         detail: 'Demo issues are created by scripts/seed-sample-issues.mjs. Turn OFF in production to hide them without deleting. Run "node scripts/seed-sample-issues.mjs --cleanup --apply" to remove them entirely.',
         default: 'true',
       },
+      'FEATURE_DAILY_DIRECTORY': {
+        summary: 'Enable the Society Directory page (vendors, community contacts, resources).',
+        detail: 'When OFF, the Directory nav link is hidden and /directory.html shows a feature-disabled gate. The /directory API endpoints return feature-disabled. Managers, Committee and Developers can edit when ON; everyone can view.',
+        default: 'true',
+      },
 
       // Tunables (short name, used by tunables.<NAME>)
       'DAILY_AUTO_ACK_HOURS': {
@@ -641,12 +654,19 @@
         detail: 'Lower means role/access changes reach the user faster after a re-login.',
         default: '5',
       },
-    };
+      'DIRECTORY_CACHE_SECONDS': {
+        summary: 'How long the Worker caches config/directory.json before re-reading from GitHub.',
+        range: '30 \u2013 600 seconds',
+        detail: 'Directory is read by the /directory page only (not on every page load), so a longer cache is fine. Saving the directory from the UI invalidates this cache immediately.',
+        default: '120',
+      },
+    }; }
 
     function lookupHelp(formName) {
-      if (HELP[formName]) return HELP[formName];
-      if (formName.startsWith('features.'))  return HELP[formName.slice('features.'.length)];
-      if (formName.startsWith('tunables.'))  return HELP[formName.slice('tunables.'.length)];
+      const H = HELP();
+      if (H[formName]) return H[formName];
+      if (formName.startsWith('features.'))  return H[formName.slice('features.'.length)];
+      if (formName.startsWith('tunables.'))  return H[formName.slice('tunables.'.length)];
       return null;
     }
 
@@ -664,74 +684,77 @@
 
     function attachHelp(form) {
       const inputs = form.querySelectorAll('input[name], select[name], textarea[name]');
-      let panelSeq = 0;
       let bound = 0;
+
+      const openTipFor = (labelSpan) => {
+        if (!labelSpan || !window.UI || !UI.Tip) return;
+        UI.Tip.show(
+          labelSpan.dataset.tshHelpTitle || '',
+          labelSpan.dataset.tshHelpHtml  || '',
+          labelSpan
+        );
+        const ico = labelSpan.querySelector('.tsh-info');
+        if (ico) ico.setAttribute('aria-expanded', labelSpan.getAttribute('aria-expanded') || 'false');
+      };
+
       for (const el of inputs) {
         const info = lookupHelp(el.name);
         if (!info) continue;
         const field = el.closest('.tsh-field');
-        if (!field || field.querySelector(':scope > .tsh-help-panel')) continue;
+        if (!field) continue;
         const labelSpan = field.querySelector(':scope > .tsh-label');
-        if (!labelSpan) continue;
+        if (!labelSpan || labelSpan.dataset.tshHelpBound) continue;
 
-        const panelId = `tshHelp_${++panelSeq}`;
         const tipBits = [info.summary || ''];
         if (info.range)   tipBits.push(`Range: ${info.range}`);
         if (info.options) tipBits.push(`Options: ${info.options}`);
         if (info.default !== undefined) tipBits.push(`Default: ${info.default}`);
         const tooltip = tipBits.filter(Boolean).join('\n');
 
-        // Make the parameter NAME itself the click target for help.
+        // Use the form-name (e.g. "tunables.CONFIG_CACHE_SECONDS") as the
+        // tip title so the user always knows which setting they're reading.
         labelSpan.setAttribute('role', 'button');
         labelSpan.setAttribute('tabindex', '0');
         labelSpan.setAttribute('aria-expanded', 'false');
-        labelSpan.setAttribute('aria-controls', panelId);
+        labelSpan.setAttribute('aria-controls', 'tshTip');
         labelSpan.setAttribute('title', tooltip);
-        labelSpan.dataset.tshHelpPanel = panelId;
+        labelSpan.dataset.tshHelpBound = '1';
+        labelSpan.dataset.tshHelpTitle = el.name;
+        labelSpan.dataset.tshHelpHtml  = helpPanelHtml(info);
 
-        // Add a small "i" icon as a visual cue that the name is clickable.
-        const icon = document.createElement('button');
-        icon.type = 'button';
-        icon.className = 'tsh-info';
-        icon.tabIndex = -1;
-        icon.setAttribute('aria-hidden', 'true');
-        icon.innerHTML = '<i class="fas fa-circle-info" aria-hidden="true"></i>';
-        labelSpan.appendChild(document.createTextNode(' '));
-        labelSpan.appendChild(icon);
-
-        const panel = document.createElement('div');
-        panel.id = panelId;
-        panel.className = 'tsh-help-panel';
-        panel.innerHTML = helpPanelHtml(info);
-        field.appendChild(panel);
+        // Small "i" cue that the name is clickable.
+        if (!labelSpan.querySelector('.tsh-info')) {
+          const icon = document.createElement('button');
+          icon.type = 'button';
+          icon.className = 'tsh-info';
+          icon.tabIndex = -1;
+          icon.setAttribute('aria-hidden', 'true');
+          icon.innerHTML = '<i class="fas fa-circle-info" aria-hidden="true"></i>';
+          labelSpan.appendChild(document.createTextNode(' '));
+          labelSpan.appendChild(icon);
+        }
         bound++;
       }
 
-      // ONE delegated handler on the form — robust to any DOM weirdness.
+      // ONE delegated click + keyboard handler on the form.
       if (!form.dataset.tshHelpBound) {
         form.dataset.tshHelpBound = '1';
         form.addEventListener('click', (e) => {
-          const ls = e.target && e.target.closest && e.target.closest('.tsh-label[data-tsh-help-panel]');
+          const ls = e.target && e.target.closest && e.target.closest('.tsh-label[data-tsh-help-bound]');
           if (!ls) return;
           e.preventDefault();
           e.stopPropagation();
-          const panel = document.getElementById(ls.dataset.tshHelpPanel);
-          if (!panel) return;
-          const willOpen = !panel.classList.contains('is-open');
-          panel.classList.toggle('is-open', willOpen);
-          panel.style.display = willOpen ? 'block' : 'none';
-          ls.setAttribute('aria-expanded', String(willOpen));
-          const ico = ls.querySelector('.tsh-info');
-          if (ico) ico.setAttribute('aria-expanded', String(willOpen));
+          openTipFor(ls);
         });
         form.addEventListener('keydown', (e) => {
           if (e.key !== 'Enter' && e.key !== ' ') return;
-          const ls = e.target && e.target.closest && e.target.closest('.tsh-label[data-tsh-help-panel]');
+          const ls = e.target && e.target.closest && e.target.closest('.tsh-label[data-tsh-help-bound]');
           if (!ls) return;
           e.preventDefault();
-          ls.click();
+          openTipFor(ls);
         });
       }
+
       try { console.log('[TSH settings] help attached to', bound, 'fields'); } catch (_e) {}
     }
   })();

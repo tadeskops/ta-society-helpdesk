@@ -318,6 +318,117 @@
 
   ThemeSwitcher.init();
 
+  // ----- FloatDock (draggable display-controls dock) -----
+  // Position persisted per-device in localStorage as `tsh_floatdock_pos`
+  // (JSON {left, top}). Default is bottom-right (right/bottom CSS). When
+  // a saved position exists OR the user drags, we set inline left/top and
+  // add .is-floating which neutralises the default right/bottom anchors.
+  // Double-click the handle to reset.
+  const FloatDock = (function () {
+    const KEY = 'tsh_floatdock_pos';
+    const MARGIN = 4;
+
+    function load() {
+      try {
+        const raw = localStorage.getItem(KEY);
+        if (!raw) return null;
+        const p = JSON.parse(raw);
+        if (typeof p.left !== 'number' || typeof p.top !== 'number') return null;
+        return p;
+      } catch (_e) { return null; }
+    }
+    function save(p) { try { localStorage.setItem(KEY, JSON.stringify(p)); } catch (_e) {} }
+    function clear() { try { localStorage.removeItem(KEY); } catch (_e) {} }
+
+    function clamp(dock, left, top) {
+      const r = dock.getBoundingClientRect();
+      const maxL = Math.max(MARGIN, window.innerWidth  - r.width  - MARGIN);
+      const maxT = Math.max(MARGIN, window.innerHeight - r.height - MARGIN);
+      return {
+        left: Math.min(Math.max(MARGIN, left), maxL),
+        top:  Math.min(Math.max(MARGIN, top),  maxT),
+      };
+    }
+
+    function applyPos(dock, p) {
+      if (!p) {
+        dock.classList.remove('is-floating');
+        dock.style.left = '';
+        dock.style.top  = '';
+        return;
+      }
+      const c = clamp(dock, p.left, p.top);
+      dock.classList.add('is-floating');
+      dock.style.left = c.left + 'px';
+      dock.style.top  = c.top  + 'px';
+    }
+
+    function bind(scope) {
+      const container = (scope && scope.querySelector) ? scope : document;
+      const dock = container.querySelector('[data-tsh-floatdock]');
+      if (!dock || dock.dataset.tshFloatdockBound === '1') return;
+      dock.dataset.tshFloatdockBound = '1';
+
+      const handle = dock.querySelector('[data-tsh-floatdock-handle]');
+      const saved = load();
+      if (saved) applyPos(dock, saved);
+
+      let dragging = false;
+      let pid = null;
+      let startX = 0, startY = 0;
+      let baseL = 0, baseT = 0;
+
+      function onDown(ev) {
+        // Left mouse / primary pointer only.
+        if (ev.button != null && ev.button !== 0) return;
+        const r = dock.getBoundingClientRect();
+        baseL = r.left; baseT = r.top;
+        startX = ev.clientX; startY = ev.clientY;
+        dragging = true;
+        pid = ev.pointerId;
+        dock.classList.add('is-dragging');
+        try { handle.setPointerCapture(pid); } catch (_e) {}
+        ev.preventDefault();
+      }
+      function onMove(ev) {
+        if (!dragging) return;
+        const dx = ev.clientX - startX;
+        const dy = ev.clientY - startY;
+        applyPos(dock, { left: baseL + dx, top: baseT + dy });
+      }
+      function onUp(ev) {
+        if (!dragging) return;
+        dragging = false;
+        dock.classList.remove('is-dragging');
+        try { if (pid != null) handle.releasePointerCapture(pid); } catch (_e) {}
+        pid = null;
+        // Persist final clamped position.
+        const r = dock.getBoundingClientRect();
+        save({ left: r.left, top: r.top });
+      }
+
+      handle.addEventListener('pointerdown', onDown);
+      handle.addEventListener('pointermove', onMove);
+      handle.addEventListener('pointerup',   onUp);
+      handle.addEventListener('pointercancel', onUp);
+
+      // Double-click handle → reset to default bottom-right corner.
+      handle.addEventListener('dblclick', (e) => {
+        e.preventDefault();
+        clear();
+        applyPos(dock, null);
+      });
+
+      // Re-clamp on viewport resize so the dock stays on-screen.
+      window.addEventListener('resize', () => {
+        const p = load();
+        if (p) applyPos(dock, p);
+      });
+    }
+
+    return { bind };
+  })();
+
   // ----- Draft (localStorage form persistence) -----
   // Draft.bind(form, 'TSH_KEY') auto-saves every input change and restores
   // on next visit.  Call Draft.clear('TSH_KEY') after a successful submit.
@@ -434,6 +545,7 @@
     // Wire the font-size switcher embedded in the header partial.
     FontSize.bind(document);
     ThemeSwitcher.bind(document);
+    FloatDock.bind(document);
     MyReports.refreshBadge();
   }
 
@@ -558,10 +670,74 @@
     return { create };
   })();
 
+  // Shared bottom-left help tip. Same widget settings.html and manage.html
+  // share to surface short context-sensitive help without modal blocking.
+  // Anchor is optional but useful for toggle-off-on-same-click and
+  // aria-expanded tracking on the trigger element.
+  const Tip = (function () {
+    let root_, titleEl, bodyEl, closeBtn, anchor;
+    function ensure() {
+      if (root_) return root_;
+      root_ = document.createElement('aside');
+      root_.className = 'tsh-tip';
+      root_.id = 'tshTip';
+      root_.setAttribute('role', 'dialog');
+      root_.setAttribute('aria-live', 'polite');
+      root_.setAttribute('aria-labelledby', 'tshTipTitle');
+      root_.hidden = true;
+      root_.innerHTML =
+        '<header class="tsh-tip-head">' +
+        '  <h3 class="tsh-tip-title" id="tshTipTitle"></h3>' +
+        '  <button type="button" class="tsh-tip-close" aria-label="Close help">' +
+        '    <i class="fas fa-xmark" aria-hidden="true"></i>' +
+        '  </button>' +
+        '</header>' +
+        '<div class="tsh-tip-body" id="tshTipBody"></div>';
+      document.body.appendChild(root_);
+      titleEl  = root_.querySelector('.tsh-tip-title');
+      bodyEl   = root_.querySelector('.tsh-tip-body');
+      closeBtn = root_.querySelector('.tsh-tip-close');
+      closeBtn.addEventListener('click', hide);
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && root_ && !root_.hidden) {
+          const prev = anchor;
+          hide();
+          if (prev) { try { prev.focus(); } catch (_e) {} }
+        }
+      });
+      return root_;
+    }
+    function show(title, html, anchorEl) {
+      ensure();
+      // Toggle off when called twice for the same anchor.
+      if (anchorEl && anchor === anchorEl && !root_.hidden) { hide(); return; }
+      if (anchor && anchor !== anchorEl) {
+        try { anchor.setAttribute('aria-expanded', 'false'); } catch (_e) {}
+      }
+      titleEl.textContent = title || '';
+      bodyEl.innerHTML = html || '';
+      root_.hidden = false;
+      root_.classList.add('is-open');
+      anchor = anchorEl || null;
+      if (anchor) { try { anchor.setAttribute('aria-expanded', 'true'); } catch (_e) {} }
+    }
+    function hide() {
+      if (!root_) return;
+      root_.classList.remove('is-open');
+      root_.hidden = true;
+      if (anchor) {
+        try { anchor.setAttribute('aria-expanded', 'false'); } catch (_e) {}
+        anchor = null;
+      }
+    }
+    function isOpen() { return !!(root_ && !root_.hidden); }
+    return { show, hide, isOpen };
+  })();
+
   root.UI = {
     el, $, toast, modal, confirmModal, formatRel, copyToClipboard,
     statusPill, statusText, severityPill, bindHeader,
     stateLoading, stateEmpty, stateError,
-    Lightbox, FontSize, ThemeSwitcher, Draft, MyReports, PhotoTray,
+    Lightbox, FontSize, ThemeSwitcher, FloatDock, Draft, MyReports, PhotoTray, Tip,
   };
 })(window);

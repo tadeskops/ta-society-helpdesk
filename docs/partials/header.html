@@ -13,6 +13,7 @@
     <nav class="tsh-nav" aria-label="Primary">
       <a href="./daily-report.html"><i class="fas fa-pen-to-square"></i>Report</a>
       <a href="./public-board.html" data-tsh-feature="FEATURE_DAILY_PUBLIC_BOARD"><i class="fas fa-list-check"></i>Board</a>
+      <a href="./directory.html"   data-tsh-feature="FEATURE_DAILY_DIRECTORY"><i class="fas fa-address-book"></i>Directory</a>
       <a href="./public-board.html?my=1" data-tsh-myreports hidden><i class="fas fa-bookmark"></i>My reports <span data-tsh-myreports-count></span></a>
       <a data-tsh-role-link="MANAGER" data-tsh-feature="FEATURE_DAILY_MANAGER_DASHBOARD" href="./manage.html" hidden><i class="fas fa-user-shield"></i>Manage</a>
       <a data-tsh-role-link="DEVELOPER" href="./settings.html"            hidden><i class="fas fa-sliders"></i>Settings</a>
@@ -25,9 +26,14 @@
   </div>
 </header>
 
-<!-- Floating display controls (theme + font size) — fixed bottom-right
-     so they're always reachable without taking header space. -->
-<div class="tsh-floatdock" role="region" aria-label="Display controls">
+<!-- Floating display controls (theme + font size). Draggable: grab the
+     handle on the left to move; position is persisted per-device in
+     localStorage (tsh_floatdock_pos). Double-click handle to reset. -->
+<div class="tsh-floatdock" role="region" aria-label="Display controls" data-tsh-floatdock>
+  <button type="button" class="tsh-floatdock-handle" data-tsh-floatdock-handle
+          aria-label="Drag to move display controls" title="Drag to move · double-click to reset">
+    <i class="fas fa-grip-vertical" aria-hidden="true"></i>
+  </button>
   <div class="tsh-themeswitch" role="group" aria-label="Theme tone">
     <button type="button" class="tsh-themeswitch-dark"   data-tsh-theme="dark"   aria-pressed="true"  title="Dark tone"></button>
     <button type="button" class="tsh-themeswitch-light"  data-tsh-theme="light"  aria-pressed="false" title="Light tone"></button>

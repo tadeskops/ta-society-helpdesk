@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "vendorCategories": [
+    "Electrician",
+    "Plumber",
+    "Carpenter",
+    "Home Automation",
+    "Wifi / ISP",
+    "Painter",
+    "AC Servicing",
+    "Pest Control",
+    "Cleaning / Housekeeping",
+    "Mason / Civil",
+    "Appliance Repair",
+    "Other"
+  ],
+  "vendors": [],
+  "contacts": [],
+  "resources": []
+}

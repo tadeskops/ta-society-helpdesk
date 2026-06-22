@@ -54,6 +54,7 @@ export const DEFAULT_CONFIG: SiteConfig = {
     FEATURE_DAILY_MANAGER_DASHBOARD:      true,
     FEATURE_DAILY_COMMITTEE_DASHBOARD:    true,
     FEATURE_DAILY_SHOW_DEMO_ISSUES:       true,
+    FEATURE_DAILY_DIRECTORY:              true,
   },
   tunables: {
     DAILY_AUTO_ACK_HOURS:       24,
@@ -69,6 +70,7 @@ export const DEFAULT_CONFIG: SiteConfig = {
     DAILY_LOCATION_MAX:         120,
     CONFIG_CACHE_SECONDS:       60,
     WHOAMI_CACHE_SECONDS:       5,
+    DIRECTORY_CACHE_SECONDS:    120,
   },
   lists: {
     towers:     ['A', 'B', 'C', 'Common Area'],

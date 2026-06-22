@@ -8,7 +8,7 @@
   <link rel="icon" href="./assets/images/TaLogo.png" type="image/png" />
   <script>(function(){try{var t=localStorage.getItem('tsh_theme');if(t!=='dark'&&t!=='light'&&t!=='medium')t='light';if(t!=='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="./assets/css/theme.css?v=14" />
+  <link rel="stylesheet" href="./assets/css/theme.css?v=17" />
 </head>
 <body class="tsh-page">
   <div data-include="header"></div>
@@ -52,13 +52,13 @@
         <table class="tsh-table" id="issuesTable" aria-live="polite">
           <thead>
             <tr>
-              <th scope="col">ID</th>
-              <th scope="col">Tower</th>
-              <th scope="col">Category</th>
-              <th scope="col">Severity</th>
-              <th scope="col">Status</th>
-              <th scope="col">Age</th>
-              <th scope="col" class="tsh-actions-col">Actions</th>
+              <th scope="col" data-tsh-tip="id">ID</th>
+              <th scope="col" data-tsh-tip="tower">Tower</th>
+              <th scope="col" data-tsh-tip="category">Category</th>
+              <th scope="col" data-tsh-tip="severity">Severity</th>
+              <th scope="col" data-tsh-tip="status">Status</th>
+              <th scope="col" data-tsh-tip="age">Age</th>
+              <th scope="col" class="tsh-actions-col" data-tsh-tip="actions">Actions</th>
             </tr>
           </thead>
           <tbody></tbody>
@@ -75,11 +75,11 @@
   <div data-include="footer"></div>
 
   <script src="./assets/js/config.js?v=11"></script>
-  <script src="./assets/js/partials.js?v=14"></script>
+  <script src="./assets/js/partials.js?v=15"></script>
   <script src="./assets/js/api.js?v=11"></script>
   <script src="./assets/js/auth.js?v=11"></script>
-  <script src="./assets/js/flags.js?v=11"></script>
-  <script src="./assets/js/ui.js?v=15"></script>
+  <script src="./assets/js/flags.js?v=12"></script>
+  <script src="./assets/js/ui.js?v=17"></script>
   <script src="./assets/js/dashboard.js?v=15"></script>
   <script>
   (async () => {
@@ -142,6 +142,100 @@
           } catch (e) { UI.toast(e.message || 'Activity log unavailable.', { kind: 'danger' }); }
         });
       }
+    }
+
+    // ----- Column legends (UI.Tip) ----------------------------------------
+    // Click any <th data-tsh-tip="..."> to see a short explanation. The tip
+    // widget is the same one settings.html uses for per-field help.
+    const COLUMN_HELP = {
+      id: {
+        title: 'ID',
+        html:
+          '<p>Short ticket reference, e.g. <code>DLY-00012</code>. Auto-issued ' +
+          'by the worker when a resident submits the Daily Report form.</p>' +
+          '<p>Click the row to open the full ticket with photos and history.</p>',
+      },
+      tower: {
+        title: 'Tower',
+        html:
+          '<p>The tower/block selected by the reporter. Controlled list is ' +
+          'maintained in <code>Settings &rarr; Lists &rarr; Towers</code>.</p>' +
+          '<p>Use the <strong>All towers</strong> dropdown above to filter.</p>',
+      },
+      category: {
+        title: 'Category',
+        html:
+          '<p>What kind of issue this is &mdash; Plumbing, Electrical, Lift, ' +
+          'Security, Common Area, etc. Controlled list lives under ' +
+          '<code>Settings &rarr; Lists &rarr; Categories</code>.</p>',
+      },
+      severity: {
+        title: 'Severity',
+        html:
+          '<p>Reporter-chosen impact level:</p>' +
+          '<p><strong>Critical</strong> &mdash; safety risk, immediate attention.<br>' +
+          '<strong>High</strong> &mdash; broken essential service.<br>' +
+          '<strong>Medium</strong> &mdash; degraded but usable.<br>' +
+          '<strong>Low</strong> &mdash; cosmetic or convenience.</p>' +
+          '<p>Committee can re-classify when triaging.</p>',
+      },
+      status: {
+        title: 'Status',
+        html:
+          '<p>Workflow stage. Tabs above filter by status:</p>' +
+          '<p><strong>New</strong> &rarr; <strong>Reviewing</strong> &rarr; ' +
+          '<strong>Assigned</strong> &rarr; <strong>In progress</strong> &rarr; ' +
+          '<strong>Resolved</strong> (or <strong>Rejected</strong>).</p>' +
+          '<p>Use row actions to move a ticket through these states.</p>',
+      },
+      age: {
+        title: 'Age',
+        html:
+          '<p>How long since the ticket was submitted, relative to now. ' +
+          'Tickets that turn red have crossed the SLA threshold configured ' +
+          'in <code>Settings &rarr; Tunables &rarr; SLA_HOURS_*</code>.</p>',
+      },
+      actions: {
+        title: 'Actions',
+        html:
+          '<p>Per-ticket buttons available to your role:</p>' +
+          '<p><strong>Open</strong> &mdash; full detail view.<br>' +
+          '<strong>Assign / Reassign</strong> &mdash; route to a builder or vendor.<br>' +
+          '<strong>Status</strong> &mdash; advance through the workflow.<br>' +
+          '<strong>Delete / Archive</strong> &mdash; Committee only.</p>',
+      },
+    };
+
+    const thead = document.querySelector('#issuesTable thead');
+    if (thead && window.UI && UI.Tip) {
+      // Mark every legend header as a real button for a11y + cursor + focus ring.
+      for (const th of thead.querySelectorAll('th[data-tsh-tip]')) {
+        const key = th.dataset.tshTip;
+        if (!COLUMN_HELP[key]) continue;
+        th.setAttribute('role', 'button');
+        th.setAttribute('tabindex', '0');
+        th.setAttribute('aria-expanded', 'false');
+        th.setAttribute('aria-controls', 'tshTip');
+        th.setAttribute('title', `What is "${COLUMN_HELP[key].title}"? Click for a description.`);
+        th.style.cursor = 'help';
+      }
+      const openFor = (th) => {
+        const info = COLUMN_HELP[th.dataset.tshTip];
+        if (info) UI.Tip.show(info.title, info.html, th);
+      };
+      thead.addEventListener('click', (e) => {
+        const th = e.target && e.target.closest && e.target.closest('th[data-tsh-tip]');
+        if (!th) return;
+        e.preventDefault();
+        openFor(th);
+      });
+      thead.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        const th = e.target && e.target.closest && e.target.closest('th[data-tsh-tip]');
+        if (!th) return;
+        e.preventDefault();
+        openFor(th);
+      });
     }
   })();
   </script>
