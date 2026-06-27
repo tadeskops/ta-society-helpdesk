@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "id": "poll-helpdesk-feedback",
+      "question": "How would you rate the new helpdesk experience so far?",
+      "options": [
+        { "id": "opt-great",   "label": "Great" },
+        { "id": "opt-ok",      "label": "OK" },
+        { "id": "opt-needs",   "label": "Needs work" }
+      ],
+      "createdAt": "2026-06-28T00:00:00.000Z",
+      "createdBy": "system@seed"
+    }
+  ]
+}

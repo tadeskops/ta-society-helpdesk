@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "id": "ann-welcome",
+      "title": "Helpdesk now live",
+      "body": "All daily issues are tracked end-to-end. Managers triage on weekdays; emergencies are handled 24/7 by security. Use the Public Board to follow ticket status.",
+      "pinned": true,
+      "createdAt": "2026-06-28T00:00:00.000Z",
+      "createdBy": "system@seed",
+      "updatedAt": "2026-06-28T00:00:00.000Z"
+    }
+  ]
+}
