@@ -384,6 +384,19 @@ html[data-theme="medium"] .tsh-user-role-manager {
 }
 .tsh-footer a { color: var(--c-text-muted); }
 .tsh-footer a:hover { color: var(--c-primary); }
+.tsh-visitors {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--c-text-muted);
+  white-space: nowrap;
+}
+.tsh-visitors i { color: var(--c-primary); }
+.tsh-visitors [data-tsh-visitors-count] {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--c-text);
+}
 
 /* ===== Hero / landing =================================================== */
 

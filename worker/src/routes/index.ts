@@ -13,6 +13,7 @@ import { mountDirectory } from './directory.ts';
 import { mountBanner } from './banner.ts';
 import { mountAnnouncements } from './announcements.ts';
 import { mountPolls } from './polls.ts';
+import { mountMetrics } from './metrics.ts';
 
 export const buildRouter = (): Router => {
   const r = new Router();
@@ -26,6 +27,7 @@ export const buildRouter = (): Router => {
   mountBanner(r);
   mountAnnouncements(r);
   mountPolls(r);
+  mountMetrics(r);
   return r;
 };
 

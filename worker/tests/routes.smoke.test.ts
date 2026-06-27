@@ -261,3 +261,16 @@ describe('RBAC denials', () => {
     expect(r.status).toBe(409);
   });
 });
+
+describe('GET /metrics/visit (anonymous)', () => {
+  it('returns zero when no data file exists', async () => {
+    const { _resetMetricsCacheForTests } = await import('../src/routes/metrics.ts');
+    _resetMetricsCacheForTests();
+    const r = await send('GET', '/metrics/visit');
+    expect(r.status).toBe(200);
+    const j = await r.json() as any;
+    expect(j.ok).toBe(true);
+    expect(j.data.total).toBe(0);
+  });
+});
+
