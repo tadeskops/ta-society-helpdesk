@@ -14,7 +14,18 @@
     "Appliance Repair",
     "Other"
   ],
-  "vendors": [],
+  "vendors": [
+    {
+      "id": "vnd-212b05dae99ad0a5",
+      "name": "Jaquar Group",
+      "createdAt": "2026-06-27T15:29:05.506Z",
+      "updatedAt": "2026-06-27T15:29:12.493Z",
+      "category": "Plumber",
+      "phone": "18001216808",
+      "address": "https://www.jaquar.com/en/customer-care",
+      "notes": "18002126808 (Alternate Number)"
+    }
+  ],
   "contacts": [],
   "resources": []
 }
