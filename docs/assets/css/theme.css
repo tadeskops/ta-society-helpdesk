@@ -705,12 +705,14 @@ input:focus, select:focus, textarea:focus {
 }
 
 .tsh-search { position: relative; }
-.tsh-search input { padding-left: 2.25rem; }
+.tsh-search input { padding-left: 2.5rem; }
 .tsh-search::before {
   content: "\f002"; /* FA search */
   font-family: "Font Awesome 6 Free"; font-weight: 900;
-  position: absolute; left: var(--sp-3); top: 50%; transform: translateY(-50%);
-  color: var(--c-text-faint); font-size: 0.85rem;
+  position: absolute; left: 0.85rem; top: 50%; transform: translateY(-50%);
+  color: var(--c-text-faint); font-size: 0.9rem;
+  width: 1rem; height: 1rem;
+  display: inline-flex; align-items: center; justify-content: center;
   pointer-events: none;
 }
 
@@ -730,15 +732,36 @@ input:focus, select:focus, textarea:focus {
   text-transform: uppercase;
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
-.tsh-pill-new        { color: var(--c-status-new);       background: rgba(96, 165, 250, 0.12); border-color: rgba(96, 165, 250, 0.3); }
-.tsh-pill-triaging   { color: var(--c-status-triaging);  background: rgba(192, 132, 252, 0.12); border-color: rgba(192, 132, 252, 0.3); }
-.tsh-pill-assigned   { color: var(--c-status-assigned);  background: rgba(34, 211, 238, 0.12); border-color: rgba(34, 211, 238, 0.3); }
+/* Pills carry strong contrast in every theme. Per-theme overrides below
+   target WCAG AA (>= 4.5:1) on small uppercase text for older eyes. */
+.tsh-pill-new        { color: #bfdbfe; background: rgba(96, 165, 250, 0.22); border-color: rgba(96, 165, 250, 0.55); }
+.tsh-pill-triaging   { color: #e9d5ff; background: rgba(192, 132, 252, 0.22); border-color: rgba(192, 132, 252, 0.55); }
+.tsh-pill-assigned   { color: #a5f3fc; background: rgba(34, 211, 238, 0.22); border-color: rgba(34, 211, 238, 0.55); }
 .tsh-pill-in_progress,
-.tsh-pill-in-progress { color: var(--c-status-progress); background: rgba(251, 191, 36, 0.12); border-color: rgba(251, 191, 36, 0.3); }
-.tsh-pill-resolved   { color: var(--c-status-resolved);  background: rgba(74, 222, 128, 0.12); border-color: rgba(74, 222, 128, 0.3); }
-.tsh-pill-rejected   { color: var(--c-status-rejected);  background: rgba(148, 163, 184, 0.16); border-color: rgba(148, 163, 184, 0.3); }
-.tsh-pill-reopened   { color: var(--c-status-reopened);  background: rgba(251, 146, 60, 0.12); border-color: rgba(251, 146, 60, 0.3); }
-.tsh-pill-deleted    { color: var(--c-status-deleted);   background: rgba(248, 113, 113, 0.12); border-color: rgba(248, 113, 113, 0.3); }
+.tsh-pill-in-progress { color: #fde68a; background: rgba(251, 191, 36, 0.24); border-color: rgba(251, 191, 36, 0.6); }
+.tsh-pill-resolved   { color: #bbf7d0; background: rgba(74, 222, 128, 0.22); border-color: rgba(74, 222, 128, 0.55); }
+.tsh-pill-rejected   { color: #e2e8f0; background: rgba(148, 163, 184, 0.28); border-color: rgba(148, 163, 184, 0.55); }
+.tsh-pill-reopened   { color: #fed7aa; background: rgba(251, 146, 60, 0.22); border-color: rgba(251, 146, 60, 0.55); }
+.tsh-pill-deleted    { color: #fecaca; background: rgba(248, 113, 113, 0.22); border-color: rgba(248, 113, 113, 0.55); }
+
+html[data-theme="light"] .tsh-pill-new,
+html[data-theme="medium"] .tsh-pill-new        { color: #1e3a8a; background: #dbeafe; border-color: #93c5fd; }
+html[data-theme="light"] .tsh-pill-triaging,
+html[data-theme="medium"] .tsh-pill-triaging   { color: #581c87; background: #f3e8ff; border-color: #c084fc; }
+html[data-theme="light"] .tsh-pill-assigned,
+html[data-theme="medium"] .tsh-pill-assigned   { color: #0e7490; background: #cffafe; border-color: #67e8f9; }
+html[data-theme="light"] .tsh-pill-in_progress,
+html[data-theme="light"] .tsh-pill-in-progress,
+html[data-theme="medium"] .tsh-pill-in_progress,
+html[data-theme="medium"] .tsh-pill-in-progress { color: #78350f; background: #fef3c7; border-color: #fcd34d; }
+html[data-theme="light"] .tsh-pill-resolved,
+html[data-theme="medium"] .tsh-pill-resolved   { color: #14532d; background: #dcfce7; border-color: #86efac; }
+html[data-theme="light"] .tsh-pill-rejected,
+html[data-theme="medium"] .tsh-pill-rejected   { color: #1f2937; background: #e2e8f0; border-color: #94a3b8; }
+html[data-theme="light"] .tsh-pill-reopened,
+html[data-theme="medium"] .tsh-pill-reopened   { color: #7c2d12; background: #ffedd5; border-color: #fdba74; }
+html[data-theme="light"] .tsh-pill-deleted,
+html[data-theme="medium"] .tsh-pill-deleted    { color: #7f1d1d; background: #fee2e2; border-color: #fca5a5; }
 
 .tsh-pill-sev-critical { color: var(--c-sev-critical); background: rgba(239, 68, 68, 0.16); border-color: rgba(239, 68, 68, 0.35); }
 .tsh-pill-sev-high     { color: var(--c-sev-high);     background: rgba(251, 146, 60, 0.16); border-color: rgba(251, 146, 60, 0.3); }
@@ -1249,13 +1272,26 @@ html[data-theme="medium"] .tsh-floatdock {
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
 }
 @media (max-width: 540px) {
+  /* Stack vertically on phones so the dock occupies a 1-tile column at
+     the right edge instead of a horizontal strip that obstructs page
+     content. Theme + font-size groups also stack so each remains a
+     single column of small tap targets. */
   .tsh-floatdock {
-    right: 8px;
+    right: 6px;
     bottom: 8px;
-    padding: 4px 6px;
-    gap: 6px;
+    padding: 4px;
+    gap: 4px;
+    flex-direction: column;
+    border-radius: var(--rad-lg, 12px);
   }
-  .tsh-floatdock-handle { width: 18px; height: 22px; }
+  .tsh-floatdock-handle { width: 24px; height: 18px; margin-right: 0; margin-bottom: 2px; }
+  .tsh-floatdock .tsh-themeswitch,
+  .tsh-floatdock .tsh-fontsize {
+    flex-direction: column;
+    padding: 2px;
+    gap: 2px;
+    border-radius: var(--rad-md, 8px);
+  }
 }
 @media print {
   .tsh-floatdock { display: none; }
