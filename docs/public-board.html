@@ -2,13 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Public board Â· TSH</title>
+  <title>Public board · TSH</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#1a1f2e" />
   <link rel="icon" href="./assets/images/TaLogo.png" type="image/png" />
   <script>(function(){try{var t=localStorage.getItem('tsh_theme');if(t!=='dark'&&t!=='light'&&t!=='medium')t='light';if(t!=='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="./assets/css/theme.css?v=24" />
+  <link rel="stylesheet" href="./assets/css/theme.css?v=25" />
 </head>
 <body class="tsh-page">
   <div data-include="header"></div>
@@ -137,9 +137,9 @@
         UI.statusPill(i.status));
       const meta = UI.el('div', { class: 'tsh-board-card-meta' },
         UI.el('span', null, i.tower || '—'),
-        UI.el('span', null, ' Â· '),
+        UI.el('span', null, ' · '),
         UI.el('span', null, i.category || '—'),
-        UI.el('span', null, ' Â· '),
+        UI.el('span', null, ' · '),
         UI.el('span', { class: 'tsh-text-muted' }, UI.formatRel(i.updatedAt || i.createdAt)));
       const body = UI.el('p', { class: 'tsh-board-card-body' }, (i.description || '').slice(0, 200));
       const article = UI.el('article', { class: 'tsh-board-card' }, head, meta, body);
