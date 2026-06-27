@@ -19,11 +19,15 @@
       "id": "vnd-212b05dae99ad0a5",
       "name": "Jaquar Group",
       "createdAt": "2026-06-27T15:29:05.506Z",
-      "updatedAt": "2026-06-27T15:29:12.493Z",
+      "updatedAt": "2026-06-27T18:41:54.404Z",
       "category": "Plumber",
+      "phones": [
+        "18001216808",
+        "18002126808"
+      ],
       "phone": "18001216808",
       "address": "https://www.jaquar.com/en/customer-care",
-      "notes": "18002126808 (Alternate Number)"
+      "notes": "Fittings"
     }
   ],
   "contacts": [],
