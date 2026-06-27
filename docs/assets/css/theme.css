@@ -1289,21 +1289,30 @@ html[data-theme="medium"] .tsh-themeswitch {
   bottom: var(--sp-4, 16px);
   z-index: 950;            /* below modals (1000+), above page content */
   display: inline-flex;
+  flex-direction: column;  /* vertical on all screens (desktop/tab/mobile) */
   align-items: center;
-  gap: var(--sp-2, 8px);
-  padding: 6px 8px;
+  gap: 4px;
+  padding: 4px;
   background: rgba(15, 20, 30, 0.78);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   border: 1px solid var(--c-border-soft);
   border-right: 0;
-  border-radius: var(--rad-pill, 999px) 0 0 var(--rad-pill, 999px);
+  border-radius: var(--rad-md, 10px) 0 0 var(--rad-md, 10px);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
   touch-action: none;     /* let pointer drag work on touch */
   user-select: none;
-  opacity: 0.55;
-  transform: translateX(calc(100% - 32px)); /* peek: leave 32px tab visible */
+  opacity: 0.5;
+  transform: translateX(calc(100% - 30px)); /* peek: leave 30px tab visible */
   transition: transform 0.22s ease, opacity 0.18s ease;
+}
+/* Inner widget groups also stack vertically (single column of tap targets) */
+.tsh-floatdock .tsh-themeswitch,
+.tsh-floatdock .tsh-fontsize {
+  flex-direction: column;
+  padding: 2px;
+  gap: 2px;
+  border-radius: var(--rad-md, 8px);
 }
 /* Small gold triangle "bulge" on the left edge as an affordance */
 .tsh-floatdock::before {
@@ -1320,17 +1329,22 @@ html[data-theme="medium"] .tsh-themeswitch {
   pointer-events: none;
   filter: drop-shadow(-1px 0 2px rgba(0,0,0,0.35));
 }
-.tsh-floatdock:hover,
+/* Open state: JS-driven `.is-open` (touch + keyboard) and drag.
+   Mouse hover is gated to hover-capable devices to avoid the sticky-hover
+   trap on iOS / Android where a tap leaves :hover latched. */
 .tsh-floatdock:focus-within,
 .tsh-floatdock.is-open,
 .tsh-floatdock.is-dragging {
   transform: translateX(0);
   opacity: 1;
 }
-.tsh-floatdock:hover::before,
 .tsh-floatdock:focus-within::before,
 .tsh-floatdock.is-open::before,
 .tsh-floatdock.is-dragging::before { opacity: 0; }
+@media (hover: hover) and (pointer: fine) {
+  .tsh-floatdock:hover { transform: translateX(0); opacity: 1; }
+  .tsh-floatdock:hover::before { opacity: 0; }
+}
 .tsh-floatdock.is-floating {
   right: auto;
   bottom: auto;
@@ -1350,9 +1364,9 @@ html[data-theme="medium"] .tsh-themeswitch {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px; height: 26px;
+  width: 24px; height: 22px;
   padding: 0;
-  margin-right: 2px;
+  margin: 0 0 2px;
   background: transparent;
   border: 0;
   color: var(--c-primary, #d4af37);
@@ -1373,29 +1387,6 @@ html[data-theme="light"] .tsh-floatdock,
 html[data-theme="medium"] .tsh-floatdock {
   background: rgba(255, 255, 255, 0.78);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
-}
-@media (max-width: 540px) {
-  /* Stack vertically on phones so the dock occupies a 1-tile column at
-     the right edge instead of a horizontal strip that obstructs page
-     content. Theme + font-size groups also stack so each remains a
-     single column of small tap targets. */
-  .tsh-floatdock {
-    right: 0;
-    bottom: 16px;
-    padding: 4px;
-    gap: 4px;
-    flex-direction: column;
-    border-radius: var(--rad-md, 8px) 0 0 var(--rad-md, 8px);
-    transform: translateX(calc(100% - 30px));
-  }
-  .tsh-floatdock-handle { width: 24px; height: 22px; margin-right: 0; margin-bottom: 2px; }
-  .tsh-floatdock .tsh-themeswitch,
-  .tsh-floatdock .tsh-fontsize {
-    flex-direction: column;
-    padding: 2px;
-    gap: 2px;
-    border-radius: var(--rad-md, 8px);
-  }
 }
 @media print {
   .tsh-floatdock { display: none; }
