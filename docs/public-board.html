@@ -8,7 +8,7 @@
   <link rel="icon" href="./assets/images/TaLogo.png" type="image/png" />
   <script>(function(){try{var t=localStorage.getItem('tsh_theme');if(t!=='dark'&&t!=='light'&&t!=='medium')t='light';if(t!=='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="./assets/css/theme.css?v=20" />
+  <link rel="stylesheet" href="./assets/css/theme.css?v=21" />
 </head>
 <body class="tsh-page">
   <div data-include="header"></div>
@@ -28,15 +28,7 @@
         </label>
       </header>
 
-      <nav class="tsh-tabs" role="tablist" aria-label="Status filter">
-        <button type="button" role="tab" aria-selected="true" data-filter="all"        class="tsh-tab tsh-tab-active">All</button>
-        <button type="button" role="tab" aria-selected="false" data-filter="new"        class="tsh-tab">New</button>
-        <button type="button" role="tab" aria-selected="false" data-filter="triaging"   class="tsh-tab">Reviewing</button>
-        <button type="button" role="tab" aria-selected="false" data-filter="assigned"   class="tsh-tab">Assigned</button>
-        <button type="button" role="tab" aria-selected="false" data-filter="in_progress" class="tsh-tab">In progress</button>
-        <button type="button" role="tab" aria-selected="false" data-filter="resolved"   class="tsh-tab" data-tsh-flag="FEATURE_DAILY_PUBLIC_RESOLVED">Resolved</button>
-        <button type="button" role="tab" aria-selected="false" data-filter="rejected"   class="tsh-tab" data-tsh-flag="FEATURE_DAILY_PUBLIC_REJECTED">Rejected</button>
-      </nav>
+      <div id="statusFilter" class="tsh-filterbar-host" role="group" aria-label="Status filter"></div>
 
       <div id="myReportsBanner" class="tsh-filter-banner" hidden></div>
 
@@ -56,7 +48,7 @@
   <script src="./assets/js/api.js?v=11"></script>
   <script src="./assets/js/auth.js?v=11"></script>
   <script src="./assets/js/flags.js?v=12"></script>
-  <script src="./assets/js/ui.js?v=18"></script>
+  <script src="./assets/js/ui.js?v=19"></script>
   <script>
   (async () => {
     await Partials.mount();
@@ -69,11 +61,15 @@
     try { Flags.ensureFeature('FEATURE_DAILY_PUBLIC_BOARD', 'Public board'); }
     catch (_e) { return; }
 
-    // Hide flag-gated tabs.
-    for (const el of document.querySelectorAll('.tsh-tab[data-tsh-flag]')) {
-      const flag = el.getAttribute('data-tsh-flag');
-      if (Flags.raw && !Flags.on(flag)) el.hidden = true;
-    }
+    // Hide flag-gated status options.
+    const statusOptions = [
+      { value: 'new',         label: 'New' },
+      { value: 'triaging',    label: 'Reviewing' },
+      { value: 'assigned',    label: 'Assigned' },
+      { value: 'in_progress', label: 'In progress' },
+    ];
+    if (Flags.raw && Flags.on('FEATURE_DAILY_PUBLIC_RESOLVED')) statusOptions.push({ value: 'resolved', label: 'Resolved' });
+    if (Flags.raw && Flags.on('FEATURE_DAILY_PUBLIC_REJECTED')) statusOptions.push({ value: 'rejected', label: 'Rejected' });
 
     let all = [];
     const list  = document.getElementById('boardList');
@@ -158,18 +154,12 @@
       return article;
     }
 
-    for (const tab of document.querySelectorAll('.tsh-tab')) {
-      tab.addEventListener('click', () => {
-        for (const t of document.querySelectorAll('.tsh-tab')) {
-          t.classList.remove('tsh-tab-active');
-          t.setAttribute('aria-selected', 'false');
-        }
-        tab.classList.add('tsh-tab-active');
-        tab.setAttribute('aria-selected', 'true');
-        filter = tab.dataset.filter;
-        render();
-      });
-    }
+    UI.FilterBar(document.getElementById('statusFilter'), {
+      label: 'Status',
+      options: statusOptions,
+      value: '',
+      onApply: (val) => { filter = val || 'all'; render(); },
+    });
     document.getElementById('searchInput').addEventListener('input', (e) => {
       query = e.target.value; render();
     });

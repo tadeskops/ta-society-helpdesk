@@ -2042,3 +2042,34 @@ html[data-theme="medium"] .tsh-dir-card {
     bottom: 8px;
   }
 }
+
+
+/* ---- Bundle 4: shared FilterBar ("All + dropdown + Go") -------------- */
+.tsh-filterbar {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+.tsh-filterbar-label {
+  font-size: var(--fs-sm);
+  color: var(--c-text-muted);
+  font-weight: 600;
+}
+.tsh-filterbar-select {
+  min-width: 12em;
+  padding: 0.45em 0.7em;
+  border-radius: var(--rad-md);
+  border: 1px solid var(--c-input-border);
+  background: var(--c-input-bg);
+  color: var(--c-text);
+  font: inherit;
+}
+.tsh-filterbar-go {
+  /* Inherits .tsh-btn / .tsh-btn-primary */
+  padding: 0.45em 1em;
+}
+@media (max-width: 540px) {
+  .tsh-filterbar { width: 100%; }
+  .tsh-filterbar-select { flex: 1 1 auto; min-width: 0; }
+}

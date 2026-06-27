@@ -123,23 +123,23 @@
     if (tb) tb.hidden = !canEdit;
   }
 
+  let categoryFilter = null;
   function renderCategoryPills() {
     const host = $('#dirCategoryPills');
     if (!host) return;
-    host.innerHTML = '';
-    const cats = ['', ...(state.vendorCategories || [])];
-    for (const cat of cats) {
-      const label = cat || 'All';
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'tsh-dir-pill' + (cat === activeCategory ? ' is-active' : '');
-      btn.textContent = label;
-      btn.addEventListener('click', () => {
-        activeCategory = cat;
-        renderCategoryPills();
-        renderGrid('vendors');
+    if (!categoryFilter) {
+      categoryFilter = UI.FilterBar(host, {
+        label: 'Category',
+        options: state.vendorCategories || [],
+        value: activeCategory,
+        onApply: (val) => {
+          activeCategory = val;
+          renderGrid('vendors');
+        },
       });
-      host.appendChild(btn);
+    } else {
+      categoryFilter.setOptions(state.vendorCategories || []);
+      categoryFilter.setValue(activeCategory);
     }
   }
 

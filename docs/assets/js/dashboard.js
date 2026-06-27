@@ -244,6 +244,8 @@
     for (const id of ['filterTower', 'filterCategory', 'filterSeverity']) {
       document.getElementById(id).addEventListener('change', render);
     }
+    const applyBtn = document.getElementById('applyFiltersBtn');
+    if (applyBtn) applyBtn.addEventListener('click', render);
     document.getElementById('refreshBtn').addEventListener('click', reload);
     reload();
   }

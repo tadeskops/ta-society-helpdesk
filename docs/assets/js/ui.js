@@ -758,10 +758,76 @@
     }
   }
 
+  // ----- FilterBar: unified "All + dropdown + Go" filter widget --------
+  // Usage:
+  //   const fb = UI.FilterBar(hostEl, {
+  //     label: 'Category',
+  //     options: ['Plumber', { value: 'elec', label: 'Electrician' }],
+  //     value: '',                  // '' = All
+  //     onApply: (val) => render(val),
+  //   });
+  //   fb.setOptions([...]); fb.setValue('Plumber'); fb.getValue();
+  // Builds a label + native <select> (with an "All" first option) + Go
+  // button, and only invokes onApply when Go is pressed (or on Enter).
+  function FilterBar(host, opts) {
+    if (!host) return null;
+    host.innerHTML = '';
+    host.classList.add('tsh-filterbar');
+    const labelText = opts && opts.label ? opts.label : 'Filter';
+    const allLabel  = opts && opts.allLabel ? opts.allLabel : 'All';
+    const goLabel   = opts && opts.goLabel ? opts.goLabel : 'Go';
+    const onApply   = (opts && typeof opts.onApply === 'function') ? opts.onApply : () => {};
+
+    const lab = document.createElement('label');
+    lab.className = 'tsh-filterbar-label';
+    lab.textContent = labelText;
+
+    const sel = document.createElement('select');
+    sel.className = 'tsh-filterbar-select';
+    const id = `tsh-fb-${Math.random().toString(36).slice(2, 8)}`;
+    sel.id = id; lab.setAttribute('for', id);
+
+    const go = document.createElement('button');
+    go.type = 'button';
+    go.className = 'tsh-btn tsh-btn-primary tsh-filterbar-go';
+    go.textContent = goLabel;
+
+    host.append(lab, sel, go);
+
+    const buildOptions = (list, current) => {
+      sel.innerHTML = '';
+      const allOpt = document.createElement('option');
+      allOpt.value = '';
+      allOpt.textContent = allLabel;
+      sel.appendChild(allOpt);
+      for (const item of (list || [])) {
+        const opt = document.createElement('option');
+        if (typeof item === 'string') { opt.value = item; opt.textContent = item; }
+        else { opt.value = item.value; opt.textContent = item.label || item.value; }
+        sel.appendChild(opt);
+      }
+      sel.value = current != null ? current : '';
+    };
+
+    buildOptions(opts && opts.options, opts && opts.value);
+
+    const apply = () => onApply(sel.value);
+    go.addEventListener('click', apply);
+    sel.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); apply(); } });
+
+    return {
+      setOptions: (list) => buildOptions(list, sel.value),
+      setValue: (v) => { sel.value = v != null ? v : ''; },
+      getValue: () => sel.value,
+      apply,
+      el: host,
+    };
+  }
+
   root.UI = {
     el, $, toast, modal, confirmModal, formatRel, copyToClipboard,
     statusPill, statusText, severityPill, bindHeader,
-    stateLoading, stateEmpty, stateError, busyButton,
+    stateLoading, stateEmpty, stateError, busyButton, FilterBar,
     Lightbox, FontSize, ThemeSwitcher, FloatDock, Draft, MyReports, PhotoTray, Tip,
   };
 })(window);

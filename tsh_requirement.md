@@ -573,6 +573,15 @@ The Directory page is the society's shared address book — vendors (plumber / e
 | Validation | Name required; oversize fields → 400; > 5 phones or any phone > 30 chars → 400. |
 | Soft-delete | Not supported. Directory edits are full snapshots — to remove an entry, drop it from the array and save. |
 
+## 14.6 Filter UX pattern (`UI.FilterBar`)
+
+All list filters across the app use a unified **"All + dropdown + Go"** pattern via the shared `UI.FilterBar(host, { label, options, value, onApply })` helper in `docs/assets/js/ui.js`. Rules:
+
+- Every filter widget renders a `<label>`, a native `<select>` whose first option is always **"All"** (value `""`), and a **Go** button.
+- Filtering only runs when the user clicks **Go** (or presses Enter while the select is focused) — no live-on-change side effects.
+- Available to **all roles** (PUBLIC included) on every page that lists data.
+- Pages currently using this pattern: `directory.html` (vendor category), `public-board.html` (status). The manage dashboard's tower/category/severity selects also have a **Go** button via `#applyFiltersBtn`.
+
 ## 15. Non-goals / out of scope
 
 - Password-based authentication.
