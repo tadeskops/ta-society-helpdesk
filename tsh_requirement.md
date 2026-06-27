@@ -558,6 +558,21 @@ For every flag in `config/site.json`:
 
 If a developer wants to ship a feature "hidden by default", they ship it with the flag default `false` and flip it from the Settings page when ready. There is no other deployment ceremony.
 
+## 14.5 Society Directory (`directory.html` + `/directory`)
+
+The Directory page is the society's shared address book — vendors (plumber / electrician / etc.), key contacts (gate, committee chair, etc.) and resources (PDF bye-laws etc.). One file (`config/directory.json`) is the source of truth.
+
+| Aspect | Rule |
+|---|---|
+| Storage | `config/directory.json` on `main`. JSON shape: `{ version, vendorCategories: string[], vendors: DirEntry[], contacts: DirEntry[], resources: DirEntry[] }`. |
+| Read | `GET /directory`. Public when `FEATURE_DAILY_DIRECTORY` is on. Cached by the Worker for `DIRECTORY_CACHE_SECONDS` (default 120 s). |
+| Write | `PUT /directory`. Roles: **Manager, Committee, Developer**. Worker reassigns ids, timestamps, dedupes categories case-insensitively, and writes an `audit:directory:put` line. |
+| Entry fields | `id`, `name` (required, ≤ 120), `category?` (≤ 60), `phones?: string[]` (canonical, see below), `phone?` (legacy mirror — read-only on the API; auto-derived from `phones[0]` on write), `address?` (≤ 240), `role?` (≤ 80), `url?` (≤ 500), `description?` / `notes?` (≤ 500), `createdAt`, `updatedAt`. |
+| Phones | Each entry may hold **up to 5 phone numbers**, each ≤ 30 chars, stored as `phones: string[]`. The Worker accepts either `phones[]` or legacy `phone`; both routes converge on `phones[]` with `phone` written as `phones[0]` for backward-compat readers. Duplicates within an entry are dropped server-side. |
+| UI | Three tabs (Vendors / Contacts / Resources). Each card renders **one row per phone** with a Call (`tel:`) button and a WhatsApp (`wa.me/91…`) deep-link button. The add/edit form uses a phone repeater with `+` / `−` buttons capped at 5. |
+| Validation | Name required; oversize fields → 400; > 5 phones or any phone > 30 chars → 400. |
+| Soft-delete | Not supported. Directory edits are full snapshots — to remove an entry, drop it from the array and save. |
+
 ## 15. Non-goals / out of scope
 
 - Password-based authentication.

@@ -1791,6 +1791,32 @@ html[data-theme="medium"] .tsh-dir-card {
   transition: transform .12s ease;
 }
 .tsh-dir-card-wa:hover { transform: scale(1.1); }
+.tsh-dir-card-call {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: rgba(59, 130, 246, 0.18);
+  color: #3b82f6;
+  text-decoration: none;
+  transition: transform .12s ease;
+}
+.tsh-dir-card-call:hover { transform: scale(1.1); }
+.tsh-dir-card-phone-num { font-variant-numeric: tabular-nums; color: var(--c-text); }
+.tsh-dir-card-phone + .tsh-dir-card-phone { margin-top: 2px; }
+/* Phone repeater in the add/edit form */
+.tsh-phones-repeater {
+  border: 1px solid var(--c-input-border);
+  border-radius: var(--rad-md);
+  padding: var(--sp-2);
+  margin: 0;
+  background: var(--c-input-bg);
+  display: flex; flex-direction: column; gap: var(--sp-2);
+}
+.tsh-phone-row { display: flex; gap: var(--sp-2); align-items: stretch; }
+.tsh-phone-row input { flex: 1; }
+.tsh-phone-add { align-self: flex-start; }
 .tsh-dir-card-desc,
 .tsh-dir-card-notes {
   margin: var(--sp-1) 0 0;

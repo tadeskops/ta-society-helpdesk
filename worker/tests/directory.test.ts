@@ -190,3 +190,68 @@ describe('PUT /directory — validation', () => {
     expect(saved.vendorCategories).toEqual(['Plumber', 'Electrician']);
   });
 });
+
+describe('PUT /directory — multi-phone schema', () => {
+  it('accepts a phones array and mirrors first into legacy phone field', async () => {
+    const r = await send('PUT', '/directory', {
+      directory: {
+        version: 1, vendorCategories: [], vendors: [],
+        contacts: [{ name: 'Front gate', phones: ['9111111111', '9222222222'] }],
+        resources: [],
+      },
+    }, 'dev@x.com');
+    expect(r.status).toBe(200);
+    const saved = JSON.parse(putCalls[0]!.body);
+    expect(saved.contacts[0].phones).toEqual(['9111111111', '9222222222']);
+    expect(saved.contacts[0].phone).toBe('9111111111');
+  });
+
+  it('migrates a legacy single phone into a phones array', async () => {
+    const r = await send('PUT', '/directory', {
+      directory: {
+        version: 1, vendorCategories: [], vendors: [],
+        contacts: [{ name: 'Manager', phone: '9333333333' }],
+        resources: [],
+      },
+    }, 'dev@x.com');
+    expect(r.status).toBe(200);
+    const saved = JSON.parse(putCalls[0]!.body);
+    expect(saved.contacts[0].phones).toEqual(['9333333333']);
+    expect(saved.contacts[0].phone).toBe('9333333333');
+  });
+
+  it('rejects more than 5 phones', async () => {
+    const r = await send('PUT', '/directory', {
+      directory: {
+        version: 1, vendorCategories: [], vendors: [],
+        contacts: [{ name: 'Bot', phones: ['1','2','3','4','5','6'] }],
+        resources: [],
+      },
+    }, 'dev@x.com');
+    expect(r.status).toBe(400);
+  });
+
+  it('rejects a phones entry over 30 chars', async () => {
+    const r = await send('PUT', '/directory', {
+      directory: {
+        version: 1, vendorCategories: [], vendors: [],
+        contacts: [{ name: 'Bot', phones: ['9'.repeat(31)] }],
+        resources: [],
+      },
+    }, 'dev@x.com');
+    expect(r.status).toBe(400);
+  });
+
+  it('dedupes identical phone entries within one record', async () => {
+    const r = await send('PUT', '/directory', {
+      directory: {
+        version: 1, vendorCategories: [], vendors: [],
+        contacts: [{ name: 'Twin', phones: ['9111111111', '9111111111', '9222222222'] }],
+        resources: [],
+      },
+    }, 'dev@x.com');
+    expect(r.status).toBe(200);
+    const saved = JSON.parse(putCalls[0]!.body);
+    expect(saved.contacts[0].phones).toEqual(['9111111111', '9222222222']);
+  });
+});

@@ -13,19 +13,22 @@
   };
 
   // Field schema per kind — drives form rendering + card rendering.
+  // type: 'phones' renders a repeater (multiple tel inputs with + / −
+  // buttons); collect() reads it into row.phones[]. Legacy single `phone`
+  // is auto-migrated by the worker on save.
   const SCHEMA = {
     vendors: [
       { name: 'name',     label: 'Vendor name',   type: 'text',   required: true, max: 120 },
       { name: 'category', label: 'Category',      type: 'select', source: 'vendorCategories', allowEmpty: true, max: 60 },
-      { name: 'phone',    label: 'Phone',         type: 'tel',    max: 30 },
+      { name: 'phones',   label: 'Phones',        type: 'phones', max: 30, maxCount: 5 },
       { name: 'address',  label: 'Address',       type: 'text',   max: 240 },
       { name: 'notes',    label: 'Notes',         type: 'textarea', max: 500 },
     ],
     contacts: [
-      { name: 'name',  label: 'Name',     type: 'text', required: true, max: 120 },
-      { name: 'role',  label: 'Role',     type: 'text', max: 80, placeholder: 'e.g. Security gate, Committee Chair' },
-      { name: 'phone', label: 'Phone',    type: 'tel',  max: 30 },
-      { name: 'notes', label: 'Notes',    type: 'textarea', max: 500 },
+      { name: 'name',   label: 'Name',     type: 'text', required: true, max: 120 },
+      { name: 'role',   label: 'Role',     type: 'text', max: 80, placeholder: 'e.g. Security gate, Committee Chair' },
+      { name: 'phones', label: 'Phones',   type: 'phones', max: 30, maxCount: 5 },
+      { name: 'notes',  label: 'Notes',    type: 'textarea', max: 500 },
     ],
     resources: [
       { name: 'name',        label: 'Title',       type: 'text', required: true, max: 120 },
@@ -78,6 +81,16 @@
     if (!phone) return null;
     const digits = String(phone).replace(/\s+/g, '');
     return `tel:${digits}`;
+  }
+  // Canonical accessor: always returns an array. Reads new `phones` field
+  // when present; falls back to legacy single `phone` for older entries.
+  function getPhones(row) {
+    if (!row) return [];
+    if (Array.isArray(row.phones) && row.phones.length) {
+      return row.phones.map((p) => String(p || '').trim()).filter(Boolean);
+    }
+    if (row.phone) return [String(row.phone).trim()].filter(Boolean);
+    return [];
   }
   function safeUrl(u) {
     if (!u) return null;
@@ -191,14 +204,16 @@
     const meta = document.createElement('div');
     meta.className = 'tsh-dir-card-meta';
 
-    if (row.phone) {
-      const dial = telLink(row.phone);
-      const wa = whatsappLink(row.phone);
+    const phones = getPhones(row);
+    for (const phone of phones) {
+      const dial = telLink(phone);
+      const wa = whatsappLink(phone);
       const line = document.createElement('div');
-      line.className = 'tsh-dir-card-line';
+      line.className = 'tsh-dir-card-line tsh-dir-card-phone';
       line.innerHTML = `<i class="fas fa-phone" aria-hidden="true"></i>` +
-        (dial ? `<a href="${escapeHtml(dial)}" class="tsh-dir-card-link">${escapeHtml(row.phone)}</a>` : `<span>${escapeHtml(row.phone)}</span>`) +
-        (wa ? `<a class="tsh-dir-card-wa" href="${escapeHtml(wa)}" target="_blank" rel="noopener" aria-label="WhatsApp ${escapeHtml(row.name || '')}"><i class="fab fa-whatsapp" aria-hidden="true"></i></a>` : '');
+        `<span class="tsh-dir-card-phone-num">${escapeHtml(phone)}</span>` +
+        (dial ? `<a class="tsh-dir-card-call" href="${escapeHtml(dial)}" aria-label="Call ${escapeHtml(phone)}" title="Call"><i class="fas fa-phone-volume" aria-hidden="true"></i></a>` : '') +
+        (wa ? `<a class="tsh-dir-card-wa" href="${escapeHtml(wa)}" target="_blank" rel="noopener" aria-label="WhatsApp ${escapeHtml(phone)}" title="WhatsApp"><i class="fab fa-whatsapp" aria-hidden="true"></i></a>` : '');
       meta.appendChild(line);
     }
     if (row.address) {
@@ -285,6 +300,52 @@
       } else if (field.type === 'textarea') {
         input = document.createElement('textarea');
         input.rows = 3;
+      } else if (field.type === 'phones') {
+        // Multi-phone repeater. Stored on the form as a <fieldset> with
+        // child .tsh-phone-row items; collect() reads them via the DOM.
+        const fs = document.createElement('fieldset');
+        fs.className = 'tsh-phones-repeater';
+        fs.dataset.fieldName = field.name;
+        const initial = Array.isArray(data[field.name]) && data[field.name].length
+          ? data[field.name]
+          : (data.phone ? [data.phone] : ['']);
+        const maxCount = field.maxCount || 5;
+        const addRow = (val) => {
+          if (fs.querySelectorAll('.tsh-phone-row').length >= maxCount) return;
+          const row = document.createElement('div');
+          row.className = 'tsh-phone-row';
+          const inp = document.createElement('input');
+          inp.type = 'tel';
+          inp.maxLength = field.max || 30;
+          inp.placeholder = 'e.g. 9999999999';
+          if (val) inp.value = val;
+          const del = document.createElement('button');
+          del.type = 'button';
+          del.className = 'tsh-btn tsh-btn-ghost tsh-btn-sm tsh-phone-del';
+          del.setAttribute('aria-label', 'Remove this phone');
+          del.innerHTML = '<i class="fas fa-minus" aria-hidden="true"></i>';
+          del.addEventListener('click', () => {
+            if (fs.querySelectorAll('.tsh-phone-row').length > 1) row.remove();
+            else inp.value = '';
+            refreshAdd();
+          });
+          row.append(inp, del);
+          fs.insertBefore(row, addBtn);
+          refreshAdd();
+        };
+        const addBtn = document.createElement('button');
+        addBtn.type = 'button';
+        addBtn.className = 'tsh-btn tsh-btn-ghost tsh-btn-sm tsh-phone-add';
+        addBtn.innerHTML = '<i class="fas fa-plus" aria-hidden="true"></i>Add another phone';
+        addBtn.addEventListener('click', () => addRow(''));
+        const refreshAdd = () => {
+          addBtn.disabled = fs.querySelectorAll('.tsh-phone-row').length >= maxCount;
+        };
+        fs.appendChild(addBtn);
+        for (const v of initial) addRow(v);
+        wrap.appendChild(fs);
+        form.appendChild(wrap);
+        continue;
       } else {
         input = document.createElement('input');
         input.type = field.type;
@@ -308,8 +369,20 @@
       if (choice !== 'save') return;
       const next = {};
       for (const field of SCHEMA[kind]) {
+        if (field.type === 'phones') {
+          const fs = form.querySelector(`fieldset.tsh-phones-repeater[data-field-name="${field.name}"]`);
+          const arr = [];
+          if (fs) {
+            for (const inp of fs.querySelectorAll('.tsh-phone-row input')) {
+              const v = (inp.value || '').trim();
+              if (v && !arr.includes(v)) arr.push(v);
+            }
+          }
+          if (arr.length) next[field.name] = arr;
+          continue;
+        }
         const el = form.elements[field.name];
-        const v = (el.value || '').trim();
+        const v = (el && el.value || '').trim();
         if (v) next[field.name] = v;
       }
       if (!next.name) { UI.toast('Name is required', { kind: 'warn' }); return; }

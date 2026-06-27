@@ -25,7 +25,8 @@ interface DirEntry {
   id: string;
   name: string;
   category?: string;
-  phone?: string;
+  phone?: string;        // legacy mirror of phones[0]
+  phones?: string[];     // canonical, up to MAX_PHONES entries
   address?: string;
   role?: string;
   url?: string;
@@ -92,6 +93,25 @@ const loadDirectory = async (ctx: Ctx): Promise<Directory> => {
   return fresh.value;
 };
 
+const MAX_PHONES = 5;
+const MAX_PHONE_LEN = 30;
+
+const sanitisePhones = (raw: unknown, legacy: unknown, kind: string): string[] => {
+  const out: string[] = [];
+  const push = (v: unknown): void => {
+    if (typeof v !== 'string') return;
+    const s = v.trim();
+    if (!s) return;
+    if (s.length > MAX_PHONE_LEN) throw new BadRequest(`${kind}.phones entry too long`);
+    if (out.length >= MAX_PHONES) throw new BadRequest(`${kind}.phones supports at most ${MAX_PHONES} numbers`);
+    if (!out.includes(s)) out.push(s);
+  };
+  if (Array.isArray(raw)) raw.forEach(push);
+  else if (raw != null) push(raw);
+  if (out.length === 0 && legacy != null) push(legacy);
+  return out;
+};
+
 const sanitiseEntry = (raw: unknown, kind: 'vendor' | 'contact' | 'resource'): DirEntry => {
   if (!isObj(raw)) throw new BadRequest(`${kind} entry must be an object`);
   const name = kind === 'resource'
@@ -105,8 +125,11 @@ const sanitiseEntry = (raw: unknown, kind: 'vendor' | 'contact' | 'resource'): D
   };
   const cat = optStr(raw['category'], `${kind}.category`, { max: 60 });
   if (cat) out.category = cat;
-  const phone = optStr(raw['phone'], `${kind}.phone`, { max: 30 });
-  if (phone) out.phone = phone;
+  const phones = sanitisePhones(raw['phones'], raw['phone'], kind);
+  if (phones.length) {
+    out.phones = phones;
+    out.phone = phones[0]!;   // mirror for legacy readers
+  }
   const address = optStr(raw['address'], `${kind}.address`, { max: 240 });
   if (address) out.address = address;
   const role = optStr(raw['role'], `${kind}.role`, { max: 80 });
