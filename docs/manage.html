@@ -8,7 +8,7 @@
   <link rel="icon" href="./assets/images/TaLogo.png" type="image/png" />
   <script>(function(){try{var t=localStorage.getItem('tsh_theme');if(t!=='dark'&&t!=='light'&&t!=='medium')t='light';if(t!=='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="./assets/css/theme.css?v=21" />
+  <link rel="stylesheet" href="./assets/css/theme.css?v=22" />
 </head>
 <body class="tsh-page">
   <div data-include="header"></div>
@@ -71,6 +71,10 @@
         <p class="tsh-state-msg">Adjust the tower / category / severity filters above.</p>
       </div>
     </section>
+
+    <section class="tsh-card" id="bannerEditorCard" data-tsh-flag="FEATURE_DAILY_BANNER" hidden>
+      <div id="bannerEditor"></div>
+    </section>
   </main>
 
   <div data-include="footer"></div>
@@ -81,6 +85,7 @@
   <script src="./assets/js/auth.js?v=11"></script>
   <script src="./assets/js/flags.js?v=12"></script>
   <script src="./assets/js/ui.js?v=19"></script>
+  <script src="./assets/js/banner.js?v=1"></script>
   <script src="./assets/js/dashboard.js?v=16"></script>
   <script>
   (async () => {
@@ -107,6 +112,15 @@
     }
 
     Dashboard.boot({ role: who.primary, allowDelete: isCommittee });
+
+    // Manager banner editor — visible to MANAGER+ when the flag is on.
+    if (window.Banner && Flags.on('FEATURE_DAILY_BANNER')) {
+      const card = document.getElementById('bannerEditorCard');
+      if (card) {
+        card.hidden = false;
+        Banner.mountEditor(document.getElementById('bannerEditor'));
+      }
+    }
 
     if (isCommittee) {
       const bulkBtn  = document.getElementById('bulkArchiveBtn');

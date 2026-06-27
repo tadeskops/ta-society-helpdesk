@@ -582,6 +582,23 @@ All list filters across the app use a unified **"All + dropdown + Go"** pattern 
 - Available to **all roles** (PUBLIC included) on every page that lists data.
 - Pages currently using this pattern: `directory.html` (vendor category), `public-board.html` (status). The manage dashboard's tower/category/severity selects also have a **Go** button via `#applyFiltersBtn`.
 
+## 14.7 Rotating banner (`config/banner.json` + `/banner`)
+
+The Helpdesk landing surface carries a manager-curated banner used to highlight upcoming events, maintenance windows, alerts. Two render modes:
+
+- **Strip** — single-item rotator at the top of the landing page (`index.html`), fading through active items every ~6 s.
+- **Stacked list** — full active list rendered as a sidebar card on pages that opt in (`Banner.mountList(host)`).
+
+| Aspect | Rule |
+|---|---|
+| Storage | `config/banner.json`. Shape: `{ version, items: BannerItem[] }`. |
+| Item    | `{ id, text (≤240), severity ('info'|'warn'|'alert', default 'info'), href?, expiresAt? (ISO 8601), createdAt, createdBy }`. |
+| Limits  | Up to 20 items per save. Unknown severities coerced to `info`. Items past `expiresAt` are hidden client-side. |
+| Read    | `GET /banner`. Anonymous-safe; gated by `FEATURE_DAILY_BANNER`. Cached `BANNER_CACHE_SECONDS` (default 60 s). |
+| Write   | `PUT /banner`. Roles: **Manager, Committee, Developer**. Worker reassigns ids, stamps `createdAt`/`createdBy`, audits as `banner:put`. |
+| Editor  | Embedded in `manage.html` for MANAGER+. Items list with text, severity dropdown, optional expiry date, delete; one Save button. |
+| Flag    | `FEATURE_DAILY_BANNER` (default `true`). When off the strip and list are hidden and the worker returns 403/404 paths follow flag semantics. |
+
 ## 15. Non-goals / out of scope
 
 - Password-based authentication.

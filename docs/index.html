@@ -9,7 +9,7 @@
   <link rel="icon" href="./assets/images/TaLogo.png" type="image/png" />
   <script>(function(){try{var t=localStorage.getItem('tsh_theme');if(t!=='dark'&&t!=='light'&&t!=='medium')t='light';if(t!=='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="./assets/css/theme.css?v=21" />
+  <link rel="stylesheet" href="./assets/css/theme.css?v=22" />
 </head>
 <body class="tsh-page tsh-page-landing">
   <div data-include="header"></div>
@@ -17,6 +17,7 @@
   <div data-include="modal"></div>
 
   <main class="tsh-main">
+    <div id="tshBannerStrip" hidden></div>
     <section class="tsh-hero">
       <div class="tsh-hero-brand" data-tsh-brand>
         <span class="tsh-hero-mark" aria-hidden="true">
@@ -143,6 +144,7 @@
   <script src="./assets/js/auth.js?v=11"></script>
   <script src="./assets/js/flags.js?v=12"></script>
   <script src="./assets/js/ui.js?v=19"></script>
+  <script src="./assets/js/banner.js?v=1"></script>
   <script>
   (async () => {
     await Partials.mount();
@@ -153,6 +155,9 @@
       await Flags.ready();
       const cfg = Flags.raw || {};
       const sys = cfg.system || {};
+
+      // Rotating manager banner across the top of the landing page.
+      if (window.Banner) Banner.mountStrip(document.getElementById('tshBannerStrip'));
 
       // Handover portal — only shows if the URL is wired in site.json.
       const handoverUrl = sys.handoverPortalUrl;
