@@ -507,6 +507,41 @@
     const userEl  = document.querySelector('[data-tsh-user]');
     if (!signin || !signout || !userEl || !root.Auth) return;
 
+    // Human labels for the role pill shown next to the signed-in email.
+    // Backed by Flags.RANK ordering (DEVELOPER > COMMITTEE > MANAGER > RESIDENT).
+    const ROLE_LABELS = {
+      DEVELOPER: 'Developer',
+      COMMITTEE: 'Tech Committee',
+      MANAGER:   'Society Manager',
+      RESIDENT:  'Resident',
+    };
+    function renderUser(email, role) {
+      while (userEl.firstChild) userEl.removeChild(userEl.firstChild);
+      const icon = document.createElement('i');
+      icon.className = 'fas fa-user';
+      icon.setAttribute('aria-hidden', 'true');
+      userEl.appendChild(icon);
+      const emailEl = document.createElement('span');
+      emailEl.className = 'tsh-user-email';
+      emailEl.textContent = email || '';
+      userEl.appendChild(emailEl);
+      if (role && ROLE_LABELS[role]) {
+        const badge = document.createElement('span');
+        badge.className = 'tsh-user-role tsh-user-role-' + role.toLowerCase();
+        badge.textContent = ROLE_LABELS[role];
+        badge.title = 'Access: ' + ROLE_LABELS[role];
+        userEl.appendChild(badge);
+      }
+    }
+    function renderAnon() {
+      while (userEl.firstChild) userEl.removeChild(userEl.firstChild);
+      const icon = document.createElement('i');
+      icon.className = 'fas fa-user';
+      icon.setAttribute('aria-hidden', 'true');
+      userEl.appendChild(icon);
+      userEl.appendChild(document.createTextNode(' Not signed in'));
+    }
+
     // Mark the active nav entry so the gold-pill style applies (aria-current).
     try {
       const here = (location.pathname.split('/').pop() || 'index.html').toLowerCase();
@@ -547,18 +582,21 @@
           const flag = a.getAttribute('data-tsh-feature');
           a.hidden = !root.Flags.on(flag);
         }
+        // Surface the access tier next to the signed-in email so users see
+        // which permission set is active (highest of any mapped roles).
+        if (who && who.email) renderUser(who.email, who.primary);
       }).catch(() => hideRoleLinks());
     };
 
     let lastSignedIn = null;
     root.Auth.onChange((s) => {
       if (s.signedIn) {
-        userEl.textContent = s.email;
+        renderUser(s.email, null);
         userEl.classList.remove('tsh-user-anon');
         signin.hidden = true;
         signout.hidden = false;
       } else {
-        userEl.textContent = 'Not signed in';
+        renderAnon();
         userEl.classList.add('tsh-user-anon');
         signin.hidden = false;
         signout.hidden = true;

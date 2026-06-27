@@ -296,13 +296,70 @@ input, select, textarea {
   font-size: var(--fs-sm);
 }
 .tsh-userbox [data-tsh-user] {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
   color: var(--c-text-muted);
   padding: var(--sp-1) var(--sp-2);
   border-radius: var(--rad-md);
-  max-width: 200px;
+  max-width: 360px;
+}
+.tsh-user-email {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
+}
+.tsh-user-role {
+  flex-shrink: 0;
+  display: inline-block;
+  padding: 1px 8px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  line-height: 1.4;
+  border-radius: var(--rad-pill, 999px);
+  border: 1px solid var(--c-border-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: var(--c-surface-2);
+  color: var(--c-text);
+  white-space: nowrap;
+}
+.tsh-user-role-developer {
+  color: #1a1a1a;
+  background: var(--c-primary, #d4af37);
+  border-color: var(--c-primary, #d4af37);
+}
+.tsh-user-role-committee {
+  color: #7dd3fc;
+  background: rgba(125, 211, 252, 0.14);
+  border-color: rgba(125, 211, 252, 0.45);
+}
+.tsh-user-role-manager {
+  color: #86efac;
+  background: rgba(134, 239, 172, 0.14);
+  border-color: rgba(134, 239, 172, 0.45);
+}
+.tsh-user-role-resident {
+  color: var(--c-text-muted);
+  background: var(--c-surface-2);
+  border-color: var(--c-border-soft);
+}
+html[data-theme="light"] .tsh-user-role-developer,
+html[data-theme="medium"] .tsh-user-role-developer {
+  color: #1a1a1a;
+}
+html[data-theme="light"] .tsh-user-role-committee,
+html[data-theme="medium"] .tsh-user-role-committee {
+  color: #0c4a6e;
+  background: rgba(125, 211, 252, 0.28);
+  border-color: rgba(14, 116, 144, 0.45);
+}
+html[data-theme="light"] .tsh-user-role-manager,
+html[data-theme="medium"] .tsh-user-role-manager {
+  color: #14532d;
+  background: rgba(134, 239, 172, 0.32);
+  border-color: rgba(22, 101, 52, 0.4);
 }
 .tsh-user-anon { font-style: italic; opacity: 0.7; }
 
