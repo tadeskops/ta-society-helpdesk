@@ -57,6 +57,7 @@ export const DEFAULT_CONFIG: SiteConfig = {
     FEATURE_DAILY_DIRECTORY:              true,
     FEATURE_DAILY_BANNER:                 true,
     FEATURE_DAILY_ANNOUNCEMENTS:          false,
+    FEATURE_DAILY_POLLS:                  false,
   },
   tunables: {
     DAILY_AUTO_ACK_HOURS:       24,
@@ -75,6 +76,8 @@ export const DEFAULT_CONFIG: SiteConfig = {
     DIRECTORY_CACHE_SECONDS:    120,
     BANNER_CACHE_SECONDS:       60,
     ANNOUNCEMENTS_CACHE_SECONDS: 60,
+    POLLS_CACHE_SECONDS:        60,
+    POLLS_VOTES_CACHE_SECONDS:  30,
   },
   lists: {
     towers:     ['A', 'B', 'C', 'Common Area'],

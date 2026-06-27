@@ -614,6 +614,25 @@ Long-form community announcements (e.g. "Pool reopens Friday — new rules attac
 | UI      | Landing-page card lists items pinned-first then newest-first. |
 | Flag    | `FEATURE_DAILY_ANNOUNCEMENTS` — **default `false`**. Developer must explicitly enable from Settings. |
 
+## 14.9 Polls (`config/polls.json` + `config/poll-votes.json` + `/polls`)
+
+Short opinion polls (e.g. "When should the pool reopen?") with one vote per signed-in voter and a graphical bar chart on the landing page. Per the project requirements, every vote is recorded against the voter's identity so MANAGER+ can audit who voted; the voter may attach an optional alias and flat/unit for the record.
+
+| Aspect | Rule |
+|---|---|
+| Storage | Two files. `config/polls.json` = `{ version, items: Poll[] }`. `config/poll-votes.json` = `{ version, votes: VoteRecord[] }` (single flat list keyed by `pollId` + `voterEmail`). |
+| Poll    | `{ id, question (≤240), options: PollOption[] (2–10), expiresAt?, closed?, createdAt, createdBy }`. |
+| Option  | `{ id, label (≤120) }`. Worker assigns stable ids on PUT. |
+| Vote    | `{ pollId, optionId, voterEmail, voterAlias?(≤60), voterFlat?(≤30), votedAt }`. |
+| Limits  | Up to 20 polls per save; per poll: 2–10 unique option ids; option ids unique within a poll; poll ids unique across the list. |
+| Read    | `GET /polls`. Anonymous-safe; gated by `FEATURE_DAILY_POLLS`. Cached `POLLS_CACHE_SECONDS` (default 60 s). Per-poll the response carries `open`, `totals[optionId]`, and `myVote` (the caller's chosen `optionId`, or `null`) so the UI can render bar charts + "your vote" markers without a second round-trip. |
+| Write polls   | `PUT /polls`. Roles: **Manager, Committee, Developer**. Worker stamps `id`/`createdAt`/`createdBy`, audits as `polls:put`. |
+| Vote    | `POST /polls/:id/vote` with `{ optionId, voterAlias?, voterFlat? }`. **Signed-in required (any role).** One vote per `voterEmail` per poll: a re-vote upserts the existing record (count stays 1). Rejected with 400 if the poll is `closed: true`, `expiresAt` has passed, or `optionId` is unknown. Audits as `polls:vote`. |
+| Read votes   | `GET /polls/:id/votes`. Roles: **Manager, Committee, Developer**. Returns `{ pollId, count, voters: VoteRecord[] }` for the access view. |
+| Editor  | `manage.html` exposes a polls editor (add/remove polls, edit question + options, mark closed, delete) and a voters panel (per-poll list of who voted). Editor uses one Save button via `UI.busyButton`. |
+| UI      | Landing-page card renders each open poll with a horizontal SVG bar chart (one bar per option, percentage + raw count). Optional alias + flat inputs sit below the options; the chosen option button is highlighted with a tick after voting. |
+| Flag    | `FEATURE_DAILY_POLLS` — **default `false`**. Developer must explicitly enable from Settings. |
+
 ## 15. Non-goals / out of scope
 
 - Password-based authentication.

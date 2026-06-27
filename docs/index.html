@@ -9,7 +9,7 @@
   <link rel="icon" href="./assets/images/TaLogo.png" type="image/png" />
   <script>(function(){try{var t=localStorage.getItem('tsh_theme');if(t!=='dark'&&t!=='light'&&t!=='medium')t='light';if(t!=='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="./assets/css/theme.css?v=23" />
+  <link rel="stylesheet" href="./assets/css/theme.css?v=24" />
 </head>
 <body class="tsh-page tsh-page-landing">
   <div data-include="header"></div>
@@ -19,6 +19,7 @@
   <main class="tsh-main">
     <div id="tshBannerStrip" hidden></div>
     <section id="tshAnnouncements" hidden></section>
+    <section id="tshPolls" hidden></section>
     <section class="tsh-hero">
       <div class="tsh-hero-brand" data-tsh-brand>
         <span class="tsh-hero-mark" aria-hidden="true">
@@ -147,6 +148,7 @@
   <script src="./assets/js/ui.js?v=19"></script>
   <script src="./assets/js/banner.js?v=1"></script>
   <script src="./assets/js/announcements.js?v=1"></script>
+  <script src="./assets/js/polls.js?v=1"></script>
   <script>
   (async () => {
     await Partials.mount();
@@ -162,6 +164,8 @@
       if (window.Banner) Banner.mountStrip(document.getElementById('tshBannerStrip'));
       // Developer-toggled announcements section.
       if (window.Announcements) Announcements.mountList(document.getElementById('tshAnnouncements'));
+      // Polls (per-signed-in vote, SVG bar charts).
+      if (window.Polls) Polls.mountList(document.getElementById('tshPolls'));
 
       // Handover portal — only shows if the URL is wired in site.json.
       const handoverUrl = sys.handoverPortalUrl;
