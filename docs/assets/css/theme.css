@@ -1243,7 +1243,13 @@ html[data-theme="medium"] .tsh-themeswitch {
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
   touch-action: none;     /* let pointer drag work on touch */
   user-select: none;
+  opacity: 0.28;          /* idle: barely visible so it doesn't compete with content */
+  transition: opacity 0.18s ease;
 }
+.tsh-floatdock:hover,
+.tsh-floatdock:focus-within,
+.tsh-floatdock:active,
+.tsh-floatdock.is-dragging { opacity: 1; }
 .tsh-floatdock.is-floating {
   right: auto;
   bottom: auto;
