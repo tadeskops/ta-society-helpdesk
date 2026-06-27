@@ -378,11 +378,45 @@
       let startX = 0, startY = 0;
       let baseL = 0, baseT = 0;
 
+      // ---- Auto-collapse peek behavior ----
+      const HIDE_DELAY = 2800;
+      let hideTimer = null;
+      const hasHover = (typeof matchMedia === 'function')
+        ? matchMedia('(hover: hover)').matches : true;
+      function clearHide() { if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; } }
+      function scheduleHide() {
+        clearHide();
+        hideTimer = setTimeout(() => dock.classList.remove('is-open'), HIDE_DELAY);
+      }
+      function openDock() { dock.classList.add('is-open'); clearHide(); }
+
+      // Mouse: open on enter, close on leave (CSS :hover also covers this,
+      // but we manage timers consistently from JS too).
+      dock.addEventListener('pointerenter', (ev) => {
+        if (ev.pointerType === 'mouse') openDock();
+      });
+      dock.addEventListener('pointerleave', (ev) => {
+        if (ev.pointerType === 'mouse' && !dragging) {
+          dock.classList.remove('is-open');
+          clearHide();
+        }
+      });
+      // Touch / pen: open on tap; auto-close after delay.
+      dock.addEventListener('pointerdown', (ev) => {
+        if (ev.pointerType !== 'mouse') openDock();
+      }, true);
+      dock.addEventListener('click', () => {
+        if (!hasHover) scheduleHide();
+      });
+
       function onDown(ev) {
         // Left mouse / primary pointer only.
         if (ev.button != null && ev.button !== 0) return;
+        openDock();  // ensure expanded before measuring
         const r = dock.getBoundingClientRect();
         baseL = r.left; baseT = r.top;
+        // Pin to current visual position so toggling is-floating doesn't flash
+        applyPos(dock, { left: baseL, top: baseT });
         startX = ev.clientX; startY = ev.clientY;
         dragging = true;
         pid = ev.pointerId;
@@ -405,6 +439,7 @@
         // Persist final clamped position.
         const r = dock.getBoundingClientRect();
         save({ left: r.left, top: r.top });
+        if (!hasHover) scheduleHide();
       }
 
       handle.addEventListener('pointerdown', onDown);

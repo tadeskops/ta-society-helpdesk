@@ -1228,32 +1228,61 @@ html[data-theme="medium"] .tsh-themeswitch {
 
 .tsh-floatdock {
   position: fixed;
-  right: var(--sp-3, 12px);
-  bottom: var(--sp-3, 12px);
+  right: 0;
+  bottom: var(--sp-4, 16px);
   z-index: 950;            /* below modals (1000+), above page content */
   display: inline-flex;
   align-items: center;
   gap: var(--sp-2, 8px);
   padding: 6px 8px;
-  background: rgba(15, 20, 30, 0.72);
+  background: rgba(15, 20, 30, 0.78);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   border: 1px solid var(--c-border-soft);
-  border-radius: var(--rad-pill, 999px);
+  border-right: 0;
+  border-radius: var(--rad-pill, 999px) 0 0 var(--rad-pill, 999px);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
   touch-action: none;     /* let pointer drag work on touch */
   user-select: none;
-  opacity: 0.28;          /* idle: barely visible so it doesn't compete with content */
+  opacity: 0.55;
+  transform: translateX(calc(100% - 32px)); /* peek: leave 32px tab visible */
+  transition: transform 0.22s ease, opacity 0.18s ease;
+}
+/* Small gold triangle "bulge" on the left edge as an affordance */
+.tsh-floatdock::before {
+  content: "";
+  position: absolute;
+  left: -7px;
+  top: 50%;
+  width: 0; height: 0;
+  border-top: 7px solid transparent;
+  border-bottom: 7px solid transparent;
+  border-right: 7px solid var(--c-primary, #d4af37);
+  transform: translateY(-50%);
   transition: opacity 0.18s ease;
+  pointer-events: none;
+  filter: drop-shadow(-1px 0 2px rgba(0,0,0,0.35));
 }
 .tsh-floatdock:hover,
 .tsh-floatdock:focus-within,
-.tsh-floatdock:active,
-.tsh-floatdock.is-dragging { opacity: 1; }
+.tsh-floatdock.is-open,
+.tsh-floatdock.is-dragging {
+  transform: translateX(0);
+  opacity: 1;
+}
+.tsh-floatdock:hover::before,
+.tsh-floatdock:focus-within::before,
+.tsh-floatdock.is-open::before,
+.tsh-floatdock.is-dragging::before { opacity: 0; }
 .tsh-floatdock.is-floating {
   right: auto;
   bottom: auto;
+  transform: none !important;
+  opacity: 1 !important;
+  border-right: 1px solid var(--c-border-soft);
+  border-radius: var(--rad-pill, 999px);
 }
+.tsh-floatdock.is-floating::before { display: none; }
 .tsh-floatdock.is-dragging {
   cursor: grabbing;
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5),
@@ -1269,7 +1298,7 @@ html[data-theme="medium"] .tsh-themeswitch {
   margin-right: 2px;
   background: transparent;
   border: 0;
-  color: var(--c-text-muted, #94a3b8);
+  color: var(--c-primary, #d4af37);
   cursor: grab;
   border-radius: var(--rad-pill, 999px);
   font-size: 12px;
@@ -1294,14 +1323,15 @@ html[data-theme="medium"] .tsh-floatdock {
      content. Theme + font-size groups also stack so each remains a
      single column of small tap targets. */
   .tsh-floatdock {
-    right: 6px;
-    bottom: 8px;
+    right: 0;
+    bottom: 16px;
     padding: 4px;
     gap: 4px;
     flex-direction: column;
-    border-radius: var(--rad-lg, 12px);
+    border-radius: var(--rad-md, 8px) 0 0 var(--rad-md, 8px);
+    transform: translateX(calc(100% - 30px));
   }
-  .tsh-floatdock-handle { width: 24px; height: 18px; margin-right: 0; margin-bottom: 2px; }
+  .tsh-floatdock-handle { width: 24px; height: 22px; margin-right: 0; margin-bottom: 2px; }
   .tsh-floatdock .tsh-themeswitch,
   .tsh-floatdock .tsh-fontsize {
     flex-direction: column;
