@@ -2140,3 +2140,60 @@ html[data-theme="medium"] .tsh-dir-card {
 @media (max-width: 600px) {
   .tsh-banner-editor-row { grid-template-columns: 1fr; }
 }
+
+/* ---- Bundle 6: announcements (developer-toggled) -------------------- */
+.tsh-ann-list { display: block; margin: 0 0 var(--sp-3); }
+.tsh-ann-list-title {
+  margin: 0 0 var(--sp-2) 0;
+  color: var(--c-primary);
+  font-size: var(--fs-lg);
+}
+.tsh-ann-list-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--sp-2);
+}
+.tsh-ann-card {
+  padding: var(--sp-2);
+  border: 1px solid var(--c-border);
+  border-radius: var(--rad-md);
+  background: var(--c-surface-1, rgba(255,255,255,0.03));
+}
+.tsh-ann-card.is-pinned {
+  border-color: var(--c-primary);
+  background: rgba(212, 175, 55, 0.06);
+}
+.tsh-ann-card-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-1);
+}
+.tsh-ann-card-head h3 { margin: 0; flex: 1 1 auto; font-size: var(--fs-base); }
+.tsh-ann-card-time { color: var(--c-text-muted); font-size: var(--fs-xs); }
+.tsh-ann-pin { color: var(--c-primary); }
+.tsh-ann-card-body { color: var(--c-text); font-size: var(--fs-sm); line-height: 1.5; white-space: pre-wrap; }
+/* Editor */
+.tsh-ann-editor-title { margin: 0 0 var(--sp-2) 0; font-size: var(--fs-base); color: var(--c-primary); }
+.tsh-ann-editor-rows { list-style: none; margin: 0 0 var(--sp-2) 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
+.tsh-ann-editor-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding: var(--sp-2);
+  border: 1px dashed var(--c-input-border);
+  border-radius: var(--rad-md);
+}
+.tsh-ann-editor-row input,
+.tsh-ann-editor-row textarea {
+  padding: 0.45em 0.7em;
+  border-radius: var(--rad-sm);
+  border: 1px solid var(--c-input-border);
+  background: var(--c-input-bg);
+  color: var(--c-text);
+  font: inherit;
+}
+.tsh-ann-editor-row textarea { resize: vertical; min-height: 5em; }
+.tsh-ann-editor-row-actions { display: flex; justify-content: space-between; align-items: center; gap: var(--sp-2); }
+.tsh-ann-editor-pin { display: inline-flex; align-items: center; gap: 0.4em; color: var(--c-text-muted); font-size: var(--fs-sm); }
+.tsh-ann-editor-actions { display: flex; gap: var(--sp-2); justify-content: flex-end; }

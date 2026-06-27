@@ -599,6 +599,21 @@ The Helpdesk landing surface carries a manager-curated banner used to highlight 
 | Editor  | Embedded in `manage.html` for MANAGER+. Items list with text, severity dropdown, optional expiry date, delete; one Save button. |
 | Flag    | `FEATURE_DAILY_BANNER` (default `true`). When off the strip and list are hidden and the worker returns 403/404 paths follow flag semantics. |
 
+## 14.8 Announcements (`config/announcements.json` + `/announcements`)
+
+Long-form community announcements (e.g. "Pool reopens Friday — new rules attached"). Designed for richer multi-line content; not for short alerts (use the banner for those).
+
+| Aspect | Rule |
+|---|---|
+| Storage | `config/announcements.json`. Shape: `{ version, items: Announcement[] }`. |
+| Item    | `{ id, title (≤160), body (≤4000), pinned?, createdAt, createdBy, updatedAt }`. |
+| Limits  | Up to 50 items per save. Empty title/body rejected (400). |
+| Read    | `GET /announcements`. Anonymous-safe; gated by `FEATURE_DAILY_ANNOUNCEMENTS`. Cached `ANNOUNCEMENTS_CACHE_SECONDS` (default 60 s). |
+| Write   | `PUT /announcements`. Roles: **Manager, Committee, Developer**. Worker stamps id/createdAt/createdBy/updatedAt, audits as `announcements:put`. |
+| Editor  | Embedded in `manage.html` for MANAGER+. Per-item title input + body textarea + pin checkbox + delete; one Save button. |
+| UI      | Landing-page card lists items pinned-first then newest-first. |
+| Flag    | `FEATURE_DAILY_ANNOUNCEMENTS` — **default `false`**. Developer must explicitly enable from Settings. |
+
 ## 15. Non-goals / out of scope
 
 - Password-based authentication.
