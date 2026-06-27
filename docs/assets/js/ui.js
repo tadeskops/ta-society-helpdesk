@@ -734,10 +734,34 @@
     return { show, hide, isOpen };
   })();
 
+  // ----- busyButton: standard "saving…" affordance for any async click ----
+  // Usage:  UI.busyButton(btnEl, async () => { await Api.put(...); }, { label: 'Saving\u2026' });
+  // While the asyncFn runs the button is disabled, swapped for a spinner,
+  // and shows opts.label (or the existing aria-busy fallback). Original
+  // contents are restored when the promise settles, regardless of outcome.
+  async function busyButton(btn, asyncFn, opts) {
+    if (!btn) return asyncFn ? asyncFn() : undefined;
+    const label = (opts && opts.label) || 'Saving\u2026';
+    const original = btn.innerHTML;
+    const wasDisabled = btn.disabled;
+    btn.disabled = true;
+    btn.classList.add('is-busy');
+    btn.setAttribute('aria-busy', 'true');
+    btn.innerHTML = `<i class="fas fa-spinner fa-spin" aria-hidden="true"></i><span>${label}</span>`;
+    try {
+      return await asyncFn();
+    } finally {
+      btn.innerHTML = original;
+      btn.classList.remove('is-busy');
+      btn.removeAttribute('aria-busy');
+      btn.disabled = wasDisabled;
+    }
+  }
+
   root.UI = {
     el, $, toast, modal, confirmModal, formatRel, copyToClipboard,
     statusPill, statusText, severityPill, bindHeader,
-    stateLoading, stateEmpty, stateError,
+    stateLoading, stateEmpty, stateError, busyButton,
     Lightbox, FontSize, ThemeSwitcher, FloatDock, Draft, MyReports, PhotoTray, Tip,
   };
 })(window);

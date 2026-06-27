@@ -562,29 +562,30 @@
   // ----- Save / Discard ---------------------------------------------------
   async function save() {
     const btn = $('#dirSaveBtn');
-    btn.disabled = true;
-    try {
-      // Strip tmp- ids so the server assigns proper ones.
-      const payload = ['vendors', 'contacts', 'resources'].reduce((acc, kind) => {
-        acc[kind] = (state[kind] || []).map((row) => {
-          const out = { ...row };
-          if (typeof out.id === 'string' && out.id.startsWith('tmp-')) delete out.id;
-          return out;
-        });
-        return acc;
-      }, { version: state.version || 1, vendorCategories: state.vendorCategories || [] });
+    await UI.busyButton(btn, async () => {
+      try {
+        // Strip tmp- ids so the server assigns proper ones.
+        const payload = ['vendors', 'contacts', 'resources'].reduce((acc, kind) => {
+          acc[kind] = (state[kind] || []).map((row) => {
+            const out = { ...row };
+            if (typeof out.id === 'string' && out.id.startsWith('tmp-')) delete out.id;
+            return out;
+          });
+          return acc;
+        }, { version: state.version || 1, vendorCategories: state.vendorCategories || [] });
 
-      await Api.put('/directory', { directory: payload });
-      // Reload to pick up server-assigned ids.
-      const fresh = await Api.get('/directory');
-      state = normalise(fresh);
-      setDirty(false);
-      render();
-      UI.toast('Directory saved.', { kind: 'success' });
-    } catch (e) {
-      UI.toast(e.message || 'Save failed.', { kind: 'danger' });
-      btn.disabled = false;
-    }
+        await Api.put('/directory', { directory: payload });
+        // Reload to pick up server-assigned ids.
+        const fresh = await Api.get('/directory');
+        state = normalise(fresh);
+        setDirty(false);
+        render();
+        UI.toast('Directory saved.', { kind: 'success' });
+      } catch (e) {
+        UI.toast(e.message || 'Save failed.', { kind: 'danger' });
+        throw e;
+      }
+    }, { label: 'Saving directory\u2026' });
   }
 
   async function discard() {

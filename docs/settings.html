@@ -8,7 +8,7 @@
   <link rel="icon" href="./assets/images/TaLogo.png" type="image/png" />
   <script>(function(){try{var t=localStorage.getItem('tsh_theme');if(t!=='dark'&&t!=='light'&&t!=='medium')t='light';if(t!=='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="./assets/css/theme.css?v=18" />
+  <link rel="stylesheet" href="./assets/css/theme.css?v=19" />
   <style>
     /* Info-icon + click-to-expand help panels for each setting */
     .tsh-info {
@@ -236,7 +236,7 @@
   <script src="./assets/js/api.js?v=11"></script>
   <script src="./assets/js/auth.js?v=11"></script>
   <script src="./assets/js/flags.js?v=12"></script>
-  <script src="./assets/js/ui.js?v=17"></script>
+  <script src="./assets/js/ui.js?v=18"></script>
   <script>
   (async () => {
     await Partials.mount();
@@ -270,20 +270,21 @@
     saveBtn.disabled = false;
     document.getElementById('settingsForm').addEventListener('input', () => { saveBtn.disabled = false; });
     saveBtn.addEventListener('click', async () => {
-      saveBtn.disabled = true;
-      try {
-        const payload = collect();
-        await Api.put('/config', { config: payload.config });
-        // Access lists are saved separately.
-        for (const role of ['developers', 'committee', 'managers']) {
-          await Api.put(`/access-lists/${role}`, { emails: payload.access[role] });
+      await UI.busyButton(saveBtn, async () => {
+        try {
+          const payload = collect();
+          await Api.put('/config', { config: payload.config });
+          // Access lists are saved separately.
+          for (const role of ['developers', 'committee', 'managers']) {
+            await Api.put(`/access-lists/${role}`, { emails: payload.access[role] });
+          }
+          UI.toast('Saved. Changes will reach all users within 60 s.', { kind: 'success' });
+          Flags.invalidate();
+        } catch (e) {
+          UI.toast(e.message || 'Save failed.', { kind: 'danger' });
+          throw e;
         }
-        UI.toast('Saved. Changes will reach all users within 60 s.', { kind: 'success' });
-        Flags.invalidate();
-      } catch (e) {
-        UI.toast(e.message || 'Save failed.', { kind: 'danger' });
-        saveBtn.disabled = false;
-      }
+      }, { label: 'Saving settings\u2026' });
     });
 
     function fill(cfg, access) {

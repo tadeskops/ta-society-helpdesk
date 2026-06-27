@@ -617,6 +617,15 @@ html[data-theme="medium"] .tsh-hero-mark {
   pointer-events: none;
 }
 
+/* While an async action runs the button shows a spinner + label and keeps
+   the same width so the layout doesn't jump. Driven by UI.busyButton. */
+.tsh-btn.is-busy {
+  opacity: 0.85;
+  cursor: progress;
+  pointer-events: none;
+}
+.tsh-btn.is-busy .fa-spinner { color: currentColor; }
+
 .tsh-btn-row, .tsh-form-actions {
   display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-5);
 }
