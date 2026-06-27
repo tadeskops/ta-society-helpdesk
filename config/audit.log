@@ -27,3 +27,4 @@
 {"at":"2026-06-27T19:13:21.623Z","actor":"ta.deskops@gmail.com","action":"polls:vote","target":"poll-helpdesk-feedback","detail":"option=opt-great"}
 {"at":"2026-06-27T19:14:35.513Z","actor":"ta.deskops@gmail.com","action":"config:put","target":"config/site.json","detail":"version=1"}
 {"at":"2026-06-27T19:14:39.011Z","actor":"ta.deskops@gmail.com","action":"access-list:put","target":"config/developers.json","detail":"count=1"}
+{"at":"2026-06-27T19:14:42.191Z","actor":"ta.deskops@gmail.com","action":"access-list:put","target":"config/committee.json","detail":"count=1"}
