@@ -11,6 +11,7 @@
 import type { Router } from '../lib/router.ts';
 import type { Ctx } from '../lib/ctx.ts';
 import { ok } from '../lib/envelope.ts';
+import { ensureAllowed } from '../middleware/rbac.ts';
 import { getFile, putFile } from '../github/client.ts';
 
 const VISITORS_PATH = 'data/visitors.json';
@@ -27,7 +28,9 @@ export const _resetMetricsCacheForTests = (): void => { cache = undefined; };
 
 const load = async (env: Ctx['env']): Promise<{ value: Visitors; sha?: string }> => {
   const now = Date.now();
-  if (cache && cache.expiresAt > now) return { value: cache.value, sha: cache.sha };
+  if (cache && cache.expiresAt > now) {
+    return cache.sha !== undefined ? { value: cache.value, sha: cache.sha } : { value: cache.value };
+  }
   const f = await getFile(env, VISITORS_PATH);
   if (!f) {
     cache = { value: structuredClone(EMPTY), expiresAt: now + READ_TTL_MS };
@@ -45,11 +48,13 @@ const load = async (env: Ctx['env']): Promise<{ value: Visitors; sha?: string }>
 
 export const mountMetrics = (r: Router): void => {
   r.get('/metrics/visit', async (ctx: Ctx) => {
+    ensureAllowed(ctx, { flags: ['FEATURE_DAILY_VISITOR_COUNTER'] });
     const { value } = await load(ctx.env);
     return ok(ctx.env, ctx.req, value);
   });
 
   r.post('/metrics/visit', async (ctx: Ctx) => {
+    ensureAllowed(ctx, { flags: ['FEATURE_DAILY_VISITOR_COUNTER'] });
     // Best-effort atomic increment with one retry on sha conflict.
     for (let attempt = 0; attempt < 2; attempt++) {
       const f = await getFile(ctx.env, VISITORS_PATH);

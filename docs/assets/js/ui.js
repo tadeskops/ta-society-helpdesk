@@ -367,6 +367,24 @@
       const container = (scope && scope.querySelector) ? scope : document;
       const dock = container.querySelector('[data-tsh-floatdock]');
       if (!dock || dock.dataset.tshFloatdockBound === '1') return;
+      // Feature-flag gate: if FEATURE_DAILY_FLOATING_PALETTE is off, hide
+      // and bail. We wait briefly for Flags.ready() so we don't flash the
+      // dock when the flag is off but config hasn't loaded yet.
+      if (root.Flags && root.Flags.ready) {
+        root.Flags.ready().then(() => {
+          if (!root.Flags.on('FEATURE_DAILY_FLOATING_PALETTE')) {
+            dock.hidden = true;
+            return;
+          }
+          actuallyBind(dock);
+        }).catch(() => actuallyBind(dock));
+      } else {
+        actuallyBind(dock);
+      }
+    }
+
+    function actuallyBind(dock) {
+      if (dock.dataset.tshFloatdockBound === '1') return;
       dock.dataset.tshFloatdockBound = '1';
 
       const handle = dock.querySelector('[data-tsh-floatdock-handle]');
@@ -525,7 +543,8 @@
       emailEl.className = 'tsh-user-email';
       emailEl.textContent = email || '';
       userEl.appendChild(emailEl);
-      if (role && ROLE_LABELS[role]) {
+      const showBadge = !(root.Flags && root.Flags.on && root.Flags.on('FEATURE_DAILY_USER_ROLE_BADGE') === false);
+      if (showBadge && role && ROLE_LABELS[role]) {
         const badge = document.createElement('span');
         badge.className = 'tsh-user-role tsh-user-role-' + role.toLowerCase();
         badge.textContent = ROLE_LABELS[role];

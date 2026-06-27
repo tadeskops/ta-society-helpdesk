@@ -8,7 +8,7 @@
   <link rel="icon" href="./assets/images/TaLogo.png" type="image/png" />
   <script>(function(){try{var t=localStorage.getItem('tsh_theme');if(t!=='dark'&&t!=='light'&&t!=='medium')t='light';if(t!=='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="./assets/css/theme.css?v=30" />
+  <link rel="stylesheet" href="./assets/css/theme.css?v=31" />
   <style>
     /* Info-icon + click-to-expand help panels for each setting */
     .tsh-info {
@@ -76,6 +76,43 @@
       flex: 1 1 auto; padding: 0;
     }
     .tsh-field-inline > .tsh-help-panel { flex-basis: 100%; }
+
+    /* Card layout for flags + tunables: name on its own line, always-visible
+       short description below, control to the right. Each card sits inside
+       the existing grid (1 / 2 / 3 cols depending on viewport). */
+    .tsh-field-card {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      grid-template-areas:
+        "label control"
+        "desc  desc";
+      gap: .35em .8em;
+      align-items: center;
+      padding: .65em .8em;
+      background: rgba(255,255,255,.025);
+      border: 1px solid var(--c-border-soft, rgba(255,255,255,.08));
+      border-radius: var(--rad-md, 8px);
+    }
+    .tsh-field-card > .tsh-label { grid-area: label; padding: 0; margin: 0; }
+    .tsh-field-card > input[type="checkbox"],
+    .tsh-field-card > input[type="text"],
+    .tsh-field-card > input:not([type]) { grid-area: control; }
+    .tsh-field-card > input[type="text"],
+    .tsh-field-card > input:not([type]) {
+      min-width: 6.5em; max-width: 12em; justify-self: end;
+    }
+    .tsh-field-card > .tsh-field-desc { grid-area: desc; }
+    .tsh-field-card > .tsh-help-panel { grid-column: 1 / -1; }
+    .tsh-field-desc {
+      display: block;
+      font-size: .82em;
+      line-height: 1.4;
+      color: var(--c-text-muted, #9aa3b2);
+      margin: 0;
+    }
+    /* Within the card, the underline hint on the label can stay
+       but slightly muted (description already explains the param). */
+    .tsh-field-card .tsh-label { font-weight: 500; }
 
     /* Shared bottom-of-screen tip lives in theme.css (.tsh-tip) and is
        driven by UI.Tip in ui.js. No page-local styles needed. */
@@ -236,8 +273,8 @@
   <script src="./assets/js/api.js?v=11"></script>
   <script src="./assets/js/auth.js?v=11"></script>
   <script src="./assets/js/flags.js?v=12"></script>
-  <script src="./assets/js/ui.js?v=28"></script>
-  <script src="./assets/js/visitors.js?v=1"></script>
+  <script src="./assets/js/ui.js?v=29"></script>
+  <script src="./assets/js/visitors.js?v=2"></script>
   <script>
   (async () => {
     await Partials.mount();
@@ -294,20 +331,33 @@
       form.elements['committee'].value  = (access.committee || []).join('\n');
       form.elements['managers'].value   = (access.managers || []).join('\n');
 
-      // Feature flags — generate one toggle per flag from the config snapshot.
+      // Feature flags — generate one card per flag from the config snapshot.
+      // Each card shows: name (clickable for full help) + always-visible
+      // description + tick box. New developer-facing flags appear here
+      // automatically as soon as they're added to the config defaults.
       const flagsGrid = document.getElementById('flagsGrid');
       for (const [name, val] of Object.entries(cfg.features || {})) {
-        const row = UI.el('div', { class: 'tsh-field tsh-field-inline' },
-          UI.el('input', { type: 'checkbox', name: `features.${name}`, ...(val ? { checked: '' } : {}) }),
-          UI.el('span', { class: 'tsh-label' }, name));
+        const info = lookupHelp(name) || {};
+        const desc = info.summary || '';
+        const row = UI.el('div', { class: 'tsh-field tsh-field-card' },
+          UI.el('div', { class: 'tsh-field-head' },
+            UI.el('span', { class: 'tsh-label' }, name),
+            UI.el('input', { type: 'checkbox', name: `features.${name}`, ...(val ? { checked: '' } : {}) }),
+          ),
+          desc ? UI.el('small', { class: 'tsh-field-desc' }, desc) : null,
+        );
         flagsGrid.appendChild(row);
       }
 
       const tunGrid = document.getElementById('tunablesGrid');
       for (const [name, val] of Object.entries(cfg.tunables || {})) {
-        const row = UI.el('div', { class: 'tsh-field' },
+        const info = lookupHelp(name) || {};
+        const desc = info.summary || '';
+        const row = UI.el('div', { class: 'tsh-field tsh-field-card' },
           UI.el('span', { class: 'tsh-label' }, name),
-          UI.el('input', { type: 'text', name: `tunables.${name}`, value: String(val) }));
+          desc ? UI.el('small', { class: 'tsh-field-desc' }, desc) : null,
+          UI.el('input', { type: 'text', name: `tunables.${name}`, value: String(val) }),
+        );
         tunGrid.appendChild(row);
       }
 
@@ -587,6 +637,36 @@
         detail: 'When OFF, the Directory nav link is hidden and /directory.html shows a feature-disabled gate. The /directory API endpoints return feature-disabled. Managers, Committee and Developers can edit when ON; everyone can view.',
         default: 'true',
       },
+      'FEATURE_DAILY_BANNER': {
+        summary: 'Rotating manager-curated banner across the top of resident-facing pages.',
+        detail: 'When ON, managers/committee/developers can edit a list of short items (info / warn / alert) from the Manage page. The home page shows the active item in a rotating strip plus the full stack in a right-rail panel. Items can have href + expiresAt.',
+        default: 'true',
+      },
+      'FEATURE_DAILY_ANNOUNCEMENTS': {
+        summary: 'Standalone announcements list section on the landing page.',
+        detail: 'Longer-form notices than the banner. Managers/committee/developers post titled items with body text + optional href + expiresAt from Manage. Renders as stacked cards under the banner on the home page.',
+        default: 'true',
+      },
+      'FEATURE_DAILY_POLLS': {
+        summary: 'Per-signed-in-user polls section on the landing page with SVG bar charts.',
+        detail: 'Each poll has a question + N options. Signed-in users vote once per poll (vote stored under their email). Polls auto-close at the configured expiry. Public visitors see results but cannot vote.',
+        default: 'true',
+      },
+      'FEATURE_DAILY_FLOATING_PALETTE': {
+        summary: 'Show the floating display palette (theme + text-size) on every page.',
+        detail: 'Tucks itself off the right edge with a small gold-tab affordance. Hover (desktop) or tap (touch) to expand; auto-collapses after 2.8s. Can be dragged to any position. Turn OFF to hide entirely on pages.',
+        default: 'true',
+      },
+      'FEATURE_DAILY_VISITOR_COUNTER': {
+        summary: 'Show the all-time visitor count chip in the footer.',
+        detail: 'Counts each browser at most once per UTC day (gated by localStorage). Counts are persisted in data/visitors.json in the issues repo. Turn OFF to hide the chip and disable the /metrics/visit endpoint.',
+        default: 'true',
+      },
+      'FEATURE_DAILY_USER_ROLE_BADGE': {
+        summary: 'Show the access-tier pill (Developer / Tech Committee / Society Manager / Resident) next to the signed-in email.',
+        detail: 'Reflects the user\u2019s highest mapped role. Turn OFF to display only the email.',
+        default: 'true',
+      },
 
       // Tunables (short name, used by tunables.<NAME>)
       'DAILY_AUTO_ACK_HOURS': {
@@ -661,6 +741,28 @@
         range: '30 \u2013 600 seconds',
         detail: 'Directory is read by the /directory page only (not on every page load), so a longer cache is fine. Saving the directory from the UI invalidates this cache immediately.',
         default: '120',
+      },
+      'BANNER_CACHE_SECONDS': {
+        summary: 'Worker in-memory cache TTL for config/banner.json.',
+        range: '5 \u2013 600 seconds',
+        detail: 'Lower values surface banner edits faster across all visitors; higher values reduce GitHub reads.',
+        default: '60',
+      },
+      'ANNOUNCEMENTS_CACHE_SECONDS': {
+        summary: 'Worker in-memory cache TTL for config/announcements.json.',
+        range: '5 \u2013 600 seconds',
+        default: '60',
+      },
+      'POLLS_CACHE_SECONDS': {
+        summary: 'Worker in-memory cache TTL for the polls list.',
+        range: '5 \u2013 600 seconds',
+        default: '60',
+      },
+      'POLLS_VOTES_CACHE_SECONDS': {
+        summary: 'Worker in-memory cache TTL for per-poll vote tallies.',
+        range: '5 \u2013 300 seconds',
+        detail: 'Lower means live results update faster; higher reduces load on the votes file for very active polls.',
+        default: '30',
       },
     }; }
 

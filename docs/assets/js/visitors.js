@@ -14,6 +14,15 @@
     const numEl = document.querySelector('[data-tsh-visitors-count]');
     if (!wrap || !numEl || !root.Api) return;
 
+    // Feature-flag gate. Default ON, but respect explicit OFF.
+    if (root.Flags && root.Flags.ready) {
+      try { await root.Flags.ready(); } catch (_e) { /* ignore */ }
+      if (root.Flags.on && root.Flags.on('FEATURE_DAILY_VISITOR_COUNTER') === false) {
+        wrap.hidden = true;
+        return;
+      }
+    }
+
     let data = null;
     const alreadyToday = (() => {
       try { return !!localStorage.getItem(KEY); } catch (_e) { return false; }

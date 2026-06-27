@@ -56,8 +56,11 @@ export const DEFAULT_CONFIG: SiteConfig = {
     FEATURE_DAILY_SHOW_DEMO_ISSUES:       true,
     FEATURE_DAILY_DIRECTORY:              true,
     FEATURE_DAILY_BANNER:                 true,
-    FEATURE_DAILY_ANNOUNCEMENTS:          false,
-    FEATURE_DAILY_POLLS:                  false,
+    FEATURE_DAILY_ANNOUNCEMENTS:          true,
+    FEATURE_DAILY_POLLS:                  true,
+    FEATURE_DAILY_FLOATING_PALETTE:       true,
+    FEATURE_DAILY_VISITOR_COUNTER:        true,
+    FEATURE_DAILY_USER_ROLE_BADGE:        true,
   },
   tunables: {
     DAILY_AUTO_ACK_HOURS:       24,
