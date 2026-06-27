@@ -84,7 +84,11 @@ const loadDirectory = async (ctx: Ctx): Promise<Directory> => {
   if (cache && cache.expiresAt > now) return cache.value;
   const fresh = await loadFromGithub(ctx.env);
   const ttl = tunable(ctx.config, 'DIRECTORY_CACHE_SECONDS', 120) * 1000;
-  cache = { value: fresh.value, sha: fresh.sha, expiresAt: now + ttl };
+  cache = {
+    value: fresh.value,
+    expiresAt: now + ttl,
+    ...(fresh.sha !== undefined ? { sha: fresh.sha } : {}),
+  };
   return fresh.value;
 };
 
