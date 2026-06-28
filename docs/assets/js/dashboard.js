@@ -66,8 +66,14 @@
     for (const i of filtered) {
       const created = new Date(i.createdAt || 0).getTime();
       const overdue = i.status === 'new' && (now - created) > overdueMs;
-      const tr = root.UI.el('tr', { class: overdue ? 'tsh-row-overdue' : '' });
+      // .tsh-mcard + .is-collapsed start state: on mobile (≤720px) only the
+      // summary head is visible; tap to expand. Desktop ignores both classes
+      // — the head td is display:none and all other cells render normally.
+      const tr = root.UI.el('tr', {
+        class: (overdue ? 'tsh-row-overdue ' : '') + 'tsh-mcard is-collapsed',
+      });
       tr.append(
+        td('', summaryHeadFor(i), 'tsh-mcard-head'),
         td('ID',       root.UI.el('code', { class: 'tsh-id' }, i.id)),
         td('Tower',    i.tower || '—'),
         td('Category', i.category || '—'),
@@ -76,8 +82,42 @@
         td('Age',      root.UI.formatRel(i.updatedAt || i.createdAt)),
         td('Actions',  actionsFor(i), 'tsh-actions-col'),
       );
+      // The head cell drives the collapse toggle on phones (CSS gates the
+      // visibility; the click handler is harmless on desktop because the
+      // head is display:none there and never receives the event).
+      const head = tr.firstChild;
+      head.setAttribute('role', 'button');
+      head.setAttribute('tabindex', '0');
+      head.setAttribute('aria-expanded', 'false');
+      const toggle = () => {
+        const collapsed = tr.classList.toggle('is-collapsed');
+        head.setAttribute('aria-expanded', String(!collapsed));
+      };
+      head.addEventListener('click', toggle);
+      head.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+      });
       tbody.appendChild(tr);
     }
+  }
+
+  // Mobile-only summary strip rendered inside the first cell of every row.
+  // Carries the at-a-glance fields (ID + status + age + chevron) so the
+  // user can scan the list without first expanding every card.
+  function summaryHeadFor(i) {
+    const wrap = root.UI.el('div', { class: 'tsh-mcard-summary' });
+    wrap.append(
+      root.UI.el('code', { class: 'tsh-mcard-summary-id' }, i.id),
+      root.UI.statusPill(i.status),
+      root.UI.el('span', { class: 'tsh-mcard-summary-age' },
+        root.UI.formatRel(i.updatedAt || i.createdAt)),
+    );
+    const chev = root.UI.el('i', {
+      class: 'fas fa-chevron-down tsh-mcard-summary-chev',
+      'aria-hidden': 'true',
+    });
+    wrap.appendChild(chev);
+    return wrap;
   }
 
   // data-label drives the responsive stacked layout on phones (theme.css
@@ -93,10 +133,14 @@
 
   function actionsFor(issue) {
     const wrap = root.UI.el('div', { class: 'tsh-row-actions' });
-    wrap.appendChild(root.UI.el('button', {
-      type: 'button', class: 'tsh-btn tsh-btn-info tsh-btn-sm',
-      onclick: () => openDetail(issue),
-    }, 'View'));
+    const btn = root.UI.el('button', {
+      type: 'button',
+      class: 'tsh-btn tsh-btn-info tsh-btn-sm tsh-row-actions-view',
+      onclick: (e) => { e.stopPropagation(); openDetail(issue); },
+    },
+      root.UI.el('i', { class: 'fas fa-eye', 'aria-hidden': 'true' }),
+      ' View & take action');
+    wrap.appendChild(btn);
     return wrap;
   }
 

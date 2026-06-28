@@ -4099,3 +4099,157 @@ a.tsh-banner-inner:focus-visible {
 .tsh-manage-collapse .tsh-event-editor-title {
   display: none;
 }
+
+
+/* ============================================================
+   Bundle 27 — Filter-icon dropdowns + collapsible issue cards
+                + clearer mobile View action.
+
+   1. FILTER-ICON DROPDOWNS.
+      Every filter <select> on the site (Manage page Tower /
+      Category / Severity, plus the mobile-collapsed tab select
+      created by `UI.mobileifyTabs`) gets a small gold funnel
+      icon on the right edge so users instantly see they can tap
+      to filter. `appearance: none` strips the native chevron so
+      the icon isn't competing with browser chrome.
+
+   2. COLLAPSIBLE ISSUE CARDS (mobile only).
+      On phones (≤720px) every issues-table row becomes a card
+      that is COLLAPSED BY DEFAULT. A small summary strip with
+      [ID  STATUS  AGE  ▾] stays visible so the user can scan
+      the full list without expanding anything. Tapping the
+      summary opens the card to reveal Tower / Category /
+      Severity / Status / Age + the View action.
+
+      Desktop is untouched: the `.tsh-mcard-head` cell is
+      display:none so the original 7-column table renders as
+      before.
+
+   3. CLEARER MOBILE "VIEW" ACTION.
+      The View button in the expanded card now fills its row as
+      a primary-coloured CTA with a magnifier icon so the
+      action-to-modify-take-actions affordance is obvious. The
+      heavy lifecycle / triage buttons remain inside the detail
+      modal that View opens.
+   ============================================================ */
+
+/* --- 1. Filter-icon dropdowns ----------------------------------------- */
+
+/* Funnel SVG, gold (matches --c-primary). Encoded as a data-URI so we
+   don't need an extra asset round-trip. */
+.tsh-toolbar select:not(.tsh-bare),
+select.tsh-tabs-mobile {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  padding-right: 2.4rem;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%23d4af37' d='M4 4h16a1 1 0 0 1 .8 1.6l-6.3 8.3v6.6a1 1 0 0 1-1.5.9l-3-1.5a1 1 0 0 1-.5-.9v-5.1L3.2 5.6A1 1 0 0 1 4 4z'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 0.7rem center;
+  background-size: 0.95rem 0.95rem;
+  background-color: var(--c-input-bg);
+}
+.tsh-toolbar select:not(.tsh-bare):focus,
+select.tsh-tabs-mobile:focus {
+  background-color: var(--c-input-bg-focus);
+}
+/* IE11 / legacy Edge — strip the default arrow. */
+.tsh-toolbar select::-ms-expand,
+select.tsh-tabs-mobile::-ms-expand { display: none; }
+
+/* --- 2. Collapsible issue cards (mobile only) ------------------------- */
+
+/* Desktop: the mobile-only summary head is invisible and the row keeps
+   its original 7-cell layout. */
+.tsh-mcard-head { display: none; }
+
+@media (max-width: 720px) {
+  /* The head td becomes the card's clickable summary strip. */
+  .tsh-mcard > .tsh-mcard-head {
+    display: block;
+    width: 100%;
+    padding: var(--sp-2) 0;
+    margin: 0;
+    border: none;
+    cursor: pointer;
+    user-select: none;
+    grid-template-columns: none;
+  }
+  .tsh-mcard > .tsh-mcard-head::before { display: none; }
+  .tsh-mcard > .tsh-mcard-head:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--c-primary) 55%, transparent);
+    outline-offset: 2px;
+    border-radius: var(--rad-sm);
+  }
+  .tsh-mcard-summary {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    width: 100%;
+    min-width: 0;
+  }
+  .tsh-mcard-summary-id {
+    color: var(--c-primary);
+    font-weight: 700;
+    font-size: 0.78rem;
+    letter-spacing: 0.01em;
+    flex: 0 0 auto;
+    max-width: 45%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .tsh-mcard-summary > .tsh-pill {
+    flex: 0 0 auto;
+    max-width: 35%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .tsh-mcard-summary-age {
+    margin-left: auto;
+    color: var(--c-text-muted);
+    font-size: var(--fs-xs);
+    white-space: nowrap;
+  }
+  .tsh-mcard-summary-chev {
+    color: var(--c-text-muted);
+    font-size: 0.75rem;
+    margin-left: var(--sp-2);
+    transition: transform 220ms ease, color 200ms ease;
+  }
+  .tsh-mcard:not(.is-collapsed) .tsh-mcard-summary-chev {
+    transform: rotate(180deg);
+    color: var(--c-primary);
+  }
+
+  /* Collapsed: hide everything except the head. Expanded: reveal the
+     body cells in their normal Bundle 25 stacked layout. */
+  .tsh-mcard.is-collapsed > td:not(.tsh-mcard-head) { display: none; }
+
+  /* Expanded: the head doubles as a section divider above the body. */
+  .tsh-mcard:not(.is-collapsed) > .tsh-mcard-head {
+    padding-bottom: var(--sp-2);
+    margin-bottom: var(--sp-2);
+    border-bottom: 1px dashed var(--c-border-soft);
+  }
+
+  /* The ID is already in the head — hide the duplicate body row. */
+  .tsh-mcard:not(.is-collapsed) > td[data-label="ID"] { display: none; }
+}
+
+/* --- 3. Clearer mobile View action ------------------------------------ */
+
+@media (max-width: 720px) {
+  .tsh-table td.tsh-actions-col .tsh-row-actions {
+    /* Stretch the View button across the card so the tap target is
+       obvious — the inner button inherits flex:1 below. */
+    gap: var(--sp-2);
+  }
+  .tsh-table td.tsh-actions-col .tsh-row-actions .tsh-btn {
+    flex: 1 1 auto;
+    min-height: 42px;
+    font-size: 0.95rem;
+    padding-inline: var(--sp-4);
+  }
+}
