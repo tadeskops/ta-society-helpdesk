@@ -6,7 +6,9 @@
 //   PATCH  /issues/:id              status transition (manager+)
 //   POST   /issues/:id/photos       attach photos (manager+)
 //   POST   /issues/:id/redact       edit body (committee+)
-//   POST   /issues/:id/delete       soft-delete (committee+)
+//   POST   /issues/:id/delete       soft-delete (manager+; manager must
+//                                   record a reason — UI enforces the
+//                                   asterisk + popup)
 //   POST   /issues/bulk-archive     retention sweep (committee+)
 
 import type { Router } from '../lib/router.ts';
@@ -427,7 +429,7 @@ const mountDelete = (r: Router): void => {
   r.post('/issues/:id/delete', async (ctx: Ctx, params: Record<string, string>) => {
     ensureAllowed(ctx, {
       flags: ['FEATURE_DAILY_TRACK'],
-      roles: ['COMMITTEE', 'DEVELOPER'],
+      roles: ['MANAGER', 'COMMITTEE', 'DEVELOPER'],
       requireIdentity: true,
     });
     const num = parseIssueParam(params);

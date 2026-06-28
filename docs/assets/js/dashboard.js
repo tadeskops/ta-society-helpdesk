@@ -219,7 +219,8 @@
       await root.Api.patch(`/issues/${encodeURIComponent(issue.id)}`, { to, ...extra });
       busy.close();
       root.UI.toast(`${issue.id} \u2192 ${labelFor(to)}`, { kind: 'success' });
-      reload();
+      const after = opts.onReload || reload;
+      after();
     } catch (e) {
       busy.close();
       root.UI.toast(e.message || 'Update failed.', { kind: 'danger' });
@@ -227,25 +228,60 @@
   }
 
   async function doDelete(issue) {
-    const reason = await promptText('Reason for deletion');
-    if (!reason) return;
+    // Audit hygiene: a manager must record *why* an issue was removed
+    // (asterisk on the field + popup if left blank). Committee and
+    // developer roles can delete without a written reason — the audit
+    // log still captures the actor + timestamp.
+    const role = opts.role || '';
+    const reasonRequired = role === 'MANAGER';
+
+    let reason;
+    while (true) {
+      reason = await promptText('Reason for deletion', { required: reasonRequired });
+      if (reason === null) return;          // user cancelled
+      if (reasonRequired && !reason) {
+        await root.UI.modal({
+          title: 'Reason required',
+          body: 'Please provide a reason for deletion. Managers must record why an issue is removed before it can be deleted.',
+          actions: [{ label: 'OK', value: true, primary: true }],
+        });
+        continue;
+      }
+      break;                                 // empty allowed for COMMITTEE/DEVELOPER
+    }
+
     const busy = root.UI.busyOverlay(`Deleting ${issue.id}\u2026`);
     try {
-      await root.Api.post(`/issues/${encodeURIComponent(issue.id)}/delete`, { reason });
+      await root.Api.post(`/issues/${encodeURIComponent(issue.id)}/delete`, { reason: reason || '' });
       busy.close();
       root.UI.toast(`${issue.id} deleted.`, { kind: 'success' });
-      reload();
+      const after = opts.onReload || reload;
+      after();
     } catch (e) {
       busy.close();
       root.UI.toast(e.message || 'Delete failed.', { kind: 'danger' });
     }
   }
 
-  function promptText(title) {
+  // promptText shows a textarea modal and resolves with the trimmed
+  // value, or `null` if the user cancels.
+  // When `opts.required` is true the body shows a red asterisk hint so
+  // the user sees the field is mandatory; the caller is still responsible
+  // for re-prompting if the value comes back empty.
+  function promptText(title, promptOpts) {
+    const required = !!(promptOpts && promptOpts.required);
     return new Promise((resolve) => {
       const input = root.UI.el('textarea', { rows: 3, class: 'tsh-input-block', style: { width: '100%' } });
+      const body = root.UI.el('div', { class: 'tsh-prompt-body' });
+      if (required) {
+        body.appendChild(root.UI.el('p', { class: 'tsh-required-hint' },
+          root.UI.el('span', { class: 'tsh-required-mark', 'aria-hidden': 'true' }, '*'),
+          ' This field is required.'));
+      }
+      body.appendChild(input);
       root.UI.modal({
-        title, body: input,
+        title,
+        body,
         actions: [
           { label: 'Cancel', value: null },
           { label: 'OK', value: 'OK', primary: true },
@@ -274,9 +310,15 @@
     });
   }
 
+  // Allow other pages (e.g. public-board) to wire actions through this
+  // module without booting the manage-page table. Callers configure the
+  // role + reload hook, then call openDetail(issue) directly.
+  function configure(o) {
+    opts = Object.assign({}, opts, o || {});
+  }
+
   function boot(o) {
     opts = Object.assign({}, opts, o || {});
-
     // On phones default the status tab to "All" so visitors see every issue
     // in a single scroll without first switching tabs. Desktop keeps "New"
     // as the actionable focus for triage. mobileifyTabs syncs the native
@@ -314,5 +356,5 @@
     reload();
   }
 
-  root.Dashboard = { boot, reload };
+  root.Dashboard = { boot, reload, configure, openDetail };
 })(window);

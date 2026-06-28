@@ -4428,3 +4428,29 @@ select.tsh-tabs-mobile::-ms-expand { display: none; }
   font-weight: 500;
   line-height: 1.4;
 }
+
+
+/* ============================================================
+   Bundle 31 — Required-field hint inside prompts.
+
+   When a prompt (e.g. "Reason for deletion" for managers) marks
+   the input as required, the modal body shows a red-asterisk
+   line above the textarea so the user sees the field is
+   mandatory before they hit OK.
+   ============================================================ */
+
+.tsh-prompt-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.tsh-required-hint {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--c-text-muted);
+}
+.tsh-required-mark {
+  color: var(--c-danger);
+  font-weight: 700;
+  margin-right: 2px;
+}
