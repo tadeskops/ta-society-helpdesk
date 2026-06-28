@@ -115,7 +115,10 @@
     try { who = await Flags.whoami(true); } catch (_e) {}
     const canEdit = ['MANAGER', 'COMMITTEE', 'DEVELOPER'].includes(who.primary);
 
-    Directory.init({ canEdit });
+    // Directory.init is async (it fetches /directory) and binds tab click
+    // handlers only after that resolves. Await it before firing the hash
+    // activation so the click actually lands on a wired-up button.
+    await Directory.init({ canEdit });
 
     // Deep-link: landing's Quick Access tiles use directory.html#vendors and
     // directory.html#committee to jump straight to the right tab. Map any
