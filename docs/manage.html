@@ -8,7 +8,7 @@
   <link rel="icon" href="./assets/images/TaLogo.png" type="image/png" />
   <script>(function(){try{var t=localStorage.getItem('tsh_theme');if(t!=='dark'&&t!=='light'&&t!=='medium')t='light';if(t!=='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="./assets/css/theme.css?v=36" />
+  <link rel="stylesheet" href="./assets/css/theme.css?v=37" />
 </head>
 <body class="tsh-page">
   <div data-include="header"></div>
@@ -80,6 +80,10 @@
       <div id="annEditor"></div>
     </section>
 
+    <section class="tsh-card" id="eventsEditorCard" data-tsh-flag="FEATURE_DAILY_EVENTS" hidden>
+      <div id="eventsEditor"></div>
+    </section>
+
     <section class="tsh-card" id="pollsEditorCard" data-tsh-flag="FEATURE_DAILY_POLLS" hidden>
       <div id="pollsEditor"></div>
       <div id="pollsVoters" style="margin-top: var(--space-4);"></div>
@@ -96,7 +100,8 @@
   <script src="./assets/js/ui.js?v=31"></script>
   <script src="./assets/js/visitors.js?v=2"></script>
   <script src="./assets/js/banner.js?v=1"></script>
-  <script src="./assets/js/announcements.js?v=2"></script>
+  <script src="./assets/js/announcements.js?v=3"></script>
+  <script src="./assets/js/events.js?v=1"></script>
   <script src="./assets/js/polls.js?v=1"></script>
   <script src="./assets/js/dashboard.js?v=16"></script>
   <script>
@@ -144,6 +149,16 @@
       if (card) {
         card.hidden = false;
         Announcements.mountEditor(document.getElementById('annEditor'));
+      }
+    }
+    // Events editor â€” MANAGER+ when the flag is on. Items auto-expire 1
+    // day after the event (or after DAILY_NOTICE_TTL_DAYS if no event
+    // date), keeping the public list trimmed without manual cleanup.
+    if (window.Events && Flags.on('FEATURE_DAILY_EVENTS')) {
+      const card = document.getElementById('eventsEditorCard');
+      if (card) {
+        card.hidden = false;
+        Events.mountEditor(document.getElementById('eventsEditor'));
       }
     }
     // Polls editor + voter panel â€” visible to MANAGER+ when the flag is on.

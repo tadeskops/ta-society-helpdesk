@@ -3002,3 +3002,168 @@ a.tsh-banner-inner:focus-visible {
   .tsh-committee-card { grid-template-columns: 56px 1fr; }
   .tsh-committee-avatar { width: 56px; height: 56px; font-size: 18px; }
 }
+
+/* ===== Bundle 14: Events panel + notice TTL (item 9 + TTL) ==============
+   Events.mountList renders a vertical list of .tsh-event-card items, each
+   with a date badge + body. Events.mountEditor renders inline rows for
+   managers. The TTL "Expires in N days" footer on announcements + events
+   is rendered by their card builders when expiresAt is present. All items
+   auto-expire (default 1 week) - the worker filters server-side and prunes
+   on next save; the client also filters in case of stale cache. */
+.tsh-event-panel {
+  display: block;
+}
+.tsh-event-list {
+  display: grid;
+  gap: var(--sp-2);
+}
+.tsh-event-card {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
+  border: 1px solid var(--c-border);
+  border-radius: var(--rad-md);
+  background: var(--c-card-bg);
+  align-items: flex-start;
+}
+.tsh-event-when {
+  display: flex;
+  justify-content: center;
+}
+.tsh-event-daybadge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  padding: 6px 4px;
+  border-radius: var(--rad-sm);
+  background: color-mix(in srgb, var(--c-primary) 10%, var(--c-card-bg));
+  border: 1px solid color-mix(in srgb, var(--c-primary) 25%, var(--c-border));
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+.tsh-event-daybadge-mon {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--c-text-muted);
+}
+.tsh-event-daybadge-day {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--c-primary);
+}
+.tsh-event-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.tsh-event-title {
+  margin: 0;
+  font-size: var(--fs-base);
+  font-weight: 600;
+  color: var(--c-text);
+}
+.tsh-event-meta {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--c-text-muted);
+}
+.tsh-event-desc {
+  margin: 4px 0 0;
+  font-size: var(--fs-sm);
+  color: var(--c-text);
+}
+.tsh-event-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: var(--fs-xs);
+  color: var(--c-primary);
+  text-decoration: none;
+}
+.tsh-event-link:hover { text-decoration: underline; }
+.tsh-event-rel {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: var(--fs-xs);
+  background: color-mix(in srgb, var(--c-primary) 12%, transparent);
+  color: var(--c-primary);
+  align-self: flex-start;
+}
+.tsh-event-empty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: var(--sp-3);
+}
+
+/* Events editor (manage.html). */
+.tsh-event-editor-title { margin: 0 0 6px; }
+.tsh-event-editor-rows {
+  list-style: none;
+  padding: 0;
+  margin: var(--sp-3) 0;
+  display: grid;
+  gap: var(--sp-3);
+}
+.tsh-event-editor-row {
+  padding: var(--sp-3);
+  border: 1px solid var(--c-border);
+  border-radius: var(--rad-sm);
+  background: var(--c-surface-2, var(--c-card-bg));
+  display: grid;
+  gap: var(--sp-2);
+}
+.tsh-event-editor-row-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr auto auto;
+  gap: var(--sp-2);
+  align-items: end;
+}
+.tsh-event-editor-row-grid input,
+.tsh-event-editor-row-grid select { width: 100%; }
+.tsh-event-editor-row textarea { width: 100%; resize: vertical; }
+.tsh-event-editor-exp {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--fs-xs);
+}
+.tsh-event-editor-actions {
+  display: flex;
+  gap: var(--sp-2);
+  justify-content: flex-end;
+}
+
+@media (max-width: 720px) {
+  .tsh-event-editor-row-grid { grid-template-columns: 1fr 1fr; }
+  .tsh-event-editor-row-grid > input:first-child { grid-column: 1 / -1; }
+}
+
+/* TTL footer for announcement + (future) other notice cards. */
+.tsh-ann-card-exp {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: var(--sp-2);
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: var(--fs-xs);
+  background: color-mix(in srgb, var(--c-text-muted) 10%, transparent);
+  color: var(--c-text-muted);
+  align-self: flex-start;
+}
+.tsh-ann-editor-exp {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--fs-xs);
+}
+.tsh-text-sm { font-size: var(--fs-sm); }

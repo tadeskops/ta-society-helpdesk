@@ -8,7 +8,7 @@
   <link rel="icon" href="./assets/images/TaLogo.png" type="image/png" />
   <script>(function(){try{var t=localStorage.getItem('tsh_theme');if(t!=='dark'&&t!=='light'&&t!=='medium')t='light';if(t!=='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="./assets/css/theme.css?v=36" />
+  <link rel="stylesheet" href="./assets/css/theme.css?v=37" />
   <style>
     /* Info-icon + click-to-expand help panels for each setting */
     .tsh-info {
@@ -649,12 +649,12 @@
       },
       'FEATURE_DAILY_BANNER': {
         summary: 'Rotating manager-curated banner across the top of resident-facing pages.',
-        detail: 'When ON, managers/committee/developers can edit a list of short items (info / warn / alert) from the Manage page. The home page shows the active item in a rotating strip plus the full stack in a right-rail panel. Items can have href + expiresAt.',
+        detail: 'When ON, managers/committee/developers can edit a list of short items (info / warn / alert) from the Manage page. The home page shows the active item in a rotating strip plus the full stack in a right-rail panel. Items can have href + expiresAt; if expiresAt is left blank, the item auto-expires after DAILY_NOTICE_TTL_DAYS (default 7 days). Past-expiry items are filtered server-side and pruned from storage on next save.',
         default: 'true',
       },
       'FEATURE_DAILY_ANNOUNCEMENTS': {
         summary: 'Standalone announcements list section on the landing page.',
-        detail: 'Longer-form notices than the banner. Managers/committee/developers post titled items with body text + optional href + expiresAt from Manage. Renders as stacked cards under the banner on the home page.',
+        detail: 'Longer-form notices than the banner. Managers/committee/developers post titled items with body text + optional pinned + optional Expires from Manage. If "Expires" is left blank, the item auto-hides after DAILY_NOTICE_TTL_DAYS (default 7 days). Renders as a rotating card carousel on the home page.',
         default: 'true',
       },
       'FEATURE_DAILY_POLLS': {
@@ -664,8 +664,8 @@
       },
       'FEATURE_DAILY_EVENTS': {
         summary: 'Upcoming community events panel on the landing page (yoga, monthly meeting, environment day, etc.).',
-        detail: 'Renders the Quick Access "Upcoming Events" tile and an information-area panel under it. OFF by default â€” the events authoring module is not yet shipped, so leave OFF until an editor is added. Tile and panel auto-hide when the flag is off; no broken UI.',
-        default: 'false',
+        detail: 'Renders the Quick Access "Upcoming Events" tile and a panel on the landing page. MANAGER+ can add/edit events from /manage.html. Each event has a title, date/time, optional location/body/link, and an optional Expires date. If "Expires" is blank, the event auto-hides 1 day after it happens (capped by DAILY_NOTICE_TTL_DAYS). Past-expiry items are pruned automatically on next save.',
+        default: 'true',
       },
       'FEATURE_DAILY_FLOATING_PALETTE': {
         summary: 'Show the floating display palette (theme + text-size) on every page.',

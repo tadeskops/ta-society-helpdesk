@@ -76,16 +76,17 @@ const cryptoRandomId = (): string => {
   return `bnr-${hex}`;
 };
 
-const sanitiseItem = (raw: unknown, actor: string): BannerItem => {
+const sanitiseItem = (raw: unknown, actor: string, defaultTtlDays: number): BannerItem => {
   if (!isObj(raw)) throw new BadRequest('banner item must be an object');
   const text = str(raw['text'], 'banner.text', { min: 1, max: 240 });
   const sevRaw = optStr(raw['severity'], 'banner.severity', { max: 16 });
   const severity = (sevRaw && VALID_SEVERITY.has(sevRaw)) ? (sevRaw as BannerItem['severity']) : 'info';
+  const createdAt = typeof raw['createdAt'] === 'string' ? raw['createdAt'] : new Date().toISOString();
   const out: BannerItem = {
     id: typeof raw['id'] === 'string' && raw['id'] ? raw['id'] : cryptoRandomId(),
     text,
     severity,
-    createdAt: typeof raw['createdAt'] === 'string' ? raw['createdAt'] : new Date().toISOString(),
+    createdAt,
     createdBy: typeof raw['createdBy'] === 'string' && raw['createdBy'] ? raw['createdBy'] : actor,
   };
   const href = optStr(raw['href'], 'banner.href', { max: 500 });
@@ -95,15 +96,30 @@ const sanitiseItem = (raw: unknown, actor: string): BannerItem => {
     const t = Date.parse(exp);
     if (Number.isNaN(t)) throw new BadRequest('banner.expiresAt must be ISO 8601');
     out.expiresAt = new Date(t).toISOString();
+  } else if (defaultTtlDays > 0) {
+    // Auto-TTL: editor didn't set one, so the notice rolls off after the
+    // configured window (DAILY_NOTICE_TTL_DAYS).
+    const base = Date.parse(createdAt);
+    const ms = (Number.isFinite(base) ? base : Date.now()) + defaultTtlDays * 24 * 60 * 60 * 1000;
+    out.expiresAt = new Date(ms).toISOString();
   }
   return out;
+};
+
+const isExpired = (it: BannerItem, now: number): boolean => {
+  if (!it.expiresAt) return false;
+  const t = Date.parse(it.expiresAt);
+  if (Number.isNaN(t)) return false;
+  return t < now;
 };
 
 export const mountBanner = (r: Router): void => {
   r.get('/banner', async (ctx: Ctx) => {
     ensureAllowed(ctx, { flags: ['FEATURE_DAILY_BANNER'] });
     const b = await loadBanner(ctx);
-    return ok(ctx.env, ctx.req, b);
+    const now = Date.now();
+    const active = b.items.filter((it) => !isExpired(it, now));
+    return ok(ctx.env, ctx.req, { version: b.version, items: active });
   });
 
   r.put('/banner', async (ctx: Ctx) => {
@@ -118,9 +134,13 @@ export const mountBanner = (r: Router): void => {
     const itemsRaw = Array.isArray(incoming['items']) ? incoming['items'] : [];
     if (itemsRaw.length > MAX_ITEMS) throw new BadRequest(`banner.items supports at most ${MAX_ITEMS}`);
     const actor = ctx.identity!.email;
+    const defaultTtlDays = tunable(ctx.config, 'DAILY_NOTICE_TTL_DAYS', 7);
+    const sanitised = itemsRaw.map((it) => sanitiseItem(it, actor, defaultTtlDays));
+    const now = Date.now();
+    const kept = sanitised.filter((it) => !isExpired(it, now));
     const next: Banner = {
       version: typeof incoming['version'] === 'number' ? (incoming['version'] as number) : 1,
-      items: itemsRaw.map((it) => sanitiseItem(it, actor)),
+      items: kept,
     };
     const existing = await getFile(ctx.env, BANNER_PATH);
     const serialised = JSON.stringify(next, null, 2) + '\n';

@@ -13,11 +13,24 @@
     }
   }
 
+  function isActive(it, now) {
+    if (!it) return false;
+    if (it.expiresAt) {
+      const t = Date.parse(it.expiresAt);
+      if (Number.isFinite(t) && t < now) return false;
+    }
+    return true;
+  }
+
   function mountList(host) {
     if (!host) return;
     if (root.Flags && !root.Flags.on('FEATURE_DAILY_ANNOUNCEMENTS')) { host.hidden = true; return; }
     host.classList.add('tsh-ann-list');
-    fetchList().then((items) => {
+    fetchList().then((rawItems) => {
+      // Worker already filters expired, but the client also filters to
+      // cover any stale cached response from a previous TTL.
+      const now = Date.now();
+      let items = rawItems.filter((it) => isActive(it, now));
       if (!items.length) { host.hidden = true; return; }
       host.hidden = false;
       // Sort: pinned first, then newest by createdAt.
@@ -167,6 +180,18 @@
     body.className = 'tsh-ann-card-body';
     body.innerHTML = escapeHtml(it.body || '').replace(/\n/g, '<br>');
     article.appendChild(body);
+    // Subtle "expires in N days" footer so residents know how long it stays.
+    if (it.expiresAt) {
+      const t = Date.parse(it.expiresAt);
+      if (Number.isFinite(t)) {
+        const days = Math.max(0, Math.ceil((t - Date.now()) / (24 * 60 * 60 * 1000)));
+        const foot = document.createElement('div');
+        foot.className = 'tsh-ann-card-exp';
+        foot.innerHTML = '<i class="fas fa-hourglass-half" aria-hidden="true"></i>' +
+          (days <= 1 ? 'Expires soon' : `Expires in ${days} days`);
+        article.appendChild(foot);
+      }
+    }
     return article;
   }
 
@@ -188,6 +213,11 @@
       title.innerHTML = '<i class="fas fa-newspaper"></i> Manage announcements';
       title.className = 'tsh-ann-editor-title';
       host.appendChild(title);
+
+      const help = document.createElement('p');
+      help.className = 'tsh-text-muted tsh-text-sm';
+      help.textContent = 'If you leave the "Expires" date blank, the announcement auto-hides after 1 week. Past-expiry items are pruned on save.';
+      host.appendChild(help);
 
       const list = document.createElement('ul');
       list.className = 'tsh-ann-editor-rows';
@@ -255,6 +285,18 @@
       pinIn.addEventListener('change', () => { items[idx].pinned = pinIn.checked; });
       pinLabel.append(pinIn, document.createTextNode(' Pin to top'));
 
+      const expWrap = document.createElement('label');
+      expWrap.className = 'tsh-ann-editor-exp';
+      expWrap.innerHTML = '<span class="tsh-label">Expires</span>';
+      const expIn = document.createElement('input');
+      expIn.type = 'date';
+      expIn.value = it.expiresAt ? new Date(it.expiresAt).toISOString().slice(0, 10) : '';
+      expIn.title = 'Leave blank to auto-expire 1 week from now';
+      expIn.addEventListener('change', () => {
+        items[idx].expiresAt = expIn.value ? new Date(expIn.value + 'T23:59:59Z').toISOString() : undefined;
+      });
+      expWrap.appendChild(expIn);
+
       const del = document.createElement('button');
       del.type = 'button';
       del.className = 'tsh-btn tsh-btn-ghost tsh-btn-sm';
@@ -264,7 +306,7 @@
 
       const rowActions = document.createElement('div');
       rowActions.className = 'tsh-ann-editor-row-actions';
-      rowActions.append(pinLabel, del);
+      rowActions.append(pinLabel, expWrap, del);
 
       li.append(titleIn, bodyIn, rowActions);
       return li;
