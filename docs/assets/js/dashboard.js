@@ -78,7 +78,7 @@
       });
       tr.append(
         td('', summaryHeadFor(i), 'tsh-mcard-head'),
-        td('ID',       root.UI.el('code', { class: 'tsh-id' }, i.id)),
+        td('ID',       idCellFor(i), 'tsh-id-col'),
         td('Tower',    i.tower || '—'),
         td('Category', i.category || '—'),
         td('Severity', root.UI.severityPill(i.severity)),
@@ -103,6 +103,20 @@
       });
       tbody.appendChild(tr);
     }
+  }
+
+  // ID cell on desktop carries the ticket id plus a single-line description
+  // preview so a reviewer can scan the table without opening every row.
+  function idCellFor(i) {
+    const wrap = root.UI.el('div', { class: 'tsh-id-wrap' });
+    wrap.appendChild(root.UI.el('code', { class: 'tsh-id' }, i.id));
+    const desc = (i.description || '').trim();
+    if (desc) {
+      wrap.appendChild(root.UI.el('span',
+        { class: 'tsh-id-desc', title: desc },
+        desc.slice(0, 90)));
+    }
+    return wrap;
   }
 
   // Mobile-only summary strip rendered inside the first cell of every row.

@@ -4527,3 +4527,41 @@ select.tsh-tabs-mobile::-ms-expand { display: none; }
      in the expanded body grid. */
   .tsh-mcard:not(.is-collapsed) .tsh-mcard-summary-desc { display: none; }
 }
+
+
+/* ============================================================
+   Bundle 31.1 — Description preview on desktop manage rows.
+
+   The mobile manage cards already show a description preview
+   inside the collapse summary head. On desktop the table layout
+   has no collapse state, so we add the preview directly inside
+   the ID cell — id on top, muted truncated description below.
+   ============================================================ */
+
+.tsh-id-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.tsh-id-desc {
+  color: var(--c-text-muted);
+  font-size: var(--fs-xs);
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.tsh-id-col {
+  max-width: 240px;
+  vertical-align: top;
+}
+
+/* On mobile the table flips to stacked cards and the desktop ID cell is
+   hidden inside the collapse — the summary head already carries the
+   description, so suppress this one to avoid showing it twice. */
+@media (max-width: 720px) {
+  .tsh-id-desc { display: none; }
+  .tsh-id-col  { max-width: none; }
+}
