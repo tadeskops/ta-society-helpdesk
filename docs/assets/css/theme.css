@@ -3492,6 +3492,7 @@ a.tsh-banner-inner:focus-visible {
   .tsh-nav a.is-expanded > span,
   .tsh-nav a.is-expanded [data-tsh-myreports-count],
   .tsh-userbox .is-expanded .tsh-btn-label {
+    display: inline;
     position: static;
     width: auto;
     height: auto;
