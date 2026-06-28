@@ -156,20 +156,22 @@ describe('GET /whoami', () => {
 });
 
 describe('POST /issues — full create flow', () => {
-  it('creates an issue with DLY-padded title and daily labels', async () => {
+  it('creates an issue with a TKT-prefixed title and daily labels', async () => {
     const r = await send('POST', '/issues', {
       tower: 'A', category: 'Lift', subCategory: 'Doors not closing',
       location: 'Lobby G', description: 'Doors keep sticking',
     });
     expect(r.status).toBe(201);
     const j = await r.json() as any;
-    expect(j.data.id).toBe('DLY-00001');
+    expect(j.data.id).toMatch(/^TKT-\d{10}(?:-\d+)?$/);
     const created = ghCalls.find((c) => c.fn === 'createIssue');
     expect(created.params.labels).toContain('daily');
     expect(created.params.labels).toContain('tower:A');
     expect(created.params.labels).toContain('cat:lift');
     const titlePatch = ghCalls.find((c) => c.fn === 'updateIssue' && c.patch.title);
-    expect(titlePatch.patch.title).toBe('DLY-00001 · Lift · A');
+    expect(titlePatch.patch.title).toMatch(/^TKT-\d{10}(?:-\d+)? · Lift · A$/);
+    // The patch should also persist the tkt:<id> label on the issue.
+    expect(titlePatch.patch.labels.some((n: string) => n.startsWith('tkt:TKT-'))).toBe(true);
   });
 
   it('rejects an unknown tower', async () => {
@@ -210,14 +212,14 @@ describe('lifecycle PATCH', () => {
   });
 });
 
-describe('soft-delete (committee+)', () => {
-  it('manager cannot delete', async () => {
+describe('soft-delete (manager+)', () => {
+  it('manager soft-deletes (archive flow goes through /delete in the worker)', async () => {
     await send('POST', '/issues', {
       tower: 'A', category: 'Lift', subCategory: 'Stuck',
       location: 'lift 1', description: 'lift stuck on G',
     });
-    const r = await send('POST', '/issues/DLY-00001/delete', { reason: 'spam' }, 'mgr@x.com');
-    expect(r.status).toBe(403);
+    const r = await send('POST', '/issues/DLY-00001/delete', { reason: '[archive] retention' }, 'mgr@x.com');
+    expect(r.status).toBe(200);
   });
   it('committee can delete; subsequent public read returns 404', async () => {
     await send('POST', '/issues', {

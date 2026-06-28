@@ -11,13 +11,13 @@ import type { GhIssue } from '../src/github/client.ts';
 const lbl = (...names: string[]) => names.map((n) => ({ name: n }));
 
 describe('padId / formatTitle', () => {
-  it('zero-pads issue number to 5 digits with DLY- prefix', () => {
+  it('zero-pads issue number to 5 digits with DLY- prefix (legacy storage key)', () => {
     expect(padId(1)).toBe('DLY-00001');
     expect(padId(42)).toBe('DLY-00042');
     expect(padId(99999)).toBe('DLY-99999');
   });
-  it('formats title per spec §6.1', () => {
-    expect(formatTitle(142, 'Lift', 'T2')).toBe('DLY-00142 · Lift · T2');
+  it('formats title from the display id', () => {
+    expect(formatTitle('TKT-2806260345', 'Lift', 'T2')).toBe('TKT-2806260345 · Lift · T2');
   });
 });
 

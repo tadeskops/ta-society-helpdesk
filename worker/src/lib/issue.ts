@@ -20,9 +20,53 @@ export const SYSTEM_LABEL = 'daily';
 
 // ---- Title ----------------------------------------------------------------
 
+/**
+ * Legacy storage key. Kept for backward compatibility with photos already
+ * committed under `photos/DLY-NNNNN/` in the issues repo — internal only,
+ * never shown to users. Display IDs go through `displayIdOf` / `formatTktBase`.
+ */
 export const padId = (num: number): string => `DLY-${String(num).padStart(5, '0')}`;
-export const formatTitle = (num: number, category: string, tower: string): string =>
-  `${padId(num)} · ${category} · ${tower}`;
+
+// ---- Ticket ID (TKT-DDMMYYHHMM[-N], IST) ----------------------------------
+
+// India Standard Time = UTC+5:30 (no DST).
+const IST_OFFSET_MS = 330 * 60 * 1000;
+
+/**
+ * Computes the base ticket id from an ISO timestamp using IST.
+ * Returns `TKT-DDMMYYHHMM` (10 digits after the prefix).
+ */
+export const formatTktBase = (createdAt: string): string => {
+  const t = new Date(createdAt).getTime();
+  const ist = new Date(t + IST_OFFSET_MS);
+  const dd = String(ist.getUTCDate()).padStart(2, '0');
+  const mm = String(ist.getUTCMonth() + 1).padStart(2, '0');
+  const yy = String(ist.getUTCFullYear() % 100).padStart(2, '0');
+  const hh = String(ist.getUTCHours()).padStart(2, '0');
+  const mn = String(ist.getUTCMinutes()).padStart(2, '0');
+  return `TKT-${dd}${mm}${yy}${hh}${mn}`;
+};
+
+/** Accept-pattern for parsing a user-supplied ticket id. */
+export const TKT_ID_RE = /^TKT-\d{10}(?:-\d+)?$/;
+
+/** Read the persisted ticket id from an issue's labels, if any. */
+export const tktLabelOf = (issue: { labels: { name: string }[] }): string | undefined => {
+  const lab = issue.labels.find((l) => l.name.startsWith('tkt:'));
+  return lab ? lab.name.slice(4) : undefined;
+};
+
+/**
+ * The public-facing display id for an issue.
+ * Prefers the persisted `tkt:` label; falls back to a computed base id from
+ * `created_at` (so old issues without the label still render a TKT- id even
+ * before backfill — collision-free for any minute with a single ticket).
+ */
+export const displayIdOf = (issue: { labels: { name: string }[]; created_at: string }): string =>
+  tktLabelOf(issue) ?? formatTktBase(issue.created_at);
+
+export const formatTitle = (id: string, category: string, tower: string): string =>
+  `${id} · ${category} · ${tower}`;
 
 /** Public raw-file URL for a photo committed to the repo. */
 export const photoRawUrl = (env: Env, issueNum: number, file: string): string =>
@@ -220,7 +264,7 @@ const scrubPhones = (s: string): string =>
   });
 
 export interface PublicIssue {
-  id: string;                 // DLY-00142
+  id: string;                 // TKT-DDMMYYHHMM[-N]
   number: number;
   title: string;              // also redacted, in case category contained a phone (it can't, but defence)
   status: Status | 'unknown';
@@ -242,7 +286,7 @@ export const toPublicIssue = (issue: GhIssue, opts: { includePhotos?: boolean })
   const status = statusOf(issue.labels) ?? 'unknown';
   const sev = severityOf(issue.labels);
   const result: PublicIssue = {
-    id: padId(issue.number),
+    id: displayIdOf(issue),
     number: issue.number,
     title: scrubPhones(issue.title),
     status,

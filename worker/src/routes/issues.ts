@@ -27,6 +27,7 @@ import {
   toPublicIssue, tombstoneBody, writeResolution, appendPhotos,
   photoRawUrl, photoRepoPath,
   parseBody, towerOf, categoryFromLabels, severityOf,
+  displayIdOf, formatTktBase, tktLabelOf, TKT_ID_RE,
 } from '../lib/issue.ts';
 import { isFeatureOn, tunable } from '../config/defaults.ts';
 import { parseJson, str, optStr, optBool, optNum, oneOf, normalisePhone, isObj } from '../lib/validate.ts';
@@ -203,14 +204,20 @@ const mountCreate = (r: Router): void => {
     const actorEmail = ctx.identity?.email ?? 'anonymous@resident.local';
 
     const created = await createIssue(ctx.env, {
-      title: formatTitle(0, input.category, input.tower), // patched right after
+      title: 'TKT-pending', // patched right after with the real id
       body: provisionalBody,
       labels,
     });
 
-    // 2. Patch title with correct DLY-<n>
-    const finalTitle = formatTitle(created.number, input.category, input.tower);
-    let updated = await updateIssue(ctx.env, created.number, { title: finalTitle });
+    // 2. Generate the TKT- id (collision-safe inside the same minute) and
+    // persist it as a `tkt:<id>` label so future lookups are O(1).
+    const tktId = await generateTktId(ctx, created);
+    const finalTitle = formatTitle(tktId, input.category, input.tower);
+    const labelsWithTkt = [...labels, `tkt:${tktId}`];
+    let updated = await updateIssue(ctx.env, created.number, {
+      title: finalTitle,
+      labels: labelsWithTkt,
+    });
 
     // 3. Upload photos and patch body if any
     if (input.photos.length) {
@@ -220,11 +227,38 @@ const mountCreate = (r: Router): void => {
     }
 
     return ok(ctx.env, ctx.req, {
-      id: padId(created.number),
+      id: tktId,
       number: created.number,
       url: updated.html_url,
     }, 201);
   });
+};
+
+/**
+ * Generates a unique ticket id for a freshly-created issue.
+ * Base = TKT-DDMMYYHHMM (IST). If other issues already carry a tkt: label
+ * sharing the same base minute, the new id is suffixed `-2`, `-3`, …
+ * (the first ticket in a minute stays bare).
+ */
+const generateTktId = async (ctx: Ctx, issue: GhIssue): Promise<string> => {
+  const base = formatTktBase(issue.created_at);
+  // Pull all daily issues and grep their tkt: labels for the same base.
+  // GitHub Issues API doesn't support label-prefix search, so we list and
+  // filter in-memory — fine for the expected ticket volume.
+  const all = await listIssues(ctx.env, { state: 'all', labels: ['daily'], per_page: 100 });
+  let maxN = 0; // 0 => no collision, 1 => bare base taken, 2+ => -N taken
+  for (const i of all) {
+    if (i.number === issue.number) continue;
+    const id = tktLabelOf(i);
+    if (!id) continue;
+    if (id === base) { if (maxN < 1) maxN = 1; continue; }
+    const m = new RegExp(`^${base}-(\\d+)$`).exec(id);
+    if (m) {
+      const n = Number(m[1]);
+      if (n > maxN) maxN = n;
+    }
+  }
+  return maxN === 0 ? base : `${base}-${maxN + 1}`;
 };
 
 // ---- GET /issues (manager+ list) -----------------------------------------
@@ -257,7 +291,7 @@ const mountList = (r: Router): void => {
         const category = parsed.reported.category ?? categoryFromLabels(i.labels);
         const sev = severityOf(i.labels);
         return {
-          id: padId(i.number),
+          id: displayIdOf(i),
           number: i.number,
           title: i.title,
           body: i.body,
@@ -280,10 +314,46 @@ const mountList = (r: Router): void => {
 
 // ---- PATCH /issues/:id (status transition) -------------------------------
 
+/**
+ * Resolve a ticket-id URL parameter into a loaded GitHub issue.
+ *
+ * Accepts three forms (case-insensitive):
+ *   - `TKT-DDMMYYHHMM` or `TKT-DDMMYYHHMM-N`   — new format. Found by label.
+ *   - `DLY-NNNNN`                              — legacy padded number.
+ *   - `NNNNN`                                  — raw GitHub issue number.
+ *
+ * Returns the GhIssue (already fetched), so callers don't need to re-load.
+ * Throws BadRequest on malformed input, NotFound when no matching issue.
+ */
+const resolveIssueParam = async (ctx: Ctx, params: Record<string, string>): Promise<GhIssue> => {
+  const raw = (params['id'] ?? '').toUpperCase();
+  let num: number | undefined;
+
+  if (TKT_ID_RE.test(raw)) {
+    // TKT-* — look up by persisted label. Listing with both `daily` and
+    // `tkt:<id>` short-circuits to the single matching issue if any.
+    const matches = await listIssues(ctx.env, {
+      state: 'all',
+      labels: ['daily', `tkt:${raw}`],
+      per_page: 1,
+    });
+    if (!matches[0]) throw new NotFound(`No issue ${raw}`);
+    num = matches[0].number;
+  } else {
+    const m = /^(?:DLY-)?0*(\d+)$/.exec(raw);
+    if (!m) throw new BadRequest('id must look like TKT-2806260345 or DLY-00042');
+    num = Number(m[1]);
+  }
+
+  const issue = await getIssue(ctx.env, num);
+  if (!issue) throw new NotFound(`No issue ${raw}`);
+  return issue;
+};
+
 const parseIssueParam = (params: Record<string, string>): number => {
   const raw = (params['id'] ?? '').toUpperCase();
   const m = /^(?:DLY-)?0*(\d+)$/.exec(raw);
-  if (!m) throw new BadRequest('id must look like DLY-00042 or 42');
+  if (!m) throw new BadRequest('id must look like TKT-2806260345 or DLY-00042');
   return Number(m[1]);
 };
 
@@ -294,9 +364,9 @@ const mountPatch = (r: Router): void => {
       roles: ['MANAGER', 'COMMITTEE', 'DEVELOPER'],
       requireIdentity: true,
     });
-    const num = parseIssueParam(params);
-    const issue = await getIssue(ctx.env, num);
-    if (!issue || isDeleted(issue)) throw new NotFound(`No issue ${padId(num)}`);
+    const issue = await resolveIssueParam(ctx, params);
+    if (isDeleted(issue)) throw new NotFound(`No issue ${displayIdOf(issue)}`);
+    const num = issue.number;
 
     const raw = await parseJson<Record<string, unknown>>(ctx.req);
     const to = oneOf(raw['to'], 'to', STATUSES.filter((s) => s !== 'deleted'));
@@ -333,7 +403,7 @@ const mountPatch = (r: Router): void => {
     });
     await commentOnIssue(ctx.env, num, auditComment(from, to as Status, actor, notes));
     return ok(ctx.env, ctx.req, {
-      id: padId(num),
+      id: displayIdOf(issue),
       from,
       to,
       status: to,
@@ -351,9 +421,9 @@ const mountPhotos = (r: Router): void => {
       roles: ['MANAGER', 'COMMITTEE', 'DEVELOPER'],
       requireIdentity: true,
     });
-    const num = parseIssueParam(params);
-    const issue = await getIssue(ctx.env, num);
-    if (!issue || isDeleted(issue)) throw new NotFound(`No issue ${padId(num)}`);
+    const issue = await resolveIssueParam(ctx, params);
+    if (isDeleted(issue)) throw new NotFound(`No issue ${displayIdOf(issue)}`);
+    const num = issue.number;
 
     const raw = await parseJson<Record<string, unknown>>(ctx.req);
     const photos = parsePhotos(raw['photos'], 'photos');
@@ -368,7 +438,7 @@ const mountPhotos = (r: Router): void => {
     const urls = await uploadPhotos(ctx, num, photos, existing + 1, actor);
     const nextBody = appendPhotos(issue.body, urls);
     await updateIssue(ctx.env, num, { body: nextBody });
-    return ok(ctx.env, ctx.req, { id: padId(num), added: urls.length, urls });
+    return ok(ctx.env, ctx.req, { id: displayIdOf(issue), added: urls.length, urls });
   });
 };
 
@@ -381,9 +451,9 @@ const mountRedact = (r: Router): void => {
       roles: ['COMMITTEE', 'DEVELOPER'],
       requireIdentity: true,
     });
-    const num = parseIssueParam(params);
-    const issue = await getIssue(ctx.env, num);
-    if (!issue || isDeleted(issue)) throw new NotFound(`No issue ${padId(num)}`);
+    const issue = await resolveIssueParam(ctx, params);
+    if (isDeleted(issue)) throw new NotFound(`No issue ${displayIdOf(issue)}`);
+    const num = issue.number;
 
     const raw = await parseJson<Record<string, unknown>>(ctx.req);
     const body = str(raw['body'], 'body', { min: 10, max: 20_000 });
@@ -400,10 +470,10 @@ const mountRedact = (r: Router): void => {
     await writeAudit(ctx.env, {
       actor,
       action: 'issue:redact',
-      target: padId(num),
+      target: displayIdOf(issue),
       ...(reason ? { detail: reason } : {}),
     });
-    return ok(ctx.env, ctx.req, { id: padId(num), redacted: true });
+    return ok(ctx.env, ctx.req, { id: displayIdOf(issue), redacted: true });
   });
 };
 
@@ -420,7 +490,7 @@ const softDelete = async (ctx: Ctx, issue: GhIssue, actor: string, reason?: stri
   await writeAudit(ctx.env, {
     actor,
     action: 'issue:delete',
-    target: padId(issue.number),
+    target: displayIdOf(issue),
     ...(reason ? { detail: reason } : {}),
   });
 };
@@ -432,16 +502,15 @@ const mountDelete = (r: Router): void => {
       roles: ['MANAGER', 'COMMITTEE', 'DEVELOPER'],
       requireIdentity: true,
     });
-    const num = parseIssueParam(params);
-    const issue = await getIssue(ctx.env, num);
-    if (!issue) throw new NotFound(`No issue ${padId(num)}`);
-    if (isDeleted(issue)) return ok(ctx.env, ctx.req, { id: padId(num), deleted: true, alreadyDeleted: true });
+    const issue = await resolveIssueParam(ctx, params);
+    const id = displayIdOf(issue);
+    if (isDeleted(issue)) return ok(ctx.env, ctx.req, { id, deleted: true, alreadyDeleted: true });
 
     const raw = await parseJson<Record<string, unknown>>(ctx.req).catch(() => ({} as Record<string, unknown>));
     const reason = optStr(raw['reason'], 'reason', { max: 500 });
     const actor = ctx.identity!.email;
     await softDelete(ctx, issue, actor, reason);
-    return ok(ctx.env, ctx.req, { id: padId(num), deleted: true });
+    return ok(ctx.env, ctx.req, { id, deleted: true });
   });
 };
 
@@ -466,9 +535,66 @@ const mountBulkArchive = (r: Router): void => {
       if (s !== 'resolved' && s !== 'rejected') continue;
       if (new Date(issue.updated_at).getTime() > cutoff) continue;
       await softDelete(ctx, issue, actor, `bulk-archive after ${days}d`);
-      archived.push(padId(issue.number));
+      archived.push(displayIdOf(issue));
     }
     return ok(ctx.env, ctx.req, { archived, count: archived.length, cutoffDays: days });
+  });
+};
+
+// ---- POST /issues/backfill-tkt-ids (one-shot migration) ------------------
+
+/**
+ * Walks every daily issue (including closed/deleted), sorts by created_at,
+ * and assigns a `tkt:TKT-DDMMYYHHMM[-N]` label to any issue that doesn't
+ * already have one. Idempotent: safe to call repeatedly.
+ *
+ * Developer-only. Run once after deploying the TKT id refactor to migrate
+ * pre-existing DLY-padded issues into the new id scheme.
+ */
+const mountBackfill = (r: Router): void => {
+  r.post('/issues/backfill-tkt-ids', async (ctx: Ctx) => {
+    ensureAllowed(ctx, {
+      flags: ['FEATURE_DAILY_TRACK'],
+      roles: ['DEVELOPER'],
+      requireIdentity: true,
+    });
+    const all = await listIssues(ctx.env, { state: 'all', labels: ['daily'], per_page: 100 });
+    // Stable order: created_at ascending so collisions resolve deterministically.
+    all.sort((a, b) => a.created_at.localeCompare(b.created_at));
+
+    // Track assigned ids per base-minute so subsequent ones in the same
+    // minute get -2, -3, …
+    const usedByBase = new Map<string, number>(); // base => highest N (0 = bare taken)
+    // Seed with already-labelled issues to avoid double-assigning.
+    for (const i of all) {
+      const id = tktLabelOf(i);
+      if (!id) continue;
+      const m = /^(TKT-\d{10})(?:-(\d+))?$/.exec(id);
+      if (!m) continue;
+      const base = m[1]!;
+      const n = m[2] ? Number(m[2]) : 1;
+      const prev = usedByBase.get(base) ?? 0;
+      if (n > prev) usedByBase.set(base, n);
+    }
+
+    const assigned: { number: number; tktId: string }[] = [];
+    for (const issue of all) {
+      if (tktLabelOf(issue)) continue;
+      const base = formatTktBase(issue.created_at);
+      const next = (usedByBase.get(base) ?? 0) + 1;
+      const tktId = next === 1 ? base : `${base}-${next}`;
+      usedByBase.set(base, next);
+      const newLabels = Array.from(new Set([...issue.labels.map((l) => l.name), `tkt:${tktId}`]));
+      // Also refresh the title prefix so the issue list in GitHub stays in
+      // sync with the new id. Only touch the prefix segment before " · ".
+      const titleTail = issue.title.includes(' · ')
+        ? issue.title.slice(issue.title.indexOf(' · '))
+        : '';
+      const newTitle = `${tktId}${titleTail}`;
+      await updateIssue(ctx.env, issue.number, { labels: newLabels, title: newTitle });
+      assigned.push({ number: issue.number, tktId });
+    }
+    return ok(ctx.env, ctx.req, { assigned, count: assigned.length });
   });
 };
 
@@ -482,6 +608,7 @@ export const mountIssues = (r: Router): void => {
   mountRedact(r);
   mountDelete(r);
   mountBulkArchive(r);
+  mountBackfill(r);
 };
 
 // re-export so other modules can hit toPublicIssue without circular imports

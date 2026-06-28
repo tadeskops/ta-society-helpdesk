@@ -6,7 +6,7 @@ import type { Ctx } from '../lib/ctx.ts';
 import { ok } from '../lib/envelope.ts';
 import { ensureAllowed } from '../middleware/rbac.ts';
 import { listIssues, getIssue } from '../github/client.ts';
-import { isDeleted, toPublicIssue, statusOf } from '../lib/issue.ts';
+import { isDeleted, toPublicIssue, statusOf, TKT_ID_RE } from '../lib/issue.ts';
 import { isFeatureOn } from '../config/defaults.ts';
 import { NotFound, BadRequest } from '../lib/errors.ts';
 
@@ -37,10 +37,19 @@ export const mountPublic = (r: Router): void => {
   r.get('/issues/:id/public', async (ctx: Ctx, params: Record<string, string>) => {
     ensureAllowed(ctx, { flags: ['FEATURE_DAILY_TRACK'] });
     const raw = (params['id'] ?? '').toUpperCase();
-    const m = /^(?:DLY-)?0*(\d+)$/.exec(raw);
-    if (!m) throw new BadRequest('id must look like DLY-00042 or 42');
-    const num = Number(m[1]);
-    const issue = await getIssue(ctx.env, num);
+    let issue;
+    if (TKT_ID_RE.test(raw)) {
+      const matches = await listIssues(ctx.env, {
+        state: 'all',
+        labels: ['daily', `tkt:${raw}`],
+        per_page: 1,
+      });
+      issue = matches[0];
+    } else {
+      const m = /^(?:DLY-)?0*(\d+)$/.exec(raw);
+      if (!m) throw new BadRequest('id must look like TKT-2806260345 or DLY-00042');
+      issue = await getIssue(ctx.env, Number(m[1]));
+    }
     if (!issue || isDeleted(issue)) throw new NotFound(`No public issue ${raw}`);
     // System filter: must carry the 'daily' label to be a daily-track issue.
     if (!issue.labels.some((l) => l.name === 'daily')) throw new NotFound(`No public issue ${raw}`);
