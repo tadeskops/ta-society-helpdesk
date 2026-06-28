@@ -2531,3 +2531,93 @@ a.tsh-banner-inner:focus-visible {
   .tsh-quick-tile,
   .tsh-track-card { transition: none; }
 }
+
+/* ===== Bundle 9: header polish — sticky scroll shadow + collapsible user box.
+   Items 2, 3, 7 from the redesign brief. Pure CSS where possible; a single
+   ~10-line ui.js hook toggles `.is-scrolled` on .tsh-header for the shadow.
+   Configurable via FEATURE_DAILY_STICKY_HEADER (default ON) which simply
+   tells ui.js whether to register the scroll listener; sticky positioning
+   itself stays so the header can never become a layout regression. */
+
+/* (a) Subtle elevation when the page is scrolled past the top. */
+.tsh-header.is-scrolled {
+  box-shadow: 0 4px 16px -8px rgba(0, 0, 0, 0.45);
+  border-bottom-color: var(--c-border-strong, var(--c-border));
+}
+
+/* (b) Collapsible user box. Default state (signed in): only the role
+   badge / avatar icon is visible; the email is hidden until hover or
+   keyboard focus reveals it. Sign in/out buttons collapse to icon-only
+   too — the text label sits behind .tsh-btn-label and only appears when
+   the userbox is hovered/focused. Anonymous state ("Not signed in")
+   stays compact at all times.
+
+   Affordance: a thin chevron-less expand handle isn't needed because
+   the avatar already looks tappable. ESC/Tab closes via :focus-within. */
+.tsh-userbox {
+  position: relative;
+  flex-wrap: nowrap;
+}
+.tsh-userbox [data-tsh-user] {
+  cursor: pointer;
+  max-width: 44px;
+  overflow: hidden;
+  transition: max-width 220ms ease;
+}
+.tsh-userbox .tsh-user-text,
+.tsh-userbox .tsh-btn-label {
+  display: inline-block;
+  max-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  opacity: 0;
+  transition: max-width 220ms ease, opacity 160ms ease;
+}
+.tsh-userbox:hover [data-tsh-user],
+.tsh-userbox:focus-within [data-tsh-user] {
+  max-width: 360px;
+}
+.tsh-userbox:hover .tsh-user-text,
+.tsh-userbox:focus-within .tsh-user-text,
+.tsh-userbox:hover .tsh-btn-label,
+.tsh-userbox:focus-within .tsh-btn-label {
+  max-width: 220px;
+  opacity: 1;
+  margin-left: 4px;
+}
+/* Anonymous state — show the "Not signed in" text always so users on a
+   fresh device understand the affordance. */
+.tsh-userbox [data-tsh-user].tsh-user-anon {
+  max-width: 360px;
+}
+.tsh-userbox [data-tsh-user].tsh-user-anon .tsh-user-text {
+  max-width: 220px;
+  opacity: 1;
+  margin-left: 4px;
+}
+/* Compact icon-only buttons in collapsed state. */
+.tsh-userbox .tsh-btn {
+  min-width: 0;
+  padding-inline: var(--sp-2);
+}
+.tsh-userbox:hover .tsh-btn,
+.tsh-userbox:focus-within .tsh-btn {
+  padding-inline: var(--sp-3);
+}
+/* Mobile — keep userbox always-expanded so it isn't fiddly on touch. */
+@media (max-width: 640px) {
+  .tsh-userbox [data-tsh-user],
+  .tsh-userbox .tsh-user-text,
+  .tsh-userbox .tsh-btn-label {
+    max-width: 220px;
+    opacity: 1;
+    overflow: visible;
+  }
+  .tsh-userbox .tsh-btn { padding-inline: var(--sp-3); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tsh-userbox [data-tsh-user],
+  .tsh-userbox .tsh-user-text,
+  .tsh-userbox .tsh-btn-label,
+  .tsh-userbox .tsh-btn { transition: none; }
+}

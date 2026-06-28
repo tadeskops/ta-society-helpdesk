@@ -11,17 +11,18 @@
       </span>
     </a>
     <nav class="tsh-nav" aria-label="Primary">
-      <a href="./daily-report.html"><i class="fas fa-pen-to-square"></i>Report</a>
-      <a href="./public-board.html" data-tsh-feature="FEATURE_DAILY_PUBLIC_BOARD"><i class="fas fa-list-check"></i>Board</a>
-      <a href="./directory.html"   data-tsh-feature="FEATURE_DAILY_DIRECTORY"><i class="fas fa-address-book"></i>Directory</a>
+      <a href="./index.html" data-tsh-nav="home"><i class="fas fa-house"></i>Home</a>
+      <a href="./daily-report.html" data-tsh-nav="report"><i class="fas fa-pen-to-square"></i>Report</a>
+      <a href="./public-board.html" data-tsh-nav="board" data-tsh-feature="FEATURE_DAILY_PUBLIC_BOARD"><i class="fas fa-list-check"></i>Board</a>
+      <a href="./directory.html"   data-tsh-nav="directory" data-tsh-feature="FEATURE_DAILY_DIRECTORY"><i class="fas fa-address-book"></i>Directory</a>
       <a href="./public-board.html?my=1" data-tsh-myreports hidden><i class="fas fa-bookmark"></i>My reports <span data-tsh-myreports-count></span></a>
       <a data-tsh-role-link="MANAGER" data-tsh-feature="FEATURE_DAILY_MANAGER_DASHBOARD" href="./manage.html" hidden><i class="fas fa-user-shield"></i>Manage</a>
       <a data-tsh-role-link="DEVELOPER" href="./settings.html"            hidden><i class="fas fa-sliders"></i>Settings</a>
     </nav>
-    <div class="tsh-userbox">
-      <span data-tsh-user class="tsh-user-anon"><i class="fas fa-user"></i> Not signed in</span>
-      <button type="button" class="tsh-btn tsh-btn-primary" data-tsh-signin hidden><i class="fas fa-right-to-bracket"></i>Sign in</button>
-      <button type="button" class="tsh-btn tsh-btn-ghost"   data-tsh-signout hidden><i class="fas fa-right-from-bracket"></i>Sign out</button>
+    <div class="tsh-userbox" data-tsh-userbox>
+      <span data-tsh-user class="tsh-user-anon" tabindex="0" aria-label="Account"><i class="fas fa-user" aria-hidden="true"></i><span class="tsh-user-text"> Not signed in</span></span>
+      <button type="button" class="tsh-btn tsh-btn-primary" data-tsh-signin hidden><i class="fas fa-right-to-bracket" aria-hidden="true"></i><span class="tsh-btn-label">Sign in</span></button>
+      <button type="button" class="tsh-btn tsh-btn-ghost"   data-tsh-signout hidden><i class="fas fa-right-from-bracket" aria-hidden="true"></i><span class="tsh-btn-label">Sign out</span></button>
     </div>
   </div>
 </header>

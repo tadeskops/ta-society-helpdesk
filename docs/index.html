@@ -1,15 +1,15 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <title>TA Society Helpdesk</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#1a1f2e" />
-  <meta name="description" content="Tower Apartments — report daily issues or handover snags." />
+  <meta name="description" content="Tower Apartments â€” report daily issues or handover snags." />
   <link rel="icon" href="./assets/images/TaLogo.png" type="image/png" />
   <script>(function(){try{var t=localStorage.getItem('tsh_theme');if(t!=='dark'&&t!=='light'&&t!=='medium')t='light';if(t!=='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="./assets/css/theme.css?v=32" />
+  <link rel="stylesheet" href="./assets/css/theme.css?v=33" />
 </head>
 <body class="tsh-page tsh-page-landing">
   <div data-include="header"></div>
@@ -20,7 +20,7 @@
     <!-- 1. Rotating manager-curated notice strip (full-width). -->
     <div id="tshBannerStrip" hidden></div>
 
-    <!-- 2. Primary actions — the two reporting tracks. Always the most
+    <!-- 2. Primary actions â€” the two reporting tracks. Always the most
          prominent thing on the page. Daily uses class-based disable so the
          card stays visible but greyed when FEATURE_DAILY_TRACK is off. -->
     <section class="tsh-actions" aria-labelledby="tshActionsTitle">
@@ -35,7 +35,7 @@
         <a class="tsh-track-card tsh-track-handover" data-tsh-handover-link href="#" hidden>
           <span class="tsh-track-icon" aria-hidden="true"><i class="fas fa-building"></i></span>
           <h2>Society Handover Related Issue</h2>
-          <p>Report builder / warranty defects via the TA Issue Manager.</p>
+          <p>Report common area related issues within scope of handover.</p>
           <span class="tsh-cta">Open handover portal <i class="fas fa-arrow-up-right-from-square"></i></span>
         </a>
       </div>
@@ -85,7 +85,7 @@
       </div>
     </section>
 
-    <!-- 4. Information area — Announcements + (optional) Events + Polls.
+    <!-- 4. Information area â€” Announcements + (optional) Events + Polls.
          Each child renders its own card UI; the grid wrapper just gives
          them side-by-side flow on wider screens and stacks them on mobile. -->
     <div class="tsh-infogrid">
@@ -120,11 +120,11 @@
   <div data-include="footer"></div>
 
   <script src="./assets/js/config.js?v=11"></script>
-  <script src="./assets/js/partials.js?v=15"></script>
+  <script src="./assets/js/partials.js?v=16"></script>
   <script src="./assets/js/api.js?v=11"></script>
   <script src="./assets/js/auth.js?v=11"></script>
   <script src="./assets/js/flags.js?v=12"></script>
-  <script src="./assets/js/ui.js?v=29"></script>
+  <script src="./assets/js/ui.js?v=30"></script>
   <script src="./assets/js/visitors.js?v=2"></script>
   <script src="./assets/js/banner.js?v=1"></script>
   <script src="./assets/js/announcements.js?v=1"></script>
@@ -147,7 +147,7 @@
       // Polls (per-signed-in vote, SVG bar charts).
       if (window.Polls) Polls.mountList(document.getElementById('tshPolls'));
 
-      // Handover portal — only shows if the URL is wired in site.json.
+      // Handover portal â€” only shows if the URL is wired in site.json.
       const handoverUrl = sys.handoverPortalUrl;
       const handover = document.querySelector('[data-tsh-handover-link]');
       if (handoverUrl && !/REPLACE_ME/i.test(handoverUrl) && handover) {
@@ -157,7 +157,7 @@
         handover.hidden = false;
       }
 
-      // Weekly & full report PDF tiles — gated by URL presence.
+      // Weekly & full report PDF tiles â€” gated by URL presence.
       const weeklyUrl = sys.weeklyReportUrl;
       const weeklyEl = document.querySelector('[data-tsh-weekly-report]');
       if (weeklyUrl && !/REPLACE_ME/i.test(weeklyUrl) && weeklyEl && Flags.on('FEATURE_DAILY_WEEKLY_REPORT')) {
@@ -175,7 +175,7 @@
         fullEl.hidden = false;
       }
 
-      // Daily-track master kill switch (section 14.2) — keep card visible but greyed.
+      // Daily-track master kill switch (section 14.2) â€” keep card visible but greyed.
       if (!Flags.on('FEATURE_DAILY_TRACK')) {
         const daily = document.querySelector('.tsh-track-daily');
         if (daily) daily.classList.add('tsh-disabled');
@@ -194,7 +194,7 @@
         });
       }
     } catch (e) {
-      UI.toast('Couldn’t load site config — some links may be missing.', { kind: 'warn' });
+      UI.toast('Couldnâ€™t load site config â€” some links may be missing.', { kind: 'warn' });
       console.error(e);
     }
   })();

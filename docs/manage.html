@@ -1,14 +1,14 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Manage · TSH</title>
+  <title>Manage Â· TSH</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#1a1f2e" />
   <link rel="icon" href="./assets/images/TaLogo.png" type="image/png" />
   <script>(function(){try{var t=localStorage.getItem('tsh_theme');if(t!=='dark'&&t!=='light'&&t!=='medium')t='light';if(t!=='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="./assets/css/theme.css?v=31" />
+  <link rel="stylesheet" href="./assets/css/theme.css?v=33" />
 </head>
 <body class="tsh-page">
   <div data-include="header"></div>
@@ -34,7 +34,7 @@
           </select>
           <button type="button" class="tsh-btn tsh-btn-primary" id="applyFiltersBtn"><i class="fas fa-filter"></i>Go</button>
           <button type="button" class="tsh-btn tsh-btn-ghost" id="refreshBtn"><i class="fas fa-sync-alt"></i>Refresh</button>
-          <button type="button" class="tsh-btn tsh-btn-ghost" id="bulkArchiveBtn" hidden><i class="fas fa-box-archive"></i>Archive old tickets…</button>
+          <button type="button" class="tsh-btn tsh-btn-ghost" id="bulkArchiveBtn" hidden><i class="fas fa-box-archive"></i>Archive old ticketsâ€¦</button>
           <button type="button" class="tsh-btn tsh-btn-ghost" id="auditBtn" hidden><i class="fas fa-clipboard-list"></i>Activity log</button>
         </div>
       </header>
@@ -89,11 +89,11 @@
   <div data-include="footer"></div>
 
   <script src="./assets/js/config.js?v=11"></script>
-  <script src="./assets/js/partials.js?v=15"></script>
+  <script src="./assets/js/partials.js?v=16"></script>
   <script src="./assets/js/api.js?v=11"></script>
   <script src="./assets/js/auth.js?v=11"></script>
   <script src="./assets/js/flags.js?v=12"></script>
-  <script src="./assets/js/ui.js?v=29"></script>
+  <script src="./assets/js/ui.js?v=30"></script>
   <script src="./assets/js/visitors.js?v=2"></script>
   <script src="./assets/js/banner.js?v=1"></script>
   <script src="./assets/js/announcements.js?v=1"></script>
@@ -120,12 +120,12 @@
     const hint  = document.getElementById('dashRoleHint');
     if (isCommittee) {
       title.innerHTML = '<i class="fas fa-people-group gold-accent"></i> Manage (Committee)';
-      hint.textContent = 'Review, assign, resolve — plus delete, archive old tickets, and activity log.';
+      hint.textContent = 'Review, assign, resolve â€” plus delete, archive old tickets, and activity log.';
     }
 
     Dashboard.boot({ role: who.primary, allowDelete: isCommittee });
 
-    // Manager banner editor — visible to MANAGER+ when the flag is on.
+    // Manager banner editor â€” visible to MANAGER+ when the flag is on.
     if (window.Banner && Flags.on('FEATURE_DAILY_BANNER')) {
       const card = document.getElementById('bannerEditorCard');
       if (card) {
@@ -133,7 +133,7 @@
         Banner.mountEditor(document.getElementById('bannerEditor'));
       }
     }
-    // Announcements editor — visible to MANAGER+ when the flag is on.
+    // Announcements editor â€” visible to MANAGER+ when the flag is on.
     if (window.Announcements && Flags.on('FEATURE_DAILY_ANNOUNCEMENTS')) {
       const card = document.getElementById('annEditorCard');
       if (card) {
@@ -141,7 +141,7 @@
         Announcements.mountEditor(document.getElementById('annEditor'));
       }
     }
-    // Polls editor + voter panel — visible to MANAGER+ when the flag is on.
+    // Polls editor + voter panel â€” visible to MANAGER+ when the flag is on.
     if (window.Polls && Flags.on('FEATURE_DAILY_POLLS')) {
       const card = document.getElementById('pollsEditorCard');
       if (card) {

@@ -525,6 +525,18 @@
     const userEl  = document.querySelector('[data-tsh-user]');
     if (!signin || !signout || !userEl || !root.Auth) return;
 
+    // Item 2: sticky header gets a soft elevation once the page is scrolled
+    // past the top. CSS handles the shadow via `.is-scrolled`; we only need
+    // a 4-line passive listener. Idempotent — bindHeader is called once.
+    const headerEl = document.querySelector('.tsh-header');
+    if (headerEl) {
+      const onScroll = () => {
+        headerEl.classList.toggle('is-scrolled', (window.scrollY || 0) > 4);
+      };
+      window.addEventListener('scroll', onScroll, { passive: true });
+      onScroll();
+    }
+
     // Human labels for the role pill shown next to the signed-in email.
     // Backed by Flags.RANK ordering (DEVELOPER > COMMITTEE > MANAGER > RESIDENT).
     const ROLE_LABELS = {
@@ -539,18 +551,23 @@
       icon.className = 'fas fa-user';
       icon.setAttribute('aria-hidden', 'true');
       userEl.appendChild(icon);
+      // Wrap email + role in a single .tsh-user-text so Bundle 9's collapse
+      // animation reveals/hides them together when the userbox is hovered.
+      const text = document.createElement('span');
+      text.className = 'tsh-user-text';
       const emailEl = document.createElement('span');
       emailEl.className = 'tsh-user-email';
       emailEl.textContent = email || '';
-      userEl.appendChild(emailEl);
+      text.appendChild(emailEl);
       const showBadge = !(root.Flags && root.Flags.on && root.Flags.on('FEATURE_DAILY_USER_ROLE_BADGE') === false);
       if (showBadge && role && ROLE_LABELS[role]) {
         const badge = document.createElement('span');
         badge.className = 'tsh-user-role tsh-user-role-' + role.toLowerCase();
         badge.textContent = ROLE_LABELS[role];
         badge.title = 'Access: ' + ROLE_LABELS[role];
-        userEl.appendChild(badge);
+        text.appendChild(badge);
       }
+      userEl.appendChild(text);
     }
     function renderAnon() {
       while (userEl.firstChild) userEl.removeChild(userEl.firstChild);
@@ -558,7 +575,10 @@
       icon.className = 'fas fa-user';
       icon.setAttribute('aria-hidden', 'true');
       userEl.appendChild(icon);
-      userEl.appendChild(document.createTextNode(' Not signed in'));
+      const text = document.createElement('span');
+      text.className = 'tsh-user-text';
+      text.textContent = ' Not signed in';
+      userEl.appendChild(text);
     }
 
     // Mark the active nav entry so the gold-pill style applies (aria-current).
