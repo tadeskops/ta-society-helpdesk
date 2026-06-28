@@ -8,7 +8,7 @@
   <link rel="icon" href="./assets/images/TaLogo.png" type="image/png" />
   <script>(function(){try{var t=localStorage.getItem('tsh_theme');if(t!=='dark'&&t!=='light'&&t!=='medium')t='light';if(t!=='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="./assets/css/theme.css?v=55" />
+  <link rel="stylesheet" href="./assets/css/theme.css?v=56" />
 </head>
 <body class="tsh-page">
   <div data-include="header"></div>
@@ -134,9 +134,20 @@
     }
 
     function card(i) {
-      const head = UI.el('div', { class: 'tsh-board-card-head' },
+      // Public board cards are collapsible (default-collapsed) on every
+      // viewport — the head stays visible so the board reads as a clean
+      // scannable list; tap the head to reveal meta, body and photos.
+      const chev = UI.el('i', { class: 'fas fa-chevron-down tsh-board-card-chev', 'aria-hidden': 'true' });
+      const head = UI.el('button', {
+        type: 'button',
+        class: 'tsh-board-card-head',
+        'aria-expanded': 'false',
+      },
         UI.el('code', { class: 'tsh-id' }, i.id),
-        UI.statusPill(i.status));
+        UI.statusPill(i.status),
+        UI.el('span', { class: 'tsh-board-card-head-age' },
+          UI.formatRel(i.updatedAt || i.createdAt)),
+        chev);
       const meta = UI.el('div', { class: 'tsh-board-card-meta' },
         UI.el('span', null, i.tower || '—'),
         UI.el('span', null, ' · '),
@@ -144,15 +155,20 @@
         UI.el('span', null, ' · '),
         UI.el('span', { class: 'tsh-text-muted' }, UI.formatRel(i.updatedAt || i.createdAt)));
       const body = UI.el('p', { class: 'tsh-board-card-body' }, (i.description || '').slice(0, 200));
-      const article = UI.el('article', { class: 'tsh-board-card' }, head, meta, body);
+      const inner = UI.el('div', { class: 'tsh-board-card-inner' }, meta, body);
       const urls = Array.isArray(i.photoUrls) ? i.photoUrls : (Array.isArray(i.photos) ? i.photos : []);
       if (urls.length) {
         const thumbs = UI.el('div', { class: 'tsh-photo-grid tsh-board-thumbs' });
         for (const url of urls.slice(0, 4)) {
           thumbs.appendChild(UI.el('img', { src: url, 'data-tsh-full': url, alt: '', loading: 'lazy' }));
         }
-        article.appendChild(thumbs);
+        inner.appendChild(thumbs);
       }
+      const article = UI.el('article', { class: 'tsh-board-card is-collapsed' }, head, inner);
+      head.addEventListener('click', () => {
+        const collapsed = article.classList.toggle('is-collapsed');
+        head.setAttribute('aria-expanded', String(!collapsed));
+      });
       return article;
     }
 

@@ -4309,3 +4309,69 @@ select.tsh-tabs-mobile::-ms-expand { display: none; }
 
 /* Reserve room so long titles don't slide under the × button. */
 .tsh-modal-title { padding-right: 2.5rem; }
+
+
+/* ============================================================
+   Bundle 29 — Collapsible public-board cards (all viewports).
+
+   Every issue card in the public board defaults to COLLAPSED.
+   The head row (ID + status pill + age + chevron) is the only
+   visible strip, so the board reads as a clean scannable list
+   on desktop AND mobile. Click/tap the head to reveal meta,
+   description and photos.
+   ============================================================ */
+
+/* The head is now a <button>; strip native button chrome. */
+.tsh-board-card-head {
+  width: 100%;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  /* Existing flex layout from .tsh-board-card-head still applies via the
+     earlier rule (display:flex / align-items:center / justify-content:
+     space-between / gap). We add focus-visible affordance here. */
+}
+.tsh-board-card-head:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--c-primary) 55%, transparent);
+  outline-offset: 3px;
+  border-radius: var(--rad-sm);
+}
+
+.tsh-board-card-head-age {
+  color: var(--c-text-muted);
+  font-size: var(--fs-xs);
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.tsh-board-card-chev {
+  color: var(--c-text-muted);
+  font-size: 0.8rem;
+  margin-left: var(--sp-2);
+  transition: transform 220ms ease, color 200ms ease;
+}
+.tsh-board-card:not(.is-collapsed) .tsh-board-card-chev {
+  transform: rotate(180deg);
+  color: var(--c-primary);
+}
+
+/* The expandable region. Hidden when collapsed; revealed with a small
+   slide-in on expand. We don't animate `height: auto` (it can't) — a
+   simple opacity + display swap is good enough and keeps photos crisp. */
+.tsh-board-card-inner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding-top: var(--sp-2);
+  margin-top: var(--sp-1);
+  border-top: 1px dashed var(--c-border-soft);
+}
+.tsh-board-card.is-collapsed .tsh-board-card-inner { display: none; }
+
+/* When collapsed, drop the card's own gap so the head sits flush. */
+.tsh-board-card.is-collapsed { gap: 0; }
