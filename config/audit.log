@@ -35,3 +35,4 @@
 {"at":"2026-06-28T09:26:32.620Z","actor":"ta.deskops@gmail.com","action":"access-list:put","target":"config/committee.json","detail":"count=1"}
 {"at":"2026-06-28T09:26:36.212Z","actor":"ta.deskops@gmail.com","action":"access-list:put","target":"config/managers.json","detail":"count=2"}
 {"at":"2026-06-28T09:30:45.201Z","actor":"ta.deskops@gmail.com","action":"config:put","target":"config/site.json","detail":"version=1"}
+{"at":"2026-06-28T09:30:48.304Z","actor":"ta.deskops@gmail.com","action":"access-list:put","target":"config/developers.json","detail":"count=1"}
