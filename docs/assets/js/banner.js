@@ -37,23 +37,115 @@
     host.classList.add('tsh-banner-strip');
     host.setAttribute('role', 'status');
     host.setAttribute('aria-live', 'polite');
+    host.setAttribute('aria-atomic', 'true');
     host.hidden = true;
+
     fetchItems().then((items) => {
       if (!items.length) return;
       host.hidden = false;
+
+      // Two stacked layers (occupy same grid cell) crossfade between items;
+      // we never swap innerHTML on the visible layer mid-animation. The
+      // screen-reader copy is updated separately so AT announces each item
+      // without being spammed by animated nodes.
+      const stage = document.createElement('div');
+      stage.className = 'tsh-banner-stage';
+      const layerA = document.createElement('div');
+      const layerB = document.createElement('div');
+      layerA.className = 'tsh-banner-layer is-active is-sev-info';
+      layerB.className = 'tsh-banner-layer is-sev-info';
+      layerA.setAttribute('aria-hidden', 'true');
+      layerB.setAttribute('aria-hidden', 'true');
+      stage.append(layerA, layerB);
+
+      const dots = document.createElement('div');
+      dots.className = 'tsh-banner-dots';
+      dots.setAttribute('aria-hidden', 'true');
+
+      const sr = document.createElement('span');
+      sr.className = 'tsh-visually-hidden';
+
+      host.innerHTML = '';
+      host.append(stage, dots, sr);
+
       let i = 0;
-      const paint = () => {
-        const it = items[i % items.length];
+      let front = layerA;
+      let back = layerB;
+
+      const fillLayer = (el, it) => {
         const sev = it.severity || 'info';
         const icon = SEVERITY_ICON[sev] || SEVERITY_ICON.info;
         const body = `<i class="fas ${icon} tsh-banner-icon" aria-hidden="true"></i>` +
           `<span class="tsh-banner-text">${escapeHtml(it.text)}</span>`;
-        host.innerHTML = it.href
-          ? `<a class="tsh-banner-inner is-sev-${sev}" href="${escapeAttr(it.href)}" target="_blank" rel="noopener">${body}</a>`
-          : `<div class="tsh-banner-inner is-sev-${sev}">${body}</div>`;
+        el.classList.remove('is-sev-info', 'is-sev-warn', 'is-sev-alert');
+        el.classList.add(`is-sev-${sev}`);
+        el.innerHTML = it.href
+          ? `<a class="tsh-banner-inner" href="${escapeAttr(it.href)}" target="_blank" rel="noopener">${body}</a>`
+          : `<div class="tsh-banner-inner">${body}</div>`;
       };
-      paint();
-      if (items.length > 1) setInterval(() => { i = (i + 1) % items.length; paint(); }, ROTATE_MS);
+
+      const renderDots = () => {
+        if (items.length <= 1) { dots.hidden = true; return; }
+        dots.innerHTML = items
+          .map((_, idx) => `<span class="tsh-banner-dot${idx === i ? ' is-active' : ''}"></span>`)
+          .join('');
+      };
+
+      // Initial paint on the front layer only.
+      fillLayer(front, items[i]);
+      sr.textContent = items[i].text;
+      renderDots();
+
+      if (items.length <= 1) return;
+
+      const advance = () => {
+        i = (i + 1) % items.length;
+        fillLayer(back, items[i]);
+        sr.textContent = items[i].text;
+        // Force browser to commit the back layer's content before toggling
+        // is-active so the crossfade transition actually plays.
+        // eslint-disable-next-line no-unused-expressions
+        back.offsetWidth;
+        back.classList.add('is-active');
+        front.classList.remove('is-active');
+        const tmp = front; front = back; back = tmp;
+        renderDots();
+      };
+
+      let timer = null;
+      let paused = false;
+      let visible = true;
+      const start = () => {
+        if (timer || paused || !visible) return;
+        timer = setInterval(advance, ROTATE_MS);
+      };
+      const stop = () => {
+        if (timer) { clearInterval(timer); timer = null; }
+      };
+
+      // Pause on user attention (hover / keyboard focus).
+      host.addEventListener('mouseenter', () => { paused = true; stop(); });
+      host.addEventListener('mouseleave', () => { paused = false; start(); });
+      host.addEventListener('focusin', () => { paused = true; stop(); });
+      host.addEventListener('focusout', () => { paused = false; start(); });
+
+      // Pause when tab hidden.
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) stop(); else start();
+      });
+
+      // Pause when the banner scrolls off screen.
+      if ('IntersectionObserver' in root) {
+        const io = new IntersectionObserver((entries) => {
+          for (const e of entries) {
+            visible = e.isIntersecting;
+            if (visible) start(); else stop();
+          }
+        }, { threshold: 0.01 });
+        io.observe(host);
+      } else {
+        start();
+      }
     });
   }
 

@@ -2174,30 +2174,121 @@ html[data-theme="medium"] .tsh-dir-card {
 }
 
 /* ---- Bundle 5: rotating banner + manager editor + sidebar list ------ */
+/* Retro CRT-card rotating strip. Two stacked layers crossfade; transform
+   + opacity only (GPU). Animations pause on hover/focus/hidden-tab/off-
+   screen (see banner.js). Uses system monospace fonts — no extra network
+   cost. */
 .tsh-banner-strip {
   width: 100%;
   margin: 0 0 var(--sp-3) 0;
+  --tsh-banner-accent: 59, 130, 246;
 }
+.tsh-banner-stage {
+  position: relative;
+  display: grid;
+  grid-template-areas: "slot";
+  border-radius: var(--rad-md);
+  overflow: hidden;
+  isolation: isolate;
+}
+.tsh-banner-layer {
+  grid-area: slot;
+  display: flex;
+  align-items: stretch;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 320ms ease, transform 320ms ease;
+  will-change: opacity, transform;
+  pointer-events: none;
+}
+.tsh-banner-layer.is-active {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+.tsh-banner-layer.is-sev-info  { --tsh-banner-accent: 59, 130, 246; }
+.tsh-banner-layer.is-sev-warn  { --tsh-banner-accent: 245, 158, 11; }
+.tsh-banner-layer.is-sev-alert { --tsh-banner-accent: 220, 38, 38; }
 .tsh-banner-inner {
+  position: relative;
   display: flex;
   align-items: center;
   gap: var(--sp-2);
-  padding: 0.6em 1em;
+  width: 100%;
+  padding: 0.65em 1em 0.65em 1.1em;
+  border: 1px solid rgba(var(--tsh-banner-accent), 0.45);
+  border-left: 3px solid rgb(var(--tsh-banner-accent));
   border-radius: var(--rad-md);
-  font-size: var(--fs-sm);
+  background:
+    linear-gradient(180deg,
+      transparent 0, transparent 2px,
+      rgba(0, 0, 0, 0.05) 2px, rgba(0, 0, 0, 0.05) 3px),
+    linear-gradient(90deg,
+      rgba(var(--tsh-banner-accent), 0.18) 0%,
+      rgba(var(--tsh-banner-accent), 0.08) 100%);
+  background-size: 100% 3px, 100% 100%;
   color: var(--c-text);
+  font-family: ui-monospace, "Cascadia Mono", "JetBrains Mono", "Consolas", "Menlo", monospace;
+  font-size: var(--fs-sm);
+  letter-spacing: 0.02em;
   text-decoration: none;
-  border: 1px solid transparent;
-  animation: tsh-banner-fade 0.4s ease;
+  box-shadow: 0 0 0 1px rgba(var(--tsh-banner-accent), 0.10) inset,
+              0 0 18px -6px rgba(var(--tsh-banner-accent), 0.55);
 }
-.tsh-banner-inner.is-sev-info  { background: rgba(59,130,246,0.10); border-color: rgba(59,130,246,0.35); }
-.tsh-banner-inner.is-sev-warn  { background: rgba(245,158,11,0.12); border-color: rgba(245,158,11,0.45); }
-.tsh-banner-inner.is-sev-alert { background: rgba(220,38,38,0.12); border-color: rgba(220,38,38,0.5); }
-.tsh-banner-icon { flex: 0 0 auto; }
-.tsh-banner-text { flex: 1 1 auto; }
-@keyframes tsh-banner-fade {
-  from { opacity: 0; transform: translateY(-4px); }
-  to   { opacity: 1; transform: translateY(0); }
+.tsh-banner-inner::before {
+  content: "";
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 0.55em;
+  height: 0.55em;
+  border-radius: 50%;
+  background: rgb(var(--tsh-banner-accent));
+  box-shadow: 0 0 6px rgb(var(--tsh-banner-accent));
+  animation: tsh-banner-led 1.6s ease-in-out infinite;
+}
+a.tsh-banner-inner:hover,
+a.tsh-banner-inner:focus-visible {
+  border-color: rgba(var(--tsh-banner-accent), 0.75);
+  box-shadow: 0 0 0 1px rgba(var(--tsh-banner-accent), 0.20) inset,
+              0 0 22px -4px rgba(var(--tsh-banner-accent), 0.75);
+}
+.tsh-banner-icon {
+  flex: 0 0 auto;
+  color: rgb(var(--tsh-banner-accent));
+  text-shadow: 0 0 6px rgba(var(--tsh-banner-accent), 0.65);
+}
+.tsh-banner-text {
+  flex: 1 1 auto;
+  text-shadow: 0 0 6px rgba(var(--tsh-banner-accent), 0.25);
+}
+.tsh-banner-dots {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  margin-top: 6px;
+}
+.tsh-banner-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--c-text-muted, rgba(255, 255, 255, 0.25));
+  opacity: 0.45;
+  transition: opacity 200ms ease, transform 200ms ease;
+}
+.tsh-banner-dot.is-active {
+  opacity: 1;
+  transform: scale(1.25);
+  background: rgb(var(--tsh-banner-accent));
+  box-shadow: 0 0 6px rgba(var(--tsh-banner-accent), 0.7);
+}
+@keyframes tsh-banner-led {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.35; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tsh-banner-layer { transition: opacity 1ms linear; transform: none; }
+  .tsh-banner-layer.is-active { transform: none; }
+  .tsh-banner-inner::before { animation: none; }
 }
 /* Right-rail stacked list */
 .tsh-banner-list { display: block; }
