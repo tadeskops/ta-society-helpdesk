@@ -840,10 +840,6 @@
     };
     function renderUser(email, role) {
       while (userEl.firstChild) userEl.removeChild(userEl.firstChild);
-      const icon = document.createElement('i');
-      icon.className = 'fas fa-user';
-      icon.setAttribute('aria-hidden', 'true');
-      userEl.appendChild(icon);
       // Wrap email + role in a single .tsh-user-text so Bundle 9's collapse
       // animation reveals/hides them together when the userbox is hovered.
       const text = document.createElement('span');
@@ -864,13 +860,9 @@
     }
     function renderAnon() {
       while (userEl.firstChild) userEl.removeChild(userEl.firstChild);
-      const icon = document.createElement('i');
-      icon.className = 'fas fa-user';
-      icon.setAttribute('aria-hidden', 'true');
-      userEl.appendChild(icon);
       const text = document.createElement('span');
       text.className = 'tsh-user-text';
-      text.textContent = ' Not signed in';
+      text.textContent = 'Not signed in';
       userEl.appendChild(text);
     }
 
