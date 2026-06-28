@@ -1273,10 +1273,40 @@
     navEl.parentNode.insertBefore(sel, navEl);
   }
 
+  // ----- busyOverlay: full-screen spinner while an async action is in
+  // flight. Use when the originating button/modal has been dismissed and
+  // the user would otherwise see "nothing" while the network call runs.
+  // Usage:
+  //   const busy = UI.busyOverlay('Saving…');
+  //   try { await Api.patch(...); } finally { busy.close(); }
+  function busyOverlay(label) {
+    const text = el('div', { class: 'tsh-busy-overlay-label' }, label || 'Saving\u2026');
+    const card = el('div',
+      { class: 'tsh-busy-overlay-card', role: 'status', 'aria-live': 'polite' },
+      el('i', { class: 'fas fa-spinner fa-spin tsh-busy-overlay-spin', 'aria-hidden': 'true' }),
+      text);
+    const overlay = el('div',
+      { class: 'tsh-busy-overlay', 'aria-busy': 'true' },
+      card);
+    document.body.appendChild(overlay);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    let closed = false;
+    return {
+      close: () => {
+        if (closed) return;
+        closed = true;
+        overlay.remove();
+        document.body.style.overflow = prevOverflow;
+      },
+      setLabel: (s) => { text.textContent = s; },
+    };
+  }
+
   root.UI = {
     el, $, toast, modal, confirmModal, formatRel, copyToClipboard,
     statusPill, statusText, severityPill, bindHeader,
-    stateLoading, stateEmpty, stateError, busyButton, FilterBar,
+    stateLoading, stateEmpty, stateError, busyButton, busyOverlay, FilterBar,
     Lightbox, FontSize, ThemeSwitcher, FloatDock, IconLabel, SectionCollapse, CardCollapse,
     Draft, MyReports, PhotoTray, Tip,
     mobileifyTabs,

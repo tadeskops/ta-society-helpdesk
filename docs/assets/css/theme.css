@@ -4375,3 +4375,56 @@ select.tsh-tabs-mobile::-ms-expand { display: none; }
 
 /* When collapsed, drop the card's own gap so the head sits flush. */
 .tsh-board-card.is-collapsed { gap: 0; }
+
+
+/* ============================================================
+   Bundle 30 — Busy overlay (processing indicator).
+
+   Renders a centred card with a spinner + label while an async
+   action (issue transition, delete, etc.) is in flight, so the
+   user knows the request was sent and is still being saved.
+   ============================================================ */
+
+.tsh-busy-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;            /* above .tsh-modal (1000) so it stacks cleanly */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-4);
+  background: rgba(15, 18, 25, 0.55);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  animation: tsh-busy-overlay-fade-in 140ms ease-out;
+}
+@keyframes tsh-busy-overlay-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.tsh-busy-overlay-card {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-5);
+  background: var(--c-modal-bg, #1a1f2e);
+  border: 1px solid var(--c-border);
+  border-radius: var(--rad-xl);
+  box-shadow: var(--shadow-lg);
+  color: var(--c-text);
+  font-size: var(--fs-sm);
+  min-width: 220px;
+  max-width: 90vw;
+}
+
+.tsh-busy-overlay-spin {
+  color: var(--c-primary);
+  font-size: 1.2rem;
+}
+
+.tsh-busy-overlay-label {
+  color: var(--c-text);
+  font-weight: 500;
+  line-height: 1.4;
+}

@@ -214,11 +214,14 @@
       if (v) extra.notes = v;
     }
 
+    const busy = root.UI.busyOverlay(`Saving ${issue.id} \u2192 ${labelFor(to)}\u2026`);
     try {
       await root.Api.patch(`/issues/${encodeURIComponent(issue.id)}`, { to, ...extra });
-      root.UI.toast(`${issue.id} → ${to}`, { kind: 'success' });
+      busy.close();
+      root.UI.toast(`${issue.id} \u2192 ${labelFor(to)}`, { kind: 'success' });
       reload();
     } catch (e) {
+      busy.close();
       root.UI.toast(e.message || 'Update failed.', { kind: 'danger' });
     }
   }
@@ -226,11 +229,14 @@
   async function doDelete(issue) {
     const reason = await promptText('Reason for deletion');
     if (!reason) return;
+    const busy = root.UI.busyOverlay(`Deleting ${issue.id}\u2026`);
     try {
       await root.Api.post(`/issues/${encodeURIComponent(issue.id)}/delete`, { reason });
+      busy.close();
       root.UI.toast(`${issue.id} deleted.`, { kind: 'success' });
       reload();
     } catch (e) {
+      busy.close();
       root.UI.toast(e.message || 'Delete failed.', { kind: 'danger' });
     }
   }
