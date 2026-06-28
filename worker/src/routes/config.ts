@@ -29,10 +29,28 @@ const validateSiteShape = (raw: unknown): SiteConfig => {
   for (const [k, v] of Object.entries(raw['tunables'] as Record<string, unknown>)) {
     if (typeof v !== 'number' || !Number.isFinite(v)) throw new BadRequest(`tunables.${k} must be a number`);
   }
-  // ui block is optional but, if present, must be a plain object of strings.
+  // ui block is optional but, if present, must be a plain object. Scalar
+  // entries (defaultTheme, defaultFontScale, etc.) must be strings. The
+  // `ui.collapse` slot is reserved for the collapsible-sections registry
+  // override and accepts an object map of `{id: {collapsible:bool,
+  // defaultCollapsed:bool}}` (both fields optional).
   if (raw['ui'] !== undefined) {
     if (!isObj(raw['ui'])) throw new BadRequest('config.ui must be an object');
     for (const [k, v] of Object.entries(raw['ui'] as Record<string, unknown>)) {
+      if (k === 'collapse') {
+        if (!isObj(v)) throw new BadRequest('ui.collapse must be an object');
+        for (const [id, entry] of Object.entries(v as Record<string, unknown>)) {
+          if (!isObj(entry)) throw new BadRequest(`ui.collapse.${id} must be an object`);
+          const e = entry as Record<string, unknown>;
+          if (e.collapsible !== undefined && typeof e.collapsible !== 'boolean') {
+            throw new BadRequest(`ui.collapse.${id}.collapsible must be boolean`);
+          }
+          if (e.defaultCollapsed !== undefined && typeof e.defaultCollapsed !== 'boolean') {
+            throw new BadRequest(`ui.collapse.${id}.defaultCollapsed must be boolean`);
+          }
+        }
+        continue;
+      }
       if (typeof v !== 'string') throw new BadRequest(`ui.${k} must be a string`);
     }
   }

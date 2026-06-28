@@ -28,6 +28,12 @@
           // Re-apply with the new defaults (no-op if user already chose).
           if (root.UI && root.UI.FontSize) root.UI.FontSize.init();
           if (root.UI && root.UI.ThemeSwitcher) root.UI.ThemeSwitcher.init();
+          // Tenant overrides for collapsible sections (cfg.ui.collapse) may
+          // change first-visit state — re-run defaults now that they're
+          // loaded. No-op for sections the user has explicitly toggled.
+          if (root.UI && root.UI.SectionCollapse && root.UI.SectionCollapse.reapplyDefaults) {
+            root.UI.SectionCollapse.reapplyDefaults();
+          }
           // Apply optional logo overrides (system.logoUrl / system.logoNameUrl).
           // Blank means "keep the bundled asset".
           const sys = (c && c.system) || {};

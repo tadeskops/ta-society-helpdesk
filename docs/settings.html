@@ -114,6 +114,24 @@
        but slightly muted (description already explains the param). */
     .tsh-field-card .tsh-label { font-weight: 500; }
 
+    /* Collapsible-sections editor: tighter card, two checkboxes stacked. */
+    .tsh-collapse-card {
+      grid-template-areas:
+        "label label"
+        "desc  desc"
+        "togs  togs";
+    }
+    .tsh-collapse-card > .tsh-collapse-togs { grid-area: togs; }
+    .tsh-collapse-togs {
+      display: flex; flex-wrap: wrap; gap: .35em 1.2em;
+      margin-top: .25em;
+    }
+    .tsh-collapse-tog {
+      display: inline-flex; align-items: center; gap: .4em;
+      font-size: .88em; cursor: pointer;
+    }
+    .tsh-collapse-tog input { margin: 0; }
+
     /* Shared bottom-of-screen tip lives in theme.css (.tsh-tip) and is
        driven by UI.Tip in ui.js. No page-local styles needed. */
   </style>
@@ -260,6 +278,19 @@
             </div>
           </div>
         </details>
+
+        <details class="tsh-section">
+          <summary><h2>Collapsible sections</h2></summary>
+          <p class="tsh-hint">
+            Control which sections across the project users can collapse on mobile, and what their first-visit state should be.
+            Each entry below is defined in
+            <code>docs/assets/js/collapse-registry.js</code>
+            (developer-facing source of truth, with full descriptions). Edits saved here override the registry defaults
+            for all users; they apply within ~60 s. A user&rsquo;s explicit tap-to-collapse choice on a device always
+            wins over both registry and config.
+          </p>
+          <div class="tsh-grid-2" id="collapseGrid"></div>
+        </details>
       </form>
     </section>
   </main>
@@ -272,8 +303,9 @@
   <script src="./assets/js/partials.js?v=17"></script>
   <script src="./assets/js/api.js?v=11"></script>
   <script src="./assets/js/auth.js?v=11"></script>
-  <script src="./assets/js/flags.js?v=12"></script>
-  <script src="./assets/js/ui.js?v=34"></script>
+  <script src="./assets/js/flags.js?v=13"></script>
+  <script src="./assets/js/collapse-registry.js?v=1"></script>
+  <script src="./assets/js/ui.js?v=35"></script>
   <script src="./assets/js/visitors.js?v=2"></script>
   <script>
   (async () => {
@@ -383,6 +415,63 @@
       if (ui.defaultTheme)     form.elements['ui.defaultTheme'].value     = ui.defaultTheme;
       if (ui.defaultFontScale) form.elements['ui.defaultFontScale'].value = ui.defaultFontScale;
 
+      // ---- Collapsible sections -----------------------------------------
+      // Render one card per entry in the registry. Each card shows the
+      // friendly label, the developer description, and two toggles bound
+      // to form names `collapse.<id>.collapsible` and
+      // `collapse.<id>.defaultCollapsed`. Values are seeded from
+      // cfg.ui.collapse[id] when present, otherwise from the registry
+      // default. New collapsible sections appear here automatically as
+      // soon as they're added to collapse-registry.js.
+      const collapseGrid = document.getElementById('collapseGrid');
+      const registry = Array.isArray(window.TSH_COLLAPSE_REGISTRY) ? window.TSH_COLLAPSE_REGISTRY : [];
+      const collapseOverrides = (ui && ui.collapse && typeof ui.collapse === 'object') ? ui.collapse : {};
+      if (!registry.length) {
+        collapseGrid.appendChild(UI.el('p', { class: 'tsh-hint' },
+          'No entries in collapse-registry.js yet. Add one for each section that has data-tsh-collapsible.'));
+      }
+      for (const entry of registry) {
+        if (!entry || !entry.id) continue;
+        const ovr = collapseOverrides[entry.id] || {};
+        const collapsible = typeof ovr.collapsible === 'boolean' ? ovr.collapsible
+                          : (entry.collapsible !== false);
+        const defaultCollapsed = typeof ovr.defaultCollapsed === 'boolean' ? ovr.defaultCollapsed
+                          : !!entry.defaultCollapsed;
+
+        const head = UI.el('div', { class: 'tsh-field-head' },
+          UI.el('span', { class: 'tsh-label' }, entry.label || entry.id),
+          UI.el('code', { class: 'tsh-hint', style: 'margin-left:.4em;font-size:.78em;opacity:.7' }, '#' + entry.id),
+        );
+
+        const desc = entry.description
+          ? UI.el('small', { class: 'tsh-field-desc' }, entry.description)
+          : null;
+
+        const togCollapsible = UI.el('label', { class: 'tsh-collapse-tog' },
+          UI.el('input', {
+            type: 'checkbox',
+            name: `collapse.${entry.id}.collapsible`,
+            ...(collapsible ? { checked: '' } : {}),
+          }),
+          ' Collapsible on mobile',
+        );
+        const togDefault = UI.el('label', { class: 'tsh-collapse-tog' },
+          UI.el('input', {
+            type: 'checkbox',
+            name: `collapse.${entry.id}.defaultCollapsed`,
+            ...(defaultCollapsed ? { checked: '' } : {}),
+          }),
+          ' Default collapsed (first visit)',
+        );
+
+        const row = UI.el('div', { class: 'tsh-field tsh-field-card tsh-collapse-card' },
+          head,
+          desc,
+          UI.el('div', { class: 'tsh-collapse-togs' }, togCollapsible, togDefault),
+        );
+        collapseGrid.appendChild(row);
+      }
+
       attachHelp(form);
     }
 
@@ -427,6 +516,29 @@
       cfg.ui = cfg.ui || {};
       cfg.ui.defaultTheme     = form.elements['ui.defaultTheme'].value;
       cfg.ui.defaultFontScale = form.elements['ui.defaultFontScale'].value;
+
+      // Collapsible sections (cfg.ui.collapse[id] = {collapsible, defaultCollapsed}).
+      // Only write entries that DIFFER from the registry default so the
+      // committed config stays minimal. Removing an entry below means
+      // "fall back to the registry shipped default".
+      const registry = Array.isArray(window.TSH_COLLAPSE_REGISTRY) ? window.TSH_COLLAPSE_REGISTRY : [];
+      const collapseOut = {};
+      for (const entry of registry) {
+        if (!entry || !entry.id) continue;
+        const cEl = form.elements[`collapse.${entry.id}.collapsible`];
+        const dEl = form.elements[`collapse.${entry.id}.defaultCollapsed`];
+        if (!cEl || !dEl) continue;
+        const collapsible      = !!cEl.checked;
+        const defaultCollapsed = !!dEl.checked;
+        const regCollapsible      = entry.collapsible !== false;
+        const regDefaultCollapsed = !!entry.defaultCollapsed;
+        const out = {};
+        if (collapsible !== regCollapsible) out.collapsible = collapsible;
+        if (defaultCollapsed !== regDefaultCollapsed) out.defaultCollapsed = defaultCollapsed;
+        if (Object.keys(out).length) collapseOut[entry.id] = out;
+      }
+      if (Object.keys(collapseOut).length) cfg.ui.collapse = collapseOut;
+      else if (cfg.ui && 'collapse' in cfg.ui) delete cfg.ui.collapse;
 
       const access = {
         developers: lines(form.elements['developers'].value),

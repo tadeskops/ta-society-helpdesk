@@ -651,30 +651,81 @@
   })();
 
   // ----- SectionCollapse (mobile accordion) -------------------------------
-  // Opt-in via `data-tsh-collapsible` on any <section>. On phones (<=720px)
-  // the section's first heading becomes a tap target that toggles an
-  // `.is-collapsed` class; state is persisted per-section-id in
-  // localStorage so the user's preference survives reloads. Desktop is
-  // untouched — sections render fully open. Idempotent: re-scan is safe
-  // and required because Announcements/Events/Polls render their content
-  // after the page paints.
+  // Opt-in via `data-tsh-collapsible` on a <section>. On phones (<=720px)
+  // the section's first heading becomes a tap target that toggles
+  // `.is-collapsed`. Per-section behaviour is sourced (in precedence):
+  //   1. Explicit user toggle on this device  (localStorage tsh_collapse_user)
+  //   2. Tenant override                       (Flags.raw.ui.collapse[id])
+  //   3. Project registry                      (window.TSH_COLLAPSE_REGISTRY)
+  //   4. Fallback                              ({collapsible:true, defaultCollapsed:false})
+  // Desktop is untouched. Idempotent: re-scan is safe and required because
+  // Announcements/Events/Polls render their content after the page paints.
   const SectionCollapse = (function () {
-    const KEY = 'tsh_collapsed_sections';
+    const USER_KEY  = 'tsh_collapse_user';   // {id: 'open'|'closed'} (explicit)
+    const LEGACY_KEY = 'tsh_collapsed_sections'; // legacy [id, ...]
     const MQ = '(max-width: 720px)';
-    function readSet() {
-      try { const a = JSON.parse(localStorage.getItem(KEY) || '[]'); return new Set(Array.isArray(a) ? a : []); }
-      catch (_e) { return new Set(); }
+
+    function readUserState() {
+      try {
+        const obj = JSON.parse(localStorage.getItem(USER_KEY) || '{}');
+        if (obj && typeof obj === 'object' && !Array.isArray(obj)) return obj;
+      } catch (_e) { /* ignore */ }
+      return {};
     }
-    function writeSet(set) { try { localStorage.setItem(KEY, JSON.stringify([...set])); } catch (_e) { /* quota */ } }
+    function writeUserState(map) {
+      try { localStorage.setItem(USER_KEY, JSON.stringify(map)); } catch (_e) { /* quota */ }
+    }
+    // One-shot migration of the legacy "set of collapsed ids" format.
+    function migrateLegacy() {
+      try {
+        const raw = localStorage.getItem(LEGACY_KEY);
+        if (raw == null) return;
+        const arr = JSON.parse(raw);
+        if (Array.isArray(arr) && arr.length) {
+          const map = readUserState();
+          for (const id of arr) { if (typeof id === 'string' && !(id in map)) map[id] = 'closed'; }
+          writeUserState(map);
+        }
+        localStorage.removeItem(LEGACY_KEY);
+      } catch (_e) { /* ignore */ }
+    }
+    migrateLegacy();
+
+    // Build the {id: {collapsible, defaultCollapsed}} effective map by
+    // merging registry defaults with tenant overrides from Flags.raw.
+    function effectiveFor(id) {
+      const fallback = { collapsible: true, defaultCollapsed: false };
+      const reg = (root.TSH_COLLAPSE_REGISTRY || []).find((r) => r && r.id === id);
+      const ovr = (root.Flags && root.Flags.raw && root.Flags.raw.ui && root.Flags.raw.ui.collapse) || null;
+      const ovrEntry = ovr && typeof ovr === 'object' ? ovr[id] : null;
+      return {
+        collapsible:      ovrEntry && typeof ovrEntry.collapsible      === 'boolean' ? ovrEntry.collapsible
+                          : reg     && typeof reg.collapsible          === 'boolean' ? reg.collapsible
+                          : fallback.collapsible,
+        defaultCollapsed: ovrEntry && typeof ovrEntry.defaultCollapsed === 'boolean' ? ovrEntry.defaultCollapsed
+                          : reg     && typeof reg.defaultCollapsed     === 'boolean' ? reg.defaultCollapsed
+                          : fallback.defaultCollapsed,
+      };
+    }
+
     function findHead(section) {
       // Prefer a direct child <header>; otherwise the first heading element.
       return section.querySelector(':scope > header')
           || section.querySelector(':scope > h1, :scope > h2, :scope > h3');
     }
+
     function attach(section) {
       if (section.dataset.tshCollapseBound === '1') return;
       const head = findHead(section);
       if (!head) return;
+      const id = section.id || '';
+      const eff = effectiveFor(id);
+      if (!eff.collapsible) {
+        // Section opted out; mark bound so we don't re-evaluate, leave DOM
+        // untouched and visible.
+        section.dataset.tshCollapseBound = '1';
+        return;
+      }
       section.dataset.tshCollapseBound = '1';
       section.classList.add('tsh-collapse');
       head.classList.add('tsh-collapse-head');
@@ -688,32 +739,36 @@
         chev.setAttribute('aria-hidden', 'true');
         head.appendChild(chev);
       }
-      function setCollapsed(collapsed) {
+      function setCollapsed(collapsed, recordUser) {
         section.classList.toggle('is-collapsed', collapsed);
         head.setAttribute('aria-expanded', String(!collapsed));
-        const id = section.id;
-        if (id) {
-          const set = readSet();
-          if (collapsed) set.add(id); else set.delete(id);
-          writeSet(set);
+        if (recordUser && id) {
+          const map = readUserState();
+          map[id] = collapsed ? 'closed' : 'open';
+          writeUserState(map);
         }
       }
       head.addEventListener('click', (e) => {
         // Don't toggle if the user tapped a link/button inside the heading.
         if (e.target.closest('a, button')) return;
         if (!window.matchMedia(MQ).matches) return;
-        setCollapsed(!section.classList.contains('is-collapsed'));
+        setCollapsed(!section.classList.contains('is-collapsed'), true);
       });
       head.addEventListener('keydown', (e) => {
         if (e.key !== 'Enter' && e.key !== ' ') return;
         if (!window.matchMedia(MQ).matches) return;
         e.preventDefault();
-        setCollapsed(!section.classList.contains('is-collapsed'));
+        setCollapsed(!section.classList.contains('is-collapsed'), true);
       });
-      // Restore persisted state — only honoured on mobile so desktop never
-      // surprises the user with collapsed cards.
-      if (window.matchMedia(MQ).matches && section.id && readSet().has(section.id)) {
-        setCollapsed(true);
+      // Apply initial state on mobile: explicit user state wins, else the
+      // effective defaultCollapsed from registry/config.
+      if (window.matchMedia(MQ).matches) {
+        const userState = id ? readUserState()[id] : null;
+        if (userState === 'closed' || userState === 'open') {
+          setCollapsed(userState === 'closed', false);
+        } else if (eff.defaultCollapsed) {
+          setCollapsed(true, false);
+        }
       }
     }
     function bind(container) {
@@ -733,7 +788,25 @@
         mo.observe(s, { childList: true });
       });
     }
-    return { bind, observe };
+    // Re-evaluate defaults after Flags.ready() lands the tenant override.
+    // Only repaints sections that the user has NOT explicitly toggled, so
+    // an honest user choice is never overridden mid-page.
+    function reapplyDefaults() {
+      if (!window.matchMedia(MQ).matches) return;
+      const user = readUserState();
+      document.querySelectorAll('[data-tsh-collapsible].tsh-collapse').forEach((section) => {
+        const id = section.id || '';
+        if (user[id] === 'open' || user[id] === 'closed') return;
+        const eff = effectiveFor(id);
+        const isCollapsed = section.classList.contains('is-collapsed');
+        if (eff.defaultCollapsed !== isCollapsed) {
+          section.classList.toggle('is-collapsed', !!eff.defaultCollapsed);
+          const head = section.querySelector(':scope > .tsh-collapse-head');
+          if (head) head.setAttribute('aria-expanded', String(!eff.defaultCollapsed));
+        }
+      });
+    }
+    return { bind, observe, reapplyDefaults, effectiveFor };
   })();
 
   // Wire header sign-in/out buttons once partials are mounted + Auth init'd.
