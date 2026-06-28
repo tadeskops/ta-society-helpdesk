@@ -936,10 +936,52 @@
     };
   }
 
+  // ----- mobileifyTabs: collapse a `.tsh-tabs` segmented control into a
+  // native <select> on small screens so 5+ status tabs become one tap.
+  // Idempotent; safe to call once after tabs are wired. The CSS hides the
+  // nav and shows the select below 720px (Bundle 11). Two-way sync via
+  // MutationObserver on aria-selected — so any code path that activates
+  // a tab (URL hash, programmatic click, etc.) keeps the dropdown right.
+  function mobileifyTabs(navEl) {
+    if (!navEl || navEl.dataset.mobileTabsAttached === '1') return;
+    const tabs = Array.from(navEl.querySelectorAll('[role="tab"], .tsh-tab'));
+    if (tabs.length < 2) return;
+    navEl.dataset.mobileTabsAttached = '1';
+    navEl.classList.add('tsh-tabs--mobileable');
+
+    const sel = document.createElement('select');
+    sel.className = 'tsh-tabs-mobile';
+    sel.setAttribute('aria-label', navEl.getAttribute('aria-label') || 'Filter');
+    const labelText = (b) => {
+      // Strip icon + count chip text so the select reads cleanly.
+      const clone = b.cloneNode(true);
+      clone.querySelectorAll('i, .fa, [aria-hidden="true"], .tsh-tab-count').forEach((n) => n.remove());
+      return (clone.textContent || '').trim();
+    };
+    tabs.forEach((b, i) => {
+      const opt = document.createElement('option');
+      opt.value = String(i);
+      opt.textContent = labelText(b) || `Option ${i + 1}`;
+      if (b.getAttribute('aria-selected') === 'true' || b.classList.contains('tsh-tab-active')) sel.selectedIndex = i;
+      sel.appendChild(opt);
+    });
+    sel.addEventListener('change', () => {
+      const t = tabs[Number(sel.value)];
+      if (t) t.click();
+    });
+    const mo = new MutationObserver(() => {
+      const idx = tabs.findIndex((t) => t.getAttribute('aria-selected') === 'true' || t.classList.contains('tsh-tab-active'));
+      if (idx >= 0 && sel.selectedIndex !== idx) sel.selectedIndex = idx;
+    });
+    for (const t of tabs) mo.observe(t, { attributes: true, attributeFilter: ['aria-selected', 'class'] });
+    navEl.parentNode.insertBefore(sel, navEl);
+  }
+
   root.UI = {
     el, $, toast, modal, confirmModal, formatRel, copyToClipboard,
     statusPill, statusText, severityPill, bindHeader,
     stateLoading, stateEmpty, stateError, busyButton, FilterBar,
     Lightbox, FontSize, ThemeSwitcher, FloatDock, Draft, MyReports, PhotoTray, Tip,
+    mobileifyTabs,
   };
 })(window);
