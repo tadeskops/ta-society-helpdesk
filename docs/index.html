@@ -44,7 +44,7 @@
     <!-- 3. Quick-access tile grid. Each tile carries data-tsh-feature so
          the grid auto-rebalances when flags hide any item. Stacked variant
          (icon-on-top, centred) for senior-friendly scanability. -->
-    <section class="tsh-quick" aria-labelledby="tshQuickTitle" data-tsh-collapsible>
+    <section id="tshQuick" class="tsh-quick" aria-labelledby="tshQuickTitle" data-tsh-collapsible>
       <h2 id="tshQuickTitle" class="tsh-section-h">Quick Access</h2>
       <div class="tsh-quick-grid tsh-quick-grid--stacked">
         <a class="tsh-quick-tile" href="./public-board.html" data-tsh-feature="FEATURE_DAILY_PUBLIC_BOARD">
@@ -96,7 +96,7 @@
 
     <!-- 5. Role-aware staff strip. Revealed by Flags.whoami if the visitor
          has Manager/Committee/Developer access. -->
-    <section class="tsh-staff" data-tsh-staff data-tsh-collapsible hidden aria-labelledby="tshStaffTitle">
+    <section id="tshStaff" class="tsh-staff" data-tsh-staff data-tsh-collapsible hidden aria-labelledby="tshStaffTitle">
       <h2 id="tshStaffTitle" class="tsh-section-h">Staff actions</h2>
       <div class="tsh-quick-grid tsh-quick-grid--stacked">
         <a class="tsh-quick-tile tsh-quick-tile-staff" href="./manage.html" data-tsh-role-link="MANAGER" data-tsh-feature="FEATURE_DAILY_MANAGER_DASHBOARD" hidden>
