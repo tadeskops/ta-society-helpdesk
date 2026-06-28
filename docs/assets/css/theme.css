@@ -3332,3 +3332,16 @@ a.tsh-banner-inner:focus-visible {
 @media (max-width: 720px) {
   html, body { overflow-x: clip; }
 }
+
+/* ===== Bundle 17: Merge redundant userbox chips on mobile ==================
+   On phones (<=480px) the userbox renders icon-only:
+     - `[data-tsh-user].tsh-user-anon` shows a generic person glyph
+     - `[data-tsh-signin]` shows the orange door-arrow primary button
+   Both communicate the same thing ("you are signed out, tap to sign in"),
+   so the anon chip is redundant. Hide it on mobile and let the primary
+   button carry the affordance. When signed in the chip loses the
+   `tsh-user-anon` class (set in ui.js Auth.onChange) so the user identity
+   chip stays visible next to the Sign-out button. */
+@media (max-width: 480px) {
+  .tsh-userbox [data-tsh-user].tsh-user-anon { display: none; }
+}
