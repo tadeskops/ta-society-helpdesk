@@ -3759,7 +3759,7 @@ a.tsh-banner-inner:focus-visible {
 .tsh-kpi-delta--warn { color: var(--c-danger, #dc2626); font-weight: 600; }
 .tsh-kpi-delta--flat { color: var(--c-text-muted); }
 
-/* ----- Responsive: 2x2 below 720px, single column below 380px ----- */
+/* ----- Responsive: 2x2 below 720px, single column only on very narrow ----- */
 @media (max-width: 720px) {
   .tsh-kpi-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3773,7 +3773,7 @@ a.tsh-banner-inner:focus-visible {
   .tsh-kpi-value { font-size: 1.5rem; }
   .tsh-kpi-delta { font-size: 0.72rem; }
 }
-@media (max-width: 380px) {
+@media (max-width: 300px) {
   .tsh-kpi-list {
     grid-template-columns: 1fr;
   }
