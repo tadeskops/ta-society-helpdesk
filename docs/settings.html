@@ -8,7 +8,7 @@
   <link rel="icon" href="./assets/images/TaLogo.png" type="image/png" />
   <script>(function(){try{var t=localStorage.getItem('tsh_theme');if(t!=='dark'&&t!=='light'&&t!=='medium')t='light';if(t!=='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="./assets/css/theme.css?v=35" />
+  <link rel="stylesheet" href="./assets/css/theme.css?v=36" />
   <style>
     /* Info-icon + click-to-expand help panels for each setting */
     .tsh-info {
@@ -630,6 +630,11 @@
       'FEATURE_DAILY_KPI_DASHBOARD': {
         summary: 'KPI counter dashboard for managers and committee.',
         detail: 'Renders /manager-dashboard.html as a live tile grid (Open, New, Reviewing, Assigned, In Progress, Resolved 7d, Rejected 7d + severity breakdown). Auto-refreshes every 60 s. /committee-dashboard.html redirects here. Each tile links into the operational queue with the matching status filter.',
+        default: 'true',
+      },
+      'FEATURE_DAILY_COMMITTEE_VIEW': {
+        summary: 'Enriched committee cards on the Directory → Community tab.',
+        detail: 'When ON, entries in the contacts list that have designation / term / email / photoUrl render as richer cards with an avatar, role chip, and term badge. Entries without those fields keep the basic card. The edit modal exposes the extra fields to managers / committee / developers. When OFF, all entries render with the original basic card layout.',
         default: 'true',
       },
       'FEATURE_DAILY_SHOW_DEMO_ISSUES': {

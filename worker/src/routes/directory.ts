@@ -32,6 +32,13 @@ interface DirEntry {
   url?: string;
   description?: string;
   notes?: string;
+  // Committee-view enrichment (FEATURE_DAILY_COMMITTEE_VIEW). All optional;
+  // legacy entries without these fields fall back to the basic render.
+  designation?: string;  // e.g. "Treasurer", "Block A Rep"
+  term?: string;         // e.g. "2025-2026"
+  email?: string;
+  photoUrl?: string;     // absolute URL or repo-relative
+  sortOrder?: number;    // lower = earlier; ties broken by name
   createdAt: string;
   updatedAt: string;
 }
@@ -140,6 +147,19 @@ const sanitiseEntry = (raw: unknown, kind: 'vendor' | 'contact' | 'resource'): D
   if (description) out.description = description;
   const notes = optStr(raw['notes'], `${kind}.notes`, { max: 500 });
   if (notes) out.notes = notes;
+  // Committee-view enrichment fields (apply to contacts; ignored for others
+  // but still preserved so a future role-rename doesn't lose data).
+  const designation = optStr(raw['designation'], `${kind}.designation`, { max: 80 });
+  if (designation) out.designation = designation;
+  const term = optStr(raw['term'], `${kind}.term`, { max: 40 });
+  if (term) out.term = term;
+  const email = optStr(raw['email'], `${kind}.email`, { max: 120 });
+  if (email) out.email = email;
+  const photoUrl = optStr(raw['photoUrl'], `${kind}.photoUrl`, { max: 500 });
+  if (photoUrl) out.photoUrl = photoUrl;
+  if (typeof raw['sortOrder'] === 'number' && Number.isFinite(raw['sortOrder'])) {
+    out.sortOrder = raw['sortOrder'] as number;
+  }
   return out;
 };
 

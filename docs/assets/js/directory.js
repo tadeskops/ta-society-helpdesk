@@ -25,10 +25,17 @@
       { name: 'notes',    label: 'Notes',         type: 'textarea', max: 500 },
     ],
     contacts: [
-      { name: 'name',   label: 'Name',     type: 'text', required: true, max: 120 },
-      { name: 'role',   label: 'Role',     type: 'text', max: 80, placeholder: 'e.g. Security gate, Committee Chair' },
-      { name: 'phones', label: 'Phones',   type: 'phones', max: 30, maxCount: 5 },
-      { name: 'notes',  label: 'Notes',    type: 'textarea', max: 500 },
+      { name: 'name',        label: 'Name',          type: 'text', required: true, max: 120 },
+      { name: 'role',        label: 'Role',          type: 'text', max: 80, placeholder: 'e.g. Security gate, Committee Chair' },
+      // Committee-view enrichment (FEATURE_DAILY_COMMITTEE_VIEW). The
+      // form filters these out when the flag is OFF; the worker accepts
+      // them either way so toggling the flag never loses data.
+      { name: 'designation', label: 'Designation',   type: 'text', max: 80,  placeholder: 'e.g. Treasurer, Block A Rep', committeeOnly: true },
+      { name: 'term',        label: 'Term',          type: 'text', max: 40,  placeholder: 'e.g. 2025-2026', committeeOnly: true },
+      { name: 'email',       label: 'Email',         type: 'email', max: 120, committeeOnly: true },
+      { name: 'photoUrl',    label: 'Photo URL',     type: 'url',  max: 500, placeholder: 'https://… (square crop best)', committeeOnly: true },
+      { name: 'phones',      label: 'Phones',        type: 'phones', max: 30, maxCount: 5 },
+      { name: 'notes',       label: 'Notes',         type: 'textarea', max: 500 },
     ],
     resources: [
       { name: 'name',        label: 'Title',       type: 'text', required: true, max: 120 },
@@ -149,12 +156,24 @@
     grid.innerHTML = '';
 
     const term = searchTerm.toLowerCase();
-    const items = (state[kind] || []).filter((row) => {
+    let items = (state[kind] || []).filter((row) => {
       if (kind === 'vendors' && activeCategory && row.category !== activeCategory) return false;
       if (!term) return true;
       const blob = Object.values(row).filter((v) => typeof v === 'string').join(' ').toLowerCase();
       return blob.includes(term);
     });
+
+    // Committee tab: honour sortOrder when present (lower first), then
+    // name. Other tabs keep insertion order.
+    if (kind === 'contacts'
+        && window.Flags && Flags.on && Flags.on('FEATURE_DAILY_COMMITTEE_VIEW')) {
+      items = items.slice().sort((a, b) => {
+        const ao = Number.isFinite(a.sortOrder) ? a.sortOrder : 999;
+        const bo = Number.isFinite(b.sortOrder) ? b.sortOrder : 999;
+        if (ao !== bo) return ao - bo;
+        return String(a.name || '').localeCompare(String(b.name || ''));
+      });
+    }
 
     if (items.length === 0) {
       grid.appendChild(emptyState(kind, items.length === 0 && (state[kind] || []).length > 0));
@@ -176,7 +195,118 @@
     return div;
   }
 
+  function renderCommitteeCard(row) {
+    const card = document.createElement('article');
+    card.className = 'tsh-dir-card tsh-committee-card';
+    card.dataset.id = row.id;
+
+    // Avatar: photo if provided, otherwise initials chip.
+    const avatar = document.createElement('div');
+    avatar.className = 'tsh-committee-avatar';
+    if (row.photoUrl) {
+      const img = document.createElement('img');
+      img.src = row.photoUrl;
+      img.alt = '';
+      img.loading = 'lazy';
+      img.referrerPolicy = 'no-referrer';
+      img.onerror = () => { img.remove(); avatar.textContent = initials(row.name); };
+      avatar.appendChild(img);
+    } else {
+      avatar.textContent = initials(row.name);
+    }
+    card.appendChild(avatar);
+
+    const body = document.createElement('div');
+    body.className = 'tsh-committee-body';
+
+    const name = document.createElement('h3');
+    name.className = 'tsh-committee-name';
+    name.textContent = row.name || '(unnamed)';
+    body.appendChild(name);
+
+    if (row.designation || row.role) {
+      const d = document.createElement('div');
+      d.className = 'tsh-committee-role';
+      d.textContent = row.designation || row.role;
+      body.appendChild(d);
+    }
+
+    if (row.term) {
+      const t = document.createElement('span');
+      t.className = 'tsh-committee-term';
+      t.innerHTML = `<i class="fas fa-calendar" aria-hidden="true"></i>${escapeHtml(row.term)}`;
+      body.appendChild(t);
+    }
+
+    const contacts = document.createElement('div');
+    contacts.className = 'tsh-committee-contacts';
+    const phones = getPhones(row);
+    for (const phone of phones) {
+      const dial = telLink(phone);
+      const wa = whatsappLink(phone);
+      const line = document.createElement('div');
+      line.className = 'tsh-dir-card-line tsh-dir-card-phone';
+      line.innerHTML = `<i class="fas fa-phone" aria-hidden="true"></i>` +
+        `<span class="tsh-dir-card-phone-num">${escapeHtml(phone)}</span>` +
+        (dial ? `<a class="tsh-dir-card-call" href="${escapeHtml(dial)}" aria-label="Call ${escapeHtml(phone)}" title="Call"><i class="fas fa-phone-volume" aria-hidden="true"></i></a>` : '') +
+        (wa ? `<a class="tsh-dir-card-wa" href="${escapeHtml(wa)}" target="_blank" rel="noopener" aria-label="WhatsApp ${escapeHtml(phone)}" title="WhatsApp"><i class="fab fa-whatsapp" aria-hidden="true"></i></a>` : '');
+      contacts.appendChild(line);
+    }
+    if (row.email) {
+      const line = document.createElement('div');
+      line.className = 'tsh-dir-card-line';
+      line.innerHTML = `<i class="fas fa-envelope" aria-hidden="true"></i>` +
+        `<a class="tsh-dir-card-link" href="mailto:${escapeHtml(row.email)}">${escapeHtml(row.email)}</a>`;
+      contacts.appendChild(line);
+    }
+    if (contacts.children.length) body.appendChild(contacts);
+
+    if (row.notes) {
+      const p = document.createElement('p');
+      p.className = 'tsh-dir-card-notes';
+      p.textContent = row.notes;
+      body.appendChild(p);
+    }
+    card.appendChild(body);
+
+    if (canEdit) {
+      const actions = document.createElement('footer');
+      actions.className = 'tsh-dir-card-actions';
+      const editBtn = document.createElement('button');
+      editBtn.type = 'button';
+      editBtn.className = 'tsh-btn tsh-btn-ghost tsh-btn-sm';
+      editBtn.innerHTML = '<i class="fas fa-pen"></i>Edit';
+      editBtn.addEventListener('click', () => openForm('contacts', row));
+      const delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.className = 'tsh-btn tsh-btn-ghost tsh-btn-sm';
+      delBtn.innerHTML = '<i class="fas fa-trash"></i>Delete';
+      delBtn.addEventListener('click', () => confirmDelete('contacts', row));
+      actions.appendChild(editBtn);
+      actions.appendChild(delBtn);
+      card.appendChild(actions);
+    }
+    return card;
+  }
+
+  function initials(name) {
+    const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return '?';
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }
+
   function renderCard(kind, row) {
+    // Committee-view enriched card: only when the flag is on, the kind is
+    // contacts, and the entry actually has one of the enrichment fields.
+    // Without one of those, we fall back to the basic card so unchanged
+    // entries look exactly as before.
+    if (kind === 'contacts'
+        && window.Flags && Flags.on && Flags.on('FEATURE_DAILY_COMMITTEE_VIEW')
+        && (row.designation || row.term || row.email || row.photoUrl)) {
+      return renderCommitteeCard(row);
+    }
+
     const card = document.createElement('article');
     card.className = 'tsh-dir-card';
     card.dataset.id = row.id;
@@ -273,7 +403,14 @@
     form.className = 'tsh-dir-form';
     form.addEventListener('submit', (e) => e.preventDefault());
 
-    for (const field of SCHEMA[kind]) {
+    // Filter out fields the active feature flags don't enable. Contacts
+    // gets the enrichment fields only when FEATURE_DAILY_COMMITTEE_VIEW
+    // is on; the worker still accepts them when sent, so existing data
+    // is preserved across toggles.
+    const committeeOn = !!(window.Flags && Flags.on && Flags.on('FEATURE_DAILY_COMMITTEE_VIEW'));
+    const fields = SCHEMA[kind].filter((f) => !(f.committeeOnly && !committeeOn));
+
+    for (const field of fields) {
       const wrap = document.createElement('div');
       wrap.className = 'tsh-field';
       const label = document.createElement('span');
@@ -368,7 +505,7 @@
     }).then((choice) => {
       if (choice !== 'save') return;
       const next = {};
-      for (const field of SCHEMA[kind]) {
+      for (const field of fields) {
         if (field.type === 'phones') {
           const fs = form.querySelector(`fieldset.tsh-phones-repeater[data-field-name="${field.name}"]`);
           const arr = [];

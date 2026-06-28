@@ -54,6 +54,7 @@ export const DEFAULT_CONFIG: SiteConfig = {
     FEATURE_DAILY_MANAGER_DASHBOARD:      true,
     FEATURE_DAILY_COMMITTEE_DASHBOARD:    true,
     FEATURE_DAILY_KPI_DASHBOARD:          true,
+    FEATURE_DAILY_COMMITTEE_VIEW:         true,
     FEATURE_DAILY_SHOW_DEMO_ISSUES:       true,
     FEATURE_DAILY_DIRECTORY:              true,
     FEATURE_DAILY_BANNER:                 true,
