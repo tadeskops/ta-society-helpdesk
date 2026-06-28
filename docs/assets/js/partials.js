@@ -8,7 +8,7 @@
 (function (root) {
   'use strict';
   const cache = new Map();
-  const VERSION = 'v=5';   // bump when partials change so browsers refresh
+  const VERSION = 'v=6';   // bump when partials change so browsers refresh
 
   async function load(name) {
     if (cache.has(name)) return cache.get(name);

@@ -518,35 +518,78 @@
     },
   };
 
-  // ----- NavToggle (mobile hamburger) -------------------------------------
-  // Toggles `.is-nav-open` on the header so CSS can reveal/hide the primary
-  // nav as a dropdown panel. Closes on link click, Escape, and outside-tap.
-  const NavToggle = (function () {
+  // ----- IconLabel (mobile tap-to-reveal nav labels) ----------------------
+  // The Bundle 15 mobile header collapses nav links + sign-in/out buttons
+  // to icon-only chips. First-time visitors need a way to discover what
+  // each icon means without a hamburger menu. On phones (<=480px) the
+  // first tap on an icon expands it inline (animating width) to reveal
+  // its label; the second tap performs the action. Tapping a different
+  // icon, tapping outside, or 2.5s of inactivity collapses the preview.
+  // Expansion direction (right vs left) is picked based on remaining
+  // viewport width so the label never clips the edge.
+  const IconLabel = (function () {
+    const MQ = '(max-width: 480px)';
+    const TIMEOUT_MS = 2500;
+    const SELECTOR = '.tsh-nav a, .tsh-userbox [data-tsh-signin], .tsh-userbox [data-tsh-signout]';
+    let armed = null;
+    let timer = null;
+    function clearTimer() { if (timer) { clearTimeout(timer); timer = null; } }
+    function disarm() {
+      if (armed) {
+        armed.classList.remove('is-expanded', 'expand-left');
+        armed.setAttribute('aria-expanded', 'false');
+        armed = null;
+      }
+      clearTimer();
+    }
+    function arm(el) {
+      if (armed && armed !== el) disarm();
+      const rect = el.getBoundingClientRect();
+      const winW = window.innerWidth;
+      // Heuristic: assume the label adds ~80px to the chip. If that pushes
+      // the chip past the right edge, anchor to the right and expand left.
+      const projectedRight = rect.left + (rect.width + 80);
+      if (projectedRight > winW - 8) {
+        el.classList.add('expand-left');
+      }
+      el.classList.add('is-expanded');
+      el.setAttribute('aria-expanded', 'true');
+      armed = el;
+      clearTimer();
+      timer = setTimeout(disarm, TIMEOUT_MS);
+    }
+    function handle(e, el) {
+      if (!window.matchMedia(MQ).matches) return;
+      if (armed === el) {
+        // Confirmation tap — disarm but let the native action fire.
+        disarm();
+        return;
+      }
+      e.preventDefault();
+      e.stopPropagation();
+      arm(el);
+    }
     function bind(container) {
       const root = container || document;
-      const btn = root.querySelector('[data-tsh-nav-toggle]');
-      const header = root.querySelector('.tsh-header');
-      if (!btn || !header || btn.dataset.tshNavBound === '1') return;
-      btn.dataset.tshNavBound = '1';
-      function set(open) {
-        header.classList.toggle('is-nav-open', open);
-        btn.setAttribute('aria-expanded', String(open));
-        btn.setAttribute('aria-label', open ? 'Close navigation' : 'Open navigation');
+      root.querySelectorAll(SELECTOR).forEach((el) => {
+        if (el.dataset.tshIconLabelBound === '1') return;
+        el.dataset.tshIconLabelBound = '1';
+        el.setAttribute('aria-expanded', 'false');
+        // Capture phase so we run before the link's default navigation
+        // and before [data-tsh-signin]'s bubble-phase click handler.
+        el.addEventListener('click', (e) => handle(e, el), true);
+      });
+      if (!document.body.dataset.tshIconLabelDocBound) {
+        document.body.dataset.tshIconLabelDocBound = '1';
+        document.addEventListener('click', (e) => {
+          if (!armed) return;
+          if (e.target.closest(SELECTOR)) return;
+          disarm();
+        });
+        document.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape' && armed) disarm();
+        });
       }
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        set(!header.classList.contains('is-nav-open'));
-      });
-      header.querySelectorAll('.tsh-nav a').forEach((a) => {
-        a.addEventListener('click', () => set(false));
-      });
-      document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && header.classList.contains('is-nav-open')) set(false);
-      });
-      document.addEventListener('click', (e) => {
-        if (!header.classList.contains('is-nav-open')) return;
-        if (!header.contains(e.target)) set(false);
-      });
     }
     return { bind };
   })();
@@ -777,7 +820,7 @@
     FontSize.bind(document);
     ThemeSwitcher.bind(document);
     FloatDock.bind(document);
-    NavToggle.bind(document);
+    IconLabel.bind(document);
     SectionCollapse.observe();
     MyReports.refreshBadge();
   }
@@ -1102,7 +1145,7 @@
     el, $, toast, modal, confirmModal, formatRel, copyToClipboard,
     statusPill, statusText, severityPill, bindHeader,
     stateLoading, stateEmpty, stateError, busyButton, FilterBar,
-    Lightbox, FontSize, ThemeSwitcher, FloatDock, NavToggle, SectionCollapse,
+    Lightbox, FontSize, ThemeSwitcher, FloatDock, IconLabel, SectionCollapse,
     Draft, MyReports, PhotoTray, Tip,
     mobileifyTabs,
   };
