@@ -116,9 +116,12 @@
       const items = raw.filter((it) => isActive(it, now));
       host.innerHTML = '';
       if (!items.length) {
-        host.innerHTML = '<p class="tsh-text-muted tsh-event-empty"><i class="fas fa-calendar" aria-hidden="true"></i> No upcoming events.</p>';
+        // Hide the whole section on the home page when there's nothing
+        // to show — mirrors the announcements panel behaviour.
+        host.hidden = true;
         return;
       }
+      host.hidden = false;
       const list = document.createElement('div');
       list.className = 'tsh-event-list';
       items.forEach((it) => list.appendChild(cardEl(it)));
