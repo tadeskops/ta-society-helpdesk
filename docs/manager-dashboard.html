@@ -2,13 +2,70 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Manage · TSH</title>
+  <title>Dashboard · TSH</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta http-equiv="refresh" content="0; url=./manage.html" />
-  <link rel="canonical" href="./manage.html" />
-  <script>location.replace('./manage.html' + location.search + location.hash);</script>
+  <meta name="theme-color" content="#1a1f2e" />
+  <link rel="icon" href="./assets/images/TaLogo.png" type="image/png" />
+  <script>(function(){try{var t=localStorage.getItem('tsh_theme');if(t!=='dark'&&t!=='light'&&t!=='medium')t='light';if(t!=='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="./assets/css/theme.css?v=35" />
 </head>
-<body>
-  <p>Redirecting to <a href="./manage.html">Manage</a>…</p>
+<body class="tsh-page">
+  <div data-include="header"></div>
+  <div data-include="toast"></div>
+  <div data-include="modal"></div>
+
+  <main class="tsh-main tsh-main-wide">
+    <section class="tsh-card">
+      <header class="tsh-card-head tsh-card-head-row">
+        <div>
+          <h1 id="kpiTitle"><i class="fas fa-chart-line gold-accent"></i> Dashboard</h1>
+          <p class="tsh-sub" id="kpiSub">Live counters across all open daily-track issues. Tap a tile to jump into the queue.</p>
+        </div>
+        <div class="tsh-toolbar">
+          <a href="./manage.html" class="tsh-btn tsh-btn-primary"><i class="fas fa-list-check"></i>Manage queue</a>
+          <button type="button" class="tsh-btn tsh-btn-ghost" data-tsh-kpi-refresh><i class="fas fa-sync-alt"></i>Refresh</button>
+        </div>
+      </header>
+
+      <div id="kpiGrid"></div>
+    </section>
+  </main>
+
+  <div data-include="footer"></div>
+
+  <script src="./assets/js/config.js?v=11"></script>
+  <script src="./assets/js/partials.js?v=16"></script>
+  <script src="./assets/js/api.js?v=11"></script>
+  <script src="./assets/js/auth.js?v=11"></script>
+  <script src="./assets/js/flags.js?v=12"></script>
+  <script src="./assets/js/ui.js?v=31"></script>
+  <script src="./assets/js/visitors.js?v=2"></script>
+  <script src="./assets/js/kpi.js?v=1"></script>
+  <script>
+  (async () => {
+    await Partials.mount();
+    await Auth.init({ clientId: window.TSH_GOOGLE_CLIENT_ID });
+    UI.bindHeader();
+
+    let who;
+    try {
+      who = await Flags.ensureAuthorized('MANAGER');
+      Flags.ensureFeature('FEATURE_DAILY_KPI_DASHBOARD', 'Dashboard');
+    } catch (_e) { return; }
+
+    const isCommittee = Flags.isAtLeast(who.primary, 'COMMITTEE');
+    if (isCommittee) {
+      const title = document.getElementById('kpiTitle');
+      title.innerHTML = '<i class="fas fa-people-group gold-accent"></i> Dashboard (Committee)';
+      document.getElementById('kpiSub').textContent = 'Live counters across all open daily-track issues plus weekly trend.';
+    }
+
+    Kpi.boot({ role: who.primary, hostId: 'kpiGrid' });
+
+    if (window.Visitors && Visitors.track) Visitors.track('dashboard');
+  })();
+  </script>
 </body>
 </html>
+

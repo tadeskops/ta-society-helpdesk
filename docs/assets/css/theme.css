@@ -2837,3 +2837,90 @@ a.tsh-banner-inner:focus-visible {
     scrollbar-width: thin;
   }
 }
+
+/* ===== Bundle 12: KPI dashboard tiles (item 4) ==========================
+   Counter-tile grid for /manager-dashboard.html. Each tile is an <a> so
+   click + keyboard nav come free; the hero tile (Open total) spans 2 cols
+   on desktop. Severity-tone modifiers tint the count number to keep the
+   page readable at a glance. Auto-fit grid handles all viewports without
+   media queries. */
+.tsh-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--sp-3);
+  margin: var(--sp-3) 0;
+}
+.tsh-kpi-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: var(--sp-4) var(--sp-3);
+  border: 1px solid var(--c-border);
+  border-radius: var(--rad-md);
+  background: var(--c-card-bg);
+  color: var(--c-text);
+  text-decoration: none;
+  transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+  min-height: 88px;
+}
+.tsh-kpi-tile:hover,
+.tsh-kpi-tile:focus-visible {
+  transform: translateY(-2px);
+  border-color: var(--c-primary);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--c-shadow) 35%, transparent);
+  outline: none;
+}
+.tsh-kpi-tile-ic {
+  font-size: 18px;
+  color: var(--c-text-muted);
+  margin-bottom: 2px;
+}
+.tsh-kpi-tile-n {
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.tsh-kpi-tile-l {
+  font-size: var(--fs-sm);
+  color: var(--c-text-muted);
+  font-weight: 500;
+}
+.tsh-kpi-tile--hero {
+  grid-column: span 2;
+  background: linear-gradient(135deg,
+              color-mix(in srgb, var(--c-primary) 12%, var(--c-card-bg)),
+              var(--c-card-bg));
+  border-color: color-mix(in srgb, var(--c-primary) 40%, var(--c-border));
+}
+.tsh-kpi-tile--hero .tsh-kpi-tile-n { font-size: 44px; color: var(--c-primary); }
+.tsh-kpi-tile--hero .tsh-kpi-tile-ic { color: var(--c-primary); }
+
+.tsh-kpi-tile--crit .tsh-kpi-tile-n { color: var(--c-danger, #d33); }
+.tsh-kpi-tile--high .tsh-kpi-tile-n { color: var(--c-warning, #d97706); }
+.tsh-kpi-tile--med  .tsh-kpi-tile-n { color: var(--c-info, #0ea5e9); }
+.tsh-kpi-tile--low  .tsh-kpi-tile-n { color: var(--c-success, #16a34a); }
+
+.tsh-kpi-section-h {
+  margin: var(--sp-4) 0 var(--sp-2);
+  font-size: var(--fs-base);
+  color: var(--c-text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.tsh-kpi-grid--severity .tsh-kpi-tile { min-height: 72px; }
+.tsh-kpi-foot {
+  margin: var(--sp-3) 0 0;
+  font-size: var(--fs-xs);
+  color: var(--c-text-muted);
+  text-align: right;
+}
+
+@media (max-width: 480px) {
+  .tsh-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .tsh-kpi-tile--hero { grid-column: span 2; }
+  .tsh-kpi-tile-n { font-size: 28px; }
+  .tsh-kpi-tile--hero .tsh-kpi-tile-n { font-size: 36px; }
+}

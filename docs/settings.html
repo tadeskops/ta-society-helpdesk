@@ -627,6 +627,11 @@
         summary: 'Enable the committee dashboard page.',
         default: 'true',
       },
+      'FEATURE_DAILY_KPI_DASHBOARD': {
+        summary: 'KPI counter dashboard for managers and committee.',
+        detail: 'Renders /manager-dashboard.html as a live tile grid (Open, New, Reviewing, Assigned, In Progress, Resolved 7d, Rejected 7d + severity breakdown). Auto-refreshes every 60 s. /committee-dashboard.html redirects here. Each tile links into the operational queue with the matching status filter.',
+        default: 'true',
+      },
       'FEATURE_DAILY_SHOW_DEMO_ISSUES': {
         summary: 'Show demo issues (label seed:demo) in lists and on the public board.',
         detail: 'Demo issues are created by scripts/seed-sample-issues.mjs. Turn OFF in production to hide them without deleting. Run "node scripts/seed-sample-issues.mjs --cleanup --apply" to remove them entirely.',
