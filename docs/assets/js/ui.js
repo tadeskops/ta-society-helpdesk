@@ -54,7 +54,9 @@
         resolve(value);
       };
       const backdrop = (e) => {
-        if (e.target.matches('[data-tsh-modal-close]')) close(null);
+        // closest() so a click on the icon *inside* the × button still
+        // resolves to the close target.
+        if (e.target.closest('[data-tsh-modal-close]')) close(null);
       };
       const esc = (e) => { if (e.key === 'Escape') close(null); };
 

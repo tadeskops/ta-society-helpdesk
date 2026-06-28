@@ -4264,3 +4264,48 @@ select.tsh-tabs-mobile::-ms-expand { display: none; }
     box-sizing: border-box;
   }
 }
+
+
+/* ============================================================
+   Bundle 28 — Universal modal close button (×).
+
+   Every modal (issue detail, confirm, custom forms) now carries
+   a discoverable × button in the top-right corner so users can
+   dismiss the dialog without hunting for a Cancel button or
+   knowing the backdrop-click / Esc affordance.
+   ============================================================ */
+
+.tsh-modal-close {
+  position: absolute;
+  top: var(--sp-3);
+  right: var(--sp-3);
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  color: var(--c-text-muted);
+  font-size: 1.05rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease,
+              border-color 160ms ease, transform 160ms ease;
+}
+.tsh-modal-close:hover,
+.tsh-modal-close:focus-visible {
+  background: color-mix(in srgb, var(--c-primary) 12%, transparent);
+  color: var(--c-primary);
+  border-color: color-mix(in srgb, var(--c-primary) 35%, transparent);
+}
+.tsh-modal-close:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--c-primary) 55%, transparent);
+  outline-offset: 2px;
+}
+.tsh-modal-close:active { transform: scale(0.94); }
+
+/* Reserve room so long titles don't slide under the × button. */
+.tsh-modal-title { padding-right: 2.5rem; }
