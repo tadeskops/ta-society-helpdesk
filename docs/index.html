@@ -9,7 +9,7 @@
   <link rel="icon" href="./assets/images/TaLogo.png" type="image/png" />
   <script>(function(){try{var t=localStorage.getItem('tsh_theme');if(t!=='dark'&&t!=='light'&&t!=='medium')t='light';if(t!=='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="./assets/css/theme.css?v=45" />
+  <link rel="stylesheet" href="./assets/css/theme.css?v=46" />
 </head>
 <body class="tsh-page tsh-page-landing">
   <div data-include="header"></div>
@@ -85,7 +85,24 @@
       </div>
     </section>
 
-    <!-- 4. Information area — Announcements + (optional) Events + Polls.
+    <!-- 4. Recent issues — sleek, compact preview on the home page.
+         Shows the latest few public tickets with minimum details so
+         visitors can see what's happening at a glance without going to
+         the full Public Board. The full dashboards remain on Manage
+         (committee/developer) and Public Board (residents). Hidden when
+         the FEATURE_DAILY_PUBLIC_BOARD flag is off or the API fails. -->
+    <section id="tshRecentIssues" class="tsh-recent-issues"
+             data-tsh-feature="FEATURE_DAILY_PUBLIC_BOARD"
+             data-tsh-collapsible hidden
+             aria-labelledby="tshRecentTitle">
+      <h2 id="tshRecentTitle" class="tsh-section-h">Recent issues</h2>
+      <ul class="tsh-recent-list" data-tsh-recent-host aria-live="polite"></ul>
+      <a class="tsh-recent-more" href="./public-board.html">
+        View all on the Public Board <i class="fas fa-arrow-right" aria-hidden="true"></i>
+      </a>
+    </section>
+
+    <!-- 5. Information area — Announcements + (optional) Events + Polls.
          Each child renders its own card UI; the grid wrapper just gives
          them side-by-side flow on wider screens and stacks them on mobile. -->
     <div class="tsh-infogrid">
@@ -157,6 +174,48 @@
       // or the events module hasn't shipped yet — the section just stays
       // hidden.
       if (window.Events && window.Events.mountList) Events.mountList(document.getElementById('tshEvents'));
+
+      // Recent issues preview — sleek inline list of the latest public
+      // tickets. Senior-friendly: shows only ID + status + the first line
+      // of the description + tower/category/age. Full triage UI lives on
+      // Manage (committee/developer) and the Public Board.
+      try {
+        if (Flags.on('FEATURE_DAILY_PUBLIC_BOARD')) {
+          const section = document.getElementById('tshRecentIssues');
+          const host    = section && section.querySelector('[data-tsh-recent-host]');
+          if (host) {
+            const res = await Api.get('/issues/public');
+            const all = Array.isArray(res) ? res : (res.items || []);
+            const items = all
+              .slice()
+              .sort((a, b) => String(b.updatedAt || b.createdAt || '').localeCompare(String(a.updatedAt || a.createdAt || '')))
+              .slice(0, 5);
+            if (items.length) {
+              host.innerHTML = '';
+              for (const i of items) {
+                const firstLine = String(i.description || '').split('\n')[0].trim();
+                const titleText = firstLine ? (firstLine.length > 80 ? firstLine.slice(0, 80) + '…' : firstLine) : '(no description)';
+                const metaBits = [i.tower, i.category].filter(Boolean).join(' · ');
+                const a = UI.el('a', {
+                  class: 'tsh-recent-link',
+                  href: './public-board.html?ids=' + encodeURIComponent(i.id),
+                });
+                a.appendChild(UI.statusPill(i.status));
+                a.appendChild(UI.el('code', { class: 'tsh-recent-id' }, i.id || ''));
+                a.appendChild(UI.el('span', { class: 'tsh-recent-title' }, titleText));
+                a.appendChild(UI.el('span', { class: 'tsh-recent-age' }, UI.formatRel(i.updatedAt || i.createdAt)));
+                if (metaBits) a.appendChild(UI.el('span', { class: 'tsh-recent-meta' }, metaBits));
+                const li = UI.el('li', { class: 'tsh-recent-item' }, a);
+                host.appendChild(li);
+              }
+              section.hidden = false;
+            }
+          }
+        }
+      } catch (_e) {
+        // Silently skip — the home page is not blocked by a missing
+        // public-issues endpoint or a transient API failure.
+      }
 
       // Handover portal — only shows if the URL is wired in site.json.
       const handoverUrl = sys.handoverPortalUrl;
