@@ -30,6 +30,151 @@
       "notes": "Fittings"
     }
   ],
-  "contacts": [],
+  "contacts": [
+    {
+      "id": "ctc-cm-00000001",
+      "name": "Tanuj Dang",
+      "designation": "Chairman",
+      "role": "Committee",
+      "address": "C-1101",
+      "phones": ["+91 80070 70009"],
+      "phone": "+91 80070 70009",
+      "sortOrder": 1,
+      "createdAt": "2026-06-28T00:00:00.000Z",
+      "updatedAt": "2026-06-28T00:00:00.000Z"
+    },
+    {
+      "id": "ctc-cm-00000002",
+      "name": "Dhyanashloka Yabaluri",
+      "designation": "Secretary",
+      "role": "Committee",
+      "address": "C-702",
+      "phones": ["+91 77098 43824"],
+      "phone": "+91 77098 43824",
+      "sortOrder": 2,
+      "createdAt": "2026-06-28T00:00:00.000Z",
+      "updatedAt": "2026-06-28T00:00:00.000Z"
+    },
+    {
+      "id": "ctc-cm-00000003",
+      "name": "Amit Gupta",
+      "designation": "Treasurer",
+      "role": "Committee",
+      "address": "A-702",
+      "phones": ["+91 98105 04776"],
+      "phone": "+91 98105 04776",
+      "sortOrder": 3,
+      "createdAt": "2026-06-28T00:00:00.000Z",
+      "updatedAt": "2026-06-28T00:00:00.000Z"
+    },
+    {
+      "id": "ctc-cm-00000004",
+      "name": "Anushka Sharma",
+      "designation": "Committee Member",
+      "role": "Committee",
+      "address": "A-1103",
+      "phones": ["+91 80572 22224"],
+      "phone": "+91 80572 22224",
+      "sortOrder": 4,
+      "createdAt": "2026-06-28T00:00:00.000Z",
+      "updatedAt": "2026-06-28T00:00:00.000Z"
+    },
+    {
+      "id": "ctc-cm-00000005",
+      "name": "Dhimar Parekh",
+      "designation": "Committee Member",
+      "role": "Committee",
+      "address": "A-1202",
+      "phones": ["+91 98200 88430"],
+      "phone": "+91 98200 88430",
+      "sortOrder": 5,
+      "createdAt": "2026-06-28T00:00:00.000Z",
+      "updatedAt": "2026-06-28T00:00:00.000Z"
+    },
+    {
+      "id": "ctc-cm-00000006",
+      "name": "Arun Bhagurkar",
+      "designation": "Committee Member",
+      "role": "Committee",
+      "address": "A-501",
+      "phones": ["+91 93710 64145"],
+      "phone": "+91 93710 64145",
+      "sortOrder": 6,
+      "createdAt": "2026-06-28T00:00:00.000Z",
+      "updatedAt": "2026-06-28T00:00:00.000Z"
+    },
+    {
+      "id": "ctc-cm-00000007",
+      "name": "Gayatri Thakare",
+      "designation": "Committee Member",
+      "role": "Committee",
+      "address": "B-1005",
+      "phones": ["+91 98906 21987"],
+      "phone": "+91 98906 21987",
+      "sortOrder": 7,
+      "createdAt": "2026-06-28T00:00:00.000Z",
+      "updatedAt": "2026-06-28T00:00:00.000Z"
+    },
+    {
+      "id": "ctc-cm-00000008",
+      "name": "Sameer Hawal",
+      "designation": "Committee Member",
+      "role": "Committee",
+      "address": "B-402",
+      "phones": ["+91 93724 16275"],
+      "phone": "+91 93724 16275",
+      "sortOrder": 8,
+      "createdAt": "2026-06-28T00:00:00.000Z",
+      "updatedAt": "2026-06-28T00:00:00.000Z"
+    },
+    {
+      "id": "ctc-cm-00000009",
+      "name": "Dr. Digambar Mokat",
+      "designation": "Committee Member",
+      "role": "Committee",
+      "address": "B-404",
+      "phones": ["+91 94209 07098"],
+      "phone": "+91 94209 07098",
+      "sortOrder": 9,
+      "createdAt": "2026-06-28T00:00:00.000Z",
+      "updatedAt": "2026-06-28T00:00:00.000Z"
+    },
+    {
+      "id": "ctc-cm-00000010",
+      "name": "Haresh Hirani",
+      "designation": "Committee Member",
+      "role": "Committee",
+      "address": "B-804",
+      "phones": ["+91 99604 27183"],
+      "phone": "+91 99604 27183",
+      "sortOrder": 10,
+      "createdAt": "2026-06-28T00:00:00.000Z",
+      "updatedAt": "2026-06-28T00:00:00.000Z"
+    },
+    {
+      "id": "ctc-cm-00000011",
+      "name": "Jayant Ramdasi",
+      "designation": "Committee Member",
+      "role": "Committee",
+      "address": "C-502",
+      "phones": ["+91 97653 91490"],
+      "phone": "+91 97653 91490",
+      "sortOrder": 11,
+      "createdAt": "2026-06-28T00:00:00.000Z",
+      "updatedAt": "2026-06-28T00:00:00.000Z"
+    },
+    {
+      "id": "ctc-cm-00000012",
+      "name": "Chetan Bavaskar",
+      "designation": "Committee Member",
+      "role": "Committee",
+      "address": "C-801",
+      "phones": ["+91 70661 69967"],
+      "phone": "+91 70661 69967",
+      "sortOrder": 12,
+      "createdAt": "2026-06-28T00:00:00.000Z",
+      "updatedAt": "2026-06-28T00:00:00.000Z"
+    }
+  ],
   "resources": []
 }

@@ -240,6 +240,13 @@
 
     const contacts = document.createElement('div');
     contacts.className = 'tsh-committee-contacts';
+    if (row.address) {
+      const line = document.createElement('div');
+      line.className = 'tsh-dir-card-line tsh-dir-card-flat';
+      line.innerHTML = `<i class="fas fa-house" aria-hidden="true"></i>` +
+        `<span>${escapeHtml(row.address)}</span>`;
+      contacts.appendChild(line);
+    }
     const phones = getPhones(row);
     for (const phone of phones) {
       const dial = telLink(phone);
