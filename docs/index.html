@@ -9,7 +9,7 @@
   <link rel="icon" href="./assets/images/TaLogo.png" type="image/png" />
   <script>(function(){try{var t=localStorage.getItem('tsh_theme');if(t!=='dark'&&t!=='light'&&t!=='medium')t='light';if(t!=='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="./assets/css/theme.css?v=49" />
+  <link rel="stylesheet" href="./assets/css/theme.css?v=50" />
 </head>
 <body class="tsh-page tsh-page-landing">
   <div data-include="header"></div>
@@ -101,11 +101,15 @@
          the full Public Board. The full dashboards remain on Manage
          (committee/developer) and Public Board (residents). Hidden when
          the FEATURE_DAILY_PUBLIC_BOARD flag is off or the API fails. -->
-    <section id="tshRecentIssues" class="tsh-recent-issues"
+    <section id="tshRecentIssues" class="tsh-recent-issues tsh-ann-panel"
              data-tsh-feature="FEATURE_DAILY_PUBLIC_BOARD"
              data-tsh-collapsible hidden
              aria-labelledby="tshRecentTitle">
-      <h2 id="tshRecentTitle" class="tsh-section-h">Recent issues</h2>
+      <header class="tsh-ann-panel-head">
+        <h2 id="tshRecentTitle" class="tsh-ann-list-title">
+          <i class="fas fa-clipboard-list" aria-hidden="true"></i> Recent issues
+        </h2>
+      </header>
       <ul class="tsh-recent-list" data-tsh-recent-host aria-live="polite"></ul>
       <a class="tsh-recent-more" href="./public-board.html">
         View all on the Public Board <i class="fas fa-arrow-right" aria-hidden="true"></i>
