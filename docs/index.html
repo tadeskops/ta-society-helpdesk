@@ -9,7 +9,7 @@
   <link rel="icon" href="./assets/images/TaLogo.png" type="image/png" />
   <script>(function(){try{var t=localStorage.getItem('tsh_theme');if(t!=='dark'&&t!=='light'&&t!=='medium')t='light';if(t!=='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="./assets/css/theme.css?v=46" />
+  <link rel="stylesheet" href="./assets/css/theme.css?v=47" />
 </head>
 <body class="tsh-page tsh-page-landing">
   <div data-include="header"></div>
@@ -85,7 +85,17 @@
       </div>
     </section>
 
-    <!-- 4. Recent issues — sleek, compact preview on the home page.
+    <!-- 4. KPIs at-a-glance — sleek 4-tile strip. Computed client-side
+         from the same /issues/public payload that feeds the Recent
+         issues list below, so it's free (one round-trip). Full triage
+         dashboards remain on Manage. -->
+    <section id="tshKpi" class="tsh-kpi-strip"
+             data-tsh-feature="FEATURE_DAILY_PUBLIC_BOARD"
+             hidden aria-label="Issues at a glance">
+      <ul class="tsh-kpi-list" data-tsh-kpi-host></ul>
+    </section>
+
+    <!-- 5. Recent issues — sleek, compact preview on the home page.
          Shows the latest few public tickets with minimum details so
          visitors can see what's happening at a glance without going to
          the full Public Board. The full dashboards remain on Manage
@@ -175,23 +185,108 @@
       // hidden.
       if (window.Events && window.Events.mountList) Events.mountList(document.getElementById('tshEvents'));
 
-      // Recent issues preview — sleek inline list of the latest public
-      // tickets. Senior-friendly: shows only ID + status + the first line
-      // of the description + tower/category/age. Full triage UI lives on
-      // Manage (committee/developer) and the Public Board.
+      // Recent issues preview + KPI strip — single fetch, two widgets.
+      // KPI strip: 4 at-a-glance tiles (Open / In Progress / Resolved 7d /
+      // Breaches). Recent issues: latest 5 tickets, one row each.
+      // Senior-friendly: numbers up top, scannable rows below.
+      // Full triage UI lives on Manage and the Public Board.
       try {
         if (Flags.on('FEATURE_DAILY_PUBLIC_BOARD')) {
-          const section = document.getElementById('tshRecentIssues');
-          const host    = section && section.querySelector('[data-tsh-recent-host]');
-          if (host) {
-            const res = await Api.get('/issues/public');
-            const all = Array.isArray(res) ? res : (res.items || []);
+          const recentSec  = document.getElementById('tshRecentIssues');
+          const recentHost = recentSec && recentSec.querySelector('[data-tsh-recent-host]');
+          const kpiSec     = document.getElementById('tshKpi');
+          const kpiHost    = kpiSec && kpiSec.querySelector('[data-tsh-kpi-host]');
+
+          const res = await Api.get('/issues/public');
+          const all = Array.isArray(res) ? res : (res.items || []);
+
+          // ---- KPI computation ----------------------------------------
+          const now = Date.now();
+          const DAY = 86_400_000;
+          const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+          const t0 = todayStart.getTime();
+          const w0 = now - 7 * DAY;
+          const w1 = now - 14 * DAY;
+          const SLA_DAYS = 3; // open + older than this counts as a breach
+
+          let open = 0, inProg = 0, openToday = 0, inProgToday = 0;
+          let resolved7d = 0, resolvedPrev7d = 0, breaches = 0;
+          for (const i of all) {
+            const s = String(i.status || '').toLowerCase();
+            const created = Date.parse(i.createdAt || i.created_at || '') || 0;
+            const updated = Date.parse(i.updatedAt || i.updated_at || i.createdAt || '') || created;
+            const isOpenStatus = !['resolved', 'rejected', 'closed'].includes(s);
+            if (isOpenStatus) {
+              open++;
+              if (created >= t0) openToday++;
+              if (created && (now - created) > SLA_DAYS * DAY) breaches++;
+            }
+            if (s === 'in_progress') {
+              inProg++;
+              if (created >= t0) inProgToday++;
+            }
+            if (s === 'resolved') {
+              if (updated >= w0) resolved7d++;
+              else if (updated >= w1) resolvedPrev7d++;
+            }
+          }
+          const resolvedDelta = resolved7d - resolvedPrev7d;
+
+          if (kpiHost) {
+            const tiles = [
+              {
+                key: 'open', tone: 'primary', icon: 'fa-screwdriver-wrench',
+                label: 'Open issues', value: open,
+                delta: openToday > 0 ? { dir: 'up', text: openToday + ' today' } : { dir: 'flat', text: 'No new today' },
+              },
+              {
+                key: 'progress', tone: 'info', icon: 'fa-clipboard-list',
+                label: 'In progress', value: inProg,
+                delta: inProgToday > 0 ? { dir: 'up', text: inProgToday + ' today' } : { dir: 'flat', text: 'Live' },
+              },
+              {
+                key: 'resolved', tone: 'success', icon: 'fa-circle-check',
+                label: 'Resolved (7d)', value: resolved7d,
+                delta: resolvedDelta === 0
+                  ? { dir: 'flat', text: 'Same as last week' }
+                  : { dir: resolvedDelta > 0 ? 'up' : 'down', text: Math.abs(resolvedDelta) + ' vs last week' },
+              },
+              {
+                key: 'breaches', tone: breaches > 0 ? 'danger' : 'success', icon: breaches > 0 ? 'fa-triangle-exclamation' : 'fa-shield-check',
+                label: 'Breaches', value: breaches,
+                delta: breaches > 0
+                  ? { dir: 'warn', text: 'Needs attention' }
+                  : { dir: 'flat', text: 'All on track' },
+              },
+            ];
+            kpiHost.innerHTML = '';
+            for (const t of tiles) {
+              const arrow = t.delta.dir === 'up' ? 'fa-arrow-up'
+                         : t.delta.dir === 'down' ? 'fa-arrow-down'
+                         : t.delta.dir === 'warn' ? 'fa-circle-exclamation'
+                         : 'fa-minus';
+              const icon  = UI.el('span', { class: 'tsh-kpi-icon tsh-kpi-icon--' + t.tone },
+                                  UI.el('i', { class: 'fas ' + t.icon, 'aria-hidden': 'true' }));
+              const label = UI.el('span', { class: 'tsh-kpi-label' }, t.label);
+              const value = UI.el('span', { class: 'tsh-kpi-value' }, String(t.value));
+              const delta = UI.el('span', { class: 'tsh-kpi-delta tsh-kpi-delta--' + t.delta.dir },
+                                  UI.el('i', { class: 'fas ' + arrow, 'aria-hidden': 'true' }),
+                                  ' ', t.delta.text);
+              const li = UI.el('li', { class: 'tsh-kpi-card tsh-kpi-card--' + t.tone, 'data-kpi': t.key },
+                               icon, label, value, delta);
+              kpiHost.appendChild(li);
+            }
+            kpiSec.hidden = false;
+          }
+
+          // ---- Recent issues list -------------------------------------
+          if (recentHost) {
             const items = all
               .slice()
               .sort((a, b) => String(b.updatedAt || b.createdAt || '').localeCompare(String(a.updatedAt || a.createdAt || '')))
               .slice(0, 5);
             if (items.length) {
-              host.innerHTML = '';
+              recentHost.innerHTML = '';
               for (const i of items) {
                 const firstLine = String(i.description || '').split('\n')[0].trim();
                 const titleText = firstLine ? (firstLine.length > 80 ? firstLine.slice(0, 80) + '…' : firstLine) : '(no description)';
@@ -206,9 +301,9 @@
                 a.appendChild(UI.el('span', { class: 'tsh-recent-age' }, UI.formatRel(i.updatedAt || i.createdAt)));
                 if (metaBits) a.appendChild(UI.el('span', { class: 'tsh-recent-meta' }, metaBits));
                 const li = UI.el('li', { class: 'tsh-recent-item' }, a);
-                host.appendChild(li);
+                recentHost.appendChild(li);
               }
-              section.hidden = false;
+              recentSec.hidden = false;
             }
           }
         }
