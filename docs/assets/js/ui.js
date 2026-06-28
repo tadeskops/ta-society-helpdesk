@@ -594,6 +594,62 @@
     return { bind };
   })();
 
+  // ----- CardCollapse (hero track cards) ----------------------------------
+  // Each `.tsh-track-card` is a single-tap navigation anchor. On phones we
+  // inject a small chevron button so the visitor can collapse a card to
+  // just its icon + title row, hiding the description and CTA. The
+  // chevron's click is stopped so the card itself still navigates when
+  // tapped on body/CTA. State is per-card-href so it survives reloads.
+  const CardCollapse = (function () {
+    const KEY = 'tsh_collapsed_cards';
+    function readSet() {
+      try { const a = JSON.parse(localStorage.getItem(KEY) || '[]'); return new Set(Array.isArray(a) ? a : []); }
+      catch (_e) { return new Set(); }
+    }
+    function writeSet(s) {
+      try { localStorage.setItem(KEY, JSON.stringify(Array.from(s))); } catch (_e) {}
+    }
+    function keyFor(card) {
+      return card.getAttribute('data-tsh-card-id') ||
+             card.getAttribute('href') ||
+             card.querySelector('h2')?.textContent.trim() ||
+             '';
+    }
+    function bind(card) {
+      if (card.dataset.tshCardCollapseBound === '1') return;
+      card.dataset.tshCardCollapseBound = '1';
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'tsh-card-collapse';
+      btn.setAttribute('aria-label', 'Collapse card');
+      btn.setAttribute('aria-expanded', 'true');
+      btn.innerHTML = '<i class="fas fa-chevron-up" aria-hidden="true"></i>';
+      const k = keyFor(card);
+      const collapsed = readSet();
+      if (k && collapsed.has(k)) {
+        card.classList.add('is-collapsed');
+        btn.setAttribute('aria-expanded', 'false');
+        btn.setAttribute('aria-label', 'Expand card');
+      }
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const isCollapsed = card.classList.toggle('is-collapsed');
+        btn.setAttribute('aria-expanded', String(!isCollapsed));
+        btn.setAttribute('aria-label', isCollapsed ? 'Expand card' : 'Collapse card');
+        if (!k) return;
+        const set = readSet();
+        if (isCollapsed) set.add(k); else set.delete(k);
+        writeSet(set);
+      });
+      card.appendChild(btn);
+    }
+    function init(container) {
+      (container || document).querySelectorAll('.tsh-track-card').forEach(bind);
+    }
+    return { init };
+  })();
+
   // ----- SectionCollapse (mobile accordion) -------------------------------
   // Opt-in via `data-tsh-collapsible` on any <section>. On phones (<=720px)
   // the section's first heading becomes a tap target that toggles an
@@ -822,6 +878,7 @@
     FloatDock.bind(document);
     IconLabel.bind(document);
     SectionCollapse.observe();
+    CardCollapse.init(document);
     MyReports.refreshBadge();
   }
 
@@ -1145,7 +1202,7 @@
     el, $, toast, modal, confirmModal, formatRel, copyToClipboard,
     statusPill, statusText, severityPill, bindHeader,
     stateLoading, stateEmpty, stateError, busyButton, FilterBar,
-    Lightbox, FontSize, ThemeSwitcher, FloatDock, IconLabel, SectionCollapse,
+    Lightbox, FontSize, ThemeSwitcher, FloatDock, IconLabel, SectionCollapse, CardCollapse,
     Draft, MyReports, PhotoTray, Tip,
     mobileifyTabs,
   };
