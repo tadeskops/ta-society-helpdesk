@@ -4240,16 +4240,27 @@ select.tsh-tabs-mobile::-ms-expand { display: none; }
 
 /* --- 3. Clearer mobile View action ------------------------------------ */
 
+/* Bundle 27.1 — Bundle 25 set the wrap to `justify-content: flex-end`
+   which, combined with the button's `white-space: nowrap` from .tsh-btn,
+   pushed the "View & take action" pill *off the left edge* of the card on
+   narrow phones (flex right-anchored content overflows toward the start).
+   Anchor the wrap to stretch and let the button fill the card. */
 @media (max-width: 720px) {
   .tsh-table td.tsh-actions-col .tsh-row-actions {
-    /* Stretch the View button across the card so the tap target is
-       obvious — the inner button inherits flex:1 below. */
+    display: flex;
+    width: 100%;
+    justify-content: stretch;
     gap: var(--sp-2);
   }
   .tsh-table td.tsh-actions-col .tsh-row-actions .tsh-btn {
-    flex: 1 1 auto;
+    flex: 1 1 0;
+    width: 100%;
+    min-width: 0;
     min-height: 42px;
     font-size: 0.95rem;
-    padding-inline: var(--sp-4);
+    padding-inline: var(--sp-3);
+    white-space: normal;
+    overflow-wrap: anywhere;
+    box-sizing: border-box;
   }
 }
