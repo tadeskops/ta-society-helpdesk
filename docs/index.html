@@ -9,7 +9,7 @@
   <link rel="icon" href="./assets/images/TaLogo.png" type="image/png" />
   <script>(function(){try{var t=localStorage.getItem('tsh_theme');if(t!=='dark'&&t!=='light'&&t!=='medium')t='light';if(t!=='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="./assets/css/theme.css?v=33" />
+  <link rel="stylesheet" href="./assets/css/theme.css?v=34" />
 </head>
 <body class="tsh-page tsh-page-landing">
   <div data-include="header"></div>
@@ -127,7 +127,7 @@
   <script src="./assets/js/ui.js?v=30"></script>
   <script src="./assets/js/visitors.js?v=2"></script>
   <script src="./assets/js/banner.js?v=1"></script>
-  <script src="./assets/js/announcements.js?v=1"></script>
+  <script src="./assets/js/announcements.js?v=2"></script>
   <script src="./assets/js/polls.js?v=1"></script>
   <script>
   (async () => {
@@ -144,8 +144,18 @@
       if (window.Banner) Banner.mountStrip(document.getElementById('tshBannerStrip'));
       // Developer-toggled announcements section.
       if (window.Announcements) Announcements.mountList(document.getElementById('tshAnnouncements'));
-      // Polls (per-signed-in vote, SVG bar charts).
-      if (window.Polls) Polls.mountList(document.getElementById('tshPolls'));
+      // Polls (per-signed-in vote, SVG bar charts). The landing renders the
+      // compact density variant â€” strips expiry chips, alias/flat inputs and
+      // tightens spacing for a minimalist read. polls.js honours the
+      // [data-density] attribute via CSS only; the editor on Manage is
+      // unaffected.
+      const pollsHost = document.getElementById('tshPolls');
+      if (pollsHost) pollsHost.setAttribute('data-density', 'compact');
+      if (window.Polls) Polls.mountList(pollsHost);
+      // Upcoming events (compact list). No-op when FEATURE_DAILY_EVENTS is off
+      // or the events module hasn't shipped yet â€” the section just stays
+      // hidden.
+      if (window.Events && window.Events.mountList) Events.mountList(document.getElementById('tshEvents'));
 
       // Handover portal â€” only shows if the URL is wired in site.json.
       const handoverUrl = sys.handoverPortalUrl;

@@ -2621,3 +2621,162 @@ a.tsh-banner-inner:focus-visible {
   .tsh-userbox .tsh-btn-label,
   .tsh-userbox .tsh-btn { transition: none; }
 }
+
+/* ===== Bundle 10: rotating announcements + compact polls density ========
+   Item 8: announcements widget becomes a single-card carousel with
+   crossfade between two stacked layers, prev/next chevrons, dot
+   indicators and a "1 / N" counter. Pauses on hover, focus, document
+   blur and viewport-exit (set by announcements.js).
+   Item 9: polls + events panels get a `[data-density="compact"]`
+   variant for the landing page that strips secondary chrome and
+   tightens spacing for a minimalist read.
+
+   Configurable: the carousel only activates when there are 2+ items;
+   single items render as a static card. Reduced-motion users get a
+   stacked list instead. */
+
+.tsh-ann-panel {
+  padding: var(--sp-4);
+  border: 1px solid var(--c-border);
+  border-radius: var(--rad-md);
+  background: var(--c-card-bg);
+}
+.tsh-ann-panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
+}
+.tsh-ann-panel-head .tsh-ann-list-title { margin: 0; font-size: 1.1rem; }
+.tsh-ann-counter {
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--c-text-muted);
+  white-space: nowrap;
+}
+.tsh-ann-stage {
+  position: relative;
+  display: grid;
+  grid-template-areas: "slot";
+  min-height: 120px;
+}
+.tsh-ann-layer {
+  grid-area: slot;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 380ms ease, transform 380ms ease;
+  pointer-events: none;
+}
+.tsh-ann-layer.is-active {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+.tsh-ann-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-top: var(--sp-3);
+}
+.tsh-ann-nav {
+  background: transparent;
+  border: 1px solid var(--c-border);
+  color: var(--c-text-muted);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+.tsh-ann-nav:hover { color: var(--c-primary); border-color: var(--c-primary); }
+.tsh-ann-dots {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+.tsh-ann-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  border: 1px solid var(--c-border);
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+.tsh-ann-dot.is-active {
+  background: var(--c-primary);
+  border-color: var(--c-primary);
+  transform: scale(1.15);
+}
+@media (prefers-reduced-motion: reduce) {
+  .tsh-ann-layer { transition: none; transform: none; }
+  .tsh-ann-dot { transition: none; }
+}
+
+/* (Item 9) Compact polls density — for use on the landing only. The
+   manage-polls editor and any dedicated page keep the full layout. */
+.tsh-polls-list[data-density="compact"] { padding: var(--sp-3); }
+.tsh-polls-list[data-density="compact"] .tsh-polls-title { font-size: 1rem; margin-bottom: var(--sp-2); }
+.tsh-polls-list[data-density="compact"] .tsh-poll-card { padding: var(--sp-2) var(--sp-3); }
+.tsh-polls-list[data-density="compact"] .tsh-poll-card-head h3 { font-size: 0.95rem; }
+.tsh-polls-list[data-density="compact"] .tsh-poll-card-head small { display: none; } /* drop expiry chip */
+.tsh-polls-list[data-density="compact"] .tsh-poll-bar { height: 10px; }
+.tsh-polls-list[data-density="compact"] .tsh-poll-vote-btn { grid-template-columns: 1fr 1fr auto; min-height: 36px; padding: 6px 10px; }
+.tsh-polls-list[data-density="compact"] .tsh-poll-extras { display: none; }   /* hide alias/flat inputs in landing */
+.tsh-polls-list[data-density="compact"] + .tsh-polls-footer { margin-top: var(--sp-2); }
+
+/* (Item 9) Compact events list — used by events.js mountList on landing.
+   Markup: <ol class="tsh-events-list"> with <li class="tsh-event-row">
+   containing .tsh-event-date (chip) + .tsh-event-body (title + venue). */
+.tsh-events-panel {
+  padding: var(--sp-4);
+  border: 1px solid var(--c-border);
+  border-radius: var(--rad-md);
+  background: var(--c-card-bg);
+}
+.tsh-events-panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
+}
+.tsh-events-panel-head h2 { margin: 0; font-size: 1.1rem; color: var(--c-text); }
+.tsh-events-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: var(--sp-2);
+}
+.tsh-event-row {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  gap: var(--sp-3);
+  align-items: flex-start;
+  padding: var(--sp-2) 0;
+  border-bottom: 1px dashed var(--c-border);
+}
+.tsh-event-row:last-child { border-bottom: 0; }
+.tsh-event-date {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 4px;
+  border-radius: var(--rad-sm);
+  background: var(--c-surface-2);
+  color: var(--c-text);
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+.tsh-event-date .tsh-event-day { font-size: 1.1rem; font-weight: 700; color: var(--c-primary); }
+.tsh-event-date .tsh-event-mon { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--c-text-muted); }
+.tsh-event-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tsh-event-title { font-weight: 600; color: var(--c-text); }
+.tsh-event-meta { font-size: var(--fs-xs); color: var(--c-text-muted); }

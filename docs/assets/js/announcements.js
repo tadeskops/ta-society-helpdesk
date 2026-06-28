@@ -20,24 +20,154 @@
     fetchList().then((items) => {
       if (!items.length) { host.hidden = true; return; }
       host.hidden = false;
-      // Pinned first, then by createdAt desc.
+      // Sort: pinned first, then newest by createdAt.
       items = items.slice().sort((a, b) => {
         if ((b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) !== 0) return (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0);
         return (b.createdAt || '').localeCompare(a.createdAt || '');
       });
-      const head = `<h2 class="tsh-ann-list-title"><i class="fas fa-newspaper"></i> Announcements</h2>`;
-      const cards = items.map((it) => `
-        <article class="tsh-ann-card${it.pinned ? ' is-pinned' : ''}">
-          <header class="tsh-ann-card-head">
-            ${it.pinned ? '<i class="fas fa-thumbtack tsh-ann-pin" aria-label="Pinned"></i>' : ''}
-            <h3>${escapeHtml(it.title)}</h3>
-            <time class="tsh-ann-card-time">${it.createdAt ? new Date(it.createdAt).toLocaleDateString() : ''}</time>
-          </header>
-          <div class="tsh-ann-card-body">${escapeHtml(it.body).replace(/\n/g, '<br>')}</div>
-        </article>
-      `).join('');
-      host.innerHTML = `${head}<div class="tsh-ann-list-cards">${cards}</div>`;
+
+      // Item 8: rotating single-card carousel mirroring the banner widget.
+      // Two stacked layers crossfade so the text never reflows mid-rotation.
+      // Auto-rotation pauses on hover, keyboard focus, tab blur, or when the
+      // panel scrolls out of the viewport. Reduced-motion users see all
+      // items stacked vertically (no rotation, no transition).
+      const ROTATE_MS = 8000;
+      const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      // Build chrome (header + stage + controls).
+      host.innerHTML = '';
+      host.classList.add('tsh-ann-panel');
+
+      const head = document.createElement('header');
+      head.className = 'tsh-ann-panel-head';
+      head.innerHTML = '<h2 class="tsh-ann-list-title"><i class="fas fa-newspaper" aria-hidden="true"></i> Announcements</h2>';
+      const counter = document.createElement('span');
+      counter.className = 'tsh-ann-counter';
+      counter.setAttribute('aria-live', 'polite');
+      head.appendChild(counter);
+      host.appendChild(head);
+
+      // Reduced-motion → stacked list, no carousel.
+      if (reduceMotion || items.length === 1) {
+        const list = document.createElement('div');
+        list.className = 'tsh-ann-list-cards';
+        items.forEach((it) => list.appendChild(cardEl(it)));
+        host.appendChild(list);
+        counter.textContent = items.length > 1 ? `${items.length} items` : '';
+        return;
+      }
+
+      const stage = document.createElement('div');
+      stage.className = 'tsh-ann-stage';
+      const layerA = document.createElement('div');
+      const layerB = document.createElement('div');
+      layerA.className = 'tsh-ann-layer is-active';
+      layerB.className = 'tsh-ann-layer';
+      stage.append(layerA, layerB);
+      host.appendChild(stage);
+
+      const controls = document.createElement('div');
+      controls.className = 'tsh-ann-controls';
+      const prev = document.createElement('button');
+      prev.type = 'button'; prev.className = 'tsh-ann-nav'; prev.setAttribute('aria-label', 'Previous announcement');
+      prev.innerHTML = '<i class="fas fa-chevron-left" aria-hidden="true"></i>';
+      const next = document.createElement('button');
+      next.type = 'button'; next.className = 'tsh-ann-nav'; next.setAttribute('aria-label', 'Next announcement');
+      next.innerHTML = '<i class="fas fa-chevron-right" aria-hidden="true"></i>';
+      const dots = document.createElement('div');
+      dots.className = 'tsh-ann-dots';
+      const dotEls = items.map((_, i) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'tsh-ann-dot';
+        b.setAttribute('aria-label', `Show announcement ${i + 1} of ${items.length}`);
+        b.addEventListener('click', () => { goTo(i); restartTimer(); });
+        dots.appendChild(b);
+        return b;
+      });
+      controls.append(prev, dots, next);
+      host.appendChild(controls);
+
+      // State.
+      let idx = 0;
+      let active = layerA;
+      let back = layerB;
+      let timer = null;
+      let paused = false;
+
+      fillLayer(active, items[0]);
+      updateChrome();
+
+      function fillLayer(el, it) { el.innerHTML = ''; el.appendChild(cardEl(it)); }
+      function updateChrome() {
+        counter.textContent = `${idx + 1} / ${items.length}`;
+        dotEls.forEach((d, i) => d.classList.toggle('is-active', i === idx));
+      }
+      function goTo(targetIdx) {
+        const n = items.length;
+        const t = ((targetIdx % n) + n) % n;
+        if (t === idx) return;
+        fillLayer(back, items[t]);
+        // Force reflow so the transition runs from the new starting state.
+        // eslint-disable-next-line no-unused-expressions
+        back.offsetWidth;
+        back.classList.add('is-active');
+        active.classList.remove('is-active');
+        const tmp = active; active = back; back = tmp;
+        idx = t;
+        updateChrome();
+      }
+      function tick() { if (!paused) goTo(idx + 1); }
+      function startTimer() { stopTimer(); timer = setInterval(tick, ROTATE_MS); }
+      function stopTimer() { if (timer) { clearInterval(timer); timer = null; } }
+      function restartTimer() { startTimer(); }
+
+      prev.addEventListener('click', () => { goTo(idx - 1); restartTimer(); });
+      next.addEventListener('click', () => { goTo(idx + 1); restartTimer(); });
+
+      // Pause on hover/focus.
+      host.addEventListener('mouseenter', () => { paused = true; });
+      host.addEventListener('mouseleave', () => { paused = false; });
+      host.addEventListener('focusin',    () => { paused = true; });
+      host.addEventListener('focusout',   () => { paused = false; });
+      // Pause when tab not visible.
+      document.addEventListener('visibilitychange', () => { paused = document.hidden; });
+      // Pause when out of viewport (saves CPU on long pages).
+      if ('IntersectionObserver' in window) {
+        const io = new IntersectionObserver((entries) => {
+          for (const e of entries) paused = !e.isIntersecting;
+        }, { threshold: 0.2 });
+        io.observe(host);
+      }
+
+      startTimer();
     });
+  }
+
+  function cardEl(it) {
+    const article = document.createElement('article');
+    article.className = 'tsh-ann-card' + (it.pinned ? ' is-pinned' : '');
+    const head = document.createElement('header');
+    head.className = 'tsh-ann-card-head';
+    if (it.pinned) {
+      const pin = document.createElement('i');
+      pin.className = 'fas fa-thumbtack tsh-ann-pin';
+      pin.setAttribute('aria-label', 'Pinned');
+      head.appendChild(pin);
+    }
+    const h3 = document.createElement('h3');
+    h3.textContent = it.title || '';
+    head.appendChild(h3);
+    const time = document.createElement('time');
+    time.className = 'tsh-ann-card-time';
+    time.textContent = it.createdAt ? new Date(it.createdAt).toLocaleDateString() : '';
+    head.appendChild(time);
+    article.appendChild(head);
+    const body = document.createElement('div');
+    body.className = 'tsh-ann-card-body';
+    body.innerHTML = escapeHtml(it.body || '').replace(/\n/g, '<br>');
+    article.appendChild(body);
+    return article;
   }
 
   async function mountEditor(host) {
