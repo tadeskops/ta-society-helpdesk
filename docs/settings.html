@@ -652,6 +652,11 @@
         detail: 'Each poll has a question + N options. Signed-in users vote once per poll (vote stored under their email). Polls auto-close at the configured expiry. Public visitors see results but cannot vote.',
         default: 'true',
       },
+      'FEATURE_DAILY_EVENTS': {
+        summary: 'Upcoming community events panel on the landing page (yoga, monthly meeting, environment day, etc.).',
+        detail: 'Renders the Quick Access "Upcoming Events" tile and an information-area panel under it. OFF by default — the events authoring module is not yet shipped, so leave OFF until an editor is added. Tile and panel auto-hide when the flag is off; no broken UI.',
+        default: 'false',
+      },
       'FEATURE_DAILY_FLOATING_PALETTE': {
         summary: 'Show the floating display palette (theme + text-size) on every page.',
         detail: 'Tucks itself off the right edge with a small gold-tab affordance. Hover (desktop) or tap (touch) to expand; auto-collapses after 2.8s. Can be dragged to any position. Turn OFF to hide entirely on pages.',

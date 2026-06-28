@@ -9,7 +9,7 @@
   <link rel="icon" href="./assets/images/TaLogo.png" type="image/png" />
   <script>(function(){try{var t=localStorage.getItem('tsh_theme');if(t!=='dark'&&t!=='light'&&t!=='medium')t='light';if(t!=='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="./assets/css/theme.css?v=31" />
+  <link rel="stylesheet" href="./assets/css/theme.css?v=32" />
 </head>
 <body class="tsh-page tsh-page-landing">
   <div data-include="header"></div>
@@ -17,122 +17,101 @@
   <div data-include="modal"></div>
 
   <main class="tsh-main">
+    <!-- 1. Rotating manager-curated notice strip (full-width). -->
     <div id="tshBannerStrip" hidden></div>
-    <section id="tshAnnouncements" hidden></section>
-    <section id="tshPolls" hidden></section>
-    <section class="tsh-hero">
-      <div class="tsh-hero-brand" data-tsh-brand>
-        <span class="tsh-hero-mark" aria-hidden="true">
-          <img src="./assets/images/TaLogo.png" alt="" width="96" height="96" data-tsh-logo />
-        </span>
-        <span class="tsh-hero-wordmark" data-tsh-wordmark>
-          <span class="tsh-hero-wordmark-title">THE&nbsp;ADDRESS</span>
-          <span class="tsh-hero-wordmark-rule" aria-hidden="true"></span>
-          <span class="tsh-hero-wordmark-sub">Society Helpdesk</span>
-        </span>
-        <img class="tsh-hero-wordmark-img" src="./assets/images/TaLogoName.png" alt="The Address" data-tsh-logo-name hidden />
+
+    <!-- 2. Primary actions — the two reporting tracks. Always the most
+         prominent thing on the page. Daily uses class-based disable so the
+         card stays visible but greyed when FEATURE_DAILY_TRACK is off. -->
+    <section class="tsh-actions" aria-labelledby="tshActionsTitle">
+      <h1 id="tshActionsTitle" class="tsh-section-h">What would you like to do today?</h1>
+      <div class="tsh-card-grid">
+        <a class="tsh-track-card tsh-track-daily" href="./daily-report.html">
+          <span class="tsh-track-icon" aria-hidden="true"><i class="fas fa-screwdriver-wrench"></i></span>
+          <h2>Report Daily Issue</h2>
+          <p>Lift, water, lights, cleaning, security &amp; more.</p>
+          <span class="tsh-cta">Report now <i class="fas fa-arrow-right"></i></span>
+        </a>
+        <a class="tsh-track-card tsh-track-handover" data-tsh-handover-link href="#" hidden>
+          <span class="tsh-track-icon" aria-hidden="true"><i class="fas fa-building"></i></span>
+          <h2>Society Handover Related Issue</h2>
+          <p>Report builder / warranty defects via the TA Issue Manager.</p>
+          <span class="tsh-cta">Open handover portal <i class="fas fa-arrow-up-right-from-square"></i></span>
+        </a>
       </div>
-      <h1>How can the helpdesk serve you today?</h1>
-      <p class="tsh-sub">A single place for daily issues, society contacts and community resources — everything tracked, nothing lost.</p>
     </section>
 
-    <!-- Primary actions: the two reporting tracks. Always prominent.
-         Daily uses class-based disable (not data-tsh-feature) so the card
-         stays visible but greyed when FEATURE_DAILY_TRACK is off. -->
-    <section class="tsh-card-grid" aria-label="Report tracks">
-      <a class="tsh-track-card tsh-track-daily" href="./daily-report.html">
-        <span class="tsh-track-icon" aria-hidden="true"><i class="fas fa-screwdriver-wrench"></i></span>
-        <h2>Daily issue</h2>
-        <p>Lift, water, lights, cleaning, security — anything that needs the manager's attention today.</p>
-        <span class="tsh-cta">Report now <i class="fas fa-arrow-right"></i></span>
-      </a>
-      <a class="tsh-track-card tsh-track-handover" data-tsh-handover-link href="#" hidden>
-        <span class="tsh-track-icon" aria-hidden="true"><i class="fas fa-building"></i></span>
-        <h2>Handover snag</h2>
-        <p>Construction defects and builder warranty work go to the TA Committee tracker.</p>
-        <span class="tsh-cta">Open handover portal <i class="fas fa-arrow-up-right-from-square"></i></span>
-      </a>
-    </section>
-
-    <!-- Quick-access tile grid. Each tile is gated by a feature flag and
-         self-hides when the flag is off. Add a new tile by adding a new
-         <a> with data-tsh-feature and tsh-quick-* modifier. -->
-    <section class="tsh-quick" aria-label="Quick access">
-      <header class="tsh-quick-head">
-        <p class="tsh-eyebrow">Quick access</p>
-        <h2 class="tsh-quick-title">Find what you need</h2>
-      </header>
-      <div class="tsh-quick-grid">
+    <!-- 3. Quick-access tile grid. Each tile carries data-tsh-feature so
+         the grid auto-rebalances when flags hide any item. Stacked variant
+         (icon-on-top, centred) for senior-friendly scanability. -->
+    <section class="tsh-quick" aria-labelledby="tshQuickTitle">
+      <h2 id="tshQuickTitle" class="tsh-section-h">Quick Access</h2>
+      <div class="tsh-quick-grid tsh-quick-grid--stacked">
         <a class="tsh-quick-tile" href="./public-board.html" data-tsh-feature="FEATURE_DAILY_PUBLIC_BOARD">
           <span class="tsh-quick-icon"><i class="fas fa-list-check"></i></span>
           <span class="tsh-quick-body">
-            <span class="tsh-quick-h">Public board</span>
-            <span class="tsh-quick-d">Open issues, status updates, who's on it.</span>
+            <span class="tsh-quick-h">Public Issues</span>
+            <span class="tsh-quick-d">See what's reported</span>
           </span>
-          <i class="fas fa-arrow-right tsh-quick-arrow" aria-hidden="true"></i>
         </a>
-
-        <a class="tsh-quick-tile" href="./directory.html" data-tsh-feature="FEATURE_DAILY_DIRECTORY">
-          <span class="tsh-quick-icon"><i class="fas fa-address-book"></i></span>
+        <a class="tsh-quick-tile" href="./directory.html#vendors" data-tsh-feature="FEATURE_DAILY_DIRECTORY">
+          <span class="tsh-quick-icon"><i class="fas fa-address-card"></i></span>
           <span class="tsh-quick-body">
-            <span class="tsh-quick-h">Society directory</span>
-            <span class="tsh-quick-d">Trusted vendors, committee, security, useful links.</span>
+            <span class="tsh-quick-h">Vendor Contacts</span>
+            <span class="tsh-quick-d">Important numbers</span>
           </span>
-          <i class="fas fa-arrow-right tsh-quick-arrow" aria-hidden="true"></i>
         </a>
-
-        <a class="tsh-quick-tile" href="./public-board.html?my=1" data-tsh-myreports hidden>
-          <span class="tsh-quick-icon"><i class="fas fa-bookmark"></i></span>
+        <a class="tsh-quick-tile" href="./directory.html#committee" data-tsh-feature="FEATURE_DAILY_DIRECTORY">
+          <span class="tsh-quick-icon"><i class="fas fa-people-group"></i></span>
           <span class="tsh-quick-body">
-            <span class="tsh-quick-h">My reports</span>
-            <span class="tsh-quick-d">Track tickets you raised from this device.</span>
+            <span class="tsh-quick-h">Management Committee</span>
+            <span class="tsh-quick-d">Who's who</span>
           </span>
-          <i class="fas fa-arrow-right tsh-quick-arrow" aria-hidden="true"></i>
         </a>
-
-        <a class="tsh-quick-tile" data-tsh-weekly-report href="#" hidden>
-          <span class="tsh-quick-icon"><i class="fas fa-file-lines"></i></span>
+        <a class="tsh-quick-tile" href="#tshEvents" data-tsh-feature="FEATURE_DAILY_EVENTS" hidden>
+          <span class="tsh-quick-icon"><i class="fas fa-calendar-days"></i></span>
           <span class="tsh-quick-body">
-            <span class="tsh-quick-h">Weekly report</span>
-            <span class="tsh-quick-d">PDF summary of the past 7 days.</span>
+            <span class="tsh-quick-h">Upcoming Events</span>
+            <span class="tsh-quick-d">What's coming up</span>
           </span>
-          <i class="fas fa-arrow-up-right-from-square tsh-quick-arrow" aria-hidden="true"></i>
         </a>
-
-        <a class="tsh-quick-tile" data-tsh-fullreport href="#" hidden>
-          <span class="tsh-quick-icon"><i class="fas fa-file-pdf"></i></span>
+        <a class="tsh-quick-tile" href="#tshPolls" data-tsh-feature="FEATURE_DAILY_POLLS">
+          <span class="tsh-quick-icon"><i class="fas fa-square-poll-vertical"></i></span>
           <span class="tsh-quick-body">
-            <span class="tsh-quick-h">Full report</span>
-            <span class="tsh-quick-d">Complete archive of resolved tickets.</span>
+            <span class="tsh-quick-h">Polls</span>
+            <span class="tsh-quick-d">Vote &amp; feedback</span>
           </span>
-          <i class="fas fa-arrow-up-right-from-square tsh-quick-arrow" aria-hidden="true"></i>
         </a>
       </div>
     </section>
 
-    <!-- Role-aware staff strip. Revealed by Flags.whoami if the visitor
+    <!-- 4. Information area — Announcements + (optional) Events + Polls.
+         Each child renders its own card UI; the grid wrapper just gives
+         them side-by-side flow on wider screens and stacks them on mobile. -->
+    <div class="tsh-infogrid">
+      <section id="tshAnnouncements" hidden></section>
+      <section id="tshEvents" data-tsh-feature="FEATURE_DAILY_EVENTS" hidden></section>
+      <section id="tshPolls" hidden></section>
+    </div>
+
+    <!-- 5. Role-aware staff strip. Revealed by Flags.whoami if the visitor
          has Manager/Committee/Developer access. -->
-    <section class="tsh-staff" data-tsh-staff hidden aria-label="Staff actions">
-      <header class="tsh-staff-head">
-        <p class="tsh-eyebrow">Staff</p>
-        <h2 class="tsh-quick-title">Manage the society</h2>
-      </header>
-      <div class="tsh-quick-grid">
+    <section class="tsh-staff" data-tsh-staff hidden aria-labelledby="tshStaffTitle">
+      <h2 id="tshStaffTitle" class="tsh-section-h">Staff actions</h2>
+      <div class="tsh-quick-grid tsh-quick-grid--stacked">
         <a class="tsh-quick-tile tsh-quick-tile-staff" href="./manage.html" data-tsh-role-link="MANAGER" data-tsh-feature="FEATURE_DAILY_MANAGER_DASHBOARD" hidden>
           <span class="tsh-quick-icon"><i class="fas fa-user-shield"></i></span>
           <span class="tsh-quick-body">
             <span class="tsh-quick-h">Manage tickets</span>
-            <span class="tsh-quick-d">Triage, assign, resolve daily issues.</span>
+            <span class="tsh-quick-d">Triage, assign, resolve</span>
           </span>
-          <i class="fas fa-arrow-right tsh-quick-arrow" aria-hidden="true"></i>
         </a>
         <a class="tsh-quick-tile tsh-quick-tile-staff" href="./settings.html" data-tsh-role-link="DEVELOPER" hidden>
           <span class="tsh-quick-icon"><i class="fas fa-sliders"></i></span>
           <span class="tsh-quick-body">
             <span class="tsh-quick-h">Settings</span>
-            <span class="tsh-quick-d">Feature flags, lists, access, system.</span>
+            <span class="tsh-quick-d">Feature flags &amp; access</span>
           </span>
-          <i class="fas fa-arrow-right tsh-quick-arrow" aria-hidden="true"></i>
         </a>
       </div>
     </section>

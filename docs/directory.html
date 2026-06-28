@@ -9,7 +9,7 @@
   <link rel="icon" href="./assets/images/TaLogo.png" type="image/png" />
   <script>(function(){try{var t=localStorage.getItem('tsh_theme');if(t!=='dark'&&t!=='light'&&t!=='medium')t='light';if(t!=='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="./assets/css/theme.css?v=31" />
+  <link rel="stylesheet" href="./assets/css/theme.css?v=32" />
 </head>
 <body class="tsh-page">
   <div data-include="header"></div>
@@ -116,6 +116,20 @@
     const canEdit = ['MANAGER', 'COMMITTEE', 'DEVELOPER'].includes(who.primary);
 
     Directory.init({ canEdit });
+
+    // Deep-link: landing's Quick Access tiles use directory.html#vendors and
+    // directory.html#committee to jump straight to the right tab. Map any
+    // committee alias onto the contacts tab (committee members live there).
+    const HASH_TO_TAB = { vendors: 'vendors', committee: 'contacts', contacts: 'contacts', resources: 'resources' };
+    const activateFromHash = () => {
+      const key = (location.hash || '').replace('#', '').toLowerCase();
+      const tab = HASH_TO_TAB[key];
+      if (!tab) return;
+      const btn = document.querySelector('[data-dir-tab="' + tab + '"]');
+      if (btn && btn.getAttribute('aria-selected') !== 'true') btn.click();
+    };
+    activateFromHash();
+    window.addEventListener('hashchange', activateFromHash);
   })();
   </script>
 </body>

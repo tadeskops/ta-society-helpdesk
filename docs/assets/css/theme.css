@@ -2442,3 +2442,92 @@ a.tsh-banner-inner:focus-visible {
   .tsh-poll-vote-btn { grid-template-columns: 1fr; gap: 4px; }
   .tsh-poll-pct { text-align: left; }
 }
+
+/* ===== Bundle 8: landing layout refactor (reference parity) =============
+   Reorganises the landing page into: notice strip → "What would you like
+   to do today?" + two action cards → Quick Access (icon-on-top tiles) →
+   Information area (Announcements / Events / Polls side-by-side) → Staff.
+   Pure layout — no palette / typography / radius / shadow changes. */
+
+.tsh-section-h {
+  margin: 0 0 var(--sp-4);
+  font-size: var(--fs-xl);
+  font-weight: 600;
+  color: var(--c-text);
+  letter-spacing: 0.005em;
+}
+.tsh-actions { margin-bottom: var(--sp-8); }
+
+/* Tighter landing top padding — the giant hero is gone, so the action
+   cards should sit closer to the notice strip. */
+.tsh-page-landing .tsh-main { padding-top: var(--sp-6); }
+@media (min-width: 640px) {
+  .tsh-page-landing .tsh-main { padding-top: var(--sp-8); }
+}
+
+/* Stacked quick-access variant — icon-on-top, centred, no arrow. Uses
+   auto-fit so the row rebalances naturally when feature flags hide any
+   tile. Each tile keeps a ≥44px tap target on every breakpoint. */
+.tsh-quick-grid--stacked {
+  grid-template-columns: repeat(2, 1fr);
+}
+@media (min-width: 720px) {
+  .tsh-quick-grid--stacked {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
+}
+.tsh-quick-grid--stacked .tsh-quick-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  text-align: center;
+  gap: var(--sp-2);
+  padding: var(--sp-5) var(--sp-3);
+  min-height: 132px;
+}
+.tsh-quick-grid--stacked .tsh-quick-icon {
+  width: 56px;
+  height: 56px;
+  font-size: 1.5rem;
+  margin-bottom: var(--sp-1);
+}
+.tsh-quick-grid--stacked .tsh-quick-body {
+  align-items: center;
+  gap: 4px;
+}
+.tsh-quick-grid--stacked .tsh-quick-h {
+  font-size: var(--fs-base);
+  line-height: 1.25;
+}
+.tsh-quick-grid--stacked .tsh-quick-d {
+  font-size: var(--fs-xs);
+}
+.tsh-quick-grid--stacked .tsh-quick-arrow {
+  display: none;
+}
+
+/* Information area — Announcements / Events / Polls. Each child <section>
+   renders its own card UI; this wrapper just provides side-by-side flow on
+   wider screens and natural stacking on mobile. Empty/hidden children are
+   removed from the grid so it auto-rebalances. */
+.tsh-infogrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--sp-5);
+  margin-bottom: var(--sp-8);
+}
+@media (min-width: 768px) {
+  .tsh-infogrid {
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  }
+}
+.tsh-infogrid > section[hidden] { display: none !important; }
+
+/* Anchor-jump offset so the sticky header doesn't cover info targets. */
+#tshAnnouncements, #tshEvents, #tshPolls { scroll-margin-top: calc(var(--header-h) + var(--sp-3)); }
+
+@media (prefers-reduced-motion: reduce) {
+  .tsh-quick-tile,
+  .tsh-track-card { transition: none; }
+}
