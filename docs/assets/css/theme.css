@@ -4565,3 +4565,37 @@ select.tsh-tabs-mobile::-ms-expand { display: none; }
   .tsh-id-desc { display: none; }
   .tsh-id-col  { max-width: none; }
 }
+
+
+/* ============================================================
+   Bundle 32 — Unified brand block across viewports.
+
+   Bundle 19 used to hide the desktop .tsh-brand-name /
+   .tsh-brand-tag on phones and swap in a separate
+   .tsh-brand-mobile node. The brand is now consistent across
+   all viewports ("The Address" / "Society Help Desk") so the
+   mobile-only swap is no longer needed — re-show the desktop
+   block on phones with a slightly smaller size.
+   ============================================================ */
+
+@media (max-width: 480px) {
+  .tsh-brand-name,
+  .tsh-brand-tag {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .tsh-brand-name {
+    color: var(--c-primary);
+    font-weight: 700;
+    font-size: 1.05rem;
+    letter-spacing: 0.01em;
+  }
+  .tsh-brand-tag {
+    color: var(--c-text-muted);
+    font-size: 0.72rem;
+    letter-spacing: 0.03em;
+    margin-top: 1px;
+  }
+}
