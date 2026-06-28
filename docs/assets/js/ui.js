@@ -518,6 +518,125 @@
     },
   };
 
+  // ----- NavToggle (mobile hamburger) -------------------------------------
+  // Toggles `.is-nav-open` on the header so CSS can reveal/hide the primary
+  // nav as a dropdown panel. Closes on link click, Escape, and outside-tap.
+  const NavToggle = (function () {
+    function bind(container) {
+      const root = container || document;
+      const btn = root.querySelector('[data-tsh-nav-toggle]');
+      const header = root.querySelector('.tsh-header');
+      if (!btn || !header || btn.dataset.tshNavBound === '1') return;
+      btn.dataset.tshNavBound = '1';
+      function set(open) {
+        header.classList.toggle('is-nav-open', open);
+        btn.setAttribute('aria-expanded', String(open));
+        btn.setAttribute('aria-label', open ? 'Close navigation' : 'Open navigation');
+      }
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        set(!header.classList.contains('is-nav-open'));
+      });
+      header.querySelectorAll('.tsh-nav a').forEach((a) => {
+        a.addEventListener('click', () => set(false));
+      });
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && header.classList.contains('is-nav-open')) set(false);
+      });
+      document.addEventListener('click', (e) => {
+        if (!header.classList.contains('is-nav-open')) return;
+        if (!header.contains(e.target)) set(false);
+      });
+    }
+    return { bind };
+  })();
+
+  // ----- SectionCollapse (mobile accordion) -------------------------------
+  // Opt-in via `data-tsh-collapsible` on any <section>. On phones (<=720px)
+  // the section's first heading becomes a tap target that toggles an
+  // `.is-collapsed` class; state is persisted per-section-id in
+  // localStorage so the user's preference survives reloads. Desktop is
+  // untouched — sections render fully open. Idempotent: re-scan is safe
+  // and required because Announcements/Events/Polls render their content
+  // after the page paints.
+  const SectionCollapse = (function () {
+    const KEY = 'tsh_collapsed_sections';
+    const MQ = '(max-width: 720px)';
+    function readSet() {
+      try { const a = JSON.parse(localStorage.getItem(KEY) || '[]'); return new Set(Array.isArray(a) ? a : []); }
+      catch (_e) { return new Set(); }
+    }
+    function writeSet(set) { try { localStorage.setItem(KEY, JSON.stringify([...set])); } catch (_e) { /* quota */ } }
+    function findHead(section) {
+      // Prefer a direct child <header>; otherwise the first heading element.
+      return section.querySelector(':scope > header')
+          || section.querySelector(':scope > h1, :scope > h2, :scope > h3');
+    }
+    function attach(section) {
+      if (section.dataset.tshCollapseBound === '1') return;
+      const head = findHead(section);
+      if (!head) return;
+      section.dataset.tshCollapseBound = '1';
+      section.classList.add('tsh-collapse');
+      head.classList.add('tsh-collapse-head');
+      head.setAttribute('role', 'button');
+      head.setAttribute('tabindex', '0');
+      head.setAttribute('aria-expanded', 'true');
+      // Chevron indicator appended once.
+      if (!head.querySelector('.tsh-collapse-chev')) {
+        const chev = document.createElement('i');
+        chev.className = 'fas fa-chevron-down tsh-collapse-chev';
+        chev.setAttribute('aria-hidden', 'true');
+        head.appendChild(chev);
+      }
+      function setCollapsed(collapsed) {
+        section.classList.toggle('is-collapsed', collapsed);
+        head.setAttribute('aria-expanded', String(!collapsed));
+        const id = section.id;
+        if (id) {
+          const set = readSet();
+          if (collapsed) set.add(id); else set.delete(id);
+          writeSet(set);
+        }
+      }
+      head.addEventListener('click', (e) => {
+        // Don't toggle if the user tapped a link/button inside the heading.
+        if (e.target.closest('a, button')) return;
+        if (!window.matchMedia(MQ).matches) return;
+        setCollapsed(!section.classList.contains('is-collapsed'));
+      });
+      head.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        if (!window.matchMedia(MQ).matches) return;
+        e.preventDefault();
+        setCollapsed(!section.classList.contains('is-collapsed'));
+      });
+      // Restore persisted state — only honoured on mobile so desktop never
+      // surprises the user with collapsed cards.
+      if (window.matchMedia(MQ).matches && section.id && readSet().has(section.id)) {
+        setCollapsed(true);
+      }
+    }
+    function bind(container) {
+      const root = container || document;
+      root.querySelectorAll('[data-tsh-collapsible]').forEach(attach);
+    }
+    // Async sections (Announcements/Events/Polls) render their <header>
+    // after the initial paint. Watch each opted-in section for child
+    // additions and re-attach so the first child becomes the head as soon
+    // as it appears.
+    function observe() {
+      bind(document);
+      document.querySelectorAll('[data-tsh-collapsible]').forEach((s) => {
+        if (s.dataset.tshCollapseObs === '1') return;
+        s.dataset.tshCollapseObs = '1';
+        const mo = new MutationObserver(() => attach(s));
+        mo.observe(s, { childList: true });
+      });
+    }
+    return { bind, observe };
+  })();
+
   // Wire header sign-in/out buttons once partials are mounted + Auth init'd.
   function bindHeader() {
     const signin  = document.querySelector('[data-tsh-signin]');
@@ -658,6 +777,8 @@
     FontSize.bind(document);
     ThemeSwitcher.bind(document);
     FloatDock.bind(document);
+    NavToggle.bind(document);
+    SectionCollapse.observe();
     MyReports.refreshBadge();
   }
 
@@ -981,7 +1102,8 @@
     el, $, toast, modal, confirmModal, formatRel, copyToClipboard,
     statusPill, statusText, severityPill, bindHeader,
     stateLoading, stateEmpty, stateError, busyButton, FilterBar,
-    Lightbox, FontSize, ThemeSwitcher, FloatDock, Draft, MyReports, PhotoTray, Tip,
+    Lightbox, FontSize, ThemeSwitcher, FloatDock, NavToggle, SectionCollapse,
+    Draft, MyReports, PhotoTray, Tip,
     mobileifyTabs,
   };
 })(window);

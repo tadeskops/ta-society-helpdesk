@@ -9,7 +9,7 @@
   <link rel="icon" href="./assets/images/TaLogo.png" type="image/png" />
   <script>(function(){try{var t=localStorage.getItem('tsh_theme');if(t!=='dark'&&t!=='light'&&t!=='medium')t='light';if(t!=='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="./assets/css/theme.css?v=41" />
+  <link rel="stylesheet" href="./assets/css/theme.css?v=42" />
 </head>
 <body class="tsh-page tsh-page-landing">
   <div data-include="header"></div>
@@ -44,7 +44,7 @@
     <!-- 3. Quick-access tile grid. Each tile carries data-tsh-feature so
          the grid auto-rebalances when flags hide any item. Stacked variant
          (icon-on-top, centred) for senior-friendly scanability. -->
-    <section class="tsh-quick" aria-labelledby="tshQuickTitle">
+    <section class="tsh-quick" aria-labelledby="tshQuickTitle" data-tsh-collapsible>
       <h2 id="tshQuickTitle" class="tsh-section-h">Quick Access</h2>
       <div class="tsh-quick-grid tsh-quick-grid--stacked">
         <a class="tsh-quick-tile" href="./public-board.html" data-tsh-feature="FEATURE_DAILY_PUBLIC_BOARD">
@@ -89,14 +89,14 @@
          Each child renders its own card UI; the grid wrapper just gives
          them side-by-side flow on wider screens and stacks them on mobile. -->
     <div class="tsh-infogrid">
-      <section id="tshAnnouncements" hidden></section>
-      <section id="tshEvents" data-tsh-feature="FEATURE_DAILY_EVENTS" hidden></section>
-      <section id="tshPolls" hidden></section>
+      <section id="tshAnnouncements" data-tsh-collapsible hidden></section>
+      <section id="tshEvents" data-tsh-feature="FEATURE_DAILY_EVENTS" data-tsh-collapsible hidden></section>
+      <section id="tshPolls" data-tsh-collapsible hidden></section>
     </div>
 
     <!-- 5. Role-aware staff strip. Revealed by Flags.whoami if the visitor
          has Manager/Committee/Developer access. -->
-    <section class="tsh-staff" data-tsh-staff hidden aria-labelledby="tshStaffTitle">
+    <section class="tsh-staff" data-tsh-staff data-tsh-collapsible hidden aria-labelledby="tshStaffTitle">
       <h2 id="tshStaffTitle" class="tsh-section-h">Staff actions</h2>
       <div class="tsh-quick-grid tsh-quick-grid--stacked">
         <a class="tsh-quick-tile tsh-quick-tile-staff" href="./manage.html" data-tsh-role-link="MANAGER" data-tsh-feature="FEATURE_DAILY_MANAGER_DASHBOARD" hidden>
@@ -120,11 +120,11 @@
   <div data-include="footer"></div>
 
   <script src="./assets/js/config.js?v=11"></script>
-  <script src="./assets/js/partials.js?v=16"></script>
+  <script src="./assets/js/partials.js?v=17"></script>
   <script src="./assets/js/api.js?v=11"></script>
   <script src="./assets/js/auth.js?v=11"></script>
   <script src="./assets/js/flags.js?v=12"></script>
-  <script src="./assets/js/ui.js?v=31"></script>
+  <script src="./assets/js/ui.js?v=32"></script>
   <script src="./assets/js/visitors.js?v=2"></script>
   <script src="./assets/js/banner.js?v=1"></script>
   <script src="./assets/js/announcements.js?v=3"></script>

@@ -3372,3 +3372,187 @@ a.tsh-banner-inner:focus-visible {
     letter-spacing: 0.03em;
   }
 }
+
+/* ===== Bundle 19: Mobile brand swap + hamburger nav + collapsible sections =
+   Phones (<=480px) get a re-prioritised brand block: the property name
+   leads ("The Address") and the product name supports it ("Society
+   Helpdesk") below. The desktop name+tag stay in DOM as accessible labels
+   but are hidden visually.
+   Tablet/phone (<=720px) the primary nav collapses behind a hamburger
+   toggle wired by ui.js#NavToggle â€” header.classList `is-nav-open`
+   reveals the nav as a vertical dropdown panel below the header row,
+   so the page starts uncluttered.
+   Sections opting in with `data-tsh-collapsible` become tap-to-collapse
+   on the same breakpoint. Heading gets a chevron + button affordance;
+   the section body height animates closed via grid-rows from 1fr to 0fr.
+   State persisted in localStorage (tsh_collapsed_sections). */
+
+/* --- 1. Mobile brand block ----------------------------------------------- */
+.tsh-brand-mobile { display: none; }
+
+@media (max-width: 480px) {
+  .tsh-brand-name,
+  .tsh-brand-tag { display: none; }
+  .tsh-brand-mobile {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.1;
+    min-width: 0;
+  }
+  .tsh-brand-mobile-primary {
+    color: var(--c-primary);
+    font-weight: 700;
+    font-size: 1.05rem;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .tsh-brand-mobile-sub {
+    color: var(--c-text-muted);
+    font-size: 0.72rem;
+    letter-spacing: 0.03em;
+    margin-top: 1px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+/* --- 2. Hamburger toggle + dropdown nav ---------------------------------- */
+.tsh-nav-toggle { display: none; }
+
+@media (max-width: 720px) {
+  .tsh-nav-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border-radius: var(--rad-sm);
+    border: 1px solid var(--c-border-soft);
+    background: transparent;
+    color: var(--c-text);
+    cursor: pointer;
+    flex: 0 0 auto;
+    order: 3;
+    transition: background 160ms ease, color 160ms ease, border-color 160ms ease;
+  }
+  .tsh-nav-toggle:hover,
+  .tsh-nav-toggle:focus-visible {
+    background: var(--c-surface-2);
+    color: var(--c-primary);
+    border-color: color-mix(in srgb, var(--c-primary) 35%, var(--c-border-soft));
+    outline: none;
+  }
+  .tsh-nav-toggle[aria-expanded="true"] {
+    background: color-mix(in srgb, var(--c-primary) 18%, transparent);
+    color: var(--c-primary);
+    border-color: color-mix(in srgb, var(--c-primary) 45%, var(--c-border-soft));
+  }
+  .tsh-userbox { order: 2; }
+  /* Hide nav by default; CSS dropdown panel when toggled open. */
+  .tsh-header .tsh-nav { display: none; }
+  .tsh-header.is-nav-open .tsh-nav {
+    display: flex;
+    flex-direction: column;
+    order: 99;
+    flex: 0 0 100%;
+    background: var(--c-surface-1, rgba(255,255,255,0.03));
+    border: 1px solid var(--c-border-soft);
+    border-radius: var(--rad-md);
+    padding: 6px;
+    gap: 2px;
+    overflow: hidden;
+    animation: tshNavFade 160ms ease;
+  }
+  .tsh-header.is-nav-open .tsh-nav a {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    font-size: 0.95rem;
+    white-space: nowrap;
+    border: 0;
+    border-radius: var(--rad-sm);
+    background: transparent;
+  }
+  .tsh-header.is-nav-open .tsh-nav a > i {
+    font-size: 1rem;
+    width: 18px;
+    text-align: center;
+    color: var(--c-text-muted);
+  }
+  .tsh-header.is-nav-open .tsh-nav a[aria-current="page"] {
+    background: color-mix(in srgb, var(--c-primary) 14%, transparent);
+    color: var(--c-primary);
+  }
+  .tsh-header.is-nav-open .tsh-nav a[aria-current="page"] > i { color: var(--c-primary); }
+  .tsh-header.is-nav-open .tsh-nav a:hover,
+  .tsh-header.is-nav-open .tsh-nav a:focus-visible {
+    background: var(--c-surface-2);
+    outline: none;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Bundle 15 hides nav-link labels (font-size:0) on phones; restore them
+     when the nav is open (dropdown mode). */
+  .tsh-header.is-nav-open .tsh-nav a { font-size: 0.95rem; }
+  .tsh-header.is-nav-open .tsh-nav a > span,
+  .tsh-header.is-nav-open .tsh-nav a [data-tsh-myreports-count] {
+    position: static;
+    width: auto;
+    height: auto;
+    clip: auto;
+    overflow: visible;
+    white-space: nowrap;
+  }
+}
+
+@keyframes tshNavFade {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* --- 3. Collapsible sections --------------------------------------------- */
+/* Desktop: no collapse, no chevron. Mobile only. */
+.tsh-collapse-chev { display: none; }
+
+@media (max-width: 720px) {
+  .tsh-collapse > .tsh-collapse-head {
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    position: relative;
+  }
+  .tsh-collapse > .tsh-collapse-head:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--c-primary) 60%, transparent);
+    outline-offset: 2px;
+    border-radius: var(--rad-sm);
+  }
+  .tsh-collapse-chev {
+    display: inline-block;
+    margin-left: auto;
+    color: var(--c-text-muted);
+    font-size: 0.78rem;
+    transition: transform 200ms ease, color 200ms ease;
+  }
+  .tsh-collapse.is-collapsed > .tsh-collapse-head .tsh-collapse-chev {
+    transform: rotate(-90deg);
+    color: var(--c-primary);
+  }
+  /* Hide every child of the section except the head when collapsed. */
+  .tsh-collapse.is-collapsed > *:not(.tsh-collapse-head) {
+    display: none !important;
+  }
+  /* Soft visual cue that the heading is interactive. */
+  .tsh-collapse.is-collapsed {
+    padding-bottom: 0;
+  }
+}
