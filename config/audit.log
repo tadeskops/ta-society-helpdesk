@@ -44,3 +44,4 @@
 {"at":"2026-06-28T09:47:29.120Z","actor":"ta.deskops@gmail.com","action":"access-list:put","target":"config/managers.json","detail":"count=2"}
 {"at":"2026-06-28T09:49:28.601Z","actor":"ta.deskops@gmail.com","action":"issue:delete","target":"DLY-00001","detail":"demo"}
 {"at":"2026-06-28T10:14:09.757Z","actor":"ta.deskops@gmail.com","action":"issue:delete","target":"DLY-00002"}
+{"at":"2026-06-28T10:14:21.371Z","actor":"ta.deskops@gmail.com","action":"issue:delete","target":"DLY-00003"}
