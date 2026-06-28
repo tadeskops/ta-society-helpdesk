@@ -4454,3 +4454,76 @@ select.tsh-tabs-mobile::-ms-expand { display: none; }
   font-weight: 700;
   margin-right: 2px;
 }
+
+
+/* ============================================================
+   Bundle 31 — Brief description preview in collapsed cards.
+
+   Both the public-board cards (all viewports) and the manage
+   page's mobile issue cards now show a single-line description
+   preview when collapsed, so users can pick the right ticket
+   without expanding every card.
+   ============================================================ */
+
+/* ---- Public board ---- */
+
+/* The head used to be a single flex row; now it's a column: top row
+   (id/status/age/chev) + optional description line below. */
+.tsh-board-card-head {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--sp-1);
+}
+.tsh-board-card-head-top {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+}
+.tsh-board-card-head-desc {
+  margin: 0;
+  color: var(--c-text-muted);
+  font-size: var(--fs-xs);
+  line-height: 1.4;
+  /* Two-line clamp keeps the head compact yet readable. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-align: left;
+}
+/* When expanded the body already has the full description, so hide the
+   preview to avoid duplication. */
+.tsh-board-card:not(.is-collapsed) .tsh-board-card-head-desc { display: none; }
+
+/* ---- Manage page (mobile cards) ---- */
+
+@media (max-width: 720px) {
+  /* The summary now wraps a top row + an optional description line. */
+  .tsh-mcard-summary {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--sp-1);
+  }
+  .tsh-mcard-summary-top {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    width: 100%;
+    min-width: 0;
+  }
+  .tsh-mcard-summary-desc {
+    margin: 0;
+    color: var(--c-text-muted);
+    font-size: var(--fs-xs);
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-align: left;
+  }
+  /* Hide the preview once the card is open — the full description shows
+     in the expanded body grid. */
+  .tsh-mcard:not(.is-collapsed) .tsh-mcard-summary-desc { display: none; }
+}

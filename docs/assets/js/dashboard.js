@@ -15,7 +15,11 @@
     reopened:    ['triaging', 'assigned', 'in_progress'],
   };
 
-  let opts = { role: 'MANAGER', allowDelete: false };
+  // role-keyed flags drive what the detail modal exposes. The Worker is
+  // authoritative; these flags only shape what the UI offers.
+  //   allowArchive  -> shows 'Archive' (reason REQUIRED). Manager only.
+  //   allowDelete   -> shows 'Delete'  (reason optional). Committee+.
+  let opts = { role: 'MANAGER', allowDelete: false, allowArchive: false };
   let allIssues = [];
   let currentStatus = 'new';
 
@@ -102,21 +106,27 @@
   }
 
   // Mobile-only summary strip rendered inside the first cell of every row.
-  // Carries the at-a-glance fields (ID + status + age + chevron) so the
-  // user can scan the list without first expanding every card.
+  // Carries the at-a-glance fields (ID + status + age + chevron) plus a
+  // single-line description preview so the user can scan the list without
+  // first expanding every card.
   function summaryHeadFor(i) {
     const wrap = root.UI.el('div', { class: 'tsh-mcard-summary' });
-    wrap.append(
+    const top  = root.UI.el('div', { class: 'tsh-mcard-summary-top' },
       root.UI.el('code', { class: 'tsh-mcard-summary-id' }, i.id),
       root.UI.statusPill(i.status),
       root.UI.el('span', { class: 'tsh-mcard-summary-age' },
         root.UI.formatRel(i.updatedAt || i.createdAt)),
-    );
-    const chev = root.UI.el('i', {
-      class: 'fas fa-chevron-down tsh-mcard-summary-chev',
-      'aria-hidden': 'true',
-    });
-    wrap.appendChild(chev);
+      root.UI.el('i', {
+        class: 'fas fa-chevron-down tsh-mcard-summary-chev',
+        'aria-hidden': 'true',
+      }));
+    wrap.appendChild(top);
+    const desc = (i.description || '').trim();
+    if (desc) {
+      wrap.appendChild(root.UI.el('p',
+        { class: 'tsh-mcard-summary-desc' },
+        desc.slice(0, 120)));
+    }
     return wrap;
   }
 
@@ -163,6 +173,9 @@
     for (const to of next) {
       actions.push({ label: `→ ${labelFor(to)}`, value: { kind: 'transition', to }, primary: to === 'assigned' || to === 'resolved' });
     }
+    if (opts.allowArchive) {
+      actions.push({ label: 'Archive', value: { kind: 'archive' } });
+    }
     if (opts.allowDelete) {
       actions.push({ label: 'Delete', value: { kind: 'delete' }, danger: true });
     }
@@ -172,6 +185,7 @@
     if (!result) return;
 
     if (result.kind === 'transition') return doTransition(issue, result.to);
+    if (result.kind === 'archive')    return doArchive(issue);
     if (result.kind === 'delete')     return doDelete(issue);
   }
 
@@ -227,29 +241,47 @@
     }
   }
 
-  async function doDelete(issue) {
-    // Audit hygiene: a manager must record *why* an issue was removed
-    // (asterisk on the field + popup if left blank). Committee and
-    // developer roles can delete without a written reason — the audit
-    // log still captures the actor + timestamp.
-    const role = opts.role || '';
-    const reasonRequired = role === 'MANAGER';
-
+  // Archive: manager-facing soft-removal. Reason is REQUIRED because the
+  // audit log captures *why* a ticket left the active board, and managers
+  // operate without the elevated committee oversight. The textarea shows
+  // an asterisk and an empty submit is rejected with a popup.
+  async function doArchive(issue) {
     let reason;
     while (true) {
-      reason = await promptText('Reason for deletion', { required: reasonRequired });
-      if (reason === null) return;          // user cancelled
-      if (reasonRequired && !reason) {
-        await root.UI.modal({
-          title: 'Reason required',
-          body: 'Please provide a reason for deletion. Managers must record why an issue is removed before it can be deleted.',
-          actions: [{ label: 'OK', value: true, primary: true }],
-        });
-        continue;
-      }
-      break;                                 // empty allowed for COMMITTEE/DEVELOPER
+      reason = await promptText('Reason to archive', { required: true });
+      if (reason === null) return;
+      if (reason) break;
+      await root.UI.modal({
+        title: 'Reason required',
+        body: 'Please record why this issue is being archived. The reason is logged with your account.',
+        actions: [{ label: 'OK', value: true, primary: true }],
+      });
     }
 
+    const busy = root.UI.busyOverlay(`Archiving ${issue.id}\u2026`);
+    try {
+      // Backed by the existing soft-delete route — the Worker already
+      // permits MANAGER on /delete. We tag the audit detail with an
+      // [archive] prefix so the audit log distinguishes archives from
+      // committee/dev deletions.
+      await root.Api.post(`/issues/${encodeURIComponent(issue.id)}/delete`,
+        { reason: `[archive] ${reason}` });
+      busy.close();
+      root.UI.toast(`${issue.id} archived.`, { kind: 'success' });
+      const after = opts.onReload || reload;
+      after();
+    } catch (e) {
+      busy.close();
+      root.UI.toast(e.message || 'Archive failed.', { kind: 'danger' });
+    }
+  }
+
+  // Delete: committee / developer hard-removal. Reason is OPTIONAL —
+  // committee oversight already covers intent; the audit log still
+  // captures the actor + timestamp even if the reason is blank.
+  async function doDelete(issue) {
+    const reason = await promptText('Reason for deletion (optional)');
+    if (reason === null) return;          // user cancelled
     const busy = root.UI.busyOverlay(`Deleting ${issue.id}\u2026`);
     try {
       await root.Api.post(`/issues/${encodeURIComponent(issue.id)}/delete`, { reason: reason || '' });

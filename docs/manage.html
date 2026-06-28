@@ -8,7 +8,7 @@
   <link rel="icon" href="./assets/images/TaLogo.png" type="image/png" />
   <script>(function(){try{var t=localStorage.getItem('tsh_theme');if(t!=='dark'&&t!=='light'&&t!=='medium')t='light';if(t!=='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="./assets/css/theme.css?v=58" />
+  <link rel="stylesheet" href="./assets/css/theme.css?v=59" />
 </head>
 <body class="tsh-page">
   <div data-include="header"></div>
@@ -118,7 +118,7 @@
   <script src="./assets/js/announcements.js?v=3"></script>
   <script src="./assets/js/events.js?v=2"></script>
   <script src="./assets/js/polls.js?v=1"></script>
-  <script src="./assets/js/dashboard.js?v=20"></script>
+  <script src="./assets/js/dashboard.js?v=21"></script>
   <script>
   (async () => {
     await Partials.mount();
@@ -143,7 +143,15 @@
       hint.textContent = 'Review, assign, resolve — plus delete, archive old tickets, and activity log.';
     }
 
-    Dashboard.boot({ role: who.primary, allowDelete: Flags.isAtLeast(who.primary, 'MANAGER') });
+    // Role-keyed action affordances:
+    //   Committee / Developer  -> Delete (reason optional)
+    //   Manager                -> Archive (reason required, asterisk + popup)
+    // The Worker still enforces the actual policy.
+    Dashboard.boot({
+      role: who.primary,
+      allowDelete:  isCommittee,
+      allowArchive: !isCommittee && Flags.isAtLeast(who.primary, 'MANAGER'),
+    });
 
     // Item 6: collapse the 7-tab status row into a native <select> on
     // mobile. CSS Bundle 11 hides the nav and reveals the select below
