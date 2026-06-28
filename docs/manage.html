@@ -8,7 +8,7 @@
   <link rel="icon" href="./assets/images/TaLogo.png" type="image/png" />
   <script>(function(){try{var t=localStorage.getItem('tsh_theme');if(t!=='dark'&&t!=='light'&&t!=='medium')t='light';if(t!=='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="./assets/css/theme.css?v=51" />
+  <link rel="stylesheet" href="./assets/css/theme.css?v=52" />
 </head>
 <body class="tsh-page">
   <div data-include="header"></div>
@@ -77,11 +77,25 @@
     </section>
 
     <section class="tsh-card" id="annEditorCard" data-tsh-flag="FEATURE_DAILY_ANNOUNCEMENTS" hidden>
-      <div id="annEditor"></div>
+      <details class="tsh-manage-collapse">
+        <summary class="tsh-manage-collapse-head">
+          <i class="fas fa-newspaper" aria-hidden="true"></i>
+          <span>Manage announcements</span>
+          <i class="fas fa-chevron-down tsh-manage-collapse-chev" aria-hidden="true"></i>
+        </summary>
+        <div id="annEditor"></div>
+      </details>
     </section>
 
     <section class="tsh-card" id="eventsEditorCard" data-tsh-flag="FEATURE_DAILY_EVENTS" hidden>
-      <div id="eventsEditor"></div>
+      <details class="tsh-manage-collapse">
+        <summary class="tsh-manage-collapse-head">
+          <i class="fas fa-calendar-days" aria-hidden="true"></i>
+          <span>Manage upcoming events</span>
+          <i class="fas fa-chevron-down tsh-manage-collapse-chev" aria-hidden="true"></i>
+        </summary>
+        <div id="eventsEditor"></div>
+      </details>
     </section>
 
     <section class="tsh-card" id="pollsEditorCard" data-tsh-flag="FEATURE_DAILY_POLLS" hidden>
