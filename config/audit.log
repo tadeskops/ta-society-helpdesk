@@ -31,3 +31,4 @@
 {"at":"2026-06-27T19:14:45.415Z","actor":"ta.deskops@gmail.com","action":"access-list:put","target":"config/managers.json","detail":"count=2"}
 {"at":"2026-06-28T08:57:24.514Z","actor":"ta.deskops@gmail.com","action":"events:put","target":"config/events.json","detail":"items=1"}
 {"at":"2026-06-28T09:26:26.608Z","actor":"ta.deskops@gmail.com","action":"config:put","target":"config/site.json","detail":"version=1"}
+{"at":"2026-06-28T09:26:29.629Z","actor":"ta.deskops@gmail.com","action":"access-list:put","target":"config/developers.json","detail":"count=1"}
