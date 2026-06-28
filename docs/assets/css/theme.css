@@ -3284,3 +3284,51 @@ a.tsh-banner-inner:focus-visible {
   .tsh-quick-grid { gap: var(--sp-2); }
   .tsh-card { padding: var(--sp-3); }
 }
+/* B16-TEST */
+
+
+/* ===== Bundle 16: Mobile overflow hardening + recessive floating dock =====
+   Fixes (verified at 320px viewport):
+   - Announcements card grid (`.tsh-ann-list-cards`) used
+     `minmax(280px, 1fr)` which forces a 280px minimum track and pushes the
+     enclosing `.tsh-ann-panel` past its `.tsh-infogrid` slot on phones
+     <340px wide. Cap the lower bound to the container width so single-col
+     fallback never overflows.
+   - `.tsh-infogrid` children inherit default `min-width: auto` so a wide
+     descendant can stretch the grid track. Apply `min-width: 0` to all
+     grid children so the column actually constrains to 1fr.
+   - `.tsh-floatdock.is-floating` ships an `opacity: 1 !important` (so a
+     user-dragged dock stays visible). On mobile that overrode Bundle 15s
+     idle fade. Restore the recessive opacity when the floating dock is
+     idle (no hover / focus / open / drag).
+   - Defensive `overflow-x: clip` on body so any future stray element can
+     never produce a horizontal scrollbar on phones. `clip` is preferred
+     over `hidden` because it does not create a new scroll container that
+     would break `position: sticky` on the header. */
+
+.tsh-infogrid > * { min-width: 0; }
+
+.tsh-ann-panel,
+.tsh-ann-list-cards,
+.tsh-ann-card,
+.tsh-ann-card-head,
+.tsh-ann-card-body,
+.tsh-ann-stage,
+.tsh-ann-layer { min-width: 0; }
+
+.tsh-ann-list-cards {
+  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
+}
+
+.tsh-ann-card-head { flex-wrap: wrap; }
+.tsh-ann-card-time { white-space: nowrap; flex: 0 0 auto; }
+
+@media (max-width: 720px) {
+  .tsh-floatdock.is-floating:not(:hover):not(:focus-within):not(.is-open):not(.is-dragging) {
+    opacity: 0.32 !important;
+  }
+}
+
+@media (max-width: 720px) {
+  html, body { overflow-x: clip; }
+}
