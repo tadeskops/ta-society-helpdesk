@@ -5,11 +5,11 @@
   <title>TA Society Helpdesk</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#1a1f2e" />
-  <meta name="description" content="Tower Apartments â€” report daily issues or handover snags." />
+  <meta name="description" content="Tower Apartments — report daily issues or handover snags." />
   <link rel="icon" href="./assets/images/TaLogo.png" type="image/png" />
   <script>(function(){try{var t=localStorage.getItem('tsh_theme');if(t!=='dark'&&t!=='light'&&t!=='medium')t='light';if(t!=='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="./assets/css/theme.css?v=37" />
+  <link rel="stylesheet" href="./assets/css/theme.css?v=38" />
 </head>
 <body class="tsh-page tsh-page-landing">
   <div data-include="header"></div>
@@ -20,7 +20,7 @@
     <!-- 1. Rotating manager-curated notice strip (full-width). -->
     <div id="tshBannerStrip" hidden></div>
 
-    <!-- 2. Primary actions â€” the two reporting tracks. Always the most
+    <!-- 2. Primary actions — the two reporting tracks. Always the most
          prominent thing on the page. Daily uses class-based disable so the
          card stays visible but greyed when FEATURE_DAILY_TRACK is off. -->
     <section class="tsh-actions" aria-labelledby="tshActionsTitle">
@@ -85,7 +85,7 @@
       </div>
     </section>
 
-    <!-- 4. Information area â€” Announcements + (optional) Events + Polls.
+    <!-- 4. Information area — Announcements + (optional) Events + Polls.
          Each child renders its own card UI; the grid wrapper just gives
          them side-by-side flow on wider screens and stacks them on mobile. -->
     <div class="tsh-infogrid">
@@ -146,7 +146,7 @@
       // Developer-toggled announcements section.
       if (window.Announcements) Announcements.mountList(document.getElementById('tshAnnouncements'));
       // Polls (per-signed-in vote, SVG bar charts). The landing renders the
-      // compact density variant â€” strips expiry chips, alias/flat inputs and
+      // compact density variant — strips expiry chips, alias/flat inputs and
       // tightens spacing for a minimalist read. polls.js honours the
       // [data-density] attribute via CSS only; the editor on Manage is
       // unaffected.
@@ -154,11 +154,11 @@
       if (pollsHost) pollsHost.setAttribute('data-density', 'compact');
       if (window.Polls) Polls.mountList(pollsHost);
       // Upcoming events (compact list). No-op when FEATURE_DAILY_EVENTS is off
-      // or the events module hasn't shipped yet â€” the section just stays
+      // or the events module hasn't shipped yet — the section just stays
       // hidden.
       if (window.Events && window.Events.mountList) Events.mountList(document.getElementById('tshEvents'));
 
-      // Handover portal â€” only shows if the URL is wired in site.json.
+      // Handover portal — only shows if the URL is wired in site.json.
       const handoverUrl = sys.handoverPortalUrl;
       const handover = document.querySelector('[data-tsh-handover-link]');
       if (handoverUrl && !/REPLACE_ME/i.test(handoverUrl) && handover) {
@@ -168,7 +168,7 @@
         handover.hidden = false;
       }
 
-      // Weekly & full report PDF tiles â€” gated by URL presence.
+      // Weekly & full report PDF tiles — gated by URL presence.
       const weeklyUrl = sys.weeklyReportUrl;
       const weeklyEl = document.querySelector('[data-tsh-weekly-report]');
       if (weeklyUrl && !/REPLACE_ME/i.test(weeklyUrl) && weeklyEl && Flags.on('FEATURE_DAILY_WEEKLY_REPORT')) {
@@ -186,7 +186,7 @@
         fullEl.hidden = false;
       }
 
-      // Daily-track master kill switch (section 14.2) â€” keep card visible but greyed.
+      // Daily-track master kill switch (section 14.2) — keep card visible but greyed.
       if (!Flags.on('FEATURE_DAILY_TRACK')) {
         const daily = document.querySelector('.tsh-track-daily');
         if (daily) daily.classList.add('tsh-disabled');
@@ -205,7 +205,7 @@
         });
       }
     } catch (e) {
-      UI.toast('Couldnâ€™t load site config â€” some links may be missing.', { kind: 'warn' });
+      UI.toast('Couldn't load site config — some links may be missing.', { kind: 'warn' });
       console.error(e);
     }
   })();

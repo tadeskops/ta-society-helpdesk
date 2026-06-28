@@ -3167,3 +3167,120 @@ a.tsh-banner-inner:focus-visible {
   font-size: var(--fs-xs);
 }
 .tsh-text-sm { font-size: var(--fs-sm); }
+
+/* ===== Bundle 15: Mobile UX hardening (header collapse + recessive dock) ===
+   Tablet (<=720px): header re-flows to two rows (brand+user / horizontal
+   nav strip). Phone (<=480px): nav collapses to icon-only, brand tag drops,
+   userbox compacts to icon chips, sign-in gate stacks vertically.
+   Floatdock fades further when idle so the colour palette never competes
+   with content; it remains a one-tap reach via the gold peek tab. */
+
+@media (max-width: 720px) {
+  .tsh-header-inner {
+    row-gap: var(--sp-2);
+    column-gap: var(--sp-3);
+    padding: var(--sp-2) var(--sp-3);
+  }
+  .tsh-brand { flex: 1 1 auto; min-width: 0; }
+  .tsh-userbox { flex: 0 0 auto; flex-wrap: nowrap; }
+  .tsh-nav {
+    order: 99;
+    flex: 0 0 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    gap: 4px;
+    padding-bottom: 2px;
+  }
+  .tsh-nav::-webkit-scrollbar { display: none; }
+  .tsh-nav a {
+    padding: 6px 10px;
+    font-size: 0.82rem;
+    border-radius: var(--rad-sm);
+    white-space: nowrap;
+    border: 1px solid var(--c-border-soft);
+    background: rgba(255, 255, 255, 0.02);
+  }
+  .tsh-nav a[aria-current="page"] {
+    border-color: color-mix(in srgb, var(--c-primary) 35%, var(--c-border));
+  }
+}
+
+@media (max-width: 480px) {
+  .tsh-header-inner { padding: var(--sp-2); column-gap: var(--sp-2); }
+  .tsh-brand { gap: var(--sp-2); }
+  .tsh-brand img { height: 36px; width: 36px; }
+  .tsh-brand-name { font-size: var(--fs-base); }
+  .tsh-brand-tag { display: none; }
+  /* Nav collapses to icons only. Trailing text-node label is hidden by
+     font-size: 0 on the link; the inner <i> is restored to a visible size. */
+  .tsh-nav a {
+    font-size: 0;
+    padding: 7px 9px;
+    gap: 0;
+  }
+  .tsh-nav a > i { font-size: 1.02rem; }
+  .tsh-nav a > span,
+  .tsh-nav a [data-tsh-myreports-count] {
+    position: absolute;
+    width: 1px; height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  /* Userbox: hide "Not signed in" caption + sign-in button label,
+     keep the icon so the chip stays one-tap reachable. */
+  .tsh-userbox { gap: 6px; }
+  .tsh-userbox .tsh-user-text { display: none; }
+  .tsh-userbox [data-tsh-user] {
+    padding: 6px 8px;
+    border-radius: var(--rad-pill);
+  }
+  .tsh-userbox .tsh-btn .tsh-btn-label { display: none; }
+  .tsh-userbox .tsh-btn {
+    padding: 7px 10px;
+    border-radius: var(--rad-pill);
+  }
+  .tsh-userbox .tsh-btn i { margin: 0; }
+}
+
+/* Floatdock: even more recessive when idle on touch / narrow screens.
+   The peek tab shrinks to a slim 14px sliver so the palette never draws
+   attention away from page content. Still fully usable on tap. */
+@media (max-width: 720px) {
+  .tsh-floatdock {
+    opacity: 0.28;
+    transform: translateX(calc(100% - 14px));
+  }
+  .tsh-floatdock::before {
+    border-top-width: 5px;
+    border-bottom-width: 5px;
+    border-right-width: 5px;
+    left: -5px;
+  }
+  .tsh-floatdock:focus-within,
+  .tsh-floatdock.is-open,
+  .tsh-floatdock.is-dragging { opacity: 1; }
+}
+
+/* Sign-in gate stacks vertically on narrow screens so the message
+   keeps a comfortable reading width and the button takes the row. */
+@media (max-width: 480px) {
+  .tsh-signin-gate {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--sp-2);
+    text-align: left;
+  }
+  .tsh-signin-gate-action {
+    margin-left: 0;
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Tighten misc spacing for very narrow phones (<=380px). */
+@media (max-width: 380px) {
+  .tsh-quick-grid { gap: var(--sp-2); }
+  .tsh-card { padding: var(--sp-3); }
+}
