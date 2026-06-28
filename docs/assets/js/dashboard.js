@@ -227,6 +227,20 @@
   function boot(o) {
     opts = Object.assign({}, opts, o || {});
 
+    // On phones default the status tab to "All" so visitors see every issue
+    // in a single scroll without first switching tabs. Desktop keeps "New"
+    // as the actionable focus for triage. mobileifyTabs syncs the native
+    // <select> off these aria-selected flags.
+    const isMobile = window.matchMedia && window.matchMedia('(max-width: 720px)').matches;
+    if (isMobile) {
+      currentStatus = '';
+      for (const t of document.querySelectorAll('.tsh-tab')) {
+        const isAll = (t.dataset.status === '');
+        t.classList.toggle('tsh-tab-active', isAll);
+        t.setAttribute('aria-selected', String(isAll));
+      }
+    }
+
     // Populate filter selects from /config.
     const towerSel = document.getElementById('filterTower');
     const catSel   = document.getElementById('filterCategory');
