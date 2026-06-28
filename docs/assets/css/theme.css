@@ -3682,26 +3682,27 @@ a.tsh-banner-inner:focus-visible {
   padding: 0;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--sp-3);
+  gap: var(--sp-2);
 }
 .tsh-kpi-card {
   position: relative;
   display: grid;
   grid-template-columns: auto 1fr;
   grid-template-areas:
-    "icon  label"
-    "value value"
-    "delta delta";
+    "icon label"
+    "icon row";
   column-gap: var(--sp-3);
-  row-gap: 4px;
-  padding: var(--sp-3) var(--sp-4);
-  border-radius: var(--rad-lg);
+  row-gap: 0;
+  align-items: center;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--rad-md);
   background: var(--c-surface-1, rgba(255,255,255,0.03));
   border: 1px solid var(--c-border);
-  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+  transition: transform 160ms ease, border-color 160ms ease;
 }
 .tsh-kpi-card:hover {
   transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--c-primary) 25%, var(--c-border));
 }
 
 .tsh-kpi-icon {
@@ -3709,10 +3710,11 @@ a.tsh-banner-inner:focus-visible {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border-radius: var(--rad-pill);
-  font-size: 1rem;
+  font-size: 0.9rem;
+  align-self: center;
 }
 .tsh-kpi-icon--primary {
   background: color-mix(in srgb, var(--c-primary) 18%, transparent);
@@ -3733,48 +3735,52 @@ a.tsh-banner-inner:focus-visible {
 
 .tsh-kpi-label {
   grid-area: label;
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   color: var(--c-text-muted);
-  align-self: center;
   font-weight: 500;
+  line-height: 1.2;
+  align-self: end;
+}
+.tsh-kpi-row {
+  grid-area: row;
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+  align-self: start;
 }
 .tsh-kpi-value {
-  grid-area: value;
-  font-size: 1.9rem;
+  font-size: 1.4rem;
   font-weight: 700;
   color: var(--c-text);
   line-height: 1.1;
-  margin-top: var(--sp-1);
 }
 .tsh-kpi-delta {
-  grid-area: delta;
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   color: var(--c-text-muted);
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
 }
 .tsh-kpi-delta--up   { color: var(--c-success, #16a34a); }
 .tsh-kpi-delta--down { color: var(--c-text-muted); }
 .tsh-kpi-delta--warn { color: var(--c-danger, #dc2626); font-weight: 600; }
 .tsh-kpi-delta--flat { color: var(--c-text-muted); }
 
-/* ----- Responsive: 2x2 below 720px, single column only on very narrow ----- */
+/* ----- Responsive: 2x2 below 720px, 1-col only on tiny screens ----- */
 @media (max-width: 720px) {
   .tsh-kpi-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--sp-2);
   }
   .tsh-kpi-card {
-    padding: var(--sp-3);
+    padding: var(--sp-2);
+    column-gap: var(--sp-2);
   }
-  .tsh-kpi-icon { width: 30px; height: 30px; font-size: 0.85rem; }
-  .tsh-kpi-label { font-size: 0.78rem; }
-  .tsh-kpi-value { font-size: 1.5rem; }
-  .tsh-kpi-delta { font-size: 0.72rem; }
+  .tsh-kpi-icon { width: 28px; height: 28px; font-size: 0.78rem; }
+  .tsh-kpi-value { font-size: 1.2rem; }
+  .tsh-kpi-label { font-size: 0.7rem; }
+  .tsh-kpi-delta { font-size: 0.66rem; }
 }
 @media (max-width: 300px) {
-  .tsh-kpi-list {
-    grid-template-columns: 1fr;
-  }
+  .tsh-kpi-list { grid-template-columns: 1fr; }
 }
