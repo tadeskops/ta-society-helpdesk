@@ -41,7 +41,7 @@
 
       <div class="tsh-tabs" role="tablist" aria-label="Directory sections">
         <button type="button" class="tsh-tab tsh-tab-active" role="tab" aria-selected="true"  data-dir-tab="vendors"><i class="fas fa-toolbox"></i> Vendors <span class="tsh-tab-count" data-dir-count="vendors">0</span></button>
-        <button type="button" class="tsh-tab"               role="tab" aria-selected="false" data-dir-tab="contacts"><i class="fas fa-users"></i> Community <span class="tsh-tab-count" data-dir-count="contacts">0</span></button>
+        <button type="button" class="tsh-tab"               role="tab" aria-selected="false" data-dir-tab="contacts"><i class="fas fa-people-group"></i> Management Committee <span class="tsh-tab-count" data-dir-count="contacts">0</span></button>
         <button type="button" class="tsh-tab"               role="tab" aria-selected="false" data-dir-tab="resources"><i class="fas fa-link"></i> Resources <span class="tsh-tab-count" data-dir-count="resources">0</span></button>
       </div>
 
@@ -58,12 +58,12 @@
         <div class="tsh-dir-grid" data-dir-grid="vendors"></div>
       </section>
 
-      <!-- COMMUNITY CONTACTS -->
+      <!-- MANAGEMENT COMMITTEE -->
       <section class="tsh-dir-section" data-dir-section="contacts" hidden>
         <div class="tsh-dir-section-actions">
-          <p class="tsh-hint">Committee members, security desk, on-site manager, emergency numbers.</p>
+          <p class="tsh-hint">Elected management committee members for the current term &mdash; name, designation, flat and contact number. Managers / committee / developers can add or edit entries.</p>
           <div class="tsh-dir-section-buttons" data-dir-edit-only hidden>
-            <button type="button" class="tsh-btn tsh-btn-primary tsh-btn-sm" data-dir-add="contacts"><i class="fas fa-plus"></i>Add contact</button>
+            <button type="button" class="tsh-btn tsh-btn-primary tsh-btn-sm" data-dir-add="contacts"><i class="fas fa-plus"></i>Add committee member</button>
           </div>
         </div>
         <div class="tsh-dir-grid" data-dir-grid="contacts"></div>
@@ -92,7 +92,7 @@
   <script src="./assets/js/collapse-registry.js?v=1"></script>
   <script src="./assets/js/ui.js?v=35"></script>
   <script src="./assets/js/visitors.js?v=2"></script>
-  <script src="./assets/js/directory.js?v=7"></script>
+  <script src="./assets/js/directory.js?v=8"></script>
   <script>
   (async () => {
     await Partials.mount();
@@ -121,8 +121,8 @@
     // activation so the click actually lands on a wired-up button.
     await Directory.init({ canEdit });
 
-    // Item 6: collapse the Vendors / Community / Resources tablist into a
-    // <select> on mobile (CSS Bundle 11 hides nav <720px).
+    // Item 6: collapse the Vendors / Management Committee / Resources
+    // tablist into a <select> on mobile (CSS Bundle 11 hides nav <720px).
     UI.mobileifyTabs(document.querySelector('.tsh-tabs[aria-label="Directory sections"]'));
 
     // Deep-link: landing's Quick Access tiles use directory.html#vendors and

@@ -8,7 +8,7 @@
 
   const KIND_LABEL = {
     vendors:   { singular: 'vendor',   icon: 'fa-toolbox' },
-    contacts:  { singular: 'contact',  icon: 'fa-users'   },
+    contacts:  { singular: 'committee member', icon: 'fa-people-group' },
     resources: { singular: 'resource', icon: 'fa-link'    },
   };
 
