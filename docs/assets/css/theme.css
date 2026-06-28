@@ -3345,3 +3345,30 @@ a.tsh-banner-inner:focus-visible {
 @media (max-width: 480px) {
   .tsh-userbox [data-tsh-user].tsh-user-anon { display: none; }
 }
+
+/* ===== Bundle 18: Show access-tier pill on mobile when signed in ===========
+   `renderUser` in ui.js already paints a colored role badge
+   (.tsh-user-role.tsh-user-role-{developer|committee|manager|resident})
+   next to the email â€” the tier displayed is `who.primary` from /whoami,
+   i.e. the highest rank the signed-in user holds (RANK order:
+   DEVELOPER > COMMITTEE > MANAGER > RESIDENT). On mobile Bundle 15 hides
+   the whole .tsh-user-text wrapper to save space, which also clips the
+   badge. Reveal the badge (and keep email hidden) so the access tier is
+   always visible at a glance. */
+@media (max-width: 480px) {
+  .tsh-userbox [data-tsh-user]:not(.tsh-user-anon) .tsh-user-text {
+    display: inline-flex;
+    align-items: center;
+    gap: 0;
+    max-width: none;
+    margin-left: 4px;
+  }
+  .tsh-userbox [data-tsh-user]:not(.tsh-user-anon) .tsh-user-email {
+    display: none;
+  }
+  .tsh-userbox .tsh-user-role {
+    padding: 2px 7px;
+    font-size: 0.62rem;
+    letter-spacing: 0.03em;
+  }
+}
