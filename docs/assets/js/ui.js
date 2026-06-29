@@ -849,6 +849,23 @@
     // a 4-line passive listener. Idempotent — bindHeader is called once.
     const headerEl = document.querySelector('.tsh-header');
     if (headerEl) {
+      // The header is now position:fixed (true freeze-pane). The body reserves
+      // space via padding-top: var(--header-real-h). Keep that variable synced
+      // with the live header height so wrap-on-mobile, font-size changes, and
+      // theme transitions never overlap the page content.
+      const updateHeaderH = () => {
+        const h = headerEl.offsetHeight || 0;
+        if (h > 0) {
+          document.documentElement.style.setProperty('--header-real-h', h + 'px');
+        }
+      };
+      updateHeaderH();
+      if ('ResizeObserver' in window) {
+        try { new ResizeObserver(updateHeaderH).observe(headerEl); }
+        catch (_e) { window.addEventListener('resize', updateHeaderH); }
+      } else {
+        window.addEventListener('resize', updateHeaderH);
+      }
       // Back-to-top FAB. Created lazily here so every page that mounts the
       // header partial gets the button for free, with no per-page wiring.
       // Visible once the user has scrolled > 320px; clicking smooth-scrolls

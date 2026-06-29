@@ -165,6 +165,11 @@ body {
   background-attachment: fixed;
   line-height: 1.5;
   min-height: 100vh;
+  /* Reserve room for the fixed-position .tsh-header. ui.js#bindHeader sets
+     --header-real-h via ResizeObserver to the live header height so the
+     reservation tracks wrap on narrow screens and font-size changes. The
+     fallback to --header-h keeps the layout sane before JS hydrates. */
+  padding-top: var(--header-real-h, var(--header-h));
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 img { max-width: 100%; height: auto; display: block; }
@@ -206,8 +211,11 @@ input, select, textarea {
 }
 
 .tsh-header {
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
   z-index: 50;
   background: var(--c-header-bg);
   backdrop-filter: blur(14px);
@@ -2597,8 +2605,8 @@ a.tsh-banner-inner:focus-visible {
 }
 .tsh-infogrid > section[hidden] { display: none !important; }
 
-/* Anchor-jump offset so the sticky header doesn't cover info targets. */
-#tshAnnouncements, #tshEvents, #tshPolls { scroll-margin-top: calc(var(--header-h) + var(--sp-3)); }
+/* Anchor-jump offset so the fixed header doesn't cover info targets. */
+#tshAnnouncements, #tshEvents, #tshPolls { scroll-margin-top: calc(var(--header-real-h, var(--header-h)) + var(--sp-3)); }
 
 @media (prefers-reduced-motion: reduce) {
   .tsh-quick-tile,
