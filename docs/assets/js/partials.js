@@ -31,6 +31,11 @@
       const fresh = document.createElement('script');
       for (const attr of old.attributes) fresh.setAttribute(attr.name, attr.value);
       if (old.textContent) fresh.textContent = old.textContent;
+      // Cloned scripts default to async=true, which lets dependent
+      // libraries (e.g. jspdf-autotable needs jspdf first) race and fail
+      // to register. Force in-order execution unless the partial author
+      // explicitly opted in via the async attribute.
+      if (old.src && !old.hasAttribute('async')) fresh.async = false;
       old.parentNode.replaceChild(fresh, old);
     });
   }

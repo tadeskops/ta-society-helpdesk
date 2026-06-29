@@ -253,13 +253,19 @@
 
   // ---------------------------------------------------------------- PDF
 
+  function pdfLibReady() {
+    if (!root.jspdf || !root.jspdf.jsPDF) return false;
+    const proto = root.jspdf.jsPDF.API || root.jspdf.jsPDF.prototype;
+    return !!(proto && typeof proto.autoTable === 'function');
+  }
+
   async function waitForJsPdf(maxMs) {
-    if (root.jspdf && root.jspdf.jsPDF) return true;
+    if (pdfLibReady()) return true;
     const deadline = Date.now() + (maxMs || 5000);
     setBusy(true); setProgress(2, 'Loading PDF library…');
     while (Date.now() < deadline) {
       await new Promise((r) => setTimeout(r, 120));
-      if (root.jspdf && root.jspdf.jsPDF) return true;
+      if (pdfLibReady()) return true;
     }
     setBusy(false);
     return false;
