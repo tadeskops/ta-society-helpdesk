@@ -73,7 +73,12 @@
 
   function bind(spec) {
     bound = Object.assign({ title: 'Society Help Desk — Report', source: 'page' }, spec || {});
+    // Let chrome (e.g. header Export icon) know a data source has been
+    // registered so it can reveal an action that would otherwise be inert.
+    try { document.dispatchEvent(new CustomEvent('tsh:pdf-bound')); } catch (_e) { /* IE-only */ }
   }
+
+  function isBound() { return !!(bound && typeof bound.getItems === 'function'); }
 
   async function open(overrides) {
     const o = Object.assign({}, overrides || {});
@@ -534,5 +539,5 @@
       .catch((e) => console.warn('backup save skipped:', e && e.message));
   }
 
-  root.TSH_REPORT = { bind, open, close };
+  root.TSH_REPORT = { bind, open, close, isBound };
 })(window);

@@ -908,13 +908,21 @@
       const signedIn = !!(root.Auth && root.Auth.token && root.Auth.token());
       if (exportBtn) {
         const featureOk = !root.Flags || !root.Flags.on || root.Flags.on('FEATURE_DAILY_EXPORT_PDF') !== false;
-        exportBtn.hidden = !(signedIn && featureOk);
+        // Only reveal when a page has actually bound a data source via
+        // TSH_REPORT.bind({ getItems }). Without a binding the wizard
+        // falls back to /issues, which 403s for residents and produces a
+        // confusing "Role UNKNOWN not allowed here" toast.
+        const hasSource = !!(root.TSH_REPORT && typeof root.TSH_REPORT.isBound === 'function' && root.TSH_REPORT.isBound());
+        exportBtn.hidden = !(signedIn && featureOk && hasSource);
       }
       if (downloadLatest) {
         refreshDownloadHref();
         downloadLatest.hidden = !signedIn;
       }
     };
+    // Pages call TSH_REPORT.bind() after their data is loaded — re-evaluate
+    // the Export icon visibility whenever that happens.
+    document.addEventListener('tsh:pdf-bound', refreshExportBtn);
 
     const hideRoleLinks = () => {
       for (const a of document.querySelectorAll('[data-tsh-role-link]')) a.hidden = true;
