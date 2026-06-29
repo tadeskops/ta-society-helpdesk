@@ -2556,9 +2556,22 @@ a.tsh-banner-inner:focus-visible {
    the avatar already looks tappable. ESC/Tab closes via :focus-within. */
 .tsh-userbox {
   position: relative;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 0.3rem;
 }
+/* When signed in, the access-role chip sits on its own row BELOW the
+   icon strip, left-aligned to the userbox. Anonymous "Not signed in"
+   keeps its inline placement so the Sign-in primary button can sit
+   next to it without a layout jump. */
+.tsh-userbox [data-tsh-user]:not(.tsh-user-anon) {
+  order: 10;
+  flex: 1 0 100%;
+  justify-content: flex-start;
+  max-width: none;
+  margin-top: 2px;
+}
+.tsh-userbox > .tsh-btn { order: 1; }
 .tsh-userbox [data-tsh-user] {
   cursor: pointer;
   display: inline-flex;
