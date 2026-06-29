@@ -294,6 +294,14 @@ input, select, textarea {
   align-items: center;
   gap: var(--sp-2);
   font-size: var(--fs-sm);
+  /* When the header-inner runs out of horizontal room (developer sees
+     7 nav links → brand + nav + userbox won't fit on one row), the
+     userbox naturally wraps to a second row. Without this auto-margin
+     it lands at the left edge directly under the brand, which looks
+     disrupted. `margin-left: auto` keeps the userbox right-aligned
+     no matter which row it ends up on, matching the brand-on-left /
+     actions-on-right intent. */
+  margin-left: auto;
 }
 .tsh-userbox [data-tsh-user] {
   display: inline-flex;
