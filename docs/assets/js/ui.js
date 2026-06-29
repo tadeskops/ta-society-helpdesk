@@ -849,8 +849,28 @@
     // a 4-line passive listener. Idempotent — bindHeader is called once.
     const headerEl = document.querySelector('.tsh-header');
     if (headerEl) {
+      // Back-to-top FAB. Created lazily here so every page that mounts the
+      // header partial gets the button for free, with no per-page wiring.
+      // Visible once the user has scrolled > 320px; clicking smooth-scrolls
+      // to the top (or jumps directly if the user prefers reduced motion).
+      let backTop = document.querySelector('.tsh-backtotop');
+      if (!backTop) {
+        backTop = document.createElement('button');
+        backTop.type = 'button';
+        backTop.className = 'tsh-backtotop';
+        backTop.setAttribute('aria-label', 'Back to top');
+        backTop.setAttribute('title', 'Back to top');
+        backTop.innerHTML = '<i class="fas fa-arrow-up" aria-hidden="true"></i>';
+        backTop.addEventListener('click', () => {
+          const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+          window.scrollTo({ top: 0, behavior: reduced ? 'auto' : 'smooth' });
+        });
+        document.body.appendChild(backTop);
+      }
       const onScroll = () => {
-        headerEl.classList.toggle('is-scrolled', (window.scrollY || 0) > 4);
+        const y = window.scrollY || 0;
+        headerEl.classList.toggle('is-scrolled', y > 4);
+        backTop.classList.toggle('is-visible', y > 320);
       };
       window.addEventListener('scroll', onScroll, { passive: true });
       onScroll();
