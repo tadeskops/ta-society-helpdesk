@@ -15,6 +15,7 @@
     "Other"
   ],
   "serviceCategories": [
+    "Snake/Animal Rescuer",
     "House Help",
     "Cook",
     "Car Driver",
@@ -225,7 +226,520 @@
       ],
       "phone": "8055994447",
       "verified": false
+    },
+    {
+      "id": "svc-snake-001",
+      "name": "Anand Adsul",
+      "category": "Snake/Animal Rescuer",
+      "phones": [
+        "9860181534"
+      ],
+      "phone": "9860181534",
+      "comment": "Wild Animals and Snakes Protection Society. Reg No. 63/08 — Pune Division (MH 12). Volunteer rescuer; no fees, call or petrol charges.",
+      "sortOrder": 1,
+      "createdAt": "2026-06-29T00:00:00.000Z",
+      "updatedAt": "2026-06-29T00:00:00.000Z"
+    },
+    {
+      "id": "svc-snake-002",
+      "name": "Raj Salvi",
+      "category": "Snake/Animal Rescuer",
+      "phones": [
+        "9595519852"
+      ],
+      "phone": "9595519852",
+      "comment": "Wild Animals and Snakes Protection Society. Reg No. 63/08 — Pune Division (MH 12). Volunteer rescuer; no fees, call or petrol charges.",
+      "sortOrder": 2,
+      "createdAt": "2026-06-29T00:00:00.000Z",
+      "updatedAt": "2026-06-29T00:00:00.000Z"
+    },
+    {
+      "id": "svc-snake-003",
+      "name": "Sairaj Dhere",
+      "category": "Snake/Animal Rescuer",
+      "phones": [
+        "9689512081"
+      ],
+      "phone": "9689512081",
+      "comment": "Wild Animals and Snakes Protection Society. Reg No. 63/08 — Pune Division (MH 12). Volunteer rescuer; no fees, call or petrol charges.",
+      "sortOrder": 3,
+      "createdAt": "2026-06-29T00:00:00.000Z",
+      "updatedAt": "2026-06-29T00:00:00.000Z"
+    },
+    {
+      "id": "svc-snake-004",
+      "name": "Suraj Bhosale",
+      "category": "Snake/Animal Rescuer",
+      "phones": [
+        "8007313030"
+      ],
+      "phone": "8007313030",
+      "comment": "Wild Animals and Snakes Protection Society. Reg No. 63/08 — Pune Division (MH 12). Volunteer rescuer; no fees, call or petrol charges.",
+      "sortOrder": 4,
+      "createdAt": "2026-06-29T00:00:00.000Z",
+      "updatedAt": "2026-06-29T00:00:00.000Z"
+    },
+    {
+      "id": "svc-snake-005",
+      "name": "Sai Phadtare",
+      "category": "Snake/Animal Rescuer",
+      "phones": [
+        "7775092373"
+      ],
+      "phone": "7775092373",
+      "comment": "Wild Animals and Snakes Protection Society. Reg No. 63/08 — Pune Division (MH 12). Volunteer rescuer; no fees, call or petrol charges.",
+      "sortOrder": 5,
+      "createdAt": "2026-06-29T00:00:00.000Z",
+      "updatedAt": "2026-06-29T00:00:00.000Z"
+    },
+    {
+      "id": "svc-snake-006",
+      "name": "Saurabh Shinde",
+      "category": "Snake/Animal Rescuer",
+      "phones": [
+        "9970542409"
+      ],
+      "phone": "9970542409",
+      "comment": "Wild Animals and Snakes Protection Society. Reg No. 63/08 — Pune Division (MH 12). Volunteer rescuer; no fees, call or petrol charges.",
+      "sortOrder": 6,
+      "createdAt": "2026-06-29T00:00:00.000Z",
+      "updatedAt": "2026-06-29T00:00:00.000Z"
+    },
+    {
+      "id": "svc-snake-007",
+      "name": "Prasad Bhopale",
+      "category": "Snake/Animal Rescuer",
+      "phones": [
+        "8408034884"
+      ],
+      "phone": "8408034884",
+      "comment": "Wild Animals and Snakes Protection Society. Reg No. 63/08 — Pune Division (MH 12). Volunteer rescuer; no fees, call or petrol charges.",
+      "sortOrder": 7,
+      "createdAt": "2026-06-29T00:00:00.000Z",
+      "updatedAt": "2026-06-29T00:00:00.000Z"
+    },
+    {
+      "id": "svc-snake-008",
+      "name": "Suyash Sutar",
+      "category": "Snake/Animal Rescuer",
+      "phones": [
+        "8805283000"
+      ],
+      "phone": "8805283000",
+      "comment": "Wild Animals and Snakes Protection Society. Reg No. 63/08 — Pune Division (MH 12). Volunteer rescuer; no fees, call or petrol charges.",
+      "sortOrder": 8,
+      "createdAt": "2026-06-29T00:00:00.000Z",
+      "updatedAt": "2026-06-29T00:00:00.000Z"
+    },
+    {
+      "id": "svc-snake-009",
+      "name": "Suraj Kavade",
+      "category": "Snake/Animal Rescuer",
+      "phones": [
+        "7385854905"
+      ],
+      "phone": "7385854905",
+      "comment": "Wild Animals and Snakes Protection Society. Reg No. 63/08 — Pune Division (MH 12). Volunteer rescuer; no fees, call or petrol charges.",
+      "sortOrder": 9,
+      "createdAt": "2026-06-29T00:00:00.000Z",
+      "updatedAt": "2026-06-29T00:00:00.000Z"
+    },
+    {
+      "id": "svc-snake-010",
+      "name": "Harshad Autade",
+      "category": "Snake/Animal Rescuer",
+      "phones": [
+        "9158844598"
+      ],
+      "phone": "9158844598",
+      "comment": "Wild Animals and Snakes Protection Society. Reg No. 63/08 — Pune Division (MH 12). Volunteer rescuer; no fees, call or petrol charges.",
+      "sortOrder": 10,
+      "createdAt": "2026-06-29T00:00:00.000Z",
+      "updatedAt": "2026-06-29T00:00:00.000Z"
+    },
+    {
+      "id": "svc-snake-011",
+      "name": "Anand Narale",
+      "category": "Snake/Animal Rescuer",
+      "phones": [
+        "9156324140"
+      ],
+      "phone": "9156324140",
+      "comment": "Wild Animals and Snakes Protection Society. Reg No. 63/08 — Pune Division (MH 12). Volunteer rescuer; no fees, call or petrol charges.",
+      "sortOrder": 11,
+      "createdAt": "2026-06-29T00:00:00.000Z",
+      "updatedAt": "2026-06-29T00:00:00.000Z"
+    },
+    {
+      "id": "svc-snake-012",
+      "name": "Swapnil Autade",
+      "category": "Snake/Animal Rescuer",
+      "phones": [
+        "9823737368"
+      ],
+      "phone": "9823737368",
+      "comment": "Wild Animals and Snakes Protection Society. Reg No. 63/08 — Pune Division (MH 12). Volunteer rescuer; no fees, call or petrol charges.",
+      "sortOrder": 12,
+      "createdAt": "2026-06-29T00:00:00.000Z",
+      "updatedAt": "2026-06-29T00:00:00.000Z"
+    },
+    {
+      "id": "svc-snake-013",
+      "name": "Ajay Kondavale",
+      "category": "Snake/Animal Rescuer",
+      "phones": [
+        "7774056078"
+      ],
+      "phone": "7774056078",
+      "comment": "Wild Animals and Snakes Protection Society. Reg No. 63/08 — Pune Division (MH 12). Volunteer rescuer; no fees, call or petrol charges.",
+      "sortOrder": 13,
+      "createdAt": "2026-06-29T00:00:00.000Z",
+      "updatedAt": "2026-06-29T00:00:00.000Z"
+    },
+    {
+      "id": "svc-snake-014",
+      "name": "Ritesh Memane",
+      "category": "Snake/Animal Rescuer",
+      "phones": [
+        "8793329616"
+      ],
+      "phone": "8793329616",
+      "comment": "Wild Animals and Snakes Protection Society. Reg No. 63/08 — Pune Division (MH 12). Volunteer rescuer; no fees, call or petrol charges.",
+      "sortOrder": 14,
+      "createdAt": "2026-06-29T00:00:00.000Z",
+      "updatedAt": "2026-06-29T00:00:00.000Z"
+    },
+    {
+      "id": "svc-snake-015",
+      "name": "Pramod Kamble",
+      "category": "Snake/Animal Rescuer",
+      "phones": [
+        "9850060576"
+      ],
+      "phone": "9850060576",
+      "comment": "Wild Animals and Snakes Protection Society. Reg No. 63/08 — Pune Division (MH 12). Volunteer rescuer; no fees, call or petrol charges.",
+      "sortOrder": 15,
+      "createdAt": "2026-06-29T00:00:00.000Z",
+      "updatedAt": "2026-06-29T00:00:00.000Z"
+    },
+    {
+      "id": "svc-snake-016",
+      "name": "Yogesh Tupe",
+      "category": "Snake/Animal Rescuer",
+      "phones": [
+        "7350755141"
+      ],
+      "phone": "7350755141",
+      "comment": "Wild Animals and Snakes Protection Society. Reg No. 63/08 — Pune Division (MH 12). Volunteer rescuer; no fees, call or petrol charges.",
+      "sortOrder": 16,
+      "createdAt": "2026-06-29T00:00:00.000Z",
+      "updatedAt": "2026-06-29T00:00:00.000Z"
+    },
+    {
+      "id": "svc-snake-017",
+      "name": "Ravi Kulte",
+      "category": "Snake/Animal Rescuer",
+      "phones": [
+        "9011249999"
+      ],
+      "phone": "9011249999",
+      "comment": "Wild Animals and Snakes Protection Society. Reg No. 63/08 — Pune Division (MH 12). Volunteer rescuer; no fees, call or petrol charges.",
+      "sortOrder": 17,
+      "createdAt": "2026-06-29T00:00:00.000Z",
+      "updatedAt": "2026-06-29T00:00:00.000Z"
+    },
+    {
+      "id": "svc-snake-018",
+      "name": "Sushant Korfade",
+      "category": "Snake/Animal Rescuer",
+      "phones": [
+        "8485898818"
+      ],
+      "phone": "8485898818",
+      "comment": "Wild Animals and Snakes Protection Society. Reg No. 63/08 — Pune Division (MH 12). Volunteer rescuer; no fees, call or petrol charges.",
+      "sortOrder": 18,
+      "createdAt": "2026-06-29T00:00:00.000Z",
+      "updatedAt": "2026-06-29T00:00:00.000Z"
+    },
+    {
+      "id": "svc-snake-019",
+      "name": "Tejas Kaduskar",
+      "category": "Snake/Animal Rescuer",
+      "phones": [
+        "9545870147"
+      ],
+      "phone": "9545870147",
+      "comment": "Wild Animals and Snakes Protection Society. Reg No. 63/08 — Pune Division (MH 12). Volunteer rescuer; no fees, call or petrol charges.",
+      "sortOrder": 19,
+      "createdAt": "2026-06-29T00:00:00.000Z",
+      "updatedAt": "2026-06-29T00:00:00.000Z"
+    },
+    {
+      "id": "svc-snake-020",
+      "name": "Aniket Jadhav",
+      "category": "Snake/Animal Rescuer",
+      "phones": [
+        "9145304143"
+      ],
+      "phone": "9145304143",
+      "comment": "Wild Animals and Snakes Protection Society. Reg No. 63/08 — Pune Division (MH 12). Volunteer rescuer; no fees, call or petrol charges.",
+      "sortOrder": 20,
+      "createdAt": "2026-06-29T00:00:00.000Z",
+      "updatedAt": "2026-06-29T00:00:00.000Z"
+    },
+    {
+      "id": "svc-snake-021",
+      "name": "Omkar Kulkarni",
+      "category": "Snake/Animal Rescuer",
+      "phones": [
+        "8605570109"
+      ],
+      "phone": "8605570109",
+      "comment": "Wild Animals and Snakes Protection Society. Reg No. 63/08 — Pune Division (MH 12). Volunteer rescuer; no fees, call or petrol charges.",
+      "sortOrder": 21,
+      "createdAt": "2026-06-29T00:00:00.000Z",
+      "updatedAt": "2026-06-29T00:00:00.000Z"
+    },
+    {
+      "id": "svc-snake-022",
+      "name": "Rajesh Pivar",
+      "category": "Snake/Animal Rescuer",
+      "phones": [
+        "7507275504"
+      ],
+      "phone": "7507275504",
+      "comment": "Wild Animals and Snakes Protection Society. Reg No. 63/08 — Pune Division (MH 12). Volunteer rescuer; no fees, call or petrol charges.",
+      "sortOrder": 22,
+      "createdAt": "2026-06-29T00:00:00.000Z",
+      "updatedAt": "2026-06-29T00:00:00.000Z"
+    },
+    {
+      "id": "svc-snake-023",
+      "name": "Sandesh Bhadale",
+      "category": "Snake/Animal Rescuer",
+      "phones": [
+        "9764838686"
+      ],
+      "phone": "9764838686",
+      "comment": "Wild Animals and Snakes Protection Society. Reg No. 63/08 — Pune Division (MH 12). Volunteer rescuer; no fees, call or petrol charges.",
+      "sortOrder": 23,
+      "createdAt": "2026-06-29T00:00:00.000Z",
+      "updatedAt": "2026-06-29T00:00:00.000Z"
+    },
+    {
+      "id": "svc-snake-024",
+      "name": "Sagar Dixit",
+      "category": "Snake/Animal Rescuer",
+      "phones": [
+        "9762112113"
+      ],
+      "phone": "9762112113",
+      "comment": "Wild Animals and Snakes Protection Society. Reg No. 63/08 — Pune Division (MH 12). Volunteer rescuer; no fees, call or petrol charges.",
+      "sortOrder": 24,
+      "createdAt": "2026-06-29T00:00:00.000Z",
+      "updatedAt": "2026-06-29T00:00:00.000Z"
+    },
+    {
+      "id": "svc-snake-025",
+      "name": "Yuvraj Kondhare",
+      "category": "Snake/Animal Rescuer",
+      "phones": [
+        "9822629822"
+      ],
+      "phone": "9822629822",
+      "comment": "Wild Animals and Snakes Protection Society. Reg No. 63/08 — Pune Division (MH 12). Volunteer rescuer; no fees, call or petrol charges.",
+      "sortOrder": 25,
+      "createdAt": "2026-06-29T00:00:00.000Z",
+      "updatedAt": "2026-06-29T00:00:00.000Z"
+    },
+    {
+      "id": "svc-snake-026",
+      "name": "Ashish Salpekar",
+      "category": "Snake/Animal Rescuer",
+      "phones": [
+        "9763078093"
+      ],
+      "phone": "9763078093",
+      "comment": "Wild Animals and Snakes Protection Society. Reg No. 63/08 — Pune Division (MH 12). Volunteer rescuer; no fees, call or petrol charges.",
+      "sortOrder": 26,
+      "createdAt": "2026-06-29T00:00:00.000Z",
+      "updatedAt": "2026-06-29T00:00:00.000Z"
+    },
+    {
+      "id": "svc-snake-027",
+      "name": "Kiran Gaykwad",
+      "category": "Snake/Animal Rescuer",
+      "phones": [
+        "9130200309"
+      ],
+      "phone": "9130200309",
+      "comment": "Wild Animals and Snakes Protection Society. Reg No. 63/08 — Pune Division (MH 12). Volunteer rescuer; no fees, call or petrol charges.",
+      "sortOrder": 27,
+      "createdAt": "2026-06-29T00:00:00.000Z",
+      "updatedAt": "2026-06-29T00:00:00.000Z"
+    },
+    {
+      "id": "svc-snake-028",
+      "name": "Suresh Sasar",
+      "category": "Snake/Animal Rescuer",
+      "phones": [
+        "9370646825"
+      ],
+      "phone": "9370646825",
+      "comment": "Wild Animals and Snakes Protection Society. Reg No. 63/08 — Pune Division (MH 12). Volunteer rescuer; no fees, call or petrol charges.",
+      "sortOrder": 28,
+      "createdAt": "2026-06-29T00:00:00.000Z",
+      "updatedAt": "2026-06-29T00:00:00.000Z"
+    },
+    {
+      "id": "svc-snake-029",
+      "name": "Vishal Jagtap",
+      "category": "Snake/Animal Rescuer",
+      "phones": [
+        "8087716570"
+      ],
+      "phone": "8087716570",
+      "comment": "Wild Animals and Snakes Protection Society. Reg No. 63/08 — Pune Division (MH 12). Volunteer rescuer; no fees, call or petrol charges.",
+      "sortOrder": 29,
+      "createdAt": "2026-06-29T00:00:00.000Z",
+      "updatedAt": "2026-06-29T00:00:00.000Z"
+    },
+    {
+      "id": "svc-snake-030",
+      "name": "Sachin Pathak",
+      "category": "Snake/Animal Rescuer",
+      "phones": [
+        "9922494049"
+      ],
+      "phone": "9922494049",
+      "comment": "Wild Animals and Snakes Protection Society. Reg No. 63/08 — Pune Division (MH 12). Volunteer rescuer; no fees, call or petrol charges.",
+      "sortOrder": 30,
+      "createdAt": "2026-06-29T00:00:00.000Z",
+      "updatedAt": "2026-06-29T00:00:00.000Z"
+    },
+    {
+      "id": "svc-snake-031",
+      "name": "Sagar Bawale",
+      "category": "Snake/Animal Rescuer",
+      "phones": [
+        "8275133333"
+      ],
+      "phone": "8275133333",
+      "comment": "Wild Animals and Snakes Protection Society. Reg No. 63/08 — Pune Division (MH 12). Volunteer rescuer; no fees, call or petrol charges.",
+      "sortOrder": 31,
+      "createdAt": "2026-06-29T00:00:00.000Z",
+      "updatedAt": "2026-06-29T00:00:00.000Z"
+    },
+    {
+      "id": "svc-snake-032",
+      "name": "Santosh Thorat",
+      "category": "Snake/Animal Rescuer",
+      "phones": [
+        "8087348348"
+      ],
+      "phone": "8087348348",
+      "comment": "Wild Animals and Snakes Protection Society. Reg No. 63/08 — Pune Division (MH 12). Volunteer rescuer; no fees, call or petrol charges.",
+      "sortOrder": 32,
+      "createdAt": "2026-06-29T00:00:00.000Z",
+      "updatedAt": "2026-06-29T00:00:00.000Z"
     }
   ],
-  "emergency": []
+  "emergency": [
+    {
+      "id": "emg-001",
+      "name": "Mr. Manish Pande",
+      "role": "Security",
+      "phones": [
+        "9975605329"
+      ],
+      "phone": "9975605329",
+      "sortOrder": 1,
+      "createdAt": "2026-06-29T00:00:00.000Z",
+      "updatedAt": "2026-06-29T00:00:00.000Z"
+    },
+    {
+      "id": "emg-002",
+      "name": "Mr. Sachin",
+      "role": "Housekeeping",
+      "phones": [
+        "9623986349"
+      ],
+      "phone": "9623986349",
+      "sortOrder": 2,
+      "createdAt": "2026-06-29T00:00:00.000Z",
+      "updatedAt": "2026-06-29T00:00:00.000Z"
+    },
+    {
+      "id": "emg-003",
+      "name": "Mr. Tiwari",
+      "role": "Electrician",
+      "phones": [
+        "9765550942"
+      ],
+      "phone": "9765550942",
+      "sortOrder": 3,
+      "createdAt": "2026-06-29T00:00:00.000Z",
+      "updatedAt": "2026-06-29T00:00:00.000Z"
+    },
+    {
+      "id": "emg-004",
+      "name": "Mr. Vishwajit",
+      "role": "Plumber (A Wing)",
+      "phones": [
+        "9122706433"
+      ],
+      "phone": "9122706433",
+      "sortOrder": 4,
+      "createdAt": "2026-06-29T00:00:00.000Z",
+      "updatedAt": "2026-06-29T00:00:00.000Z"
+    },
+    {
+      "id": "emg-005",
+      "name": "Mr. Sahani",
+      "role": "Plumber (B Wing)",
+      "phones": [
+        "8766826634"
+      ],
+      "phone": "8766826634",
+      "sortOrder": 5,
+      "createdAt": "2026-06-29T00:00:00.000Z",
+      "updatedAt": "2026-06-29T00:00:00.000Z"
+    },
+    {
+      "id": "emg-006",
+      "name": "Mr. Guru",
+      "role": "Plumber (C Wing)",
+      "phones": [
+        "8766826634"
+      ],
+      "phone": "8766826634",
+      "sortOrder": 6,
+      "createdAt": "2026-06-29T00:00:00.000Z",
+      "updatedAt": "2026-06-29T00:00:00.000Z"
+    },
+    {
+      "id": "emg-007",
+      "name": "Mr. Sambhale",
+      "role": "Fabricator",
+      "phones": [
+        "9922340835"
+      ],
+      "phone": "9922340835",
+      "sortOrder": 7,
+      "createdAt": "2026-06-29T00:00:00.000Z",
+      "updatedAt": "2026-06-29T00:00:00.000Z"
+    },
+    {
+      "id": "emg-008",
+      "name": "Mr. Ajit",
+      "role": "CCTV / Camera",
+      "phones": [
+        "7058456042"
+      ],
+      "phone": "7058456042",
+      "sortOrder": 8,
+      "createdAt": "2026-06-29T00:00:00.000Z",
+      "updatedAt": "2026-06-29T00:00:00.000Z"
+    }
+  ]
 }
