@@ -3235,21 +3235,25 @@ a.tsh-banner-inner:focus-visible {
     padding: var(--sp-2) var(--sp-3);
   }
   .tsh-brand { flex: 1 1 auto; min-width: 0; }
-  /* Mobile right-rail: brand on the left, action icons + RESIDENT pill
-     stay inline on the right of the header. Nav drops to its own row
-     below (order:99). Override the desktop "pill on its own row" rule
-     so the access tier stays beside the export/download/sign-out
-     icons rather than wrapping under them. */
+  /* Mobile right-rail (two-row):
+     Row 1 — action icons (download / export / sign-in or sign-out)
+             stay inline on the right of the header.
+     Row 2 — RESIDENT access pill drops to its own row, right-aligned
+             beneath the sign-out icon. The pill uses
+             `flex: 1 0 100%` to wrap, so the userbox itself must
+             allow wrapping. */
   .tsh-userbox {
     flex: 0 1 auto;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     justify-content: flex-end;
     max-width: 100%;
     gap: 6px;
+    row-gap: 4px;
   }
   .tsh-userbox [data-tsh-user]:not(.tsh-user-anon) {
-    order: 2;
-    flex: 0 0 auto;
+    order: 10;
+    flex: 1 0 100%;
+    justify-content: flex-end;
     margin-top: 0;
     max-width: none;
   }
@@ -4705,8 +4709,10 @@ select.tsh-tabs-mobile::-ms-expand { display: none; }
    data-tsh-tip on the button/anchor. Disabled on touch devices via the
    hover media query so it doesn't get stuck after a tap. */
 @media (hover: hover) {
-  .tsh-userbox [data-tsh-tip] { position: relative; }
-  .tsh-userbox [data-tsh-tip]::after {
+  .tsh-userbox [data-tsh-tip],
+  .tsh-nav [data-tsh-tip] { position: relative; }
+  .tsh-userbox [data-tsh-tip]::after,
+  .tsh-nav [data-tsh-tip]::after {
     content: attr(data-tsh-tip);
     position: absolute;
     top: calc(100% + 6px);
@@ -4727,7 +4733,9 @@ select.tsh-tabs-mobile::-ms-expand { display: none; }
     box-shadow: 0 6px 14px rgba(15, 23, 42, 0.25);
   }
   .tsh-userbox [data-tsh-tip]:hover::after,
-  .tsh-userbox [data-tsh-tip]:focus-visible::after {
+  .tsh-userbox [data-tsh-tip]:focus-visible::after,
+  .tsh-nav [data-tsh-tip]:hover::after,
+  .tsh-nav [data-tsh-tip]:focus-visible::after {
     opacity: 1;
     transform: translateX(-50%) translateY(0);
   }
