@@ -2589,18 +2589,14 @@ a.tsh-banner-inner:focus-visible {
   line-height: 1.4;
   border-radius: 999px;
 }
-/* In the new "row below icons" layout we have room for the email too,
-   so reveal it unconditionally for signed-in users (the desktop "never"
-   default collapsed it to max-width: 0). Truncate gracefully on
-   narrow screens. */
+/* Pill row stays tiny — email is hidden by default at every viewport so
+   the userbox's pill-row width is just the pill (~70px), which lets
+   brand + 7 nav links + 3 action icons share row 1 on desktop without
+   the userbox wrapping beneath the brand. Mobile already hid it via
+   the <=720px override; desktop now matches. The email is still in
+   the DOM for screen readers (it sits inside .tsh-user-text). */
 .tsh-userbox [data-tsh-user]:not(.tsh-user-anon) .tsh-user-text {
-  max-width: min(320px, 60vw);
-  opacity: 1;
-  margin-left: 6px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: 0.72rem;
-  color: var(--c-text-muted);
+  display: none;
 }
 .tsh-userbox > .tsh-btn { order: 1; }
 .tsh-userbox [data-tsh-user] {
@@ -2663,6 +2659,48 @@ a.tsh-banner-inner:focus-visible {
 .tsh-userbox[data-tsh-expand="auto"]:focus-within .tsh-btn,
 .tsh-userbox[data-tsh-expand="always"] .tsh-btn {
   padding-inline: var(--sp-3);
+}
+
+/* ===== Desktop (>=721px) compact header — fit brand + 7-link nav +
+   3 action icons on a single row even for DEVELOPER / COMMITTEE /
+   MANAGER roles. Mobile (<=720px) has its own block below that takes
+   precedence; this block only tightens desktop. ====================== */
+@media (min-width: 721px) {
+  /* Slightly tighter nav so 7 labelled links fit beside the userbox. */
+  .tsh-nav { gap: 2px; }
+  .tsh-nav a {
+    padding: var(--sp-2) 10px;
+  }
+  /* Smaller action icons — download / PDF / sign-out / sign-in. The
+     icon glyph itself stays readable; only the surrounding padding
+     shrinks so the chip footprint is ~32px tall instead of ~40px. */
+  .tsh-userbox .tsh-btn {
+    padding: 4px 8px;
+    min-height: 0;
+    line-height: 1;
+  }
+  .tsh-userbox .tsh-btn > i {
+    font-size: 0.95rem;
+  }
+  /* Tighter row gap inside the userbox so the pill sits closer under
+     the icons. */
+  .tsh-userbox {
+    row-gap: 2px;
+  }
+  /* Even smaller access-role pill on desktop — at-a-glance role badge,
+     not a focal element. */
+  .tsh-userbox [data-tsh-user]:not(.tsh-user-anon) .tsh-user-role {
+    padding: 0 6px;
+    font-size: 0.56rem;
+    letter-spacing: 0.05em;
+    line-height: 1.5;
+  }
+  /* Trim the wrapper padding around the pill so it visually aligns to
+     the right edge of the sign-out icon above it. */
+  .tsh-userbox [data-tsh-user]:not(.tsh-user-anon) {
+    padding: 0;
+    margin-top: 0;
+  }
 }
 /* Mobile Ã¢â‚¬â€ keep userbox always-expanded so it isn't fiddly on touch. */
 @media (max-width: 640px) {
