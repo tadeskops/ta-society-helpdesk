@@ -3261,6 +3261,20 @@ a.tsh-banner-inner:focus-visible {
     font-size: 0.6rem;
   }
   .tsh-userbox > .tsh-btn { order: 1; }
+  /* Sign-in stays in its expanded state on mobile (icon + "Sign in"
+     label) so the affordance is obvious on a fresh device. All other
+     userbox buttons (download / export / sign-out) remain icon-only. */
+  .tsh-userbox [data-tsh-signin] .tsh-btn-label {
+    display: inline-block;
+    max-width: none;
+    opacity: 1;
+    margin-left: 4px;
+    font-size: var(--fs-sm);
+  }
+  .tsh-userbox [data-tsh-signin] {
+    padding: 6px 12px;
+    border-radius: var(--rad-pill);
+  }
   /* Below-header nav strip: icon-only, scales with the font-size
      palette (--fs-base swaps when the user picks A / A / A in the
      floatdock). Horizontally scrollable if items overflow. */
@@ -3318,6 +3332,11 @@ a.tsh-banner-inner:focus-visible {
     border-radius: var(--rad-pill);
   }
   .tsh-userbox .tsh-btn .tsh-btn-label { display: none; }
+  /* Re-assert the ≤720 exception for Sign-in (display:none above would
+     win without this since the rules sit in the same cascade). */
+  .tsh-userbox [data-tsh-signin] .tsh-btn-label {
+    display: inline-block;
+  }
   .tsh-userbox .tsh-btn {
     padding: 6px 8px;
     border-radius: var(--rad-pill);
