@@ -1096,9 +1096,14 @@
           a.hidden = !(roleOk && flagOk);
         }
         // Pure feature-gated nav links (no role requirement) — e.g. Board.
+        // data-tsh-no-content is set by panel modules (events.js, etc.) when
+        // the underlying section has nothing to show, so clicking the tile
+        // wouldn't go anywhere visible. Respect it here so we don't race the
+        // panel into re-showing an empty-state tile.
         for (const a of document.querySelectorAll('a[data-tsh-feature]:not([data-tsh-role-link])')) {
           const flag = a.getAttribute('data-tsh-feature');
-          a.hidden = !root.Flags.on(flag);
+          const empty = a.dataset.tshNoContent === 'true';
+          a.hidden = !root.Flags.on(flag) || empty;
         }
         // Surface the access tier next to the signed-in email so users see
         // which permission set is active (highest of any mapped roles).

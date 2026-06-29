@@ -130,10 +130,20 @@
   // with whether the events section actually has anything to show.
   // Without this, the tile stays clickable even when every event is
   // expired → it scrolls to a hidden anchor and the click feels dead.
+  //
+  // We also stamp data-tsh-no-content on the tile so ui.js#refreshRoleLinks
+  // (which runs on every auth-state flip and sets a.hidden purely from the
+  // feature flag) does not race us into re-showing the tile while the
+  // backing section is still hidden.
   function syncQuickTile(visible) {
     try {
       document.querySelectorAll('a[href="#tshEvents"]').forEach((tile) => {
         tile.hidden = !visible;
+        if (visible) {
+          delete tile.dataset.tshNoContent;
+        } else {
+          tile.dataset.tshNoContent = 'true';
+        }
       });
     } catch (_e) { /* DOM may not be ready in unusual mount orders */ }
   }
