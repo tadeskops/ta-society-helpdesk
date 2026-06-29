@@ -234,7 +234,12 @@
 
   function setBusy(b) {
     const p = document.getElementById('tshPdfProgress');
-    if (p) p.hidden = !b;
+    if (p) {
+      // Keep the progress chrome mounted at all times so users always
+      // see a status line. data-state drives the visual treatment in CSS.
+      p.dataset.state = b ? 'busy' : 'idle';
+      if (!b) setProgress(0, 'Ready');
+    }
     ['tshPdfPreview', 'tshPdfDownload'].forEach((id) => {
       const e = document.getElementById(id);
       if (e) e.disabled = b;

@@ -889,11 +889,31 @@
         else if (root.UI && root.UI.toast) root.UI.toast('PDF report not available on this page.', { kind: 'warn' });
       });
     }
+    // Direct-download icon — points at the latest TSH_Report.pdf written
+    // by the worker on every export. Visible only when signed in. We set
+    // the href lazily from /config so the repo slug isn't hard-coded.
+    const downloadLatest = document.querySelector('[data-tsh-download-latest]');
+    const refreshDownloadHref = () => {
+      if (!downloadLatest) return;
+      if (downloadLatest.dataset.hrefReady === '1') return;
+      const cfg = root.Flags && root.Flags.raw;
+      const repo = cfg && cfg.system && cfg.system.issuesRepo;
+      if (!repo) return;
+      downloadLatest.href = `https://raw.githubusercontent.com/${repo}/main/backups/TSH_Report.pdf`;
+      // setAttribute("download") so the browser saves rather than navigates.
+      downloadLatest.setAttribute('download', 'TSH_Report.pdf');
+      downloadLatest.dataset.hrefReady = '1';
+    };
     const refreshExportBtn = () => {
-      if (!exportBtn) return;
       const signedIn = !!(root.Auth && root.Auth.token && root.Auth.token());
-      const featureOk = !root.Flags || !root.Flags.on || root.Flags.on('FEATURE_DAILY_EXPORT_PDF') !== false;
-      exportBtn.hidden = !(signedIn && featureOk);
+      if (exportBtn) {
+        const featureOk = !root.Flags || !root.Flags.on || root.Flags.on('FEATURE_DAILY_EXPORT_PDF') !== false;
+        exportBtn.hidden = !(signedIn && featureOk);
+      }
+      if (downloadLatest) {
+        refreshDownloadHref();
+        downloadLatest.hidden = !signedIn;
+      }
     };
 
     const hideRoleLinks = () => {

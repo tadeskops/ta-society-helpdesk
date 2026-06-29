@@ -276,3 +276,38 @@ describe('GET /metrics/visit (anonymous)', () => {
   });
 });
 
+describe('POST /reports/backup (signed-in)', () => {
+  it('writes the dated copy plus the always-latest and monthly aliases', async () => {
+    // Tiny base64 (= "hi"). Real downloads send the real PDF bytes.
+    const r = await send('POST', '/reports/backup', {
+      source: 'unit-test',
+      snapshot: { sample: true },
+      pdfB64: 'aGk=',
+    }, 'mgr@x.com');
+    expect(r.status).toBe(200);
+    const j = await r.json() as any;
+    expect(j.ok).toBe(true);
+    expect(j.data.latestPath).toBe('backups/TSH_Report.pdf');
+    expect(j.data.monthlyPath).toMatch(/^backups\/TSH_Report_\d{4}\.pdf$/);
+    const pdfWrites = ghCalls.filter((c) => c.fn === 'putBinaryB64');
+    const paths = pdfWrites.map((c) => c.path);
+    // Three PDF writes: dated trail + latest + current-month snapshot.
+    expect(paths.some((p) => p === 'backups/TSH_Report.pdf')).toBe(true);
+    expect(paths.some((p) => /^backups\/TSH_Report_\d{4}\.pdf$/.test(p))).toBe(true);
+    expect(paths.some((p) => /^backups\/\d{4}-\d{2}-\d{2}\/\d{4}-unit-test\.pdf$/.test(p))).toBe(true);
+  });
+
+  it('omits the latest/monthly aliases when no pdfB64 is supplied', async () => {
+    const r = await send('POST', '/reports/backup', {
+      source: 'unit-test',
+      snapshot: { sample: true },
+    }, 'mgr@x.com');
+    expect(r.status).toBe(200);
+    const j = await r.json() as any;
+    expect(j.data.latestPath).toBeUndefined();
+    expect(j.data.monthlyPath).toBeUndefined();
+    const pdfWrites = ghCalls.filter((c) => c.fn === 'putBinaryB64');
+    expect(pdfWrites.length).toBe(0);
+  });
+});
+

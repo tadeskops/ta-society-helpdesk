@@ -4607,6 +4607,21 @@ select.tsh-tabs-mobile::-ms-expand { display: none; }
   .tsh-userbox .tsh-btn-icon { padding-inline: 0.75rem; }
   .tsh-userbox .tsh-btn-icon .tsh-btn-label { display: inline; }
 }
+/* Bundle 38: extra-compact icon buttons (used for header export + direct
+   download). Keep them small at every breakpoint and never reveal a label. */
+.tsh-userbox .tsh-btn-iconxs {
+  padding: 0.32rem 0.45rem;
+  font-size: 0.85rem;
+  line-height: 1;
+  min-width: 0;
+  gap: 0;
+}
+.tsh-userbox .tsh-btn-iconxs .tsh-btn-label,
+.tsh-userbox .tsh-btn-iconxs.tsh-btn-icon .tsh-btn-label { display: none !important; }
+.tsh-userbox .tsh-btn-iconxs > i { font-size: 0.95rem; }
+@media (min-width: 1100px) {
+  .tsh-userbox .tsh-btn-iconxs { padding: 0.34rem 0.5rem; }
+}
 
 .tsh-pdf-modal { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 1rem; }
 .tsh-pdf-modal[hidden] { display: none; }
@@ -4655,9 +4670,24 @@ select.tsh-tabs-mobile::-ms-expand { display: none; }
 .tsh-pdf-monthly-status { font-size: 0.74rem; color: var(--tsh-muted, #64748b); }
 .tsh-pdf-summary { font-size: 0.78rem; color: var(--tsh-muted, #64748b); }
 .tsh-pdf-progress { display: flex; flex-direction: column; gap: 0.35rem; }
-.tsh-pdf-progress-bar { height: 6px; background: rgba(148,163,184,0.25); border-radius: 999px; overflow: hidden; }
+.tsh-pdf-progress-bar { height: 6px; background: rgba(148,163,184,0.25); border-radius: 999px; overflow: hidden; position: relative; }
 .tsh-pdf-progress-bar > div { height: 100%; width: 0%; background: linear-gradient(90deg, #f59e0b, #ef4444); transition: width 0.2s ease; }
 .tsh-pdf-progress-text { font-size: 0.75rem; color: var(--tsh-muted, #475569); }
+/* Bundle 38: keep the bar mounted at all times. While idle the fill is
+   a calm flat tint; while busy it switches to the warm gradient and
+   the text reads the current step. */
+.tsh-pdf-progress[data-state="idle"] .tsh-pdf-progress-bar > div {
+  width: 100%;
+  background: rgba(148,163,184,0.35);
+  opacity: 0.6;
+}
+.tsh-pdf-progress[data-state="busy"] .tsh-pdf-progress-bar::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.45) 50%, transparent 100%);
+  animation: tshPdfShimmer 1.2s linear infinite;
+  pointer-events: none;
+}
+@keyframes tshPdfShimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
 .tsh-pdf-foot {
   display: flex; flex-wrap: wrap; gap: 0.4rem; justify-content: flex-end;
   padding: 0.75rem 1.1rem; border-top: 1px solid var(--tsh-border, rgba(148,163,184,0.35));

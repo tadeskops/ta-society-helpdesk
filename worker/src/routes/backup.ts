@@ -94,16 +94,29 @@ export const mountBackup = (r: Router): void => {
     await putFile(ctx.env, jsonPath, jsonBody, `backup: ${ymd} ${hhmn} (${source}) snapshot`, author);
 
     let pdfPath: string | undefined;
+    let latestPath: string | undefined;
+    let monthlyPath: string | undefined;
     if (body.pdfB64) {
       const cleaned = body.pdfB64.replace(/\s+/g, '');
       if (!/^[A-Za-z0-9+/]+=*$/.test(cleaned)) throw new BadRequest('pdfB64 must be base64');
       if (cleaned.length > 12_000_000) throw new BadRequest('pdf too large (limit ~9 MB)');
       pdfPath = `${base}.pdf`;
       await putBinaryB64(ctx.env, pdfPath, cleaned, `backup: ${ymd} ${hhmn} (${source}) pdf`, author);
+
+      // Always-latest copy + current-month frozen copy. The 1st of each
+      // month, archiveMonthly() snapshots the previous month's latest
+      // into TSH_Report_<MMYY>.pdf so that file represents that month's
+      // final state even after the next month's downloads start.
+      const istNow = istParts(new Date());
+      const mmyy = `${istNow.mm}${istNow.yyyy.slice(2)}`;
+      latestPath = 'backups/TSH_Report.pdf';
+      monthlyPath = `backups/TSH_Report_${mmyy}.pdf`;
+      await putBinaryB64(ctx.env, latestPath,  cleaned, `backup: latest TSH_Report.pdf (${source} @ ${ymd} ${hhmn})`, author);
+      await putBinaryB64(ctx.env, monthlyPath, cleaned, `backup: monthly TSH_Report_${mmyy}.pdf (${source} @ ${ymd} ${hhmn})`, author);
     }
 
-    log.info(ctx.env, 'backup_saved', { jsonPath, pdfPath, source, by: author });
-    return ok(ctx.env, ctx.req, { jsonPath, pdfPath, source });
+    log.info(ctx.env, 'backup_saved', { jsonPath, pdfPath, latestPath, monthlyPath, source, by: author });
+    return ok(ctx.env, ctx.req, { jsonPath, pdfPath, latestPath, monthlyPath, source });
   });
 
   r.get('/reports/backups', async (ctx: Ctx) => {
