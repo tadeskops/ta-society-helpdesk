@@ -2561,15 +2561,24 @@ a.tsh-banner-inner:focus-visible {
   gap: 0.3rem;
 }
 /* When signed in, the access-role chip sits on its own row BELOW the
-   icon strip, left-aligned to the userbox. Anonymous "Not signed in"
-   keeps its inline placement so the Sign-in primary button can sit
-   next to it without a layout jump. */
+   icon strip, right-aligned to the same edge as the icons. Anonymous
+   "Not signed in" keeps its inline placement so the Sign-in primary
+   button can sit next to it without a layout jump. */
 .tsh-userbox [data-tsh-user]:not(.tsh-user-anon) {
   order: 10;
   flex: 1 0 100%;
-  justify-content: flex-start;
+  justify-content: flex-end;
   max-width: none;
-  margin-top: 2px;
+  margin-top: 1px;
+  min-height: 0;
+}
+/* Compact pill — small, subtle, doesn't dominate the header row. */
+.tsh-userbox [data-tsh-user]:not(.tsh-user-anon) .tsh-user-role {
+  padding: 1px 8px;
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  line-height: 1.4;
+  border-radius: 999px;
 }
 .tsh-userbox > .tsh-btn { order: 1; }
 .tsh-userbox [data-tsh-user] {
