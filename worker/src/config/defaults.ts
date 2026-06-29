@@ -170,7 +170,7 @@ export const DEFAULT_CONFIG: SiteConfig = {
   ui: {
     defaultTheme:     'light',
     defaultFontScale: 'md',
-    headerIconExpand: 'auto',
+    headerIconExpand: 'never',
   },
 };
 

@@ -2585,10 +2585,15 @@ a.tsh-banner-inner:focus-visible {
   opacity: 0;
   transition: max-width 220ms ease, opacity 160ms ease;
 }
-.tsh-userbox:hover .tsh-user-text,
-.tsh-userbox:focus-within .tsh-user-text,
-.tsh-userbox:hover .tsh-btn-label,
-.tsh-userbox:focus-within .tsh-btn-label {
+/* Hover-grow is opt-in via data-tsh-expand="auto"/"always". The default
+   ("never") leaves labels collapsed so hovering the userbox doesn't
+   reflow the header — fixes the desktop "shiver" on hover. */
+.tsh-userbox[data-tsh-expand="auto"]:hover .tsh-user-text,
+.tsh-userbox[data-tsh-expand="auto"]:focus-within .tsh-user-text,
+.tsh-userbox[data-tsh-expand="auto"]:hover .tsh-btn-label,
+.tsh-userbox[data-tsh-expand="auto"]:focus-within .tsh-btn-label,
+.tsh-userbox[data-tsh-expand="always"] .tsh-user-text,
+.tsh-userbox[data-tsh-expand="always"] .tsh-btn-label {
   max-width: 220px;
   opacity: 1;
   margin-left: 4px;
@@ -2608,8 +2613,11 @@ a.tsh-banner-inner:focus-visible {
   min-width: 0;
   padding-inline: var(--sp-2);
 }
-.tsh-userbox:hover .tsh-btn,
-.tsh-userbox:focus-within .tsh-btn {
+/* Pad-grow on hover only when expansion is enabled. Avoids the
+   desktop "shiver" caused by every button changing width on hover. */
+.tsh-userbox[data-tsh-expand="auto"]:hover .tsh-btn,
+.tsh-userbox[data-tsh-expand="auto"]:focus-within .tsh-btn,
+.tsh-userbox[data-tsh-expand="always"] .tsh-btn {
   padding-inline: var(--sp-3);
 }
 /* Mobile Ã¢â‚¬â€ keep userbox always-expanded so it isn't fiddly on touch. */

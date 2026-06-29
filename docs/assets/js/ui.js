@@ -922,19 +922,40 @@
     }
     // Direct-download icon — points at the latest TSH_Report.pdf written
     // by the worker on every export. Visible only when signed in. We set
-    // the href lazily from /config so the repo slug isn't hard-coded.
+    // the href lazily from /config so the repo slug isn't hard-coded, but
+    // we also seed it from the page host as a fallback so the icon still
+    // works before Flags has finished loading the config.
     const downloadLatest = document.querySelector('[data-tsh-download-latest]');
-    const refreshDownloadHref = () => {
-      if (!downloadLatest) return;
-      if (downloadLatest.dataset.hrefReady === '1') return;
-      const cfg = root.Flags && root.Flags.raw;
-      const repo = cfg && cfg.system && cfg.system.issuesRepo;
-      if (!repo) return;
+    const guessRepoFromHost = () => {
+      // GitHub Pages serves <owner>.github.io/<repo>. When we're on a
+      // custom domain the caller can override by ensuring the worker
+      // returns system.issuesRepo. The hard-coded fallback below matches
+      // the deployed Pages site.
+      const m = String(location.hostname || '').match(/^([^.]+)\.github\.io$/i);
+      const owner = m ? m[1] : 'tadeskops';
+      const parts = String(location.pathname || '').split('/').filter(Boolean);
+      const repo = parts.length && !/\.(html?|pdf)$/i.test(parts[0]) ? parts[0] : 'ta-society-helpdesk';
+      return `${owner}/${repo}`;
+    };
+    const setDownloadHref = (repo) => {
+      if (!downloadLatest || !repo) return;
       downloadLatest.href = `https://raw.githubusercontent.com/${repo}/main/backups/TSH_Report.pdf`;
       // setAttribute("download") so the browser saves rather than navigates.
       downloadLatest.setAttribute('download', 'TSH_Report.pdf');
       downloadLatest.dataset.hrefReady = '1';
     };
+    const refreshDownloadHref = () => {
+      if (!downloadLatest) return;
+      const cfg = root.Flags && root.Flags.raw;
+      const repo = (cfg && cfg.system && cfg.system.issuesRepo) || guessRepoFromHost();
+      setDownloadHref(repo);
+    };
+    // Seed the href immediately so the link works before Flags loads.
+    refreshDownloadHref();
+    // Re-seed once the config loads (in case the tenant overrode issuesRepo).
+    if (root.Flags && root.Flags.ready) {
+      root.Flags.ready().then(refreshDownloadHref).catch(() => { /* keep fallback */ });
+    }
     if (downloadLatest) {
       bindIconActivation(downloadLatest, () => {
         // Triggering the anchor programmatically reuses the browser's
@@ -947,21 +968,32 @@
       const signedIn = !!(root.Auth && root.Auth.token && root.Auth.token());
       if (exportBtn) {
         const featureOk = !root.Flags || !root.Flags.on || root.Flags.on('FEATURE_DAILY_EXPORT_PDF') !== false;
-        // Only reveal when a page has actually bound a data source via
-        // TSH_REPORT.bind({ getItems }). Without a binding the wizard
-        // falls back to /issues, which 403s for residents and produces a
-        // confusing "Role UNKNOWN not allowed here" toast.
-        const hasSource = !!(root.TSH_REPORT && typeof root.TSH_REPORT.isBound === 'function' && root.TSH_REPORT.isBound());
-        exportBtn.hidden = !(signedIn && featureOk && hasSource);
+        // Show whenever signed in + feature on. Pages without a bound
+        // data source fall back to /issues; if the role can't read that
+        // endpoint the wizard surfaces a toast on click, which is a
+        // better trade-off than hiding the icon on most pages.
+        exportBtn.hidden = !(signedIn && featureOk);
       }
       if (downloadLatest) {
         refreshDownloadHref();
         downloadLatest.hidden = !signedIn;
       }
     };
-    // Pages call TSH_REPORT.bind() after their data is loaded — re-evaluate
-    // the Export icon visibility whenever that happens.
-    document.addEventListener('tsh:pdf-bound', refreshExportBtn);
+    // Apply the configured header icon expansion mode. Default is "never"
+    // (icon-only, no hover-grow) so the header doesn't shiver on hover.
+    const applyHeaderExpand = () => {
+      const userbox = document.querySelector('[data-tsh-userbox]');
+      if (!userbox) return;
+      const cfgUi = (root.TSH_UI_DEFAULTS) || (root.Flags && root.Flags.raw && root.Flags.raw.ui) || {};
+      const mode = (cfgUi.headerIconExpand === 'auto' || cfgUi.headerIconExpand === 'always')
+        ? cfgUi.headerIconExpand
+        : 'never';
+      userbox.setAttribute('data-tsh-expand', mode);
+    };
+    applyHeaderExpand();
+    if (root.Flags && root.Flags.ready) {
+      root.Flags.ready().then(applyHeaderExpand).catch(() => { /* keep default */ });
+    }
 
     const hideRoleLinks = () => {
       for (const a of document.querySelectorAll('[data-tsh-role-link]')) a.hidden = true;
