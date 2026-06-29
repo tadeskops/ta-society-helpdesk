@@ -26,23 +26,12 @@
     "Elderly Care",
     "Miscellaneous"
   ],
-  "services": [],
-  "emergency": [
-    { "id": "emg-001", "name": "Mr. Manish Pande", "role": "Security",          "phones": ["9975605329"], "phone": "9975605329", "sortOrder": 1, "createdAt": "2026-06-29T00:00:00.000Z", "updatedAt": "2026-06-29T00:00:00.000Z" },
-    { "id": "emg-002", "name": "Mr. Sachin",       "role": "Housekeeping",      "phones": ["9623986349"], "phone": "9623986349", "sortOrder": 2, "createdAt": "2026-06-29T00:00:00.000Z", "updatedAt": "2026-06-29T00:00:00.000Z" },
-    { "id": "emg-003", "name": "Mr. Tiwari",       "role": "Electrician",       "phones": ["9765550942"], "phone": "9765550942", "sortOrder": 3, "createdAt": "2026-06-29T00:00:00.000Z", "updatedAt": "2026-06-29T00:00:00.000Z" },
-    { "id": "emg-004", "name": "Mr. Vishwajit",    "role": "Plumber (A Wing)",  "phones": ["9122706433"], "phone": "9122706433", "sortOrder": 4, "createdAt": "2026-06-29T00:00:00.000Z", "updatedAt": "2026-06-29T00:00:00.000Z" },
-    { "id": "emg-005", "name": "Mr. Sahani",       "role": "Plumber (B Wing)",  "phones": ["8766826634"], "phone": "8766826634", "sortOrder": 5, "createdAt": "2026-06-29T00:00:00.000Z", "updatedAt": "2026-06-29T00:00:00.000Z" },
-    { "id": "emg-006", "name": "Mr. Guru",         "role": "Plumber (C Wing)",  "phones": ["8766826634"], "phone": "8766826634", "sortOrder": 6, "createdAt": "2026-06-29T00:00:00.000Z", "updatedAt": "2026-06-29T00:00:00.000Z" },
-    { "id": "emg-007", "name": "Mr. Sambhale",     "role": "Fabricator",        "phones": ["9922340835"], "phone": "9922340835", "sortOrder": 7, "createdAt": "2026-06-29T00:00:00.000Z", "updatedAt": "2026-06-29T00:00:00.000Z" },
-    { "id": "emg-008", "name": "Mr. Ajit",         "role": "CCTV / Camera",     "phones": ["7058456042"], "phone": "7058456042", "sortOrder": 8, "createdAt": "2026-06-29T00:00:00.000Z", "updatedAt": "2026-06-29T00:00:00.000Z" }
-  ],
   "vendors": [
     {
       "id": "vnd-212b05dae99ad0a5",
       "name": "Jaquar Group",
       "createdAt": "2026-06-27T15:29:05.506Z",
-      "updatedAt": "2026-06-27T18:41:54.404Z",
+      "updatedAt": "2026-06-29T06:04:34.549Z",
       "category": "Plumber",
       "phones": [
         "18001216808",
@@ -57,147 +46,186 @@
     {
       "id": "ctc-cm-00000001",
       "name": "Tanuj Dang",
-      "designation": "Chairman",
-      "role": "Committee",
-      "address": "C-1101",
-      "phones": ["+91 80070 70009"],
-      "phone": "+91 80070 70009",
-      "sortOrder": 1,
       "createdAt": "2026-06-28T00:00:00.000Z",
-      "updatedAt": "2026-06-28T00:00:00.000Z"
+      "updatedAt": "2026-06-29T06:04:34.549Z",
+      "phones": [
+        "+91 80070 70009"
+      ],
+      "phone": "+91 80070 70009",
+      "address": "C-1101",
+      "role": "Committee",
+      "designation": "Chairman",
+      "sortOrder": 1
     },
     {
       "id": "ctc-cm-00000002",
       "name": "Dhyanashloka Yabaluri",
-      "designation": "Secretary",
-      "role": "Committee",
-      "address": "C-702",
-      "phones": ["+91 77098 43824"],
-      "phone": "+91 77098 43824",
-      "sortOrder": 2,
       "createdAt": "2026-06-28T00:00:00.000Z",
-      "updatedAt": "2026-06-28T00:00:00.000Z"
+      "updatedAt": "2026-06-29T06:04:34.549Z",
+      "phones": [
+        "+91 77098 43824"
+      ],
+      "phone": "+91 77098 43824",
+      "address": "C-702",
+      "role": "Committee",
+      "designation": "Secretary",
+      "sortOrder": 2
     },
     {
       "id": "ctc-cm-00000003",
       "name": "Amit Gupta",
-      "designation": "Treasurer",
-      "role": "Committee",
-      "address": "A-702",
-      "phones": ["+91 98105 04776"],
-      "phone": "+91 98105 04776",
-      "sortOrder": 3,
       "createdAt": "2026-06-28T00:00:00.000Z",
-      "updatedAt": "2026-06-28T00:00:00.000Z"
+      "updatedAt": "2026-06-29T06:04:34.549Z",
+      "phones": [
+        "+91 98105 04776"
+      ],
+      "phone": "+91 98105 04776",
+      "address": "A-702",
+      "role": "Committee",
+      "designation": "Treasurer",
+      "sortOrder": 3
     },
     {
       "id": "ctc-cm-00000004",
       "name": "Anushka Sharma",
-      "designation": "Committee Member",
-      "role": "Committee",
-      "address": "A-1103",
-      "phones": ["+91 80572 22224"],
-      "phone": "+91 80572 22224",
-      "sortOrder": 4,
       "createdAt": "2026-06-28T00:00:00.000Z",
-      "updatedAt": "2026-06-28T00:00:00.000Z"
+      "updatedAt": "2026-06-29T06:04:34.549Z",
+      "phones": [
+        "+91 80572 22224"
+      ],
+      "phone": "+91 80572 22224",
+      "address": "A-1103",
+      "role": "Committee",
+      "designation": "Committee Member",
+      "sortOrder": 4
     },
     {
       "id": "ctc-cm-00000005",
       "name": "Dhimar Parekh",
-      "designation": "Committee Member",
-      "role": "Committee",
-      "address": "A-1202",
-      "phones": ["+91 98200 88430"],
-      "phone": "+91 98200 88430",
-      "sortOrder": 5,
       "createdAt": "2026-06-28T00:00:00.000Z",
-      "updatedAt": "2026-06-28T00:00:00.000Z"
+      "updatedAt": "2026-06-29T06:04:34.549Z",
+      "phones": [
+        "+91 98200 88430"
+      ],
+      "phone": "+91 98200 88430",
+      "address": "A-1202",
+      "role": "Committee",
+      "designation": "Committee Member",
+      "sortOrder": 5
     },
     {
       "id": "ctc-cm-00000006",
       "name": "Arun Bhagurkar",
-      "designation": "Committee Member",
-      "role": "Committee",
-      "address": "A-501",
-      "phones": ["+91 93710 64145"],
-      "phone": "+91 93710 64145",
-      "sortOrder": 6,
       "createdAt": "2026-06-28T00:00:00.000Z",
-      "updatedAt": "2026-06-28T00:00:00.000Z"
+      "updatedAt": "2026-06-29T06:04:34.549Z",
+      "phones": [
+        "+91 93710 64145"
+      ],
+      "phone": "+91 93710 64145",
+      "address": "A-501",
+      "role": "Committee",
+      "designation": "Committee Member",
+      "sortOrder": 6
     },
     {
       "id": "ctc-cm-00000007",
       "name": "Gayatri Thakare",
-      "designation": "Committee Member",
-      "role": "Committee",
-      "address": "B-1005",
-      "phones": ["+91 98906 21987"],
-      "phone": "+91 98906 21987",
-      "sortOrder": 7,
       "createdAt": "2026-06-28T00:00:00.000Z",
-      "updatedAt": "2026-06-28T00:00:00.000Z"
+      "updatedAt": "2026-06-29T06:04:34.549Z",
+      "phones": [
+        "+91 98906 21987"
+      ],
+      "phone": "+91 98906 21987",
+      "address": "B-1005",
+      "role": "Committee",
+      "designation": "Committee Member",
+      "sortOrder": 7
     },
     {
       "id": "ctc-cm-00000008",
       "name": "Sameer Hawal",
-      "designation": "Committee Member",
-      "role": "Committee",
-      "address": "B-402",
-      "phones": ["+91 93724 16275"],
-      "phone": "+91 93724 16275",
-      "sortOrder": 8,
       "createdAt": "2026-06-28T00:00:00.000Z",
-      "updatedAt": "2026-06-28T00:00:00.000Z"
+      "updatedAt": "2026-06-29T06:04:34.549Z",
+      "phones": [
+        "+91 93724 16275"
+      ],
+      "phone": "+91 93724 16275",
+      "address": "B-402",
+      "role": "Committee",
+      "designation": "Committee Member",
+      "sortOrder": 8
     },
     {
       "id": "ctc-cm-00000009",
       "name": "Dr. Digambar Mokat",
-      "designation": "Committee Member",
-      "role": "Committee",
-      "address": "B-404",
-      "phones": ["+91 94209 07098"],
-      "phone": "+91 94209 07098",
-      "sortOrder": 9,
       "createdAt": "2026-06-28T00:00:00.000Z",
-      "updatedAt": "2026-06-28T00:00:00.000Z"
+      "updatedAt": "2026-06-29T06:04:34.549Z",
+      "phones": [
+        "+91 94209 07098"
+      ],
+      "phone": "+91 94209 07098",
+      "address": "B-404",
+      "role": "Committee",
+      "designation": "Committee Member",
+      "sortOrder": 9
     },
     {
       "id": "ctc-cm-00000010",
       "name": "Haresh Hirani",
-      "designation": "Committee Member",
-      "role": "Committee",
-      "address": "B-804",
-      "phones": ["+91 99604 27183"],
-      "phone": "+91 99604 27183",
-      "sortOrder": 10,
       "createdAt": "2026-06-28T00:00:00.000Z",
-      "updatedAt": "2026-06-28T00:00:00.000Z"
+      "updatedAt": "2026-06-29T06:04:34.549Z",
+      "phones": [
+        "+91 99604 27183"
+      ],
+      "phone": "+91 99604 27183",
+      "address": "B-804",
+      "role": "Committee",
+      "designation": "Committee Member",
+      "sortOrder": 10
     },
     {
       "id": "ctc-cm-00000011",
       "name": "Jayant Ramdasi",
-      "designation": "Committee Member",
-      "role": "Committee",
-      "address": "C-502",
-      "phones": ["+91 97653 91490"],
-      "phone": "+91 97653 91490",
-      "sortOrder": 11,
       "createdAt": "2026-06-28T00:00:00.000Z",
-      "updatedAt": "2026-06-28T00:00:00.000Z"
+      "updatedAt": "2026-06-29T06:04:34.549Z",
+      "phones": [
+        "+91 97653 91490"
+      ],
+      "phone": "+91 97653 91490",
+      "address": "C-502",
+      "role": "Committee",
+      "designation": "Committee Member",
+      "sortOrder": 11
     },
     {
       "id": "ctc-cm-00000012",
       "name": "Chetan Bavaskar",
-      "designation": "Committee Member",
-      "role": "Committee",
-      "address": "C-801",
-      "phones": ["+91 70661 69967"],
-      "phone": "+91 70661 69967",
-      "sortOrder": 12,
       "createdAt": "2026-06-28T00:00:00.000Z",
-      "updatedAt": "2026-06-28T00:00:00.000Z"
+      "updatedAt": "2026-06-29T06:04:34.549Z",
+      "phones": [
+        "+91 70661 69967"
+      ],
+      "phone": "+91 70661 69967",
+      "address": "C-801",
+      "role": "Committee",
+      "designation": "Committee Member",
+      "sortOrder": 12
     }
   ],
-  "resources": []
+  "resources": [],
+  "services": [
+    {
+      "id": "svc-1ea8ea5b65d796c7",
+      "name": "Hakim",
+      "createdAt": "2026-06-29T06:04:32.963Z",
+      "updatedAt": "2026-06-29T06:04:34.549Z",
+      "category": "Car Washing",
+      "phones": [
+        "8055994447"
+      ],
+      "phone": "8055994447",
+      "verified": false
+    }
+  ],
+  "emergency": []
 }
