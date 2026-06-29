@@ -4645,6 +4645,14 @@ select.tsh-tabs-mobile::-ms-expand { display: none; }
 .tsh-pdf-help { margin: 0 0 0.5rem; font-size: 0.75rem; color: var(--tsh-muted, #64748b); }
 .tsh-pdf-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0.25rem 0.6rem; }
 .tsh-pdf-coltoggle { font-size: 0.8rem; display: flex; align-items: center; gap: 0.35rem; }
+.tsh-pdf-monthly[hidden] { display: none; }
+.tsh-pdf-monthly .tsh-pdf-badge {
+  margin-left: 0.4rem; padding: 0.05rem 0.4rem; font-size: 0.65rem; font-weight: 700;
+  letter-spacing: 0.04em; text-transform: uppercase; color: #b45309;
+  background: rgba(251,191,36,0.2); border: 1px solid rgba(217,119,6,0.4); border-radius: 999px;
+}
+.tsh-pdf-monthly-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-top: 0.5rem; }
+.tsh-pdf-monthly-status { font-size: 0.74rem; color: var(--tsh-muted, #64748b); }
 .tsh-pdf-summary { font-size: 0.78rem; color: var(--tsh-muted, #64748b); }
 .tsh-pdf-progress { display: flex; flex-direction: column; gap: 0.35rem; }
 .tsh-pdf-progress-bar { height: 6px; background: rgba(148,163,184,0.25); border-radius: 999px; overflow: hidden; }

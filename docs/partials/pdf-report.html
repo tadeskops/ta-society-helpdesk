@@ -44,6 +44,27 @@
           <div class="tsh-pdf-cols" id="tshPdfCols"></div>
         </div>
       </details>
+      <details class="tsh-pdf-advanced tsh-pdf-monthly" id="tshPdfMonthlyBlock" hidden>
+        <summary><i class="fas fa-calendar-days" aria-hidden="true"></i> Monthly archive range <span class="tsh-pdf-badge">Manager+</span></summary>
+        <div class="tsh-pdf-advanced-body">
+          <p class="tsh-pdf-help">Pull a consolidated set of tickets across one or more months. Fetched from the monthly archive (current month uses live data).</p>
+          <div class="tsh-pdf-grid">
+            <label class="tsh-pdf-field">
+              <span>From month</span>
+              <input type="month" id="tshPdfMonthFrom" />
+            </label>
+            <label class="tsh-pdf-field">
+              <span>To month</span>
+              <input type="month" id="tshPdfMonthTo" />
+            </label>
+          </div>
+          <div class="tsh-pdf-monthly-actions">
+            <button type="button" class="tsh-btn tsh-btn-ghost" id="tshPdfMonthLoad"><i class="fas fa-cloud-arrow-down"></i> Load months</button>
+            <button type="button" class="tsh-btn tsh-btn-ghost" id="tshPdfMonthReset" hidden><i class="fas fa-rotate-left"></i> Use page data</button>
+            <span class="tsh-pdf-monthly-status" id="tshPdfMonthStatus"></span>
+          </div>
+        </div>
+      </details>
       <div class="tsh-pdf-summary" id="tshPdfSummary"></div>
       <div class="tsh-pdf-progress" id="tshPdfProgress" hidden>
         <div class="tsh-pdf-progress-bar"><div id="tshPdfBar"></div></div>

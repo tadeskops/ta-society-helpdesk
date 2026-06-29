@@ -49,6 +49,8 @@
   let cols = COLUMNS.slice();
   let running = false;
   let lastBlob = null;       // retained so commit-after-download can run
+  let originalGetItems = null; // restored when user toggles off monthly mode
+  let monthlyActive = false;   // true while ctx.items came from /reports/monthly
 
   function shortDate(iso) {
     if (!iso) return '';
@@ -113,7 +115,10 @@
     document.getElementById('tshPdfReportTitle').value = ctx.title;
     cols = COLUMNS.map((c) => Object.assign({}, c));
     renderCols();
+    monthlyActive = false;
+    originalGetItems = ctx.items;
     renderSummary(ctx);
+    setupMonthlyBlock(ctx);
 
     const closers = m.querySelectorAll('[data-tsh-pdf-close]');
     closers.forEach((b) => b.addEventListener('click', close, { once: true }));
@@ -124,6 +129,78 @@
     m.setAttribute('aria-hidden', 'false');
     // Defer focus so the modal is on-screen first.
     setTimeout(() => document.getElementById('tshPdfReportTitle').focus(), 30);
+  }
+
+  function setupMonthlyBlock(ctx) {
+    const block = document.getElementById('tshPdfMonthlyBlock');
+    if (!block) return;
+    // Default-hidden until role check resolves; reset state on every open.
+    block.hidden = true;
+    block.open = false;
+    const statusEl = document.getElementById('tshPdfMonthStatus');
+    if (statusEl) statusEl.textContent = '';
+    const resetBtn = document.getElementById('tshPdfMonthReset');
+    if (resetBtn) resetBtn.hidden = true;
+    const fromEl = document.getElementById('tshPdfMonthFrom');
+    const toEl   = document.getElementById('tshPdfMonthTo');
+    if (fromEl && !fromEl.value) {
+      const now = new Date();
+      const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      fromEl.value = ym; if (toEl) toEl.value = ym;
+    }
+
+    // Gate by role — Resident must not see monthly archive controls.
+    const flags = root.Flags;
+    if (!flags || typeof flags.whoami !== 'function') return;
+    flags.whoami().then((who) => {
+      const allow = !!(who && flags.isAtLeast && flags.isAtLeast(who.primary, 'MANAGER'));
+      if (!allow) return;
+      block.hidden = false;
+      const loadBtn = document.getElementById('tshPdfMonthLoad');
+      if (loadBtn) loadBtn.onclick = () => loadMonthly(ctx);
+      if (resetBtn) resetBtn.onclick = () => resetToPageData(ctx);
+    }).catch(() => { /* keep hidden on failure */ });
+  }
+
+  async function loadMonthly(ctx) {
+    const from = (document.getElementById('tshPdfMonthFrom') || {}).value;
+    const to   = (document.getElementById('tshPdfMonthTo')   || {}).value || from;
+    const statusEl = document.getElementById('tshPdfMonthStatus');
+    if (!from || !to) { if (statusEl) statusEl.textContent = 'Pick a from & to month.'; return; }
+    if (from > to) { if (statusEl) statusEl.textContent = 'From must be ≤ To.'; return; }
+    if (!root.Api || !root.Api.get) { toast('API unavailable.', 'danger'); return; }
+    if (statusEl) statusEl.textContent = 'Loading…';
+    try {
+      const res = await root.Api.get(`/reports/monthly?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+      const items = Array.isArray(res && res.items) ? res.items : [];
+      ctx.items = items;
+      ctx.source = 'monthly';
+      ctx.filtersAppliedSummary = `Monthly archive ${from}${from === to ? '' : ' → ' + to}`;
+      monthlyActive = true;
+      const titleEl = document.getElementById('tshPdfReportTitle');
+      if (titleEl) titleEl.value = `Society Help Desk — Monthly Report (${from}${from === to ? '' : ' to ' + to})`;
+      renderSummary(ctx);
+      if (statusEl) statusEl.textContent = `Loaded ${items.length} ticket${items.length === 1 ? '' : 's'} across ${(res.months || []).length} month${(res.months || []).length === 1 ? '' : 's'}.`;
+      const resetBtn = document.getElementById('tshPdfMonthReset');
+      if (resetBtn) resetBtn.hidden = false;
+    } catch (e) {
+      if (statusEl) statusEl.textContent = '';
+      toast('Monthly load failed: ' + (e && e.message ? e.message : e), 'danger');
+    }
+  }
+
+  function resetToPageData(ctx) {
+    ctx.items = Array.isArray(originalGetItems) ? originalGetItems.slice() : [];
+    ctx.source = (bound && bound.source) || 'page';
+    ctx.filtersAppliedSummary = '';
+    monthlyActive = false;
+    const titleEl = document.getElementById('tshPdfReportTitle');
+    if (titleEl) titleEl.value = (bound && bound.title) || 'Society Help Desk — Report';
+    renderSummary(ctx);
+    const statusEl = document.getElementById('tshPdfMonthStatus');
+    if (statusEl) statusEl.textContent = '';
+    const resetBtn = document.getElementById('tshPdfMonthReset');
+    if (resetBtn) resetBtn.hidden = true;
   }
 
   function renderCols() {
@@ -147,8 +224,9 @@
   function renderSummary(ctx) {
     const el = document.getElementById('tshPdfSummary');
     if (!el) return;
+    const where = monthlyActive ? 'from monthly archive' : 'from this page';
     const parts = [
-      `${ctx.items.length} item${ctx.items.length === 1 ? '' : 's'} from this page`,
+      `${ctx.items.length} item${ctx.items.length === 1 ? '' : 's'} ${where}`,
     ];
     if (ctx.filtersAppliedSummary) parts.push('Filters: ' + ctx.filtersAppliedSummary);
     el.textContent = parts.join(' · ');

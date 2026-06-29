@@ -16,8 +16,8 @@ import { ok } from '../lib/envelope.ts';
 import { BadRequest } from '../lib/errors.ts';
 import { ensureAllowed } from '../middleware/rbac.ts';
 import { parseJson } from '../lib/validate.ts';
-import { putFile, putBinaryB64, listIssues, getFile } from '../github/client.ts';
-import { toPublicIssue } from '../lib/issue.ts';
+import { putFile, putBinaryB64, listIssues, getFile, getJson } from '../github/client.ts';
+import { toPublicIssue, type PublicIssue } from '../lib/issue.ts';
 import { loadConfig } from '../config/loader.ts';
 import { log } from '../lib/log.ts';
 
@@ -45,6 +45,31 @@ interface BackupBody {
   fileName?: string;
   source?: string;
 }
+
+interface MonthlyArchive {
+  archivedAt: string;
+  month: string;
+  itemCount: number;
+  items: PublicIssue[];
+}
+
+const monthRangeList = (from: string, to: string): string[] => {
+  const out: string[] = [];
+  let [y, m] = from.split('-').map(Number);
+  const [ty, tm] = to.split('-').map(Number);
+  while (y < ty || (y === ty && m <= tm)) {
+    out.push(`${String(y).padStart(4, '0')}-${String(m).padStart(2, '0')}`);
+    m++;
+    if (m > 12) { m = 1; y++; }
+  }
+  return out;
+};
+
+const prevMonth = (ym: string): string => {
+  let [y, m] = ym.split('-').map(Number);
+  m--; if (m < 1) { m = 12; y--; }
+  return `${String(y).padStart(4, '0')}-${String(m).padStart(2, '0')}`;
+};
 
 export const mountBackup = (r: Router): void => {
   r.post('/reports/backup', async (ctx: Ctx) => {
@@ -85,6 +110,62 @@ export const mountBackup = (r: Router): void => {
     ensureAllowed(ctx, { roles: ['COMMITTEE', 'DEVELOPER'], requireIdentity: true });
     const limit = Math.min(200, Math.max(1, Number(ctx.url.searchParams.get('limit') ?? '50')));
     const entries = await listRecentBackups(ctx.env, limit);
+    return ok(ctx.env, ctx.req, { entries, count: entries.length });
+  });
+
+  // Monthly archive consumer — managers and above can pull an aggregated
+  // window of issues for PDF export. Reads from archive/YYYY-MM.json when
+  // available; falls back to a live filter for the current (or any
+  // un-archived) month.
+  r.get('/reports/monthly', async (ctx: Ctx) => {
+    ensureAllowed(ctx, { roles: ['MANAGER', 'COMMITTEE', 'DEVELOPER'], requireIdentity: true });
+    const from = (ctx.url.searchParams.get('from') ?? '').trim();
+    const to = (ctx.url.searchParams.get('to') ?? from).trim();
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(from)) throw new BadRequest('from must be YYYY-MM');
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(to)) throw new BadRequest('to must be YYYY-MM');
+    if (from > to) throw new BadRequest('from must be <= to');
+    const months = monthRangeList(from, to);
+    if (months.length > 24) throw new BadRequest('range too wide (max 24 months)');
+
+    const currentMonth = `${istParts(new Date()).yyyy}-${istParts(new Date()).mm}`;
+    let liveItems: PublicIssue[] | undefined;
+    const out: PublicIssue[] = [];
+    const sourceByMonth: Record<string, 'archive' | 'live'> = {};
+
+    for (const ym of months) {
+      let monthItems: PublicIssue[] | undefined;
+      if (ym !== currentMonth) {
+        const snap = await getJson<MonthlyArchive>(ctx.env, `archive/${ym}.json`).catch(() => undefined);
+        if (snap && Array.isArray(snap.items)) {
+          monthItems = snap.items;
+          sourceByMonth[ym] = 'archive';
+        }
+      }
+      if (!monthItems) {
+        if (!liveItems) {
+          const issues = await listIssues(ctx.env, { state: 'all', labels: ['daily'], per_page: 200 });
+          liveItems = issues.map((i) => toPublicIssue(i, { includePhotos: true }));
+        }
+        monthItems = liveItems.filter((p) => (p.createdAt || '').slice(0, 7) === ym);
+        sourceByMonth[ym] = 'live';
+      }
+      out.push(...monthItems);
+    }
+    return ok(ctx.env, ctx.req, { months, count: out.length, sourceByMonth, items: out });
+  });
+
+  r.get('/reports/archive', async (ctx: Ctx) => {
+    ensureAllowed(ctx, { roles: ['MANAGER', 'COMMITTEE', 'DEVELOPER'], requireIdentity: true });
+    const listing = await ghDirList(ctx.env, 'archive').catch(() => [] as Array<{ name: string; size: number; download_url?: string; path: string }>);
+    const entries = listing
+      .filter((e) => /^\d{4}-\d{2}\.json$/.test(e.name))
+      .map((e) => ({
+        month: e.name.replace(/\.json$/, ''),
+        path: e.path,
+        size: e.size,
+        url: e.download_url ?? `https://github.com/${ctx.env.GH_OWNER}/${ctx.env.GH_REPO}/blob/${ctx.env.GH_BRANCH}/${e.path}`,
+      }))
+      .sort((a, b) => (a.month < b.month ? 1 : -1));
     return ok(ctx.env, ctx.req, { entries, count: entries.length });
   });
 };
@@ -194,4 +275,47 @@ export const scheduledBackup = async (env: Env, scheduledTime: number): Promise<
   );
   log.info(env, 'backup_cron_saved', { path, count: items.length, slot: match });
   return { skipped: false, path };
+};
+
+/**
+ * Monthly archive — on the 1st of each month (IST 02:xx) write a
+ * consolidated snapshot of the *previous* month to archive/YYYY-MM.json.
+ * Idempotent: skips if the file already exists. Called from scheduled().
+ */
+export const archiveMonthly = async (
+  env: Env,
+  scheduledTime: number,
+): Promise<{ skipped: true; reason: string } | { skipped: false; path: string; month: string; count: number }> => {
+  const now = new Date(scheduledTime || Date.now());
+  const { yyyy, mm, dd, hh } = istParts(now);
+  if (dd !== '01') return { skipped: true, reason: `not 1st of month (got dd=${dd})` };
+  if (hh !== '02') return { skipped: true, reason: `not 02:xx IST (got hh=${hh})` };
+
+  const target = prevMonth(`${yyyy}-${mm}`);
+  const path = `archive/${target}.json`;
+  const existing = await getFile(env, path).catch(() => undefined);
+  if (existing) {
+    log.info(env, 'archive_monthly_skipped', { path, reason: 'already exists' });
+    return { skipped: true, reason: 'already archived' };
+  }
+
+  const issues = await listIssues(env, { state: 'all', labels: ['daily'], per_page: 200 });
+  const items = issues
+    .map((i) => toPublicIssue(i, { includePhotos: true }))
+    .filter((p) => (p.createdAt || '').slice(0, 7) === target);
+  const snapshot: MonthlyArchive = {
+    archivedAt: new Date().toISOString(),
+    month: target,
+    itemCount: items.length,
+    items,
+  };
+  await putFile(
+    env,
+    path,
+    JSON.stringify(snapshot, null, 2),
+    `archive: monthly snapshot for ${target}`,
+    'tsh-worker@users.noreply.github.com',
+  );
+  log.info(env, 'archive_monthly_saved', { path, count: items.length, month: target });
+  return { skipped: false, path, month: target, count: items.length };
 };

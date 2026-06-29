@@ -11,7 +11,7 @@ import { verifyGoogleJwt } from './auth/jwt.ts';
 import { resolveRoles } from './auth/roles.ts';
 import { loadConfig } from './config/loader.ts';
 import { buildRouter } from './routes/index.ts';
-import { scheduledBackup } from './routes/backup.ts';
+import { scheduledBackup, archiveMonthly } from './routes/backup.ts';
 
 const router = buildRouter();
 
@@ -68,6 +68,12 @@ export default {
           log.info(env, 'cron_backup_result', result);
         } catch (e) {
           log.error(env, 'cron_backup_failed', { err: String((e as Error).stack ?? e) });
+        }
+        try {
+          const archived = await archiveMonthly(env, event.scheduledTime);
+          log.info(env, 'cron_archive_result', archived);
+        } catch (e) {
+          log.error(env, 'cron_archive_failed', { err: String((e as Error).stack ?? e) });
         }
       })(),
     );
