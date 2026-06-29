@@ -385,30 +385,40 @@ html[data-theme="medium"] .tsh-user-role-manager {
 
 .tsh-footer {
   border-top: 1px solid var(--c-border);
-  padding: var(--sp-5) var(--sp-4);
+  padding: var(--sp-4) var(--sp-4);
   color: var(--c-text-faint);
   font-size: var(--fs-sm);
-  /* Split layout: Instagram social pinned to the left, the rest of
-     the meta (brand, source, version, visitors) centred. On narrow
-     screens the two stack vertically with the IG link still on the
-     left of its own row. */
+  /* Three-zone layout: Instagram pinned left, visitor count (when
+     enabled) centred, brand+source+version meta pinned right. When
+     the visitor span is [hidden] it collapses to zero, leaving the
+     other two anchored at opposite ends thanks to space-between. */
   display: flex;
   align-items: center;
+  justify-content: space-between;
   flex-wrap: wrap;
-  gap: var(--sp-3) var(--sp-4);
+  gap: var(--sp-2) var(--sp-4);
   text-align: left;
   background: rgba(0, 0, 0, 0.25);
 }
 .tsh-footer-meta {
-  flex: 1 1 auto;
-  text-align: center;
+  text-align: right;
+  white-space: normal;
+}
+.tsh-footer-center {
+  flex: 1 1 0;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
   min-width: 0;
 }
+/* When the visitor counter is hidden, also drop it from the flex line
+   so meta still snaps to the right edge instead of leaving a gap. */
+.tsh-footer-center[hidden] { display: none; }
 .tsh-footer a { color: var(--c-text-muted); }
 .tsh-footer a:hover { color: var(--c-primary); }
-/* Footer social pill (Instagram). Sits on the left of the footer at
-   a larger size than the meta text so it's a clear call-to-action,
-   yet still calm enough not to compete with body content. */
+/* Footer social pill (Instagram). Larger than the meta text so it's
+   a clear call-to-action, yet calm enough not to compete with body. */
 .tsh-footer-social {
   display: inline-flex;
   align-items: center;
@@ -429,11 +439,23 @@ html[data-theme="medium"] .tsh-user-role-manager {
   transition: filter 160ms ease, transform 160ms ease;
 }
 .tsh-footer-ig:hover i { filter: brightness(1.15) saturate(1.1); transform: scale(1.06); }
+
+/* Mobile (<=640px): keep the three-zone intent but tighten everything
+   so the footer reads as a single sleek line. IG icon drops to 1.15
+   rem, handle text to 0.82rem; meta drops to 0.7rem and stays on the
+   right. Visitor count, when shown, centres between them at the same
+   compact size. If the row is too tight, items wrap with IG on row 1
+   and meta on row 2 — still left/right aligned respectively. */
 @media (max-width: 640px) {
-  .tsh-footer { padding: var(--sp-4) var(--sp-3); gap: var(--sp-2) var(--sp-3); }
-  .tsh-footer-meta { text-align: left; flex-basis: 100%; }
-  .tsh-footer-social { font-size: 1rem; }
-  .tsh-footer-ig i { font-size: 1.4rem; }
+  .tsh-footer {
+    padding: var(--sp-3) var(--sp-3);
+    gap: 4px var(--sp-2);
+    font-size: 0.7rem;
+  }
+  .tsh-footer-social { font-size: 0.82rem; gap: 5px; }
+  .tsh-footer-ig i { font-size: 1.15rem; }
+  .tsh-footer-meta { font-size: 0.7rem; }
+  .tsh-footer-center { font-size: 0.7rem; flex-basis: 100%; }
 }
 .tsh-visitors {
   display: inline-flex;
