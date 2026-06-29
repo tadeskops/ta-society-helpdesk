@@ -32,7 +32,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Install report deps
         run: |
@@ -56,11 +56,12 @@ jobs:
           npm install --no-audit --no-fund
 
       - name: Generate PDFs
+        working-directory: .ci-tools
         env:
           WORKER_URL: ${{ secrets.TSH_WORKER_URL }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
-        run: node scripts/weekly-report.mjs
+        run: node ../scripts/weekly-report.mjs
 
       - name: Commit reports
         run: |

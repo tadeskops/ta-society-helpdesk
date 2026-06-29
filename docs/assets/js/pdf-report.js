@@ -253,9 +253,22 @@
 
   // ---------------------------------------------------------------- PDF
 
+  async function waitForJsPdf(maxMs) {
+    if (root.jspdf && root.jspdf.jsPDF) return true;
+    const deadline = Date.now() + (maxMs || 5000);
+    setBusy(true); setProgress(2, 'Loading PDF library…');
+    while (Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 120));
+      if (root.jspdf && root.jspdf.jsPDF) return true;
+    }
+    setBusy(false);
+    return false;
+  }
+
   async function generate(action, ctx) {
     if (running) return;
-    if (!root.jspdf || !root.jspdf.jsPDF) { toast('PDF library failed to load. Check network and retry.', 'danger'); return; }
+    const ready = await waitForJsPdf(6000);
+    if (!ready) { toast('PDF library failed to load. Check network and retry.', 'danger'); return; }
 
     const titleText = document.getElementById('tshPdfReportTitle').value || ctx.title;
     const qualityKey = document.getElementById('tshPdfQuality').value;
