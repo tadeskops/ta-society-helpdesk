@@ -4669,3 +4669,132 @@ select.tsh-tabs-mobile::-ms-expand { display: none; }
 [data-tsh-theme="dark"] .tsh-pdf-field select,
 .tsh-theme-dark .tsh-pdf-field input,
 .tsh-theme-dark .tsh-pdf-field select { background: #1e293b; color: inherit; border-color: rgba(148,163,184,0.25); }
+/* ---------------------------------------------------------------- Bundle 36
+   Services tab: desktop sidebar layout + verified badge + service card. */
+.tsh-dir-section-services { display: flex; flex-direction: column; gap: var(--sp-3); }
+.tsh-dir-layout-sidebar { display: grid; grid-template-columns: 1fr; gap: var(--sp-3); }
+@media (min-width: 900px) {
+  .tsh-dir-layout-sidebar { grid-template-columns: 240px 1fr; align-items: start; }
+}
+@media (min-width: 1200px) {
+  .tsh-dir-layout-sidebar { grid-template-columns: 280px 1fr; }
+}
+
+.tsh-dir-sidebar {
+  display: none;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding: var(--sp-3);
+  background: rgba(0, 0, 0, 0.18);
+  border: 1px solid var(--c-border-soft);
+  border-radius: var(--rad-lg);
+  position: sticky;
+  top: calc(var(--sp-4) + 56px);
+  max-height: calc(100vh - 96px);
+  overflow-y: auto;
+}
+@media (min-width: 900px) { .tsh-dir-sidebar { display: flex; } }
+
+.tsh-dir-sidebar-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 var(--sp-1) var(--sp-2);
+  border-bottom: 1px solid var(--c-border-soft);
+  margin-bottom: var(--sp-1);
+}
+.tsh-dir-sidebar-head h3 {
+  margin: 0; font-size: var(--fs-xs);
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--c-text-muted); font-weight: 700;
+}
+.tsh-dir-sidebar-count {
+  font-size: var(--fs-xs); color: var(--c-text-muted);
+  padding: 1px 8px; border-radius: var(--rad-pill);
+  background: rgba(148, 163, 184, 0.12);
+}
+.tsh-dir-sidebar-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.tsh-dir-sidebar-item {
+  width: 100%;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--sp-2);
+  padding: 8px 12px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--rad-md);
+  color: var(--c-text);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background .12s ease, border-color .12s ease, color .12s ease;
+}
+.tsh-dir-sidebar-item:hover { background: rgba(212, 175, 55, 0.08); border-color: var(--c-border-soft); }
+.tsh-dir-sidebar-item.is-active {
+  color: var(--c-primary);
+  background: var(--c-primary-soft);
+  border-color: rgba(212, 175, 55, 0.45);
+}
+.tsh-dir-sidebar-label { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tsh-dir-sidebar-badge {
+  flex: 0 0 auto;
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  padding: 1px 7px;
+  border-radius: var(--rad-pill);
+  background: rgba(148, 163, 184, 0.18);
+  color: var(--c-text-muted);
+}
+.tsh-dir-sidebar-item.is-active .tsh-dir-sidebar-badge {
+  background: rgba(212, 175, 55, 0.2);
+  color: var(--c-primary);
+}
+
+/* On desktop, the inline pill row is redundant with the sidebar; hide it. */
+.tsh-dir-filter-pills-mobile { display: block; margin-bottom: var(--sp-2); }
+@media (min-width: 900px) { .tsh-dir-filter-pills-mobile { display: none; } }
+
+.tsh-dir-sidebar-main { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; }
+
+/* --- Service card -------------------------------------------------------- */
+.tsh-service-card.is-verified {
+  border-color: rgba(22, 163, 74, 0.45);
+  box-shadow: 0 0 0 1px rgba(22, 163, 74, 0.18) inset;
+}
+.tsh-service-titlewrap {
+  display: inline-flex; align-items: center; flex-wrap: wrap; gap: 8px;
+  flex: 1 1 auto; min-width: 0;
+}
+.tsh-verified-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px;
+  font-size: 0.68rem; font-weight: 700;
+  letter-spacing: 0.04em; text-transform: uppercase;
+  color: #15803d;
+  background: rgba(34, 197, 94, 0.14);
+  border: 1px solid rgba(34, 197, 94, 0.5);
+  border-radius: var(--rad-pill);
+  cursor: help;
+  position: relative;
+}
+.tsh-verified-badge:hover, .tsh-verified-badge:focus-visible {
+  background: rgba(34, 197, 94, 0.22);
+  outline: none;
+}
+.tsh-verified-badge .fa-shield-halved { font-size: 0.78rem; }
+.tsh-service-price {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--c-text);
+}
+.tsh-service-comment { white-space: pre-wrap; }
+
+/* Inline checkbox label used by the services form (Society-verified). */
+.tsh-checkbox-inline {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 10px;
+  background: rgba(148, 163, 184, 0.08);
+  border: 1px solid var(--c-border-soft);
+  border-radius: var(--rad-md);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+.tsh-checkbox-inline input[type="checkbox"] { width: 16px; height: 16px; accent-color: #16a34a; }

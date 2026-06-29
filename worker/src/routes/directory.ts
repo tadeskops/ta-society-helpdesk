@@ -39,6 +39,14 @@ interface DirEntry {
   email?: string;
   photoUrl?: string;     // absolute URL or repo-relative
   sortOrder?: number;    // lower = earlier; ties broken by name
+  // Services-tab enrichment. category here is the sub-category (House Help,
+  // Cook, Driver, …). `verified` is stamped by the committee/manager who
+  // toggles it on — verifiedBy/At are set server-side.
+  priceRange?: string;
+  comment?: string;
+  verified?: boolean;
+  verifiedBy?: string;
+  verifiedAt?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -46,17 +54,21 @@ interface DirEntry {
 interface Directory {
   version: number;
   vendorCategories: string[];
+  serviceCategories: string[];
   vendors: DirEntry[];
   contacts: DirEntry[];
   resources: DirEntry[];
+  services: DirEntry[];
 }
 
 const EMPTY_DIRECTORY: Directory = {
   version: 1,
   vendorCategories: [],
+  serviceCategories: [],
   vendors: [],
   contacts: [],
   resources: [],
+  services: [],
 };
 
 interface Cache { value: Directory; sha?: string; expiresAt: number; }
@@ -76,9 +88,11 @@ const loadFromGithub = async (env: Ctx['env']): Promise<{ value: Directory; sha?
       value: {
         version: typeof parsed.version === 'number' ? parsed.version : 1,
         vendorCategories: Array.isArray(parsed.vendorCategories) ? parsed.vendorCategories.filter((x): x is string => typeof x === 'string') : [],
+        serviceCategories: Array.isArray(parsed.serviceCategories) ? parsed.serviceCategories.filter((x): x is string => typeof x === 'string') : [],
         vendors:   Array.isArray(parsed.vendors)   ? (parsed.vendors   as DirEntry[]) : [],
         contacts:  Array.isArray(parsed.contacts)  ? (parsed.contacts  as DirEntry[]) : [],
         resources: Array.isArray(parsed.resources) ? (parsed.resources as DirEntry[]) : [],
+        services:  Array.isArray(parsed.services)  ? (parsed.services  as DirEntry[]) : [],
       },
       sha: f.sha,
     };
@@ -119,7 +133,7 @@ const sanitisePhones = (raw: unknown, legacy: unknown, kind: string): string[] =
   return out;
 };
 
-const sanitiseEntry = (raw: unknown, kind: 'vendor' | 'contact' | 'resource'): DirEntry => {
+const sanitiseEntry = (raw: unknown, kind: 'vendor' | 'contact' | 'resource' | 'service', actorEmail?: string): DirEntry => {
   if (!isObj(raw)) throw new BadRequest(`${kind} entry must be an object`);
   const name = kind === 'resource'
     ? str(raw['title'] ?? raw['name'], `${kind}.title`, { min: 1, max: 120 })
@@ -160,6 +174,23 @@ const sanitiseEntry = (raw: unknown, kind: 'vendor' | 'contact' | 'resource'): D
   if (typeof raw['sortOrder'] === 'number' && Number.isFinite(raw['sortOrder'])) {
     out.sortOrder = raw['sortOrder'] as number;
   }
+  // Services-tab fields.
+  const priceRange = optStr(raw['priceRange'], `${kind}.priceRange`, { max: 60 });
+  if (priceRange) out.priceRange = priceRange;
+  const comment = optStr(raw['comment'], `${kind}.comment`, { max: 500 });
+  if (comment) out.comment = comment;
+  if (typeof raw['verified'] === 'boolean') {
+    out.verified = raw['verified'];
+    if (out.verified) {
+      // Preserve original verifier metadata when present; otherwise stamp
+      // with the current actor and timestamp. This lets a re-save by a
+      // different manager keep attribution to whoever originally verified.
+      const incomingBy = optStr(raw['verifiedBy'], `${kind}.verifiedBy`, { max: 120 });
+      const incomingAt = optStr(raw['verifiedAt'], `${kind}.verifiedAt`, { max: 40 });
+      out.verifiedBy = incomingBy || actorEmail || 'tsh-worker@users.noreply.github.com';
+      out.verifiedAt = incomingAt || new Date().toISOString();
+    }
+  }
   return out;
 };
 
@@ -168,19 +199,25 @@ const cryptoRandomId = (prefix: string): string => {
   const b = new Uint8Array(8);
   crypto.getRandomValues(b);
   const hex = Array.from(b).map((x) => x.toString(16).padStart(2, '0')).join('');
-  const tag = prefix === 'vendor' ? 'vnd' : prefix === 'contact' ? 'ctc' : 'res';
+  const tag = prefix === 'vendor'
+    ? 'vnd'
+    : prefix === 'contact'
+      ? 'ctc'
+      : prefix === 'service'
+        ? 'svc'
+        : 'res';
   return `${tag}-${hex}`;
 };
 
-const validateCategories = (raw: unknown): string[] => {
-  if (!Array.isArray(raw)) throw new BadRequest('vendorCategories must be an array');
+const validateCategories = (raw: unknown, label = 'vendorCategories'): string[] => {
+  if (!Array.isArray(raw)) throw new BadRequest(`${label} must be an array`);
   const out: string[] = [];
   const seen = new Set<string>();
   for (const v of raw) {
-    if (typeof v !== 'string') throw new BadRequest('category must be a string');
+    if (typeof v !== 'string') throw new BadRequest(`${label} entry must be a string`);
     const s = v.trim();
     if (!s) continue;
-    if (s.length > 60) throw new BadRequest(`category too long: ${s}`);
+    if (s.length > 60) throw new BadRequest(`${label} entry too long: ${s}`);
     const key = s.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
@@ -208,15 +245,17 @@ export const mountDirectory = (r: Router): void => {
     const incoming = (body['directory'] ?? body) as Record<string, unknown>;
     if (!isObj(incoming)) throw new BadRequest('directory must be an object');
 
+    const actor = ctx.identity!.email;
     const next: Directory = {
       version: typeof incoming['version'] === 'number' ? (incoming['version'] as number) : 1,
-      vendorCategories: validateCategories(incoming['vendorCategories'] ?? []),
-      vendors:   Array.isArray(incoming['vendors'])   ? (incoming['vendors'] as unknown[]).map((e) => sanitiseEntry(e, 'vendor'))   : [],
-      contacts:  Array.isArray(incoming['contacts'])  ? (incoming['contacts'] as unknown[]).map((e) => sanitiseEntry(e, 'contact'))  : [],
-      resources: Array.isArray(incoming['resources']) ? (incoming['resources'] as unknown[]).map((e) => sanitiseEntry(e, 'resource')) : [],
+      vendorCategories:  validateCategories(incoming['vendorCategories']  ?? [], 'vendorCategories'),
+      serviceCategories: validateCategories(incoming['serviceCategories'] ?? [], 'serviceCategories'),
+      vendors:   Array.isArray(incoming['vendors'])   ? (incoming['vendors']   as unknown[]).map((e) => sanitiseEntry(e, 'vendor',   actor)) : [],
+      contacts:  Array.isArray(incoming['contacts'])  ? (incoming['contacts']  as unknown[]).map((e) => sanitiseEntry(e, 'contact',  actor)) : [],
+      resources: Array.isArray(incoming['resources']) ? (incoming['resources'] as unknown[]).map((e) => sanitiseEntry(e, 'resource', actor)) : [],
+      services:  Array.isArray(incoming['services'])  ? (incoming['services']  as unknown[]).map((e) => sanitiseEntry(e, 'service',  actor)) : [],
     };
 
-    const actor = ctx.identity!.email;
     const existing = await getFile(ctx.env, DIR_PATH);
     const serialised = JSON.stringify(next, null, 2) + '\n';
     await putFile(
@@ -231,14 +270,16 @@ export const mountDirectory = (r: Router): void => {
       actor,
       action: 'directory:put',
       target: DIR_PATH,
-      detail: `vendors=${next.vendors.length} contacts=${next.contacts.length} resources=${next.resources.length}`,
+      detail: `vendors=${next.vendors.length} contacts=${next.contacts.length} resources=${next.resources.length} services=${next.services.length}`,
     });
     invalidate();
     return ok(ctx.env, ctx.req, { saved: true, counts: {
       vendors: next.vendors.length,
       contacts: next.contacts.length,
       resources: next.resources.length,
+      services: next.services.length,
       vendorCategories: next.vendorCategories.length,
+      serviceCategories: next.serviceCategories.length,
     }});
   });
 };

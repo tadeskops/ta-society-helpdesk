@@ -62,6 +62,7 @@ export const DEFAULT_CONFIG: SiteConfig = {
     FEATURE_DAILY_COMMITTEE_VIEW:         true,
     FEATURE_DAILY_SHOW_DEMO_ISSUES:       true,
     FEATURE_DAILY_DIRECTORY:              true,
+    FEATURE_DAILY_DIRECTORY_SERVICES:     true,
     FEATURE_DAILY_BANNER:                 true,
     FEATURE_DAILY_ANNOUNCEMENTS:          true,
     FEATURE_DAILY_POLLS:                  true,

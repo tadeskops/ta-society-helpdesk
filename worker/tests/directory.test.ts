@@ -255,3 +255,109 @@ describe('PUT /directory â€” multi-phone schema', () => {
     expect(saved.contacts[0].phones).toEqual(['9111111111', '9222222222']);
   });
 });
+
+
+describe('PUT /directory — services', () => {
+  it('round-trips a service entry with all fields and stamps an svc- id', async () => {
+    const r = await send('PUT', '/directory', {
+      directory: {
+        version: 1, vendorCategories: [], serviceCategories: ['Cook', 'House Help'],
+        vendors: [], contacts: [], resources: [],
+        services: [{
+          name: 'Sunita',
+          category: 'House Help',
+          phones: ['9000011111'],
+          priceRange: '?2,500 / month',
+          comment: 'Comes from 9-11 daily. Speaks Hindi + English.',
+        }],
+      },
+    }, 'dev@x.com');
+    expect(r.status).toBe(200);
+    const j = await r.json() as any;
+    expect(j.data.counts.services).toBe(1);
+    const saved = JSON.parse(putCalls[0]!.body);
+    expect(saved.services[0].id).toMatch(/^svc-[0-9a-f]{16}$/);
+    expect(saved.services[0].name).toBe('Sunita');
+    expect(saved.services[0].category).toBe('House Help');
+    expect(saved.services[0].phones).toEqual(['9000011111']);
+    expect(saved.services[0].priceRange).toBe('?2,500 / month');
+    expect(saved.services[0].comment).toContain('Hindi');
+    expect(saved.services[0].verified).toBeUndefined();
+  });
+
+  it('stamps verifiedBy/verifiedAt when verified=true and no prior verifier', async () => {
+    const r = await send('PUT', '/directory', {
+      directory: {
+        version: 1, vendorCategories: [], serviceCategories: ['Cook'],
+        vendors: [], contacts: [], resources: [],
+        services: [{ name: 'Rakesh', category: 'Cook', verified: true }],
+      },
+    }, 'mgr@x.com');
+    expect(r.status).toBe(200);
+    const saved = JSON.parse(putCalls[0]!.body);
+    expect(saved.services[0].verified).toBe(true);
+    expect(saved.services[0].verifiedBy).toBe('mgr@x.com');
+    expect(saved.services[0].verifiedAt).toMatch(/T/);
+  });
+
+  it('preserves original verifier when verified=true is re-saved', async () => {
+    const r = await send('PUT', '/directory', {
+      directory: {
+        version: 1, vendorCategories: [], serviceCategories: ['Cook'],
+        vendors: [], contacts: [], resources: [],
+        services: [{
+          name: 'Anita', category: 'Cook',
+          verified: true,
+          verifiedBy: 'original-manager@x.com',
+          verifiedAt: '2026-06-10T08:00:00.000Z',
+        }],
+      },
+    }, 'dev@x.com');
+    expect(r.status).toBe(200);
+    const saved = JSON.parse(putCalls[0]!.body);
+    expect(saved.services[0].verifiedBy).toBe('original-manager@x.com');
+    expect(saved.services[0].verifiedAt).toBe('2026-06-10T08:00:00.000Z');
+  });
+
+  it('drops verifiedBy/At when verified=false', async () => {
+    const r = await send('PUT', '/directory', {
+      directory: {
+        version: 1, vendorCategories: [], serviceCategories: ['Cook'],
+        vendors: [], contacts: [], resources: [],
+        services: [{
+          name: 'Unverified', verified: false,
+          verifiedBy: 'mgr@x.com', verifiedAt: '2026-06-10T08:00:00.000Z',
+        }],
+      },
+    }, 'mgr@x.com');
+    expect(r.status).toBe(200);
+    const saved = JSON.parse(putCalls[0]!.body);
+    expect(saved.services[0].verified).toBe(false);
+    expect(saved.services[0].verifiedBy).toBeUndefined();
+    expect(saved.services[0].verifiedAt).toBeUndefined();
+  });
+
+  it('dedupes serviceCategories case-insensitively', async () => {
+    const r = await send('PUT', '/directory', {
+      directory: {
+        version: 1, vendorCategories: [],
+        serviceCategories: ['Cook', 'cook', 'House Help', 'COOK'],
+        vendors: [], contacts: [], resources: [], services: [],
+      },
+    }, 'dev@x.com');
+    expect(r.status).toBe(200);
+    const saved = JSON.parse(putCalls[0]!.body);
+    expect(saved.serviceCategories).toEqual(['Cook', 'House Help']);
+  });
+
+  it('rejects services missing a name', async () => {
+    const r = await send('PUT', '/directory', {
+      directory: {
+        version: 1, vendorCategories: [], serviceCategories: [],
+        vendors: [], contacts: [], resources: [],
+        services: [{ category: 'Cook', phones: ['9000000000'] }],
+      },
+    }, 'dev@x.com');
+    expect(r.status).toBe(400);
+  });
+});

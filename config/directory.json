@@ -14,6 +14,19 @@
     "Appliance Repair",
     "Other"
   ],
+  "serviceCategories": [
+    "House Help",
+    "Cook",
+    "Car Driver",
+    "Car Washing",
+    "Deep Cleaning",
+    "Pest Control",
+    "Baby Care / Nanny",
+    "Tuition",
+    "Elderly Care",
+    "Miscellaneous"
+  ],
+  "services": [],
   "vendors": [
     {
       "id": "vnd-212b05dae99ad0a5",

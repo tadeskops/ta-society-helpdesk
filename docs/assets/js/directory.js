@@ -8,6 +8,7 @@
 
   const KIND_LABEL = {
     vendors:   { singular: 'vendor',   icon: 'fa-toolbox' },
+    services:  { singular: 'service',  icon: 'fa-handshake-angle' },
     contacts:  { singular: 'committee member', icon: 'fa-people-group' },
     resources: { singular: 'resource', icon: 'fa-link'    },
   };
@@ -42,6 +43,14 @@
       { name: 'url',         label: 'Link (URL)',  type: 'url',  max: 500, placeholder: 'https://…' },
       { name: 'description', label: 'Description', type: 'textarea', max: 500 },
     ],
+    services: [
+      { name: 'name',       label: 'Service-provider name', type: 'text',     required: true, max: 120 },
+      { name: 'category',   label: 'Sub-category',          type: 'select',   source: 'serviceCategories', allowEmpty: true, max: 60 },
+      { name: 'phones',     label: 'Phones',                type: 'phones',   max: 30, maxCount: 5 },
+      { name: 'priceRange', label: 'Suggested price range', type: 'text',     max: 60, placeholder: 'e.g. ₹2,500 – 4,000 / month' },
+      { name: 'comment',    label: 'Brief comment',         type: 'textarea', max: 500, placeholder: 'Notes about the provider — areas served, languages, references…' },
+      { name: 'verified',   label: 'Society-verified',      type: 'checkbox', help: 'Tick only after identity / police-verification has been completed by the society manager.' },
+    ],
   };
 
   // Working copy. Mutated locally on edits; saved with PUT /directory.
@@ -50,6 +59,7 @@
   let dirty = false;
   let activeTab = 'vendors';
   let activeCategory = '';  // '' = all
+  let activeServiceCategory = '';
   let searchTerm = '';
 
   function $$(sel, ctx) { return Array.from((ctx || document).querySelectorAll(sel)); }
@@ -111,6 +121,7 @@
   // ----- Render -----------------------------------------------------------
   function render() {
     renderCategoryPills();
+    renderServiceSidebar();
     for (const kind of Object.keys(KIND_LABEL)) renderGrid(kind);
     renderCounts();
     renderEditAffordances();
@@ -150,6 +161,61 @@
     }
   }
 
+  // Desktop sidebar + mobile pills for the Services tab. Sidebar shows all
+  // sub-categories with per-category counts; clicking one filters the grid.
+  let serviceFilter = null;
+  function renderServiceSidebar() {
+    const host = $('#dirServicePills');
+    if (host) {
+      if (!serviceFilter) {
+        serviceFilter = UI.FilterBar(host, {
+          label: 'Sub-category',
+          options: state.serviceCategories || [],
+          value: activeServiceCategory,
+          onApply: (val) => { setActiveServiceCategory(val); renderGrid('services'); renderServiceSidebar(); },
+        });
+      } else {
+        serviceFilter.setOptions(state.serviceCategories || []);
+        serviceFilter.setValue(activeServiceCategory);
+      }
+    }
+    const ul = $('#dirServiceSidebar');
+    if (!ul) return;
+    const cats = state.serviceCategories || [];
+    const items = state.services || [];
+    ul.innerHTML = '';
+    const make = (cat, count, isActive) => {
+      const li = document.createElement('li');
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'tsh-dir-sidebar-item' + (isActive ? ' is-active' : '');
+      btn.setAttribute('role', 'option');
+      btn.setAttribute('aria-selected', String(!!isActive));
+      btn.innerHTML = `<span class="tsh-dir-sidebar-label">${escapeHtml(cat || 'All services')}</span><span class="tsh-dir-sidebar-badge">${count}</span>`;
+      btn.addEventListener('click', () => {
+        const next = cat === '' ? '' : cat;
+        if (activeServiceCategory === next) return;
+        setActiveServiceCategory(next);
+        renderGrid('services');
+        renderServiceSidebar();
+      });
+      li.appendChild(btn);
+      return li;
+    };
+    ul.appendChild(make('', items.length, !activeServiceCategory));
+    for (const cat of cats) {
+      const count = items.filter((s) => (s.category || '').toLowerCase() === cat.toLowerCase()).length;
+      ul.appendChild(make(cat, count, activeServiceCategory === cat));
+    }
+    const countEl = $('#dirSidebarCount');
+    if (countEl) countEl.textContent = String(cats.length);
+  }
+
+  function setActiveServiceCategory(val) {
+    activeServiceCategory = val || '';
+    if (serviceFilter) serviceFilter.setValue(activeServiceCategory);
+  }
+
   function renderGrid(kind) {
     const grid = $(`[data-dir-grid="${kind}"]`);
     if (!grid) return;
@@ -158,6 +224,7 @@
     const term = searchTerm.toLowerCase();
     let items = (state[kind] || []).filter((row) => {
       if (kind === 'vendors' && activeCategory && row.category !== activeCategory) return false;
+      if (kind === 'services' && activeServiceCategory && row.category !== activeServiceCategory) return false;
       if (!term) return true;
       const blob = Object.values(row).filter((v) => typeof v === 'string').join(' ').toLowerCase();
       return blob.includes(term);
@@ -303,6 +370,87 @@
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   }
 
+  function renderServiceCard(row) {
+    const card = document.createElement('article');
+    card.className = 'tsh-dir-card tsh-service-card' + (row.verified ? ' is-verified' : '');
+    card.dataset.id = row.id;
+
+    const head = document.createElement('header');
+    head.className = 'tsh-dir-card-head';
+    const titleWrap = document.createElement('div');
+    titleWrap.className = 'tsh-service-titlewrap';
+    const title = document.createElement('h3');
+    title.className = 'tsh-dir-card-title';
+    title.textContent = row.name || '(unnamed)';
+    titleWrap.appendChild(title);
+    if (row.verified) {
+      const tip = row.verifiedBy
+        ? `Verified by ${row.verifiedBy}${row.verifiedAt ? ' on ' + new Date(row.verifiedAt).toLocaleDateString() : ''} \u2014 identity confirmed by the society manager.`
+        : 'Verified by the society manager through identity / police-verification.';
+      const badge = document.createElement('span');
+      badge.className = 'tsh-verified-badge';
+      badge.setAttribute('title', tip);
+      badge.setAttribute('aria-label', tip);
+      badge.tabIndex = 0;
+      badge.innerHTML = '<i class="fas fa-shield-halved" aria-hidden="true"></i><span class="tsh-verified-text">Verified</span>';
+      titleWrap.appendChild(badge);
+    }
+    head.appendChild(titleWrap);
+    if (row.category) {
+      const tag = document.createElement('span');
+      tag.className = 'tsh-dir-card-tag';
+      tag.textContent = row.category;
+      head.appendChild(tag);
+    }
+    card.appendChild(head);
+
+    const meta = document.createElement('div');
+    meta.className = 'tsh-dir-card-meta';
+    for (const phone of getPhones(row)) {
+      const dial = telLink(phone);
+      const wa = whatsappLink(phone);
+      const line = document.createElement('div');
+      line.className = 'tsh-dir-card-line tsh-dir-card-phone';
+      line.innerHTML = `<i class="fas fa-phone" aria-hidden="true"></i>` +
+        `<span class="tsh-dir-card-phone-num">${escapeHtml(phone)}</span>` +
+        (dial ? `<a class="tsh-dir-card-call" href="${escapeHtml(dial)}" aria-label="Call ${escapeHtml(phone)}" title="Call"><i class="fas fa-phone-volume" aria-hidden="true"></i></a>` : '') +
+        (wa ? `<a class="tsh-dir-card-wa" href="${escapeHtml(wa)}" target="_blank" rel="noopener" aria-label="WhatsApp ${escapeHtml(phone)}" title="WhatsApp"><i class="fab fa-whatsapp" aria-hidden="true"></i></a>` : '');
+      meta.appendChild(line);
+    }
+    if (row.priceRange) {
+      const line = document.createElement('div');
+      line.className = 'tsh-dir-card-line';
+      line.innerHTML = `<i class="fas fa-indian-rupee-sign" aria-hidden="true"></i>` +
+        `<span class="tsh-service-price">${escapeHtml(row.priceRange)}</span>`;
+      meta.appendChild(line);
+    }
+    if (row.comment) {
+      const p = document.createElement('p');
+      p.className = 'tsh-dir-card-desc tsh-service-comment';
+      p.textContent = row.comment;
+      meta.appendChild(p);
+    }
+    card.appendChild(meta);
+
+    if (canEdit) {
+      const actions = document.createElement('footer');
+      actions.className = 'tsh-dir-card-actions';
+      const editBtn = document.createElement('button');
+      editBtn.type = 'button';
+      editBtn.className = 'tsh-btn tsh-btn-ghost tsh-btn-sm';
+      editBtn.innerHTML = '<i class="fas fa-pen"></i>Edit';
+      editBtn.addEventListener('click', () => openForm('services', row));
+      const delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.className = 'tsh-btn tsh-btn-ghost tsh-btn-sm';
+      delBtn.innerHTML = '<i class="fas fa-trash"></i>Delete';
+      delBtn.addEventListener('click', () => confirmDelete('services', row));
+      actions.append(editBtn, delBtn);
+      card.appendChild(actions);
+    }
+    return card;
+  }
+
   function renderCard(kind, row) {
     // Committee-view enriched card: only when the flag is on, the kind is
     // contacts, and the entry actually has one of the enrichment fields.
@@ -313,6 +461,7 @@
         && (row.designation || row.term || row.email || row.photoUrl)) {
       return renderCommitteeCard(row);
     }
+    if (kind === 'services') return renderServiceCard(row);
 
     const card = document.createElement('article');
     card.className = 'tsh-dir-card';
@@ -444,6 +593,27 @@
       } else if (field.type === 'textarea') {
         input = document.createElement('textarea');
         input.rows = 3;
+      } else if (field.type === 'checkbox') {
+        const inline = document.createElement('label');
+        inline.className = 'tsh-checkbox-inline';
+        input = document.createElement('input');
+        input.type = 'checkbox';
+        input.name = field.name;
+        if (data[field.name]) input.checked = true;
+        const txt = document.createElement('span');
+        txt.textContent = field.help || field.label;
+        inline.append(input, txt);
+        wrap.appendChild(inline);
+        if (data.verified && data.verifiedBy) {
+          const meta = document.createElement('p');
+          meta.className = 'tsh-hint';
+          meta.style.margin = '.25rem 0 0';
+          const when = data.verifiedAt ? ' on ' + new Date(data.verifiedAt).toLocaleString() : '';
+          meta.textContent = `Currently verified by ${data.verifiedBy}${when}.`;
+          wrap.appendChild(meta);
+        }
+        form.appendChild(wrap);
+        continue;
       } else if (field.type === 'phones') {
         // Multi-phone repeater. Stored on the form as a <fieldset> with
         // child .tsh-phone-row items; collect() reads them via the DOM.
@@ -523,6 +693,11 @@
             }
           }
           if (arr.length) next[field.name] = arr;
+          continue;
+        }
+        if (field.type === 'checkbox') {
+          const el = form.elements[field.name];
+          next[field.name] = !!(el && el.checked);
           continue;
         }
         const el = form.elements[field.name];
@@ -733,24 +908,27 @@
     });
   }
 
-  function openCategoryManager() {
+  function openCategoryManager(scope) {
+    scope = scope || 'vendor';
+    const isService = scope === 'service';
+    const key = isService ? 'serviceCategories' : 'vendorCategories';
     const form = document.createElement('form');
     form.className = 'tsh-dir-form';
     form.addEventListener('submit', (e) => e.preventDefault());
     const label = document.createElement('span');
     label.className = 'tsh-label';
-    label.textContent = 'Vendor categories (one per line)';
+    label.textContent = isService ? 'Service sub-categories (one per line)' : 'Vendor categories (one per line)';
     const ta = document.createElement('textarea');
     ta.name = 'categories';
     ta.rows = 10;
-    ta.value = (state.vendorCategories || []).join('\n');
+    ta.value = (state[key] || []).join('\n');
     const wrap = document.createElement('div');
     wrap.className = 'tsh-field';
     wrap.append(label, ta);
     form.appendChild(wrap);
 
     UI.modal({
-      title: 'Vendor categories',
+      title: isService ? 'Service sub-categories' : 'Vendor categories',
       body: form,
       actions: [
         { label: 'Cancel', value: null },
@@ -760,17 +938,17 @@
       if (choice !== 'save') return;
       const next = ta.value.split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
       const seen = new Set();
-      state.vendorCategories = next.filter((c) => {
+      state[key] = next.filter((c) => {
         const k = c.toLowerCase();
         if (seen.has(k)) return false;
         seen.add(k); return true;
       });
       // If the active filter is removed, reset to "All".
-      if (activeCategory && !state.vendorCategories.includes(activeCategory)) {
-        activeCategory = '';
+      if (isService) {
+        if (activeServiceCategory && !state[key].includes(activeServiceCategory)) setActiveServiceCategory('');
+      } else {
+        if (activeCategory && !state[key].includes(activeCategory)) activeCategory = '';
       }
-      // Vendors carrying a removed category keep it locally (no destructive
-      // change) — user can re-add the category or edit each vendor.
       setDirty(true);
       render();
     });
@@ -782,14 +960,18 @@
     await UI.busyButton(btn, async () => {
       try {
         // Strip tmp- ids so the server assigns proper ones.
-        const payload = ['vendors', 'contacts', 'resources'].reduce((acc, kind) => {
+        const payload = ['vendors', 'contacts', 'resources', 'services'].reduce((acc, kind) => {
           acc[kind] = (state[kind] || []).map((row) => {
             const out = { ...row };
             if (typeof out.id === 'string' && out.id.startsWith('tmp-')) delete out.id;
             return out;
           });
           return acc;
-        }, { version: state.version || 1, vendorCategories: state.vendorCategories || [] });
+        }, {
+          version: state.version || 1,
+          vendorCategories: state.vendorCategories || [],
+          serviceCategories: state.serviceCategories || [],
+        });
 
         await Api.put('/directory', { directory: payload });
         // Reload to pick up server-assigned ids.
@@ -818,8 +1000,10 @@
   function normalise(raw) {
     return {
       version: (raw && raw.version) || 1,
-      vendorCategories: Array.isArray(raw && raw.vendorCategories) ? raw.vendorCategories : [],
+      vendorCategories:  Array.isArray(raw && raw.vendorCategories)  ? raw.vendorCategories  : [],
+      serviceCategories: Array.isArray(raw && raw.serviceCategories) ? raw.serviceCategories : [],
       vendors:   Array.isArray(raw && raw.vendors)   ? raw.vendors   : [],
+      services:  Array.isArray(raw && raw.services)  ? raw.services  : [],
       contacts:  Array.isArray(raw && raw.contacts)  ? raw.contacts  : [],
       resources: Array.isArray(raw && raw.resources) ? raw.resources : [],
     };
@@ -873,7 +1057,9 @@
 
     // Manage categories.
     const mgr = $('#dirManageCategoriesBtn');
-    if (mgr) mgr.addEventListener('click', openCategoryManager);
+    if (mgr) mgr.addEventListener('click', () => openCategoryManager('vendor'));
+    const svcMgr = $('#dirManageServiceCategoriesBtn');
+    if (svcMgr) svcMgr.addEventListener('click', () => openCategoryManager('service'));
 
     // Import vendors from CSV.
     const importBtn = $('#dirImportVendorsBtn');
