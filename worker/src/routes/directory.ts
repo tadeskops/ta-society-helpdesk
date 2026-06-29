@@ -59,6 +59,7 @@ interface Directory {
   contacts: DirEntry[];
   resources: DirEntry[];
   services: DirEntry[];
+  emergency: DirEntry[];
 }
 
 const EMPTY_DIRECTORY: Directory = {
@@ -69,6 +70,7 @@ const EMPTY_DIRECTORY: Directory = {
   contacts: [],
   resources: [],
   services: [],
+  emergency: [],
 };
 
 interface Cache { value: Directory; sha?: string; expiresAt: number; }
@@ -93,6 +95,7 @@ const loadFromGithub = async (env: Ctx['env']): Promise<{ value: Directory; sha?
         contacts:  Array.isArray(parsed.contacts)  ? (parsed.contacts  as DirEntry[]) : [],
         resources: Array.isArray(parsed.resources) ? (parsed.resources as DirEntry[]) : [],
         services:  Array.isArray(parsed.services)  ? (parsed.services  as DirEntry[]) : [],
+        emergency: Array.isArray(parsed.emergency) ? (parsed.emergency as DirEntry[]) : [],
       },
       sha: f.sha,
     };
@@ -133,7 +136,7 @@ const sanitisePhones = (raw: unknown, legacy: unknown, kind: string): string[] =
   return out;
 };
 
-const sanitiseEntry = (raw: unknown, kind: 'vendor' | 'contact' | 'resource' | 'service', actorEmail?: string): DirEntry => {
+const sanitiseEntry = (raw: unknown, kind: 'vendor' | 'contact' | 'resource' | 'service' | 'emergency', actorEmail?: string): DirEntry => {
   if (!isObj(raw)) throw new BadRequest(`${kind} entry must be an object`);
   const name = kind === 'resource'
     ? str(raw['title'] ?? raw['name'], `${kind}.title`, { min: 1, max: 120 })
@@ -205,7 +208,9 @@ const cryptoRandomId = (prefix: string): string => {
       ? 'ctc'
       : prefix === 'service'
         ? 'svc'
-        : 'res';
+        : prefix === 'emergency'
+          ? 'emg'
+          : 'res';
   return `${tag}-${hex}`;
 };
 
@@ -254,6 +259,7 @@ export const mountDirectory = (r: Router): void => {
       contacts:  Array.isArray(incoming['contacts'])  ? (incoming['contacts']  as unknown[]).map((e) => sanitiseEntry(e, 'contact',  actor)) : [],
       resources: Array.isArray(incoming['resources']) ? (incoming['resources'] as unknown[]).map((e) => sanitiseEntry(e, 'resource', actor)) : [],
       services:  Array.isArray(incoming['services'])  ? (incoming['services']  as unknown[]).map((e) => sanitiseEntry(e, 'service',  actor)) : [],
+      emergency: Array.isArray(incoming['emergency']) ? (incoming['emergency'] as unknown[]).map((e) => sanitiseEntry(e, 'emergency', actor)) : [],
     };
 
     const existing = await getFile(ctx.env, DIR_PATH);
@@ -270,7 +276,7 @@ export const mountDirectory = (r: Router): void => {
       actor,
       action: 'directory:put',
       target: DIR_PATH,
-      detail: `vendors=${next.vendors.length} contacts=${next.contacts.length} resources=${next.resources.length} services=${next.services.length}`,
+      detail: `vendors=${next.vendors.length} contacts=${next.contacts.length} resources=${next.resources.length} services=${next.services.length} emergency=${next.emergency.length}`,
     });
     invalidate();
     return ok(ctx.env, ctx.req, { saved: true, counts: {
@@ -278,6 +284,7 @@ export const mountDirectory = (r: Router): void => {
       contacts: next.contacts.length,
       resources: next.resources.length,
       services: next.services.length,
+      emergency: next.emergency.length,
       vendorCategories: next.vendorCategories.length,
       serviceCategories: next.serviceCategories.length,
     }});

@@ -27,6 +27,16 @@
     "Miscellaneous"
   ],
   "services": [],
+  "emergency": [
+    { "id": "emg-001", "name": "Mr. Manish Pande", "role": "Security",          "phones": ["9975605329"], "phone": "9975605329", "sortOrder": 1, "createdAt": "2026-06-29T00:00:00.000Z", "updatedAt": "2026-06-29T00:00:00.000Z" },
+    { "id": "emg-002", "name": "Mr. Sachin",       "role": "Housekeeping",      "phones": ["9623986349"], "phone": "9623986349", "sortOrder": 2, "createdAt": "2026-06-29T00:00:00.000Z", "updatedAt": "2026-06-29T00:00:00.000Z" },
+    { "id": "emg-003", "name": "Mr. Tiwari",       "role": "Electrician",       "phones": ["9765550942"], "phone": "9765550942", "sortOrder": 3, "createdAt": "2026-06-29T00:00:00.000Z", "updatedAt": "2026-06-29T00:00:00.000Z" },
+    { "id": "emg-004", "name": "Mr. Vishwajit",    "role": "Plumber (A Wing)",  "phones": ["9122706433"], "phone": "9122706433", "sortOrder": 4, "createdAt": "2026-06-29T00:00:00.000Z", "updatedAt": "2026-06-29T00:00:00.000Z" },
+    { "id": "emg-005", "name": "Mr. Sahani",       "role": "Plumber (B Wing)",  "phones": ["8766826634"], "phone": "8766826634", "sortOrder": 5, "createdAt": "2026-06-29T00:00:00.000Z", "updatedAt": "2026-06-29T00:00:00.000Z" },
+    { "id": "emg-006", "name": "Mr. Guru",         "role": "Plumber (C Wing)",  "phones": ["8766826634"], "phone": "8766826634", "sortOrder": 6, "createdAt": "2026-06-29T00:00:00.000Z", "updatedAt": "2026-06-29T00:00:00.000Z" },
+    { "id": "emg-007", "name": "Mr. Sambhale",     "role": "Fabricator",        "phones": ["9922340835"], "phone": "9922340835", "sortOrder": 7, "createdAt": "2026-06-29T00:00:00.000Z", "updatedAt": "2026-06-29T00:00:00.000Z" },
+    { "id": "emg-008", "name": "Mr. Ajit",         "role": "CCTV / Camera",     "phones": ["7058456042"], "phone": "7058456042", "sortOrder": 8, "createdAt": "2026-06-29T00:00:00.000Z", "updatedAt": "2026-06-29T00:00:00.000Z" }
+  ],
   "vendors": [
     {
       "id": "vnd-212b05dae99ad0a5",

@@ -7,6 +7,7 @@
   'use strict';
 
   const KIND_LABEL = {
+    emergency: { singular: 'emergency contact', icon: 'fa-triangle-exclamation' },
     vendors:   { singular: 'vendor',   icon: 'fa-toolbox' },
     services:  { singular: 'service',  icon: 'fa-handshake-angle' },
     contacts:  { singular: 'committee member', icon: 'fa-people-group' },
@@ -18,6 +19,14 @@
   // buttons); collect() reads it into row.phones[]. Legacy single `phone`
   // is auto-migrated by the worker on save.
   const SCHEMA = {
+    emergency: [
+      { name: 'name',    label: 'Contact name', type: 'text',     required: true, max: 120, placeholder: 'e.g. Mr. Manish Pande' },
+      { name: 'role',    label: 'Service / Role', type: 'text',   max: 80,  placeholder: 'e.g. Security, Electrician, Plumber (A Wing)' },
+      { name: 'phones',  label: 'Phones',       type: 'phones',   max: 30, maxCount: 5 },
+      { name: 'address', label: 'Address',      type: 'text',     max: 240 },
+      { name: 'email',   label: 'Email',        type: 'email',    max: 120 },
+      { name: 'notes',   label: 'Notes',        type: 'textarea', max: 500, placeholder: 'Wing covered, shift hours, alternate contact…' },
+    ],
     vendors: [
       { name: 'name',     label: 'Vendor name',   type: 'text',   required: true, max: 120 },
       { name: 'category', label: 'Category',      type: 'select', source: 'vendorCategories', allowEmpty: true, max: 60 },
@@ -57,7 +66,7 @@
   let state = null;
   let canEdit = false;
   let dirty = false;
-  let activeTab = 'vendors';
+  let activeTab = 'emergency';
   let activeCategory = '';  // '' = all
   let activeServiceCategory = '';
   let searchTerm = '';
@@ -239,6 +248,16 @@
         const bo = Number.isFinite(b.sortOrder) ? b.sortOrder : 999;
         if (ao !== bo) return ao - bo;
         return String(a.name || '').localeCompare(String(b.name || ''));
+      });
+    }
+    // Emergency tab is always sorted by sortOrder (then by role/name) so
+    // critical contacts like Security and Housekeeping lead the list.
+    if (kind === 'emergency') {
+      items = items.slice().sort((a, b) => {
+        const ao = Number.isFinite(a.sortOrder) ? a.sortOrder : 999;
+        const bo = Number.isFinite(b.sortOrder) ? b.sortOrder : 999;
+        if (ao !== bo) return ao - bo;
+        return String(a.role || a.name || '').localeCompare(String(b.role || b.name || ''));
       });
     }
 
@@ -479,7 +498,7 @@
       tag.className = 'tsh-dir-card-tag';
       tag.textContent = row.category;
       head.appendChild(tag);
-    } else if (kind === 'contacts' && row.role) {
+    } else if ((kind === 'contacts' || kind === 'emergency') && row.role) {
       const tag = document.createElement('span');
       tag.className = 'tsh-dir-card-tag';
       tag.textContent = row.role;
@@ -1006,6 +1025,7 @@
       services:  Array.isArray(raw && raw.services)  ? raw.services  : [],
       contacts:  Array.isArray(raw && raw.contacts)  ? raw.contacts  : [],
       resources: Array.isArray(raw && raw.resources) ? raw.resources : [],
+      emergency: Array.isArray(raw && raw.emergency) ? raw.emergency : [],
     };
   }
 
