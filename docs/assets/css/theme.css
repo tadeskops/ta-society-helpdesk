@@ -3235,7 +3235,16 @@ a.tsh-banner-inner:focus-visible {
     padding: var(--sp-2) var(--sp-3);
   }
   .tsh-brand { flex: 1 1 auto; min-width: 0; }
-  .tsh-userbox { flex: 0 0 auto; flex-wrap: nowrap; }
+  /* Userbox must wrap on mobile so the role-pill (which sets
+     `flex: 1 0 100%` to land on its own row) can actually break to a
+     new line. With `nowrap` the 100% basis instead inflated the
+     userbox and crowded the brand text. */
+  .tsh-userbox {
+    flex: 0 1 auto;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    max-width: 100%;
+  }
   .tsh-nav {
     order: 99;
     flex: 0 0 100%;
@@ -3444,8 +3453,16 @@ a.tsh-banner-inner:focus-visible {
 .tsh-brand-mobile { display: none; }
 
 @media (max-width: 480px) {
-  .tsh-brand-name,
+  /* Keep the property name visible on phones — the markup doesn't ship
+     a `.tsh-brand-mobile` element, so hiding both would leave a logo
+     with no label. Drop only the tag-line. */
   .tsh-brand-tag { display: none; }
+  .tsh-brand-name {
+    font-size: 0.98rem;
+    max-width: 56vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
   .tsh-brand-mobile {
     display: flex;
     flex-direction: column;
