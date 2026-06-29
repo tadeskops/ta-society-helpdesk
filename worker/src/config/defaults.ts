@@ -32,6 +32,16 @@ export interface SiteConfig {
   ui?: {
     defaultTheme?: 'dark' | 'light' | 'medium';
     defaultFontScale?: 'md' | 'lg' | 'xl';
+    /**
+     * Whether the compact header icons (Export, Download Latest, Sign in/out)
+     * expand to show their text label.
+     * - 'auto'   (default): labels visible at >=1100px, icons-only below
+     * - 'never'           : always icon-only (good for tight headers / tenant brand pages)
+     * - 'always'          : always show labels (good for kiosk / large-screen installs)
+     * Mobile (<700px) is always icon-only regardless of this setting so the
+     * userbox doesn't crowd the nav row.
+     */
+    headerIconExpand?: 'auto' | 'never' | 'always';
   };
 }
 
@@ -160,6 +170,7 @@ export const DEFAULT_CONFIG: SiteConfig = {
   ui: {
     defaultTheme:     'light',
     defaultFontScale: 'md',
+    headerIconExpand: 'auto',
   },
 };
 

@@ -2557,12 +2557,24 @@ a.tsh-banner-inner:focus-visible {
 .tsh-userbox {
   position: relative;
   flex-wrap: nowrap;
+  gap: 0.3rem;
 }
 .tsh-userbox [data-tsh-user] {
   cursor: pointer;
-  max-width: 44px;
-  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: 360px;
+  overflow: visible;
   transition: max-width 220ms ease;
+}
+/* Role pill outside .tsh-user-text — always visible so users see their
+   access level at every viewport without having to hover. */
+.tsh-userbox .tsh-user-role-fixed {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 .tsh-userbox .tsh-user-text,
 .tsh-userbox .tsh-btn-label {
@@ -2572,10 +2584,6 @@ a.tsh-banner-inner:focus-visible {
   white-space: nowrap;
   opacity: 0;
   transition: max-width 220ms ease, opacity 160ms ease;
-}
-.tsh-userbox:hover [data-tsh-user],
-.tsh-userbox:focus-within [data-tsh-user] {
-  max-width: 360px;
 }
 .tsh-userbox:hover .tsh-user-text,
 .tsh-userbox:focus-within .tsh-user-text,
@@ -2606,12 +2614,13 @@ a.tsh-banner-inner:focus-visible {
 }
 /* Mobile Ã¢â‚¬â€ keep userbox always-expanded so it isn't fiddly on touch. */
 @media (max-width: 640px) {
-  .tsh-userbox [data-tsh-user],
-  .tsh-userbox .tsh-user-text,
-  .tsh-userbox .tsh-btn-label {
-    max-width: 220px;
+  .tsh-userbox .tsh-user-text { display: none; }
+  .tsh-userbox:focus-within .tsh-user-text {
+    display: inline-block;
+    max-width: 180px;
     opacity: 1;
-    overflow: visible;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .tsh-userbox .tsh-btn { padding-inline: var(--sp-3); }
 }
@@ -4601,26 +4610,73 @@ select.tsh-tabs-mobile::-ms-expand { display: none; }
 }
 
 /* ---- Bundle 34: PDF export modal + export button (icon, signed-in only) ---- */
+/* Bundle 38/39: header icon expansion is driven by data-tsh-expand on the
+   userbox (set from config system.ui.headerIconExpand). Values:
+     "auto"   (default) -- labels visible only at >=1100px
+     "never"            -- labels never visible
+     "always"           -- labels always visible
+   Mobile (<700px) always collapses regardless of the setting so the
+   userbox never crowds the nav row. */
 .tsh-userbox .tsh-btn-icon { padding-inline: 0.55rem; }
-.tsh-userbox .tsh-btn-icon .tsh-btn-label { display: none; }
+.tsh-userbox .tsh-btn-label { display: none; }
 @media (min-width: 1100px) {
-  .tsh-userbox .tsh-btn-icon { padding-inline: 0.75rem; }
-  .tsh-userbox .tsh-btn-icon .tsh-btn-label { display: inline; }
+  .tsh-userbox[data-tsh-expand="auto"] .tsh-btn-icon { padding-inline: 0.75rem; }
+  .tsh-userbox[data-tsh-expand="auto"] .tsh-btn-label,
+  .tsh-userbox:not([data-tsh-expand]) .tsh-btn-icon { padding-inline: 0.75rem; }
+  .tsh-userbox[data-tsh-expand="auto"] .tsh-btn-label,
+  .tsh-userbox:not([data-tsh-expand]) .tsh-btn-label { display: inline; }
+}
+.tsh-userbox[data-tsh-expand="always"] .tsh-btn-label { display: inline; }
+.tsh-userbox[data-tsh-expand="never"]  .tsh-btn-label { display: none !important; }
+/* Mobile guard — labels never show below 700px even with always. */
+@media (max-width: 699px) {
+  .tsh-userbox .tsh-btn-label { display: none !important; }
 }
 /* Bundle 38: extra-compact icon buttons (used for header export + direct
-   download). Keep them small at every breakpoint and never reveal a label. */
+   download). Visual size is kept tight at every breakpoint; label
+   visibility is governed by the data-tsh-expand rules above. */
 .tsh-userbox .tsh-btn-iconxs {
   padding: 0.32rem 0.45rem;
   font-size: 0.85rem;
   line-height: 1;
   min-width: 0;
-  gap: 0;
+  gap: 0.3rem;
 }
-.tsh-userbox .tsh-btn-iconxs .tsh-btn-label,
-.tsh-userbox .tsh-btn-iconxs.tsh-btn-icon .tsh-btn-label { display: none !important; }
 .tsh-userbox .tsh-btn-iconxs > i { font-size: 0.95rem; }
 @media (min-width: 1100px) {
-  .tsh-userbox .tsh-btn-iconxs { padding: 0.34rem 0.5rem; }
+  .tsh-userbox .tsh-btn-iconxs { padding: 0.34rem 0.55rem; }
+}
+
+/* Bundle 39: hover/focus tooltip for header icons. Reads from
+   data-tsh-tip on the button/anchor. Disabled on touch devices via the
+   hover media query so it doesn't get stuck after a tap. */
+@media (hover: hover) {
+  .tsh-userbox [data-tsh-tip] { position: relative; }
+  .tsh-userbox [data-tsh-tip]::after {
+    content: attr(data-tsh-tip);
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%) translateY(-4px);
+    background: rgba(15, 23, 42, 0.92);
+    color: #f8fafc;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    padding: 0.3rem 0.55rem;
+    border-radius: 6px;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 120ms ease, transform 120ms ease;
+    z-index: 50;
+    box-shadow: 0 6px 14px rgba(15, 23, 42, 0.25);
+  }
+  .tsh-userbox [data-tsh-tip]:hover::after,
+  .tsh-userbox [data-tsh-tip]:focus-visible::after {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
 }
 
 .tsh-pdf-modal { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 1rem; }

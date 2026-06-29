@@ -866,22 +866,23 @@
     };
     function renderUser(email, role) {
       while (userEl.firstChild) userEl.removeChild(userEl.firstChild);
-      // Wrap email + role in a single .tsh-user-text so Bundle 9's collapse
-      // animation reveals/hides them together when the userbox is hovered.
+      const showBadge = !(root.Flags && root.Flags.on && root.Flags.on('FEATURE_DAILY_USER_ROLE_BADGE') === false);
+      // Role pill sits OUTSIDE the collapsible .tsh-user-text so it stays
+      // visible at every viewport — the email expands on hover/focus or on
+      // desktop, but the access level should always be at-a-glance.
+      if (showBadge && role && ROLE_LABELS[role]) {
+        const badge = document.createElement('span');
+        badge.className = 'tsh-user-role tsh-user-role-fixed tsh-user-role-' + role.toLowerCase();
+        badge.textContent = ROLE_LABELS[role];
+        badge.title = 'Access: ' + ROLE_LABELS[role];
+        userEl.appendChild(badge);
+      }
       const text = document.createElement('span');
       text.className = 'tsh-user-text';
       const emailEl = document.createElement('span');
       emailEl.className = 'tsh-user-email';
       emailEl.textContent = email || '';
       text.appendChild(emailEl);
-      const showBadge = !(root.Flags && root.Flags.on && root.Flags.on('FEATURE_DAILY_USER_ROLE_BADGE') === false);
-      if (showBadge && role && ROLE_LABELS[role]) {
-        const badge = document.createElement('span');
-        badge.className = 'tsh-user-role tsh-user-role-' + role.toLowerCase();
-        badge.textContent = ROLE_LABELS[role];
-        badge.title = 'Access: ' + ROLE_LABELS[role];
-        text.appendChild(badge);
-      }
       userEl.appendChild(text);
     }
     function renderAnon() {
