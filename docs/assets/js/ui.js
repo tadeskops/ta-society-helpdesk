@@ -957,25 +957,48 @@
       root.Flags.ready().then(refreshDownloadHref).catch(() => { /* keep fallback */ });
     }
     if (downloadLatest) {
-      bindIconActivation(downloadLatest, async () => {
-        // Make sure the href reflects the latest config before clicking,
-        // then probe the file with a HEAD request. If the backup has
-        // never been generated yet (404) the icon would otherwise dump
-        // the user on a GitHub error page; fall back to opening the
-        // export wizard so they can produce one (the worker then writes
-        // backups/TSH_Report.pdf and the icon starts serving real data).
+      // We don't use bindIconActivation here. The HTML5 `download`
+      // attribute is silently ignored for cross-origin URLs, so a
+      // native anchor click on raw.githubusercontent.com just opens the
+      // PDF in a new tab instead of downloading it (which residents
+      // reported as "the button doesn't work"). We always intercept,
+      // fetch the file as a blob, and trigger a same-origin blob: URL
+      // download so `download="TSH_Report.pdf"` is honoured. If the
+      // backup file doesn't exist yet (HEAD 404) we open the export
+      // wizard so the user can create one.
+      let lastDlAt = 0;
+      const handleDownload = async (ev) => {
+        if (ev && typeof ev.preventDefault === 'function') ev.preventDefault();
+        const now = Date.now();
+        if (now - lastDlAt < 400) return;
+        lastDlAt = now;
         refreshDownloadHref();
         const url = downloadLatest.href;
         if (!url) return;
-        let exists = false;
+        let blob = null;
         try {
-          const r = await fetch(url, { method: 'HEAD', cache: 'no-store' });
-          exists = r.ok;
-        } catch (_e) { /* network — try direct click anyway */ exists = true; }
-        if (exists) { downloadLatest.click(); return; }
-        try { toast('No archived report yet — opening the report builder so you can create one.', 'info'); } catch (_e) { /* toast may not be mounted */ }
+          const res = await fetch(url, { cache: 'no-store' });
+          if (res.ok) blob = await res.blob();
+        } catch (_e) { /* network — fall through to wizard */ }
+        if (blob && blob.size) {
+          const objUrl = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = objUrl;
+          a.download = 'TSH_Report.pdf';
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(() => {
+            if (a.parentNode) a.parentNode.removeChild(a);
+            URL.revokeObjectURL(objUrl);
+          }, 1000);
+          return;
+        }
+        try { toast('No archived report yet — opening the report builder so you can create one.', 'info'); } catch (_e) { /* toast not mounted */ }
         if (root.TSH_REPORT && typeof root.TSH_REPORT.open === 'function') root.TSH_REPORT.open();
-      });
+      };
+      downloadLatest.addEventListener('click', handleDownload);
+      downloadLatest.addEventListener('dblclick', handleDownload);
+      downloadLatest.addEventListener('touchend', handleDownload, { passive: false });
     }
     const refreshExportBtn = () => {
       const signedIn = !!(root.Auth && root.Auth.token && root.Auth.token());

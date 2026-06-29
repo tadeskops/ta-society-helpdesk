@@ -26,7 +26,7 @@
     { key: 'status',      label: 'Status',     width: 22, on: true,                read: (i) => prettyStatus(i.status) },
     { key: 'location',    label: 'Location',   width: 32, on: true,                read: (i) => i.location || '' },
     { key: 'description', label: 'Description',width: 60, on: true,                read: (i) => i.description || '' },
-    { key: 'photos',      label: 'Photos',     width: 50, on: true,                read: (i) => Array.isArray(i.photoUrls) ? i.photoUrls.join('|') : '' },
+    { key: 'photos',      label: 'Photos',     width: 50, on: true,                read: (i) => readPhotoUrls(i).join('|') },
   ];
 
   const QUALITY_PRESETS = {
@@ -488,9 +488,19 @@
 
   // ---------------------------------------------------------------- photos
 
+  // Items can arrive in two shapes depending on which endpoint sourced
+  // them: the public daily-board endpoint returns `photoUrls` (string[]),
+  // and the privileged `/issues` endpoint returns `photos` (string[]).
+  // Accept either so the same wizard works for residents and managers.
+  function readPhotoUrls(i) {
+    if (Array.isArray(i && i.photoUrls)) return i.photoUrls;
+    if (Array.isArray(i && i.photos))    return i.photos;
+    return [];
+  }
+
   async function prefetchPhotos(items, quality) {
     const unique = new Set();
-    items.forEach((i) => (i.photoUrls || []).forEach((u) => { if (u) unique.add(u); }));
+    items.forEach((i) => readPhotoUrls(i).forEach((u) => { if (u) unique.add(u); }));
     const cache = {};
     const list = Array.from(unique);
     let done = 0;
