@@ -3990,50 +3990,10 @@ a.tsh-banner-inner:focus-visible {
 }
 
 /* --- 3. Sign-out hover shiver fix ------------------------------------- */
-/* These rules supersede the earlier `.tsh-userbox:hover` selectors. They
-   only fire on viewports where the original animation runs, so mobile
-   (which uses the always-expanded rules from the existing @media block)
-   is unaffected. */
-@media (min-width: 641px) {
-  /* Cancel the container-wide expansion. */
-  .tsh-userbox:hover [data-tsh-user] { max-width: 44px; }
-  .tsh-userbox:hover .tsh-user-text,
-  .tsh-userbox:hover .tsh-btn-label {
-    max-width: 0;
-    opacity: 0;
-    margin-left: 0;
-  }
-  .tsh-userbox:hover .tsh-btn { padding-inline: var(--sp-2); }
-
-  /* Re-enable expansion scoped to the hovered element itself. */
-  .tsh-userbox [data-tsh-user]:hover,
-  .tsh-userbox:focus-within [data-tsh-user] {
-    max-width: 360px;
-  }
-  .tsh-userbox [data-tsh-user]:hover .tsh-user-text,
-  .tsh-userbox:focus-within .tsh-user-text {
-    max-width: 220px;
-    opacity: 1;
-    margin-left: 4px;
-  }
-  .tsh-userbox .tsh-btn:hover .tsh-btn-label,
-  .tsh-userbox .tsh-btn:focus-visible .tsh-btn-label,
-  .tsh-userbox:focus-within .tsh-btn-label {
-    max-width: 220px;
-    opacity: 1;
-    margin-left: 4px;
-  }
-  .tsh-userbox .tsh-btn:hover,
-  .tsh-userbox .tsh-btn:focus-visible,
-  .tsh-userbox:focus-within .tsh-btn {
-    padding-inline: var(--sp-3);
-  }
-  /* Anonymous chip keeps the original "always expanded" behaviour. */
-  .tsh-userbox [data-tsh-user].tsh-user-anon { max-width: 360px; }
-  .tsh-userbox [data-tsh-user].tsh-user-anon .tsh-user-text {
-    max-width: 220px; opacity: 1; margin-left: 4px;
-  }
-}
+/* Bundle-25's per-element hover-collapse + re-expand was superseded by
+   the Phase-6 data-tsh-expand attribute (default "never"): nothing
+   grows/shrinks on hover, so there's no reflow shiver between icons.
+   Kept the section anchor for grep-history; rules intentionally empty. */
 
 /* ============================================================
    Bundle 26 â€” Manage page editor collapse.
