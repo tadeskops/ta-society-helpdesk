@@ -340,7 +340,8 @@ input, select, textarea {
   background: rgba(134, 239, 172, 0.14);
   border-color: rgba(134, 239, 172, 0.45);
 }
-.tsh-user-role-resident {
+.tsh-user-role-resident,
+.tsh-user-role-unknown {
   color: var(--c-text-muted);
   background: var(--c-surface-2);
   border-color: var(--c-border-soft);
@@ -2579,6 +2580,19 @@ a.tsh-banner-inner:focus-visible {
   letter-spacing: 0.04em;
   line-height: 1.4;
   border-radius: 999px;
+}
+/* In the new "row below icons" layout we have room for the email too,
+   so reveal it unconditionally for signed-in users (the desktop "never"
+   default collapsed it to max-width: 0). Truncate gracefully on
+   narrow screens. */
+.tsh-userbox [data-tsh-user]:not(.tsh-user-anon) .tsh-user-text {
+  max-width: min(320px, 60vw);
+  opacity: 1;
+  margin-left: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.72rem;
+  color: var(--c-text-muted);
 }
 .tsh-userbox > .tsh-btn { order: 1; }
 .tsh-userbox [data-tsh-user] {

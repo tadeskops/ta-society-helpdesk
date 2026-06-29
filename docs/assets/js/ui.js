@@ -863,6 +863,10 @@
       COMMITTEE: 'Tech Committee',
       MANAGER:   'Society Manager',
       RESIDENT:  'Resident',
+      // Worker returns 'UNKNOWN' for any signed-in email that isn't in
+      // the privileged role maps. Treat that as a Resident so the badge
+      // shows up for every signed-in user, not just mapped roles.
+      UNKNOWN:   'Resident',
     };
     function renderUser(email, role) {
       while (userEl.firstChild) userEl.removeChild(userEl.firstChild);
