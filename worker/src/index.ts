@@ -11,6 +11,7 @@ import { verifyGoogleJwt } from './auth/jwt.ts';
 import { resolveRoles } from './auth/roles.ts';
 import { loadConfig } from './config/loader.ts';
 import { buildRouter } from './routes/index.ts';
+import { scheduledBackup } from './routes/backup.ts';
 
 const router = buildRouter();
 
@@ -57,5 +58,18 @@ export default {
       log.error(env, 'unhandled_error', { err: String((e as Error).stack ?? e), path: url.pathname });
       return err(env, req, 'Internal error', 500);
     }
+  },
+
+  async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
+    ctx.waitUntil(
+      (async () => {
+        try {
+          const result = await scheduledBackup(env, event.scheduledTime);
+          log.info(env, 'cron_backup_result', result);
+        } catch (e) {
+          log.error(env, 'cron_backup_failed', { err: String((e as Error).stack ?? e) });
+        }
+      })(),
+    );
   },
 };

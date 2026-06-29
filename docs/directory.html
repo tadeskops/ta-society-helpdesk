@@ -2,17 +2,18 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Directory · TSH</title>
+  <title>Directory Â· TSH</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#1a1f2e" />
   <meta name="description" content="Vendors, community contacts and resources for The Address residents." />
   <link rel="icon" href="./assets/images/TaLogo.png" type="image/png" />
   <script>(function(){try{var t=localStorage.getItem('tsh_theme');if(t!=='dark'&&t!=='light'&&t!=='medium')t='light';if(t!=='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="./assets/css/theme.css?v=62" />
+  <link rel="stylesheet" href="./assets/css/theme.css?v=63" />
 </head>
 <body class="tsh-page">
   <div data-include="header"></div>
+  <div data-include="pdf-report"></div>
   <div data-include="toast"></div>
   <div data-include="modal"></div>
 
@@ -35,7 +36,7 @@
 
       <div class="tsh-dir-search-row">
         <div class="tsh-search">
-          <input type="search" id="dirSearch" placeholder="Search name, phone, category, notes…" autocomplete="off" />
+          <input type="search" id="dirSearch" placeholder="Search name, phone, category, notesâ€¦" autocomplete="off" />
         </div>
       </div>
 
@@ -90,7 +91,8 @@
   <script src="./assets/js/auth.js?v=11"></script>
   <script src="./assets/js/flags.js?v=13"></script>
   <script src="./assets/js/collapse-registry.js?v=1"></script>
-  <script src="./assets/js/ui.js?v=38"></script>
+  <script src="./assets/js/ui.js?v=39"></script>
+  <script src="./assets/js/pdf-report.js?v=1"></script>
   <script src="./assets/js/visitors.js?v=2"></script>
   <script src="./assets/js/directory.js?v=8"></script>
   <script>
@@ -105,11 +107,11 @@
         document.querySelector('.tsh-card').innerHTML =
           '<div class="tsh-state tsh-state-empty"><i class="tsh-state-icon fas fa-circle-pause"></i>' +
           '<p class="tsh-state-title">Directory is disabled</p>' +
-          '<p class="tsh-state-msg">A developer can re-enable it from Settings â†’ Feature flags.</p></div>';
+          '<p class="tsh-state-msg">A developer can re-enable it from Settings Ã¢â€ â€™ Feature flags.</p></div>';
         return;
       }
     } catch (e) {
-      UI.toast("Couldn't load site config — directory may be unavailable.", { kind: 'warn' });
+      UI.toast("Couldn't load site config â€” directory may be unavailable.", { kind: 'warn' });
     }
 
     let who = { primary: 'PUBLIC' };

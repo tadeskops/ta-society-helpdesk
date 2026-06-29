@@ -31,7 +31,8 @@
     "FEATURE_DAILY_EVENTS": true,
     "FEATURE_DAILY_FLOATING_PALETTE": true,
     "FEATURE_DAILY_VISITOR_COUNTER": false,
-    "FEATURE_DAILY_USER_ROLE_BADGE": true
+    "FEATURE_DAILY_USER_ROLE_BADGE": true,
+    "FEATURE_DAILY_EXPORT_PDF": true
   },
   "tunables": {
     "DAILY_AUTO_ACK_HOURS": 24,
@@ -274,7 +275,10 @@
     "logoNameUrl": "",
     "weeklyReportUrl": "",
     "fullReportUrl": "",
-    "reportBackupFreq": "weekly"
+    "reportBackupFreq": "3x-daily",
+    "backupEnabled": true,
+    "backupTimes": ["08:00", "14:00", "20:00"],
+    "backupRetentionDays": 90
   },
   "ui": {
     "defaultTheme": "light",

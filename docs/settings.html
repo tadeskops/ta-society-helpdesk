@@ -2,13 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Settings · TSH</title>
+  <title>Settings Â· TSH</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#1a1f2e" />
   <link rel="icon" href="./assets/images/TaLogo.png" type="image/png" />
   <script>(function(){try{var t=localStorage.getItem('tsh_theme');if(t!=='dark'&&t!=='light'&&t!=='medium')t='light';if(t!=='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="./assets/css/theme.css?v=62" />
+  <link rel="stylesheet" href="./assets/css/theme.css?v=63" />
   <style>
     /* Info-icon + click-to-expand help panels for each setting */
     .tsh-info {
@@ -138,6 +138,7 @@
 </head>
 <body class="tsh-page">
   <div data-include="header"></div>
+  <div data-include="pdf-report"></div>
   <div data-include="toast"></div>
   <div data-include="modal"></div>
 
@@ -146,7 +147,7 @@
       <header class="tsh-card-head tsh-card-head-row">
         <div>
           <h1><i class="fas fa-sliders gold-accent"></i> Settings</h1>
-          <p class="tsh-sub" id="roleHint">Developer: write · Committee: read-only.</p>
+          <p class="tsh-sub" id="roleHint">Developer: write Â· Committee: read-only.</p>
           <p class="tsh-sub" style="font-size:.85em;opacity:.8;margin-top:.3em"><i class="fas fa-circle-info" aria-hidden="true"></i> Tip: click any parameter <em>name</em> to read what it does and its valid range. Click the tick box to toggle a feature.</p>
         </div>
         <div class="tsh-toolbar">
@@ -253,6 +254,23 @@
                 <option value="3x-daily">3x daily</option>
               </select>
             </div>
+            <div class="tsh-field">
+              <span class="tsh-label">backupEnabled</span>
+              <select name="system.backupEnabled">
+                <option value="true">Enabled — cron writes snapshots to /backups</option>
+                <option value="false">Disabled — only manual exports save</option>
+              </select>
+            </div>
+            <div class="tsh-field">
+              <span class="tsh-label">backupTimes (IST, comma-separated HH:MM)</span>
+              <input type="text" name="system.backupTimes" placeholder="08:00, 14:00, 20:00" />
+              <p class="tsh-help">Cron fires every hour; only slots listed here emit a snapshot. Defaults to 08:00, 14:00, 20:00 IST.</p>
+            </div>
+            <div class="tsh-field">
+              <span class="tsh-label">backupRetentionDays</span>
+              <input type="number" name="system.backupRetentionDays" min="7" max="3650" placeholder="90" />
+              <p class="tsh-help">Informational today — cleanup of old snapshots is currently manual.</p>
+            </div>
           </div>
         </details>
 
@@ -305,7 +323,8 @@
   <script src="./assets/js/auth.js?v=11"></script>
   <script src="./assets/js/flags.js?v=13"></script>
   <script src="./assets/js/collapse-registry.js?v=1"></script>
-  <script src="./assets/js/ui.js?v=38"></script>
+  <script src="./assets/js/ui.js?v=39"></script>
+  <script src="./assets/js/pdf-report.js?v=1"></script>
   <script src="./assets/js/visitors.js?v=2"></script>
   <script>
   (async () => {
@@ -363,7 +382,7 @@
       form.elements['committee'].value  = (access.committee || []).join('\n');
       form.elements['managers'].value   = (access.managers || []).join('\n');
 
-      // Feature flags — generate one card per flag from the config snapshot.
+      // Feature flags â€” generate one card per flag from the config snapshot.
       // Each card shows: name (clickable for full help) + always-visible
       // description + tick box. New developer-facing flags appear here
       // automatically as soon as they're added to the config defaults.
@@ -410,6 +429,9 @@
       form.elements['system.weeklyReportUrl'].value   = sys.weeklyReportUrl || '';
       form.elements['system.fullReportUrl'].value     = sys.fullReportUrl || '';
       if (sys.reportBackupFreq) form.elements['system.reportBackupFreq'].value = sys.reportBackupFreq;
+      form.elements['system.backupEnabled'].value     = sys.backupEnabled === false ? 'false' : 'true';
+      form.elements['system.backupTimes'].value       = Array.isArray(sys.backupTimes) ? sys.backupTimes.join(', ') : '';
+      form.elements['system.backupRetentionDays'].value = (sys.backupRetentionDays != null) ? String(sys.backupRetentionDays) : '';
 
       const ui = cfg.ui || {};
       if (ui.defaultTheme)     form.elements['ui.defaultTheme'].value     = ui.defaultTheme;
@@ -511,6 +533,17 @@
       cfg.system.weeklyReportUrl   = form.elements['system.weeklyReportUrl'].value.trim();
       cfg.system.fullReportUrl     = form.elements['system.fullReportUrl'].value.trim();
       cfg.system.reportBackupFreq  = form.elements['system.reportBackupFreq'].value;
+      cfg.system.backupEnabled     = form.elements['system.backupEnabled'].value === 'true';
+      const _times = (form.elements['system.backupTimes'].value || '')
+        .split(/[,\s]+/).map((s) => s.trim()).filter(Boolean);
+      for (const t of _times) {
+        if (!/^([01]?\d|2[0-3]):[0-5]\d$/.test(t)) {
+          throw new Error(`Invalid backup time "${t}". Use HH:MM (24h).`);
+        }
+      }
+      cfg.system.backupTimes = _times;
+      const _ret = form.elements['system.backupRetentionDays'].value.trim();
+      cfg.system.backupRetentionDays = _ret ? Math.max(7, Math.min(3650, Number(_ret) || 90)) : 90;
 
       // UI defaults
       cfg.ui = cfg.ui || {};
@@ -745,7 +778,7 @@
         default: 'true',
       },
       'FEATURE_DAILY_COMMITTEE_VIEW': {
-        summary: 'Enriched committee cards on the Directory → Management Committee tab.',
+        summary: 'Enriched committee cards on the Directory â†’ Management Committee tab.',
         detail: 'When ON, entries in the contacts list that have designation / term / email / photoUrl render as richer cards with an avatar, role chip, and term badge. Entries without those fields keep the basic card. The edit modal exposes the extra fields to managers / committee / developers. When OFF, all entries render with the original basic card layout.',
         default: 'true',
       },

@@ -23,6 +23,11 @@ export interface SiteConfig {
     weeklyReportUrl?: string;
     fullReportUrl?: string;
     reportBackupFreq?: 'weekly' | 'daily' | '3x-daily';
+    backupEnabled?: boolean;
+    /** HH:MM (24h, IST). Cron emits one snapshot per matched slot per day. */
+    backupTimes?: string[];
+    /** Days to retain backups under /backups (informational; cleanup is manual today). */
+    backupRetentionDays?: number;
   };
   ui?: {
     defaultTheme?: 'dark' | 'light' | 'medium';
@@ -64,6 +69,7 @@ export const DEFAULT_CONFIG: SiteConfig = {
     FEATURE_DAILY_FLOATING_PALETTE:       true,
     FEATURE_DAILY_VISITOR_COUNTER:        true,
     FEATURE_DAILY_USER_ROLE_BADGE:        true,
+    FEATURE_DAILY_EXPORT_PDF:             true,
   },
   tunables: {
     DAILY_AUTO_ACK_HOURS:       24,
@@ -145,7 +151,10 @@ export const DEFAULT_CONFIG: SiteConfig = {
     logoNameUrl:       '',
     weeklyReportUrl:   '',
     fullReportUrl:     '',
-    reportBackupFreq:  'weekly',
+    reportBackupFreq:  '3x-daily',
+    backupEnabled:     true,
+    backupTimes:       ['08:00', '14:00', '20:00'],
+    backupRetentionDays: 90,
   },
   ui: {
     defaultTheme:     'light',

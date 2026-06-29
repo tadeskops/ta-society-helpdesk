@@ -15,6 +15,7 @@ import { mountAnnouncements } from './announcements.ts';
 import { mountEvents } from './events.ts';
 import { mountPolls } from './polls.ts';
 import { mountMetrics } from './metrics.ts';
+import { mountBackup } from './backup.ts';
 
 export const buildRouter = (): Router => {
   const r = new Router();
@@ -30,6 +31,7 @@ export const buildRouter = (): Router => {
   mountEvents(r);
   mountPolls(r);
   mountMetrics(r);
+  mountBackup(r);
   return r;
 };
 

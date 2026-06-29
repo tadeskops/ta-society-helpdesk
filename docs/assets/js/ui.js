@@ -878,6 +878,24 @@
     signin.addEventListener('click', () => root.Auth.signIn());
     signout.addEventListener('click', () => { root.Auth.signOut(); root.Flags && root.Flags.invalidate(); location.reload(); });
 
+    // Export PDF button — visible only when signed in AND the feature flag is on.
+    // Click opens the TSH_REPORT wizard. Pages register their data source via
+    // window.TSH_REPORT.bind({ title, getItems }). When nothing is bound the
+    // wizard falls back to fetching /issues.
+    const exportBtn = document.querySelector('[data-tsh-export]');
+    if (exportBtn) {
+      exportBtn.addEventListener('click', () => {
+        if (root.TSH_REPORT && typeof root.TSH_REPORT.open === 'function') root.TSH_REPORT.open();
+        else if (root.UI && root.UI.toast) root.UI.toast('PDF report not available on this page.', { kind: 'warn' });
+      });
+    }
+    const refreshExportBtn = () => {
+      if (!exportBtn) return;
+      const signedIn = !!(root.Auth && root.Auth.token && root.Auth.token());
+      const featureOk = !root.Flags || !root.Flags.on || root.Flags.on('FEATURE_DAILY_EXPORT_PDF') !== false;
+      exportBtn.hidden = !(signedIn && featureOk);
+    };
+
     const hideRoleLinks = () => {
       for (const a of document.querySelectorAll('[data-tsh-role-link]')) a.hidden = true;
     };
@@ -909,6 +927,7 @@
         // Surface the access tier next to the signed-in email so users see
         // which permission set is active (highest of any mapped roles).
         if (who && who.email) renderUser(who.email, who.primary);
+        refreshExportBtn();
       }).catch(() => hideRoleLinks());
     };
 
@@ -926,6 +945,7 @@
         signout.hidden = true;
         hideRoleLinks();
       }
+      refreshExportBtn();
       // Re-fetch /whoami whenever the auth state actually flips so role-gated
       // nav links (Manager / Committee / Settings) appear immediately after
       // sign-in instead of only on the next full page load.

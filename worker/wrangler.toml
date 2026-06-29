@@ -41,3 +41,9 @@ ALLOWED_ORIGINS        = "http://localhost:8080,http://127.0.0.1:8080"
 # Local dev defaults (use .dev.vars for secrets in dev — gitignored)
 [dev]
 port = 8787
+
+# Scheduled triggers — fires hourly; the handler in src/index.ts checks
+# config.system.backupTimes (IST) and only commits a snapshot for slots
+# the operator has configured (default: 08:00, 14:00, 20:00 IST).
+[triggers]
+crons = ["0 * * * *"]

@@ -4599,3 +4599,65 @@ select.tsh-tabs-mobile::-ms-expand { display: none; }
     margin-top: 1px;
   }
 }
+
+/* ---- Bundle 34: PDF export modal + export button (icon, signed-in only) ---- */
+.tsh-userbox .tsh-btn-icon { padding-inline: 0.55rem; }
+.tsh-userbox .tsh-btn-icon .tsh-btn-label { display: none; }
+@media (min-width: 1100px) {
+  .tsh-userbox .tsh-btn-icon { padding-inline: 0.75rem; }
+  .tsh-userbox .tsh-btn-icon .tsh-btn-label { display: inline; }
+}
+
+.tsh-pdf-modal { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+.tsh-pdf-modal[hidden] { display: none; }
+.tsh-pdf-backdrop { position: absolute; inset: 0; background: rgba(15, 23, 42, 0.62); backdrop-filter: blur(3px); }
+.tsh-pdf-panel {
+  position: relative; z-index: 1; width: min(640px, 96vw); max-height: 92vh; display: flex; flex-direction: column;
+  background: var(--tsh-surface, #ffffff); color: var(--tsh-text, #0f172a);
+  border-radius: 14px; box-shadow: 0 22px 48px rgba(15, 23, 42, 0.35);
+  border: 1px solid var(--tsh-border, rgba(148, 163, 184, 0.4));
+  overflow: hidden;
+}
+.tsh-pdf-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  padding: 0.85rem 1.1rem; border-bottom: 1px solid var(--tsh-border, rgba(148,163,184,0.35));
+  background: linear-gradient(180deg, rgba(15,23,42,0.04), transparent);
+}
+.tsh-pdf-head h2 { margin: 0; font-size: 1rem; font-weight: 700; letter-spacing: 0.02em; display: flex; align-items: center; gap: 0.55rem; }
+.tsh-pdf-head h2 .fa-file-pdf { color: #dc2626; }
+.tsh-pdf-x { background: transparent; border: 0; font-size: 1.6rem; line-height: 1; cursor: pointer; color: inherit; opacity: 0.7; padding: 0.1rem 0.4rem; border-radius: 6px; }
+.tsh-pdf-x:hover, .tsh-pdf-x:focus { opacity: 1; outline: none; background: rgba(148,163,184,0.18); }
+.tsh-pdf-body { padding: 1rem 1.1rem; overflow-y: auto; display: flex; flex-direction: column; gap: 0.95rem; }
+.tsh-pdf-field { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.85rem; }
+.tsh-pdf-field span { font-weight: 600; color: var(--tsh-muted, #475569); }
+.tsh-pdf-field input,
+.tsh-pdf-field select {
+  font: inherit; padding: 0.5rem 0.65rem; border-radius: 8px;
+  border: 1px solid var(--tsh-border, rgba(148,163,184,0.4));
+  background: var(--tsh-input-bg, #ffffff); color: inherit;
+}
+.tsh-pdf-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }
+@media (max-width: 540px) { .tsh-pdf-grid { grid-template-columns: 1fr; } }
+.tsh-pdf-advanced { border: 1px solid var(--tsh-border, rgba(148,163,184,0.35)); border-radius: 10px; background: rgba(148,163,184,0.06); }
+.tsh-pdf-advanced > summary { cursor: pointer; padding: 0.55rem 0.85rem; font-size: 0.82rem; font-weight: 700; letter-spacing: 0.02em; color: var(--tsh-muted, #475569); list-style: none; }
+.tsh-pdf-advanced > summary::-webkit-details-marker { display: none; }
+.tsh-pdf-advanced-body { padding: 0 0.85rem 0.85rem; }
+.tsh-pdf-help { margin: 0 0 0.5rem; font-size: 0.75rem; color: var(--tsh-muted, #64748b); }
+.tsh-pdf-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0.25rem 0.6rem; }
+.tsh-pdf-coltoggle { font-size: 0.8rem; display: flex; align-items: center; gap: 0.35rem; }
+.tsh-pdf-summary { font-size: 0.78rem; color: var(--tsh-muted, #64748b); }
+.tsh-pdf-progress { display: flex; flex-direction: column; gap: 0.35rem; }
+.tsh-pdf-progress-bar { height: 6px; background: rgba(148,163,184,0.25); border-radius: 999px; overflow: hidden; }
+.tsh-pdf-progress-bar > div { height: 100%; width: 0%; background: linear-gradient(90deg, #f59e0b, #ef4444); transition: width 0.2s ease; }
+.tsh-pdf-progress-text { font-size: 0.75rem; color: var(--tsh-muted, #475569); }
+.tsh-pdf-foot {
+  display: flex; flex-wrap: wrap; gap: 0.4rem; justify-content: flex-end;
+  padding: 0.75rem 1.1rem; border-top: 1px solid var(--tsh-border, rgba(148,163,184,0.35));
+  background: linear-gradient(0deg, rgba(15,23,42,0.04), transparent);
+}
+[data-tsh-theme="dark"] .tsh-pdf-panel,
+.tsh-theme-dark .tsh-pdf-panel { background: #0f172a; color: #e2e8f0; border-color: rgba(148,163,184,0.25); }
+[data-tsh-theme="dark"] .tsh-pdf-field input,
+[data-tsh-theme="dark"] .tsh-pdf-field select,
+.tsh-theme-dark .tsh-pdf-field input,
+.tsh-theme-dark .tsh-pdf-field select { background: #1e293b; color: inherit; border-color: rgba(148,163,184,0.25); }

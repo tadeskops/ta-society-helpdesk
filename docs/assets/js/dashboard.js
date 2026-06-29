@@ -399,6 +399,16 @@
     const applyBtn = document.getElementById('applyFiltersBtn');
     if (applyBtn) applyBtn.addEventListener('click', render);
     document.getElementById('refreshBtn').addEventListener('click', reload);
+    // Register the current filtered list as the data source for the
+    // header's "Export PDF" button. Re-evaluated at click time so
+    // freshly applied filters are honoured.
+    if (root.TSH_REPORT && typeof root.TSH_REPORT.bind === 'function') {
+      root.TSH_REPORT.bind({
+        title: (document.title || 'Society Help Desk').replace(/\s*·.*$/, '') + ' — Report',
+        source: 'manage',
+        getItems: () => applyFilters(allIssues),
+      });
+    }
     reload();
   }
 

@@ -1,0 +1,59 @@
+<!-- TSH PDF Report partial. Loaded via Partials.mount(). Provides the
+     export wizard modal + jsPDF/autotable CDN scripts. Logic lives in
+     ./assets/js/pdf-report.js which exposes window.TSH_REPORT. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+<div class="tsh-pdf-modal" id="tshPdfModal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="tshPdfTitle">
+  <div class="tsh-pdf-backdrop" data-tsh-pdf-close></div>
+  <div class="tsh-pdf-panel" role="document">
+    <header class="tsh-pdf-head">
+      <h2 id="tshPdfTitle"><i class="fas fa-file-pdf" aria-hidden="true"></i> Export PDF report</h2>
+      <button type="button" class="tsh-pdf-x" data-tsh-pdf-close aria-label="Close">&times;</button>
+    </header>
+    <div class="tsh-pdf-body">
+      <label class="tsh-pdf-field">
+        <span>Title</span>
+        <input type="text" id="tshPdfReportTitle" maxlength="120" />
+      </label>
+      <div class="tsh-pdf-grid">
+        <label class="tsh-pdf-field">
+          <span>Image quality</span>
+          <select id="tshPdfQuality">
+            <option value="low">Low — smallest file (≈ 320 px, q 0.5)</option>
+            <option value="medium" selected>Medium — balanced (≈ 640 px, q 0.75)</option>
+            <option value="high">High — sharpest (≈ 1024 px, q 0.9)</option>
+            <option value="none">No photos — smallest possible</option>
+          </select>
+        </label>
+        <label class="tsh-pdf-field">
+          <span>Page orientation</span>
+          <select id="tshPdfOrient">
+            <option value="auto" selected>Auto (decide by column count)</option>
+            <option value="portrait">Portrait</option>
+            <option value="landscape">Landscape</option>
+          </select>
+        </label>
+      </div>
+      <details class="tsh-pdf-advanced">
+        <summary><i class="fas fa-sliders" aria-hidden="true"></i> Columns &amp; scope</summary>
+        <div class="tsh-pdf-advanced-body">
+          <p class="tsh-pdf-help">Pick the columns to include. Ticket ID is always shown.</p>
+          <div class="tsh-pdf-cols" id="tshPdfCols"></div>
+        </div>
+      </details>
+      <div class="tsh-pdf-summary" id="tshPdfSummary"></div>
+      <div class="tsh-pdf-progress" id="tshPdfProgress" hidden>
+        <div class="tsh-pdf-progress-bar"><div id="tshPdfBar"></div></div>
+        <div class="tsh-pdf-progress-text" id="tshPdfStatus">Working…</div>
+      </div>
+    </div>
+    <footer class="tsh-pdf-foot">
+      <button type="button" class="tsh-btn tsh-btn-ghost" data-tsh-pdf-close>Cancel</button>
+      <button type="button" class="tsh-btn tsh-btn-ghost" id="tshPdfPreview"><i class="fas fa-eye"></i> Preview</button>
+      <button type="button" class="tsh-btn tsh-btn-primary" id="tshPdfDownload"><i class="fas fa-download"></i> Download</button>
+    </footer>
+  </div>
+</div>
