@@ -350,13 +350,6 @@ const resolveIssueParam = async (ctx: Ctx, params: Record<string, string>): Prom
   return issue;
 };
 
-const parseIssueParam = (params: Record<string, string>): number => {
-  const raw = (params['id'] ?? '').toUpperCase();
-  const m = /^(?:DLY-)?0*(\d+)$/.exec(raw);
-  if (!m) throw new BadRequest('id must look like TKT-2806260345 or DLY-00042');
-  return Number(m[1]);
-};
-
 const mountPatch = (r: Router): void => {
   r.patch('/issues/:id', async (ctx: Ctx, params: Record<string, string>) => {
     ensureAllowed(ctx, {
