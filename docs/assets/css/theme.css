@@ -388,29 +388,53 @@ html[data-theme="medium"] .tsh-user-role-manager {
   padding: var(--sp-5) var(--sp-4);
   color: var(--c-text-faint);
   font-size: var(--fs-sm);
-  text-align: center;
+  /* Split layout: Instagram social pinned to the left, the rest of
+     the meta (brand, source, version, visitors) centred. On narrow
+     screens the two stack vertically with the IG link still on the
+     left of its own row. */
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-3) var(--sp-4);
+  text-align: left;
   background: rgba(0, 0, 0, 0.25);
+}
+.tsh-footer-meta {
+  flex: 1 1 auto;
+  text-align: center;
+  min-width: 0;
 }
 .tsh-footer a { color: var(--c-text-muted); }
 .tsh-footer a:hover { color: var(--c-primary); }
-/* Footer social pill (Instagram). Inline with the rest of the footer
-   text so it doesn't fight the layout, but the icon picks up the
-   Instagram-brand gradient on hover for a recognisable cue. */
+/* Footer social pill (Instagram). Sits on the left of the footer at
+   a larger size than the meta text so it's a clear call-to-action,
+   yet still calm enough not to compete with body content. */
 .tsh-footer-social {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
   white-space: nowrap;
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
 }
 .tsh-footer-ig i {
+  font-size: 1.6rem;
+  line-height: 1;
   background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent;
-  transition: filter 160ms ease;
+  transition: filter 160ms ease, transform 160ms ease;
 }
-.tsh-footer-ig:hover i { filter: brightness(1.15) saturate(1.1); }
+.tsh-footer-ig:hover i { filter: brightness(1.15) saturate(1.1); transform: scale(1.06); }
+@media (max-width: 640px) {
+  .tsh-footer { padding: var(--sp-4) var(--sp-3); gap: var(--sp-2) var(--sp-3); }
+  .tsh-footer-meta { text-align: left; flex-basis: 100%; }
+  .tsh-footer-social { font-size: 1rem; }
+  .tsh-footer-ig i { font-size: 1.4rem; }
+}
 .tsh-visitors {
   display: inline-flex;
   align-items: center;

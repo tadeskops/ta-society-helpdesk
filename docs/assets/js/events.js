@@ -94,6 +94,27 @@
       a.rel = 'noopener';
       a.innerHTML = '<i class="fas fa-up-right-from-square" aria-hidden="true"></i>Details';
       body.appendChild(a);
+
+      // Whole-card click → open the event. Users were tapping the title
+      // expecting it to redirect; only the tiny "Details" pill was
+      // active. Now the entire card surface opens the href in a new
+      // tab. Keyboard users get the same affordance via Enter/Space.
+      article.classList.add('tsh-event-card--linked');
+      article.tabIndex = 0;
+      article.setAttribute('role', 'link');
+      article.setAttribute('aria-label', `${it.title || 'Event'} — open details`);
+      const open = (ev) => {
+        // Don't double-open when the user already clicked the inner anchor.
+        if (ev && ev.target && ev.target.closest && ev.target.closest('a')) return;
+        window.open(it.href, '_blank', 'noopener');
+      };
+      article.addEventListener('click', open);
+      article.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter' || ev.key === ' ') {
+          ev.preventDefault();
+          open(ev);
+        }
+      });
     }
 
     const rel = document.createElement('span');
@@ -105,9 +126,25 @@
     return article;
   }
 
+  // Keep the home-page "Upcoming Events" quick-tile visibility in sync
+  // with whether the events section actually has anything to show.
+  // Without this, the tile stays clickable even when every event is
+  // expired → it scrolls to a hidden anchor and the click feels dead.
+  function syncQuickTile(visible) {
+    try {
+      document.querySelectorAll('a[href="#tshEvents"]').forEach((tile) => {
+        tile.hidden = !visible;
+      });
+    } catch (_e) { /* DOM may not be ready in unusual mount orders */ }
+  }
+
   function mountList(host) {
     if (!host) return;
-    if (root.Flags && !root.Flags.on('FEATURE_DAILY_EVENTS')) { host.hidden = true; return; }
+    if (root.Flags && !root.Flags.on('FEATURE_DAILY_EVENTS')) {
+      host.hidden = true;
+      syncQuickTile(false);
+      return;
+    }
     host.classList.add('tsh-event-panel');
     host.innerHTML = '<p class="tsh-text-muted"><i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Loading events…</p>';
 
@@ -117,11 +154,15 @@
       host.innerHTML = '';
       if (!items.length) {
         // Hide the whole section on the home page when there's nothing
-        // to show — mirrors the announcements panel behaviour.
+        // to show — mirrors the announcements panel behaviour. Also
+        // hide the quick-tile so users don't click an anchor that goes
+        // nowhere visible.
         host.hidden = true;
+        syncQuickTile(false);
         return;
       }
       host.hidden = false;
+      syncQuickTile(true);
       const list = document.createElement('div');
       list.className = 'tsh-event-list';
       items.forEach((it) => list.appendChild(cardEl(it)));
