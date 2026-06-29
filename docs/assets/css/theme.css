@@ -3194,6 +3194,78 @@ a.tsh-banner-inner:focus-visible {
   .tsh-committee-avatar { width: 56px; height: 56px; font-size: 18px; }
 }
 
+/* Committee-form: Term as a from/to month+year picker pair. Sits inside
+   a regular .tsh-field so the label above the row is rendered the same
+   way as every other field. The two <input type="month"> controls flank
+   an en-dash separator; on narrow screens the dash hides and the inputs
+   stack to keep things tappable. */
+.tsh-month-range {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+.tsh-month-range-input {
+  flex: 1 1 140px;
+  min-width: 130px;
+}
+.tsh-month-range-sep {
+  color: var(--c-text-muted);
+  font-weight: 600;
+  font-size: var(--fs-md);
+  user-select: none;
+}
+.tsh-month-range-hint {
+  display: block;
+  margin-top: 4px;
+}
+@media (max-width: 480px) {
+  .tsh-month-range { gap: 6px; }
+  .tsh-month-range-sep { display: none; }
+  .tsh-month-range-input { flex-basis: 100%; }
+}
+
+/* Committee-form: Photo field. Renders a 56px square thumbnail + an
+   "Upload" button that triggers a hidden <input type="file"> + a URL
+   input that round-trips with the existing photoUrl field. Uploading
+   commits the file to photos/directory/<hex>.<ext> via the worker and
+   writes the returned raw-file URL into the URL input. */
+.tsh-photo-upload {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+.tsh-photo-thumb {
+  flex: 0 0 auto;
+  width: 56px;
+  height: 56px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--c-primary) 6%, var(--c-bg-soft, transparent));
+  border: 1px solid var(--c-border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  color: var(--c-text-muted);
+}
+.tsh-photo-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.tsh-photo-thumb i { font-size: 1.4rem; }
+.tsh-photo-file { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+.tsh-photo-btn { cursor: pointer; }
+.tsh-photo-btn.is-busy { opacity: 0.6; pointer-events: none; }
+.tsh-photo-url { flex: 1 1 200px; min-width: 0; }
+.tsh-photo-hint { display: block; margin-top: 4px; }
+@media (max-width: 480px) {
+  .tsh-photo-upload { gap: 8px; }
+  .tsh-photo-url { flex-basis: 100%; }
+}
+
 /* ===== Bundle 14: Events panel + notice TTL (item 9 + TTL) ==============
    Events.mountList renders a vertical list of .tsh-event-card items, each
    with a date badge + body. Events.mountEditor renders inline rows for

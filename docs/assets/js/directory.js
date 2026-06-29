@@ -41,10 +41,10 @@
       // form filters these out when the flag is OFF; the worker accepts
       // them either way so toggling the flag never loses data.
       { name: 'designation', label: 'Designation',   type: 'text', max: 80,  placeholder: 'e.g. Treasurer, Block A Rep', committeeOnly: true },
-      { name: 'term',        label: 'Term',          type: 'text', max: 40,  placeholder: 'e.g. 2025-2026', committeeOnly: true },
+      { name: 'term',        label: 'Term (from / to)', type: 'monthRange', startName: 'termStart', endName: 'termEnd', committeeOnly: true },
       { name: 'responsibilities', label: 'Roles & Responsibilities (optional)', type: 'textarea', max: 1000, placeholder: 'e.g. Chairs monthly committee meetings; signs off on vendor contracts; liaises with security agency.', committeeOnly: true },
       { name: 'email',       label: 'Email',         type: 'email', max: 120, committeeOnly: true },
-      { name: 'photoUrl',    label: 'Photo URL',     type: 'url',  max: 500, placeholder: 'https://… (square crop best)', committeeOnly: true },
+      { name: 'photoUrl',    label: 'Photo',         type: 'photo', max: 500, placeholder: 'https://… (paste a URL or use Upload)', committeeOnly: true },
       { name: 'phones',      label: 'Phones',        type: 'phones', max: 30, maxCount: 5 },
       { name: 'notes',       label: 'Notes',         type: 'textarea', max: 500 },
     ],
@@ -126,6 +126,22 @@
       if (url.protocol !== 'http:' && url.protocol !== 'https:' && url.protocol !== 'mailto:') return null;
       return url.toString();
     } catch (_e) { return null; }
+  }
+
+  // Build a human-friendly display string for a committee term from the
+  // canonical YYYY-MM pair. Empty inputs yield '' (caller decides whether
+  // to write that back to the entry).
+  const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  function fmtYearMonth(s) {
+    const m = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(String(s || ''));
+    if (!m) return '';
+    return `${MONTH_SHORT[Number(m[2]) - 1]} ${m[1]}`;
+  }
+  function formatTermDisplay(start, end) {
+    const a = fmtYearMonth(start);
+    const b = fmtYearMonth(end);
+    if (a && b) return `${a} \u2013 ${b}`;
+    return a || b || '';
   }
 
   // ----- Render -----------------------------------------------------------
@@ -693,6 +709,133 @@
         wrap.appendChild(fs);
         form.appendChild(wrap);
         continue;
+      } else if (field.type === 'monthRange') {
+        // Two <input type="month"> controls + an en-dash separator.
+        // Bound to field.startName / field.endName on form.elements so
+        // the collect step can read them by name.
+        const row = document.createElement('div');
+        row.className = 'tsh-month-range';
+        const from = document.createElement('input');
+        from.type = 'month';
+        from.name = field.startName || 'termStart';
+        from.className = 'tsh-month-range-input';
+        from.setAttribute('aria-label', (field.label || 'Term') + ' \u2014 from (month + year)');
+        const sep = document.createElement('span');
+        sep.className = 'tsh-month-range-sep';
+        sep.textContent = '\u2013';
+        const to = document.createElement('input');
+        to.type = 'month';
+        to.name = field.endName || 'termEnd';
+        to.className = 'tsh-month-range-input';
+        to.setAttribute('aria-label', (field.label || 'Term') + ' \u2014 to (month + year)');
+        const parseYM = (s) => {
+          const m = /^(\d{4})-(0[1-9]|1[0-2])/.exec(String(s || ''));
+          return m ? `${m[1]}-${m[2]}` : '';
+        };
+        from.value = parseYM(data[field.startName || 'termStart']) || '';
+        to.value   = parseYM(data[field.endName   || 'termEnd'])   || '';
+        // Legacy fall-back: if neither pair value is set but we have a
+        // legacy term string like "2025-2026" or "Jun 2025 - May 2026",
+        // best-effort split so the user does not lose context.
+        if (!from.value && !to.value && data.term) {
+          const parts = String(data.term).split(/\s*(?:\u2013|\u2014|-|to)\s*/i).slice(0, 2);
+          const looksLikeYear = (s) => /^\d{4}$/.test(String(s || '').trim());
+          if (parts[0] && looksLikeYear(parts[0])) from.value = `${parts[0].trim()}-01`;
+          if (parts[1] && looksLikeYear(parts[1])) to.value   = `${parts[1].trim()}-12`;
+        }
+        row.append(from, sep, to);
+        wrap.appendChild(row);
+        const hint = document.createElement('span');
+        hint.className = 'tsh-hint tsh-month-range-hint';
+        hint.textContent = 'Pick the start and end month / year of this committee term.';
+        wrap.appendChild(hint);
+        form.appendChild(wrap);
+        continue;
+      } else if (field.type === 'photo') {
+        // File picker + URL input + thumb preview. A selected file is
+        // uploaded to /directory/photo which commits it to the repo and
+        // returns the raw URL; that URL is then written into the URL
+        // input. The URL input also accepts pasted external URLs.
+        const photoWrap = document.createElement('div');
+        photoWrap.className = 'tsh-photo-upload';
+        const thumb = document.createElement('div');
+        thumb.className = 'tsh-photo-thumb';
+        const setThumb = (src) => {
+          thumb.innerHTML = '';
+          if (src) {
+            const im = document.createElement('img');
+            im.alt = '';
+            im.referrerPolicy = 'no-referrer';
+            im.onerror = () => { thumb.innerHTML = '<i class="fas fa-image-portrait" aria-hidden="true"></i>'; };
+            im.src = src;
+            thumb.appendChild(im);
+          } else {
+            thumb.innerHTML = '<i class="fas fa-image-portrait" aria-hidden="true"></i>';
+          }
+        };
+        setThumb(data[field.name] || '');
+        const fileId = `tsh-photo-${field.name}-${Math.random().toString(36).slice(2, 8)}`;
+        const file = document.createElement('input');
+        file.type = 'file';
+        file.id = fileId;
+        file.accept = 'image/jpeg,image/png,image/webp,image/gif';
+        file.className = 'tsh-photo-file';
+        const fileBtn = document.createElement('label');
+        fileBtn.className = 'tsh-btn tsh-btn-ghost tsh-btn-sm tsh-photo-btn';
+        fileBtn.htmlFor = fileId;
+        fileBtn.innerHTML = '<i class="fas fa-upload" aria-hidden="true"></i><span>Upload</span>';
+        input = document.createElement('input');
+        input.type = 'url';
+        input.name = field.name;
+        input.className = 'tsh-photo-url';
+        input.placeholder = field.placeholder || 'https://\u2026 or use Upload';
+        input.maxLength = field.max || 500;
+        if (data[field.name] != null) input.value = data[field.name];
+        input.addEventListener('input', () => setThumb(input.value));
+        const hint = document.createElement('span');
+        hint.className = 'tsh-hint tsh-photo-hint';
+        hint.textContent = 'Optional. Use Upload to commit a photo to the repo, or paste an external URL.';
+        file.addEventListener('change', async () => {
+          const f = file.files && file.files[0];
+          if (!f) return;
+          if (f.size > 5_000_000) {
+            UI.toast('Image too large (max 5 MB)', { kind: 'warn' });
+            file.value = '';
+            return;
+          }
+          fileBtn.classList.add('is-busy');
+          fileBtn.setAttribute('aria-disabled', 'true');
+          hint.textContent = 'Uploading\u2026';
+          try {
+            const dataUrl = await new Promise((res, rej) => {
+              const r = new FileReader();
+              r.onload = () => res(String(r.result || ''));
+              r.onerror = () => rej(r.error || new Error('read failed'));
+              r.readAsDataURL(f);
+            });
+            const out = await Api.post('/directory/photo', { dataUrl, name: f.name });
+            if (out && out.url) {
+              input.value = out.url;
+              setThumb(out.url);
+              hint.textContent = 'Uploaded \u00b7 committed to repo.';
+              UI.toast('Photo uploaded', { kind: 'ok' });
+            } else {
+              throw new Error('No URL returned');
+            }
+          } catch (e) {
+            hint.textContent = 'Optional. Use Upload to commit a photo to the repo, or paste an external URL.';
+            UI.toast('Upload failed: ' + (e && e.message ? e.message : e), { kind: 'error' });
+          } finally {
+            fileBtn.classList.remove('is-busy');
+            fileBtn.removeAttribute('aria-disabled');
+            file.value = '';
+          }
+        });
+        photoWrap.append(thumb, fileBtn, file, input);
+        wrap.appendChild(photoWrap);
+        wrap.appendChild(hint);
+        form.appendChild(wrap);
+        continue;
       } else {
         input = document.createElement('input');
         input.type = field.type;
@@ -731,6 +874,19 @@
         if (field.type === 'checkbox') {
           const el = form.elements[field.name];
           next[field.name] = !!(el && el.checked);
+          continue;
+        }
+        if (field.type === 'monthRange') {
+          const sName = field.startName || 'termStart';
+          const eName = field.endName   || 'termEnd';
+          const sEl = form.elements[sName];
+          const eEl = form.elements[eName];
+          const s = (sEl && sEl.value || '').trim();
+          const e = (eEl && eEl.value || '').trim();
+          if (s) next[sName] = s; else next[sName] = '';
+          if (e) next[eName] = e; else next[eName] = '';
+          const display = formatTermDisplay(s, e);
+          if (display) next[field.name] = display; else next[field.name] = '';
           continue;
         }
         const el = form.elements[field.name];

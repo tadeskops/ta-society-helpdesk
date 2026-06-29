@@ -15,7 +15,7 @@ import { ok } from '../lib/envelope.ts';
 import { ensureAllowed } from '../middleware/rbac.ts';
 import { parseJson, str, optStr, isObj } from '../lib/validate.ts';
 import { BadRequest } from '../lib/errors.ts';
-import { getFile, putFile } from '../github/client.ts';
+import { getFile, putFile, putBinaryB64 } from '../github/client.ts';
 import { writeAudit } from '../lib/audit.ts';
 import { tunable } from '../config/defaults.ts';
 
@@ -35,7 +35,9 @@ interface DirEntry {
   // Committee-view enrichment (FEATURE_DAILY_COMMITTEE_VIEW). All optional;
   // legacy entries without these fields fall back to the basic render.
   designation?: string;  // e.g. "Treasurer", "Block A Rep"
-  term?: string;         // e.g. "2025-2026"
+  term?: string;         // display string derived from termStart/termEnd (e.g. "Jun 2025 – May 2026")
+  termStart?: string;    // canonical month + year, format YYYY-MM
+  termEnd?: string;      // canonical month + year, format YYYY-MM
   responsibilities?: string; // free text, up to ~1000 chars
   email?: string;
   photoUrl?: string;     // absolute URL or repo-relative
@@ -169,8 +171,18 @@ const sanitiseEntry = (raw: unknown, kind: 'vendor' | 'contact' | 'resource' | '
   // but still preserved so a future role-rename doesn't lose data).
   const designation = optStr(raw['designation'], `${kind}.designation`, { max: 80 });
   if (designation) out.designation = designation;
-  const term = optStr(raw['term'], `${kind}.term`, { max: 40 });
+  const term = optStr(raw['term'], `${kind}.term`, { max: 60 });
   if (term) out.term = term;
+  const termStart = optStr(raw['termStart'], `${kind}.termStart`, { max: 7 });
+  if (termStart) {
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(termStart)) throw new BadRequest(`${kind}.termStart must be YYYY-MM`);
+    out.termStart = termStart;
+  }
+  const termEnd = optStr(raw['termEnd'], `${kind}.termEnd`, { max: 7 });
+  if (termEnd) {
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(termEnd)) throw new BadRequest(`${kind}.termEnd must be YYYY-MM`);
+    out.termEnd = termEnd;
+  }
   const responsibilities = optStr(raw['responsibilities'], `${kind}.responsibilities`, { max: 1000 });
   if (responsibilities) out.responsibilities = responsibilities;
   const email = optStr(raw['email'], `${kind}.email`, { max: 120 });
@@ -291,5 +303,44 @@ export const mountDirectory = (r: Router): void => {
       vendorCategories: next.vendorCategories.length,
       serviceCategories: next.serviceCategories.length,
     }});
+  });
+
+  // ---- POST /directory/photo ----
+  // Accepts a base64 image data URL, commits it to photos/directory/<hex>.<ext>
+  // in the issues repo, and returns the public raw-file URL. Used by the
+  // committee-member edit form to upload a portrait photo. Reuses the same
+  // size limit (DAILY_PHOTO_MAX_BYTES) and MIME allow-list as issue photos.
+  r.post('/directory/photo', async (ctx: Ctx) => {
+    ensureAllowed(ctx, {
+      flags: ['FEATURE_DAILY_DIRECTORY'],
+      roles: ['MANAGER', 'COMMITTEE', 'DEVELOPER'],
+      requireIdentity: true,
+    });
+    const body = await parseJson<Record<string, unknown>>(ctx.req);
+    const dataUrl = str(body['dataUrl'], 'dataUrl', { min: 30, max: 10_000_000 });
+    optStr(body['name'], 'name', { max: 200 }); // name is informational only
+    const m = /^data:(image\/(?:jpe?g|png|webp|gif));base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl);
+    if (!m) throw new BadRequest('dataUrl must be image/jpeg|png|webp|gif base64');
+    const mime = m[1]!;
+    const b64 = m[2]!;
+    const padding = b64.endsWith('==') ? 2 : b64.endsWith('=') ? 1 : 0;
+    const byteSize = Math.floor((b64.length * 3) / 4) - padding;
+    const maxBytes = tunable(ctx.config, 'DAILY_PHOTO_MAX_BYTES', 5_242_880);
+    if (byteSize > maxBytes) throw new BadRequest(`photo ${byteSize} bytes exceeds DAILY_PHOTO_MAX_BYTES (${maxBytes})`);
+    const ext = mime === 'image/png' ? 'png'
+      : mime === 'image/webp' ? 'webp'
+      : mime === 'image/gif' ? 'gif' : 'jpg';
+    const buf = new Uint8Array(8);
+    crypto.getRandomValues(buf);
+    const hex = Array.from(buf).map((x) => x.toString(16).padStart(2, '0')).join('');
+    const path = `photos/directory/${hex}.${ext}`;
+    const url = `https://raw.githubusercontent.com/${ctx.env.GH_OWNER}/${ctx.env.GH_REPO}/${ctx.env.GH_BRANCH}/${path}`;
+    const actor = ctx.identity!.email;
+    await putBinaryB64(ctx.env, path, b64, `directory: photo ${hex}.${ext} by ${actor}`, actor);
+    await writeAudit(ctx.env, {
+      actor, action: 'directory:photo', target: path,
+      detail: `bytes=${byteSize} mime=${mime}`,
+    });
+    return ok(ctx.env, ctx.req, { url });
   });
 };
