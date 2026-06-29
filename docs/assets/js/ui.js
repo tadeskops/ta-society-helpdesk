@@ -818,6 +818,32 @@
     const userEl  = document.querySelector('[data-tsh-user]');
     if (!signin || !signout || !userEl || !root.Auth) return;
 
+    // Activation helper for the compact header icons. Fires on click,
+    // dblclick, and touchend so both a desktop double-click and a mobile
+    // tap reliably trigger the action — iOS Safari sometimes drops the
+    // first `click` on small icon-only targets that have no hover state.
+    const bindIconActivation = (el, run) => {
+      if (!el || typeof run !== 'function') return;
+      let lastFiredAt = 0;
+      const safeRun = (ev) => {
+        // De-dupe: click/dblclick/touchend can fire for the same gesture.
+        const now = Date.now();
+        if (now - lastFiredAt < 350) return;
+        lastFiredAt = now;
+        try { run(ev); } catch (e) { console.warn('[ui] icon handler failed:', e); }
+      };
+      el.addEventListener('click', (ev) => {
+        // Anchors with href: let the browser handle the native click so
+        // download=/target= work. Programmatic .click() from touchend
+        // will re-enter this handler, and our dedupe blocks the second
+        // fire. For buttons, we always run.
+        if (el.tagName === 'A' && el.getAttribute('href')) { lastFiredAt = Date.now(); return; }
+        safeRun(ev);
+      });
+      el.addEventListener('dblclick', (ev) => { ev.preventDefault(); safeRun(ev); });
+      el.addEventListener('touchend', (ev) => { ev.preventDefault(); safeRun(ev); }, { passive: false });
+    };
+
     // Item 2: sticky header gets a soft elevation once the page is scrolled
     // past the top. CSS handles the shadow via `.is-scrolled`; we only need
     // a 4-line passive listener. Idempotent — bindHeader is called once.
@@ -883,11 +909,15 @@
     // window.TSH_REPORT.bind({ title, getItems }). When nothing is bound the
     // wizard falls back to fetching /issues.
     const exportBtn = document.querySelector('[data-tsh-export]');
+    const fireExport = () => {
+      if (root.TSH_REPORT && typeof root.TSH_REPORT.open === 'function') root.TSH_REPORT.open();
+      else if (root.UI && root.UI.toast) root.UI.toast('PDF report not available on this page.', { kind: 'warn' });
+    };
     if (exportBtn) {
-      exportBtn.addEventListener('click', () => {
-        if (root.TSH_REPORT && typeof root.TSH_REPORT.open === 'function') root.TSH_REPORT.open();
-        else if (root.UI && root.UI.toast) root.UI.toast('PDF report not available on this page.', { kind: 'warn' });
-      });
+      // Bind to click, dblclick and touchend so a desktop double-click and
+      // a mobile tap both fire reliably (iOS Safari occasionally swallows
+      // the first `click` on small icon targets).
+      bindIconActivation(exportBtn, fireExport);
     }
     // Direct-download icon — points at the latest TSH_Report.pdf written
     // by the worker on every export. Visible only when signed in. We set
@@ -904,6 +934,14 @@
       downloadLatest.setAttribute('download', 'TSH_Report.pdf');
       downloadLatest.dataset.hrefReady = '1';
     };
+    if (downloadLatest) {
+      bindIconActivation(downloadLatest, () => {
+        // Triggering the anchor programmatically reuses the browser's
+        // native download/new-tab flow so we honour download= and target=.
+        refreshDownloadHref();
+        if (downloadLatest.href) downloadLatest.click();
+      });
+    }
     const refreshExportBtn = () => {
       const signedIn = !!(root.Auth && root.Auth.token && root.Auth.token());
       if (exportBtn) {
