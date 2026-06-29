@@ -42,6 +42,7 @@
       // them either way so toggling the flag never loses data.
       { name: 'designation', label: 'Designation',   type: 'text', max: 80,  placeholder: 'e.g. Treasurer, Block A Rep', committeeOnly: true },
       { name: 'term',        label: 'Term',          type: 'text', max: 40,  placeholder: 'e.g. 2025-2026', committeeOnly: true },
+      { name: 'responsibilities', label: 'Roles & Responsibilities (optional)', type: 'textarea', max: 1000, placeholder: 'e.g. Chairs monthly committee meetings; signs off on vendor contracts; liaises with security agency.', committeeOnly: true },
       { name: 'email',       label: 'Email',         type: 'email', max: 120, committeeOnly: true },
       { name: 'photoUrl',    label: 'Photo URL',     type: 'url',  max: 500, placeholder: 'https://… (square crop best)', committeeOnly: true },
       { name: 'phones',      label: 'Phones',        type: 'phones', max: 30, maxCount: 5 },
@@ -354,6 +355,19 @@
     }
     if (contacts.children.length) body.appendChild(contacts);
 
+    if (row.responsibilities) {
+      const wrap = document.createElement('div');
+      wrap.className = 'tsh-committee-resp';
+      const h = document.createElement('div');
+      h.className = 'tsh-committee-resp-h';
+      h.innerHTML = '<i class="fas fa-list-check" aria-hidden="true"></i>Roles & Responsibilities';
+      const p = document.createElement('p');
+      p.className = 'tsh-committee-resp-body';
+      p.textContent = row.responsibilities;
+      wrap.append(h, p);
+      body.appendChild(wrap);
+    }
+
     if (row.notes) {
       const p = document.createElement('p');
       p.className = 'tsh-dir-card-notes';
@@ -477,7 +491,7 @@
     // entries look exactly as before.
     if (kind === 'contacts'
         && window.Flags && Flags.on && Flags.on('FEATURE_DAILY_COMMITTEE_VIEW')
-        && (row.designation || row.term || row.email || row.photoUrl)) {
+        && (row.designation || row.term || row.email || row.photoUrl || row.responsibilities)) {
       return renderCommitteeCard(row);
     }
     if (kind === 'services') return renderServiceCard(row);

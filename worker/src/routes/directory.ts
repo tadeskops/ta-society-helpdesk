@@ -36,6 +36,7 @@ interface DirEntry {
   // legacy entries without these fields fall back to the basic render.
   designation?: string;  // e.g. "Treasurer", "Block A Rep"
   term?: string;         // e.g. "2025-2026"
+  responsibilities?: string; // free text, up to ~1000 chars
   email?: string;
   photoUrl?: string;     // absolute URL or repo-relative
   sortOrder?: number;    // lower = earlier; ties broken by name
@@ -170,6 +171,8 @@ const sanitiseEntry = (raw: unknown, kind: 'vendor' | 'contact' | 'resource' | '
   if (designation) out.designation = designation;
   const term = optStr(raw['term'], `${kind}.term`, { max: 40 });
   if (term) out.term = term;
+  const responsibilities = optStr(raw['responsibilities'], `${kind}.responsibilities`, { max: 1000 });
+  if (responsibilities) out.responsibilities = responsibilities;
   const email = optStr(raw['email'], `${kind}.email`, { max: 120 });
   if (email) out.email = email;
   const photoUrl = optStr(raw['photoUrl'], `${kind}.photoUrl`, { max: 500 });

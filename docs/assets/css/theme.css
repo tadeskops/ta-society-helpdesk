@@ -3135,6 +3135,34 @@ a.tsh-banner-inner:focus-visible {
   flex-direction: column;
   gap: 4px;
 }
+/* Roles & Responsibilities block on the committee card. Sits after the
+   contact lines, framed with a thin left rail so it reads as a small
+   "about this role" callout. Wraps gracefully on narrow widths. */
+.tsh-committee-resp {
+  margin-top: var(--sp-3);
+  padding: 8px 10px;
+  border-left: 3px solid color-mix(in srgb, var(--c-primary) 40%, var(--c-border));
+  background: color-mix(in srgb, var(--c-primary) 4%, transparent);
+  border-radius: 0 var(--rad-sm) var(--rad-sm) 0;
+}
+.tsh-committee-resp-h {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--c-text-muted);
+}
+.tsh-committee-resp-h i { color: var(--c-primary); }
+.tsh-committee-resp-body {
+  margin: 4px 0 0;
+  font-size: var(--fs-sm);
+  color: var(--c-text);
+  white-space: pre-wrap;
+  line-height: 1.45;
+}
 .tsh-committee-card .tsh-dir-card-notes {
   margin-top: var(--sp-2);
 }
