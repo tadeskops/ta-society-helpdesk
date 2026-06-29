@@ -1,0 +1,32 @@
+{
+  "generatedAt": "2026-06-29T05:18:48.775Z",
+  "generatedBy": "ta.deskops@gmail.com",
+  "title": "Society Help Desk — Report",
+  "source": "page",
+  "itemCount": 1,
+  "items": [
+    {
+      "id": "TKT-2806261510",
+      "number": 4,
+      "title": "DLY-00004 · Other · Common Area",
+      "body": "### Reported\n- Date: 2026-06-28T09:40:25.149Z\n- Tower: Common Area\n- Location: Water Purifier Needed\n- Category: Other\n- Sub-category: Other\n\n### Reporter\n- Name: Maitreya\n- Flat: B-805\n- Phone: +919028525779\n- Notify on WhatsApp: no\n\n### Description\nFor Community Hall:\n- Water Filter would be good to have: (Since Society Manager Sir shall be there during day time and apart from that security people and facility staff.\n- ⁠We as a society must provide basic necessities to people providing services.\n\n### Photos\n- ![](https://raw.githubusercontent.com/tadeskops/ta-society-helpdesk/main/photos/DLY-00004/01.jpg)\n\n### Resolution (set on RESOLVED)\n- By: \n- Date: \n- Notes: \n- Cost: \n",
+      "labels": [
+        "new",
+        "daily",
+        "tower:Common Area",
+        "cat:other"
+      ],
+      "status": "new",
+      "url": "https://github.com/tadeskops/ta-society-helpdesk/issues/4",
+      "createdAt": "2026-06-28T09:40:25Z",
+      "updatedAt": "2026-06-28T09:40:29Z",
+      "locked": false,
+      "tower": "Common Area",
+      "category": "Other",
+      "description": "For Community Hall:\n- Water Filter would be good to have: (Since Society Manager Sir shall be there during day time and apart from that security people and facility staff.\n- ⁠We as a society must provide basic necessities to people providing services.",
+      "photos": [
+        "https://raw.githubusercontent.com/tadeskops/ta-society-helpdesk/main/photos/DLY-00004/01.jpg"
+      ]
+    }
+  ]
+}
