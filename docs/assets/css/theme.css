@@ -3235,36 +3235,71 @@ a.tsh-banner-inner:focus-visible {
     padding: var(--sp-2) var(--sp-3);
   }
   .tsh-brand { flex: 1 1 auto; min-width: 0; }
-  /* Userbox must wrap on mobile so the role-pill (which sets
-     `flex: 1 0 100%` to land on its own row) can actually break to a
-     new line. With `nowrap` the 100% basis instead inflated the
-     userbox and crowded the brand text. */
+  /* Mobile right-rail: brand on the left, action icons + RESIDENT pill
+     stay inline on the right of the header. Nav drops to its own row
+     below (order:99). Override the desktop "pill on its own row" rule
+     so the access tier stays beside the export/download/sign-out
+     icons rather than wrapping under them. */
   .tsh-userbox {
     flex: 0 1 auto;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     justify-content: flex-end;
     max-width: 100%;
+    gap: 6px;
   }
+  .tsh-userbox [data-tsh-user]:not(.tsh-user-anon) {
+    order: 2;
+    flex: 0 0 auto;
+    margin-top: 0;
+    max-width: none;
+  }
+  .tsh-userbox [data-tsh-user]:not(.tsh-user-anon) .tsh-user-text {
+    display: none;
+  }
+  .tsh-userbox [data-tsh-user]:not(.tsh-user-anon) .tsh-user-role {
+    padding: 2px 8px;
+    font-size: 0.6rem;
+  }
+  .tsh-userbox > .tsh-btn { order: 1; }
+  /* Below-header nav strip: icon-only, scales with the font-size
+     palette (--fs-base swaps when the user picks A / A / A in the
+     floatdock). Horizontally scrollable if items overflow. */
   .tsh-nav {
     order: 99;
     flex: 0 0 100%;
     flex-wrap: nowrap;
     overflow-x: auto;
     scrollbar-width: none;
-    gap: 4px;
+    gap: 6px;
     padding-bottom: 2px;
   }
   .tsh-nav::-webkit-scrollbar { display: none; }
   .tsh-nav a {
-    padding: 6px 10px;
-    font-size: 0.82rem;
+    font-size: 0;
+    padding: 6px 9px;
+    gap: 0;
     border-radius: var(--rad-sm);
     white-space: nowrap;
     border: 1px solid var(--c-border-soft);
     background: rgba(255, 255, 255, 0.02);
   }
+  /* Icon size derives from the global font-size palette so the
+     floatdock A/A/A toggles still affect the mobile nav. */
+  .tsh-nav a > i {
+    font-size: calc(var(--fs-base) * 0.95);
+    line-height: 1;
+  }
+  .tsh-nav a > span,
+  .tsh-nav a [data-tsh-myreports-count] {
+    position: absolute;
+    width: 1px; height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
   .tsh-nav a[aria-current="page"] {
-    border-color: color-mix(in srgb, var(--c-primary) 35%, var(--c-border));
+    border-color: color-mix(in srgb, var(--c-primary) 45%, var(--c-border));
+    background: color-mix(in srgb, var(--c-primary) 10%, transparent);
   }
 }
 
@@ -3274,36 +3309,22 @@ a.tsh-banner-inner:focus-visible {
   .tsh-brand img { height: 36px; width: 36px; }
   .tsh-brand-name { font-size: var(--fs-base); }
   .tsh-brand-tag { display: none; }
-  /* Nav collapses to icons only. Trailing text-node label is hidden by
-     font-size: 0 on the link; the inner <i> is restored to a visible size. */
-  .tsh-nav a {
-    font-size: 0;
-    padding: 7px 9px;
-    gap: 0;
-  }
-  .tsh-nav a > i { font-size: 1.02rem; }
-  .tsh-nav a > span,
-  .tsh-nav a [data-tsh-myreports-count] {
-    position: absolute;
-    width: 1px; height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    white-space: nowrap;
-  }
   /* Userbox: hide "Not signed in" caption + sign-in button label,
      keep the icon so the chip stays one-tap reachable. */
-  .tsh-userbox { gap: 6px; }
+  .tsh-userbox { gap: 5px; }
   .tsh-userbox .tsh-user-text { display: none; }
   .tsh-userbox [data-tsh-user] {
-    padding: 6px 8px;
+    padding: 5px 7px;
     border-radius: var(--rad-pill);
   }
   .tsh-userbox .tsh-btn .tsh-btn-label { display: none; }
   .tsh-userbox .tsh-btn {
-    padding: 7px 10px;
+    padding: 6px 8px;
     border-radius: var(--rad-pill);
   }
   .tsh-userbox .tsh-btn i { margin: 0; }
+  /* Tighter nav strip on phones — keep icon size tied to --fs-base. */
+  .tsh-nav a { padding: 5px 8px; }
 }
 
 /* Floatdock: even more recessive when idle on touch / narrow screens.
@@ -3418,19 +3439,12 @@ a.tsh-banner-inner:focus-visible {
    badge. Reveal the badge (and keep email hidden) so the access tier is
    always visible at a glance. */
 @media (max-width: 480px) {
-  .tsh-userbox [data-tsh-user]:not(.tsh-user-anon) .tsh-user-text {
-    display: inline-flex;
-    align-items: center;
-    gap: 0;
-    max-width: none;
-    margin-left: 4px;
-  }
   .tsh-userbox [data-tsh-user]:not(.tsh-user-anon) .tsh-user-email {
     display: none;
   }
   .tsh-userbox .tsh-user-role {
     padding: 2px 7px;
-    font-size: 0.62rem;
+    font-size: 0.6rem;
     letter-spacing: 0.03em;
   }
 }
