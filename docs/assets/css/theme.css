@@ -393,6 +393,24 @@ html[data-theme="medium"] .tsh-user-role-manager {
 }
 .tsh-footer a { color: var(--c-text-muted); }
 .tsh-footer a:hover { color: var(--c-primary); }
+/* Footer social pill (Instagram). Inline with the rest of the footer
+   text so it doesn't fight the layout, but the icon picks up the
+   Instagram-brand gradient on hover for a recognisable cue. */
+.tsh-footer-social {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+.tsh-footer-ig i {
+  background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  transition: filter 160ms ease;
+}
+.tsh-footer-ig:hover i { filter: brightness(1.15) saturate(1.1); }
 .tsh-visitors {
   display: inline-flex;
   align-items: center;
