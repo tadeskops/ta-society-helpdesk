@@ -957,11 +957,24 @@
       root.Flags.ready().then(refreshDownloadHref).catch(() => { /* keep fallback */ });
     }
     if (downloadLatest) {
-      bindIconActivation(downloadLatest, () => {
-        // Triggering the anchor programmatically reuses the browser's
-        // native download/new-tab flow so we honour download= and target=.
+      bindIconActivation(downloadLatest, async () => {
+        // Make sure the href reflects the latest config before clicking,
+        // then probe the file with a HEAD request. If the backup has
+        // never been generated yet (404) the icon would otherwise dump
+        // the user on a GitHub error page; fall back to opening the
+        // export wizard so they can produce one (the worker then writes
+        // backups/TSH_Report.pdf and the icon starts serving real data).
         refreshDownloadHref();
-        if (downloadLatest.href) downloadLatest.click();
+        const url = downloadLatest.href;
+        if (!url) return;
+        let exists = false;
+        try {
+          const r = await fetch(url, { method: 'HEAD', cache: 'no-store' });
+          exists = r.ok;
+        } catch (_e) { /* network — try direct click anyway */ exists = true; }
+        if (exists) { downloadLatest.click(); return; }
+        try { toast('No archived report yet — opening the report builder so you can create one.', 'info'); } catch (_e) { /* toast may not be mounted */ }
+        if (root.TSH_REPORT && typeof root.TSH_REPORT.open === 'function') root.TSH_REPORT.open();
       });
     }
     const refreshExportBtn = () => {

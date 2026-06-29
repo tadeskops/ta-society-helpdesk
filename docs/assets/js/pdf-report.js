@@ -88,13 +88,23 @@
       try { items = bound.getItems(); } catch (_e) { items = null; }
     }
     if (!items) {
-      // Fallback: pull /issues if signed in. Failures bubble to a toast.
+      // Fallback: pull /issues if signed in. Residents can't read that
+      // endpoint, so we then try /issues/public (anonymous-allowed,
+      // daily-tracking items only) before surfacing a toast.
+      const tryFetch = async (path) => {
+        if (!root.Api || !root.Api.get) throw new Error('Api unavailable');
+        const res = await root.Api.get(path);
+        return Array.isArray(res) ? res : (res.items || []);
+      };
       try {
-        const res = await (root.Api && root.Api.get ? root.Api.get('/issues?state=all') : Promise.reject(new Error('Api unavailable')));
-        items = Array.isArray(res) ? res : (res.items || []);
-      } catch (e) {
-        toast(`Could not load items: ${e.message || e}`, 'danger');
-        return;
+        items = await tryFetch('/issues?state=all');
+      } catch (_e1) {
+        try {
+          items = await tryFetch('/issues/public');
+        } catch (e2) {
+          toast(`Could not load items: ${e2.message || e2}`, 'danger');
+          return;
+        }
       }
     }
     items = Array.isArray(items) ? items : [];
