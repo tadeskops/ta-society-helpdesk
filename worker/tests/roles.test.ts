@@ -23,8 +23,14 @@ describe('resolveRoles', () => {
     expect(resolveRoles(access, 'cmt@x.com').primary).toBe('COMMITTEE');
     expect(resolveRoles(access, 'mgr@x.com').primary).toBe('COMMITTEE'); // additive
   });
-  it('UNKNOWN for emails not on any list', () => {
-    expect(resolveRoles(access, 'random@x.com').primary).toBe('UNKNOWN');
+  it('RESIDENT for signed-in emails not on any privileged list', () => {
+    const r = resolveRoles(access, 'random@x.com');
+    expect(r.primary).toBe('RESIDENT');
+    expect(r.all).toContain('RESIDENT');
+  });
+  it('every signed-in user is at minimum a Resident (additive)', () => {
+    const dev = resolveRoles(access, 'dev@x.com');
+    expect(dev.all).toContain('RESIDENT');
   });
   it('is case-insensitive', () => {
     expect(resolveRoles(access, 'DEV@X.COM').primary).toBe('DEVELOPER');
@@ -35,15 +41,20 @@ describe('hasAny / isAtLeast', () => {
   const dev = resolveRoles(access, 'dev@x.com');
   const mgr = resolveRoles(access, 'mgr@x.com'); // also committee
   const anon = resolveRoles(access, null);
+  const res = resolveRoles(access, 'random@x.com');
   it('hasAny matches any element of the role set', () => {
     expect(hasAny(dev, 'DEVELOPER')).toBe(true);
     expect(hasAny(mgr, 'COMMITTEE', 'MANAGER')).toBe(true);
     expect(hasAny(anon, 'DEVELOPER', 'MANAGER')).toBe(false);
+    expect(hasAny(res, 'RESIDENT')).toBe(true);
   });
   it('isAtLeast walks the precedence chain', () => {
     expect(isAtLeast(dev, 'MANAGER')).toBe(true);
     expect(isAtLeast(mgr, 'DEVELOPER')).toBe(false);
     expect(isAtLeast(anon, 'UNKNOWN')).toBe(true);
+    expect(isAtLeast(anon, 'RESIDENT')).toBe(false);
+    expect(isAtLeast(res, 'RESIDENT')).toBe(true);
+    expect(isAtLeast(res, 'MANAGER')).toBe(false);
   });
 });
 

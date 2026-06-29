@@ -863,9 +863,9 @@
       COMMITTEE: 'Tech Committee',
       MANAGER:   'Society Manager',
       RESIDENT:  'Resident',
-      // Worker returns 'UNKNOWN' for any signed-in email that isn't in
-      // the privileged role maps. Treat that as a Resident so the badge
-      // shows up for every signed-in user, not just mapped roles.
+      // Worker now returns 'RESIDENT' for every signed-in Gmail that
+      // isn't on a privileged list. Keep 'UNKNOWN' mapping as a safety
+      // net for any cached older /whoami responses still in flight.
       UNKNOWN:   'Resident',
     };
     function renderUser(email, role) {
