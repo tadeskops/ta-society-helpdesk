@@ -169,22 +169,57 @@
 
   let categoryFilter = null;
   function renderCategoryPills() {
+    // Mobile pills (hidden on desktop by CSS via .tsh-dir-filter-pills-mobile).
     const host = $('#dirCategoryPills');
-    if (!host) return;
-    if (!categoryFilter) {
-      categoryFilter = UI.FilterBar(host, {
-        label: 'Category',
-        options: state.vendorCategories || [],
-        value: activeCategory,
-        onApply: (val) => {
-          activeCategory = val;
-          renderGrid('vendors');
-        },
-      });
-    } else {
-      categoryFilter.setOptions(state.vendorCategories || []);
-      categoryFilter.setValue(activeCategory);
+    if (host) {
+      if (!categoryFilter) {
+        categoryFilter = UI.FilterBar(host, {
+          label: 'Category',
+          options: state.vendorCategories || [],
+          value: activeCategory,
+          onApply: (val) => { setActiveVendorCategory(val); renderGrid('vendors'); renderCategoryPills(); },
+        });
+      } else {
+        categoryFilter.setOptions(state.vendorCategories || []);
+        categoryFilter.setValue(activeCategory);
+      }
     }
+    // Desktop sidebar list with per-category counts. Mirrors renderServiceSidebar.
+    const ul = $('#dirVendorSidebar');
+    if (!ul) return;
+    const cats = state.vendorCategories || [];
+    const items = state.vendors || [];
+    ul.innerHTML = '';
+    const make = (cat, count, isActive) => {
+      const li = document.createElement('li');
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'tsh-dir-sidebar-item' + (isActive ? ' is-active' : '');
+      btn.setAttribute('role', 'option');
+      btn.setAttribute('aria-selected', String(!!isActive));
+      btn.innerHTML = `<span class="tsh-dir-sidebar-label">${escapeHtml(cat || 'All vendors')}</span><span class="tsh-dir-sidebar-badge">${count}</span>`;
+      btn.addEventListener('click', () => {
+        const next = cat === '' ? '' : cat;
+        if (activeCategory === next) return;
+        setActiveVendorCategory(next);
+        renderGrid('vendors');
+        renderCategoryPills();
+      });
+      li.appendChild(btn);
+      return li;
+    };
+    ul.appendChild(make('', items.length, !activeCategory));
+    for (const cat of cats) {
+      const count = items.filter((v) => (v.category || '').toLowerCase() === cat.toLowerCase()).length;
+      ul.appendChild(make(cat, count, activeCategory === cat));
+    }
+    const countEl = $('#dirVendorSidebarCount');
+    if (countEl) countEl.textContent = String(cats.length);
+  }
+
+  function setActiveVendorCategory(val) {
+    activeCategory = val || '';
+    if (categoryFilter) categoryFilter.setValue(activeCategory);
   }
 
   // Desktop sidebar + mobile pills for the Services tab. Sidebar shows all

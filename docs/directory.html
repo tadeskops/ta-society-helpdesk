@@ -59,17 +59,29 @@
         <div class="tsh-dir-grid" data-dir-grid="emergency"></div>
       </section>
 
-      <!-- VENDORS -->
-      <section class="tsh-dir-section" data-dir-section="vendors" hidden>
+      <!-- VENDORS (with desktop sidebar) -->
+      <section class="tsh-dir-section tsh-dir-section-vendors" data-dir-section="vendors" hidden>
         <div class="tsh-dir-section-actions">
-          <div class="tsh-dir-filter-pills" id="dirCategoryPills" role="group" aria-label="Filter by category"></div>
+          <p class="tsh-hint">Society-approved vendors organised by category. Use the sidebar on desktop or the filter pills on mobile to narrow the list.</p>
           <div class="tsh-dir-section-buttons" data-dir-edit-only hidden>
             <button type="button" class="tsh-btn tsh-btn-ghost tsh-btn-sm" id="dirManageCategoriesBtn"><i class="fas fa-tags"></i>Manage categories</button>
             <button type="button" class="tsh-btn tsh-btn-ghost tsh-btn-sm" id="dirImportVendorsBtn"><i class="fas fa-file-csv"></i>Import CSV</button>
             <button type="button" class="tsh-btn tsh-btn-primary tsh-btn-sm" data-dir-add="vendors"><i class="fas fa-plus"></i>Add vendor</button>
           </div>
         </div>
-        <div class="tsh-dir-grid" data-dir-grid="vendors"></div>
+        <div class="tsh-dir-layout-sidebar">
+          <aside class="tsh-dir-sidebar" aria-label="Vendor categories">
+            <div class="tsh-dir-sidebar-head">
+              <h3>Categories</h3>
+              <span class="tsh-dir-sidebar-count" id="dirVendorSidebarCount">0</span>
+            </div>
+            <ul class="tsh-dir-sidebar-list" id="dirVendorSidebar" role="listbox"></ul>
+          </aside>
+          <div class="tsh-dir-sidebar-main">
+            <div class="tsh-dir-filter-pills tsh-dir-filter-pills-mobile" id="dirCategoryPills" role="group" aria-label="Filter by category"></div>
+            <div class="tsh-dir-grid" data-dir-grid="vendors"></div>
+          </div>
+        </div>
       </section>
 
       <!-- SERVICES (with desktop sidebar) -->
@@ -131,7 +143,7 @@
   <script src="./assets/js/ui.js?v=50"></script>
   <script src="./assets/js/pdf-report.js?v=8"></script>
   <script src="./assets/js/visitors.js?v=2"></script>
-  <script src="./assets/js/directory.js?v=12"></script>
+  <script src="./assets/js/directory.js?v=13"></script>
   <script>
   (async () => {
     await Partials.mount();
