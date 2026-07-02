@@ -67,10 +67,43 @@
   let state = null;
   let canEdit = false;
   let dirty = false;
-  let activeTab = 'emergency';
-  let activeCategory = '';  // '' = all
+  let activeTab = 'emergency';   // legacy alias kept for internal reads
+  let activeCategory = '';       // '' = all
   let activeServiceCategory = '';
   let searchTerm = '';
+  let railOpen = false;
+
+  // Default kind metadata used when Flags.list('directoryKinds') is empty.
+  // Developer can override via config/site.json without touching code.
+  const DEFAULT_KINDS = [
+    { key: 'emergency', label: 'Emergency Contacts',   icon: 'fa-triangle-exclamation', color: '#dc2626', enabled: true, order: 1 },
+    { key: 'vendors',   label: 'Vendors',              icon: 'fa-toolbox',              color: '#ea580c', enabled: true, order: 2 },
+    { key: 'services',  label: 'Services',             icon: 'fa-handshake-angle',      color: '#16a34a', enabled: true, order: 3 },
+    { key: 'contacts',  label: 'Management Committee', icon: 'fa-people-group',         color: '#2563eb', enabled: true, order: 4 },
+    { key: 'resources', label: 'Resources',            icon: 'fa-link',                 color: '#a855f7', enabled: true, order: 5 },
+  ];
+
+  function getKinds() {
+    const cfg = (window.Flags && Flags.list && Flags.list('directoryKinds')) || [];
+    const src = Array.isArray(cfg) && cfg.length ? cfg : DEFAULT_KINDS;
+    return src
+      .filter((k) => k && k.key && KIND_LABEL[k.key] && k.enabled !== false)
+      .slice()
+      .sort((a, b) => (a.order || 999) - (b.order || 999));
+  }
+
+  function railAvailable() {
+    if (!window.Flags || !Flags.on || !Flags.on('FEATURE_DAILY_DIRECTORY_RIGHT_RAIL')) return false;
+    return !!document.getElementById('dirRail');
+  }
+  function applyShellSettings() {
+    const shell = document.getElementById('dirShell');
+    if (!shell || !window.Flags || !Flags.tunable) return;
+    const navW  = Number(Flags.tunable('DIRECTORY_APPSHELL_NAV_WIDTH_PX',  240));
+    const railW = Number(Flags.tunable('DIRECTORY_APPSHELL_RAIL_WIDTH_PX', 340));
+    if (navW  > 120) shell.style.setProperty('--tsh-dir-nav-w',  navW  + 'px');
+    if (railW > 240) shell.style.setProperty('--tsh-dir-rail-w', railW + 'px');
+  }
 
   function $$(sel, ctx) { return Array.from((ctx || document).querySelectorAll(sel)); }
   function $(sel, ctx) { return (ctx || document).querySelector(sel); }
@@ -146,18 +179,81 @@
 
   // ----- Render -----------------------------------------------------------
   function render() {
+    renderNav();
     renderCategoryPills();
     renderServiceSidebar();
-    for (const kind of Object.keys(KIND_LABEL)) renderGrid(kind);
-    renderCounts();
+    renderCenterHeads();
+    renderGrid(activeTab);
     renderEditAffordances();
   }
 
-  function renderCounts() {
-    for (const kind of Object.keys(KIND_LABEL)) {
-      const n = (state[kind] || []).length;
-      const el = $(`[data-dir-count="${kind}"]`);
-      if (el) el.textContent = n;
+  // Build the left nav (app-shell). Reads kinds from config (or default),
+  // paints one .tsh-dir-nav-item per enabled kind with its current count,
+  // and nests the Service sub-category list under the Services item when
+  // that kind is active. Clicking an item switches the active kind.
+  function renderNav() {
+    const nav = $('#dirNav');
+    if (!nav) return;
+    nav.innerHTML = '';
+    for (const kind of getKinds()) {
+      const n = (state[kind.key] || []).length;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'tsh-dir-nav-item' + (activeTab === kind.key ? ' is-active' : '');
+      btn.setAttribute('role', 'tab');
+      btn.setAttribute('aria-selected', String(activeTab === kind.key));
+      btn.dataset.dirKind = kind.key;
+      btn.innerHTML =
+        `<i class="fas ${escapeHtml(kind.icon || 'fa-circle')} tsh-dir-nav-icon" aria-hidden="true"></i>` +
+        `<span class="tsh-dir-nav-label">${escapeHtml(kind.label)}</span>` +
+        `<span class="tsh-dir-nav-count" data-dir-count="${kind.key}">${n}</span>`;
+      btn.addEventListener('click', () => activateKind(kind.key));
+      nav.appendChild(btn);
+
+      // Nested sub-category list for Services (desktop only, CSS hides on
+      // narrow viewports). Only rendered when Services is the active kind
+      // so the nav stays quiet the rest of the time.
+      if (kind.key === 'services' && activeTab === 'services') {
+        nav.appendChild(buildServiceSubNav());
+      }
+    }
+  }
+
+  function buildServiceSubNav() {
+    const ul = document.createElement('ul');
+    ul.className = 'tsh-dir-nav-subs';
+    ul.id = 'dirServiceSubNav';
+    const cats = state.serviceCategories || [];
+    const items = state.services || [];
+    const make = (cat, count, isActive) => {
+      const li = document.createElement('li');
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'tsh-dir-nav-sub' + (isActive ? ' is-active' : '');
+      btn.innerHTML =
+        `<span class="tsh-dir-nav-sub-label">${escapeHtml(cat || 'All services')}</span>` +
+        `<span class="tsh-dir-nav-sub-badge">${count}</span>`;
+      btn.addEventListener('click', () => {
+        const next = cat === '' ? '' : cat;
+        if (activeServiceCategory === next) return;
+        setActiveServiceCategory(next);
+        renderGrid('services');
+        renderNav();
+      });
+      li.appendChild(btn);
+      return li;
+    };
+    ul.appendChild(make('', items.length, !activeServiceCategory));
+    for (const cat of cats) {
+      const count = items.filter((s) => (s.category || '').toLowerCase() === cat.toLowerCase()).length;
+      ul.appendChild(make(cat, count, activeServiceCategory === cat));
+    }
+    return ul;
+  }
+
+  function renderCenterHeads() {
+    for (const el of $$('[data-dir-head]')) {
+      el.classList.toggle('is-active', el.dataset.dirHead === activeTab);
     }
   }
 
@@ -206,7 +302,7 @@
       }
     }
     const ul = $('#dirServiceSidebar');
-    if (!ul) return;
+    if (!ul) return;  // App-shell: sidebar moved into the left nav (renderNav). No-op here.
     const cats = state.serviceCategories || [];
     const items = state.services || [];
     ul.innerHTML = '';
@@ -243,7 +339,11 @@
   }
 
   function renderGrid(kind) {
-    const grid = $(`[data-dir-grid="${kind}"]`);
+    // App-shell layout: a single .tsh-dir-grid host (#dirActiveGrid) shows
+    // only the currently active kind. Skip work for non-active kinds so
+    // switching kinds is O(1) instead of re-rendering all five.
+    if (kind !== activeTab) return;
+    const grid = $('#dirActiveGrid') || $(`[data-dir-grid="${kind}"]`);
     if (!grid) return;
     grid.innerHTML = '';
 
@@ -848,15 +948,9 @@
       form.appendChild(wrap);
     }
 
-    UI.modal({
-      title: (isEdit ? 'Edit ' : 'Add ') + KIND_LABEL[kind].singular,
-      body: form,
-      actions: [
-        { label: 'Cancel', value: null },
-        { label: isEdit ? 'Save' : 'Add', value: 'save', primary: true },
-      ],
-    }).then((choice) => {
-      if (choice !== 'save') return;
+    // Extract form values into a fresh object using the field metadata.
+    // Called by both modal and rail submission paths.
+    function collectForm() {
       const next = {};
       for (const field of fields) {
         if (field.type === 'phones') {
@@ -893,8 +987,14 @@
         const v = (el && el.value || '').trim();
         if (v) next[field.name] = v;
       }
-      if (!next.name) { UI.toast('Name is required', { kind: 'warn' }); return; }
+      return next;
+    }
 
+    // Apply a collected value to the working state and re-render. Returns
+    // true on success, false on validation failure (caller keeps form open).
+    function commitForm() {
+      const next = collectForm();
+      if (!next.name) { UI.toast('Name is required', { kind: 'warn' }); return false; }
       const list = state[kind] = state[kind] || [];
       if (isEdit) {
         const i = list.findIndex((x) => x.id === existing.id);
@@ -909,7 +1009,90 @@
       }
       setDirty(true);
       render();
+      return true;
+    }
+
+    const title = (isEdit ? 'Edit ' : 'Add ') + KIND_LABEL[kind].singular;
+    const primaryLabel = isEdit ? 'Save' : 'Add';
+
+    // App-shell path: mount the form into the right rail instead of a modal
+    // when the feature flag is on and the rail host exists.
+    if (railAvailable()) {
+      openRailForm({ title, form, primaryLabel, onSave: commitForm });
+      return;
+    }
+
+    UI.modal({
+      title,
+      body: form,
+      actions: [
+        { label: 'Cancel', value: null },
+        { label: primaryLabel, value: 'save', primary: true },
+      ],
+    }).then((choice) => { if (choice === 'save') commitForm(); });
+  }
+
+  // ----- Right rail (edit surface) ---------------------------------------
+  // Renders a header + the passed form + a footer action row into #dirRail
+  // and opens the shell into the has-rail-open state. onSave closes the
+  // rail only on success (validation failures keep it open with a toast).
+  function openRailForm({ title, form, primaryLabel, onSave }) {
+    const rail = document.getElementById('dirRail');
+    const shell = document.getElementById('dirShell');
+    if (!rail) return;
+    rail.innerHTML = '';
+
+    const head = document.createElement('header');
+    head.className = 'tsh-dir-rail-head';
+    const h = document.createElement('h3');
+    h.className = 'tsh-dir-rail-title';
+    h.textContent = title;
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'tsh-btn tsh-btn-ghost tsh-btn-sm tsh-dir-rail-close';
+    close.setAttribute('aria-label', 'Close');
+    close.innerHTML = '<i class="fas fa-xmark" aria-hidden="true"></i>';
+    close.addEventListener('click', closeRail);
+    head.append(h, close);
+
+    const body = document.createElement('div');
+    body.className = 'tsh-dir-rail-body';
+    body.appendChild(form);
+
+    const foot = document.createElement('footer');
+    foot.className = 'tsh-dir-rail-actions';
+    const cancel = document.createElement('button');
+    cancel.type = 'button';
+    cancel.className = 'tsh-btn tsh-btn-ghost';
+    cancel.textContent = 'Cancel';
+    cancel.addEventListener('click', closeRail);
+    const primary = document.createElement('button');
+    primary.type = 'button';
+    primary.className = 'tsh-btn tsh-btn-primary';
+    primary.textContent = primaryLabel;
+    primary.addEventListener('click', () => {
+      if (onSave && onSave() === false) return;
+      closeRail();
     });
+    // Submit-on-Enter inside the form triggers the primary action.
+    form.addEventListener('submit', (e) => { e.preventDefault(); primary.click(); });
+    foot.append(cancel, primary);
+
+    rail.append(head, body, foot);
+    rail.hidden = false;
+    if (shell) shell.classList.add('has-rail-open');
+    railOpen = true;
+    // Focus the first interactive input for keyboard users.
+    const firstInput = form.querySelector('input, textarea, select, button');
+    if (firstInput) try { firstInput.focus(); } catch (_) { /* ignore */ }
+  }
+
+  function closeRail() {
+    const rail = document.getElementById('dirRail');
+    const shell = document.getElementById('dirShell');
+    if (rail) { rail.hidden = true; rail.innerHTML = ''; }
+    if (shell) shell.classList.remove('has-rail-open');
+    railOpen = false;
   }
 
   function confirmDelete(kind, row) {
@@ -1199,18 +1382,20 @@
     };
   }
 
-  // ----- Tabs + search wiring --------------------------------------------
-  function activateTab(name) {
+  // ----- Kind switch + search wiring -------------------------------------
+  function activateKind(name) {
+    const kinds = getKinds();
+    if (!kinds.some((k) => k.key === name)) return;
+    if (activeTab === name) return;
     activeTab = name;
-    for (const btn of $$('[data-dir-tab]')) {
-      const on = btn.dataset.dirTab === name;
-      btn.classList.toggle('tsh-tab-active', on);
-      btn.setAttribute('aria-selected', String(on));
-    }
-    for (const sec of $$('[data-dir-section]')) {
-      sec.hidden = sec.dataset.dirSection !== name;
-    }
+    closeRail();
+    renderNav();
+    renderCenterHeads();
+    renderGrid(activeTab);
+    renderEditAffordances();
   }
+  // Kept as alias so older callers (if any) still work.
+  function activateTab(name) { activateKind(name); }
 
   // ----- Init -------------------------------------------------------------
   async function init(opts) {
@@ -1224,19 +1409,20 @@
     try { raw = await Api.get('/directory'); }
     catch (e) { UI.toast('Couldn\u2019t load directory.', { kind: 'danger' }); raw = null; }
     state = normalise(raw || {});
+    // Push tunable widths from config into CSS custom properties on the
+    // shell before the first paint of nav / rail.
+    applyShellSettings();
     render();
 
-    // Tabs.
-    for (const btn of $$('[data-dir-tab]')) {
-      btn.addEventListener('click', () => activateTab(btn.dataset.dirTab));
-    }
+    // Nav clicks are wired inside renderNav (one listener per item).
 
-    // Search.
+    // Search filters within the active kind only. Non-active kinds have
+    // no DOM to update, so this is much cheaper than the old 5-grid loop.
     const search = $('#dirSearch');
     if (search) {
       search.addEventListener('input', () => {
         searchTerm = search.value || '';
-        for (const kind of Object.keys(KIND_LABEL)) renderGrid(kind);
+        renderGrid(activeTab);
       });
     }
 
@@ -1262,5 +1448,5 @@
     if (discard_) discard_.addEventListener('click', discard);
   }
 
-  root.Directory = { init };
+  root.Directory = { init, activateKind };
 })(window);

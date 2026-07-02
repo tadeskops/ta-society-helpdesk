@@ -9,7 +9,7 @@
   <link rel="icon" href="./assets/images/TaLogo.png" type="image/png" />
   <script>(function(){try{var t=localStorage.getItem('tsh_theme');if(t!=='dark'&&t!=='light'&&t!=='medium')t='light';if(t!=='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="./assets/css/theme.css?v=85" />
+  <link rel="stylesheet" href="./assets/css/theme.css?v=86" />
 </head>
 <body class="tsh-page">
   <div data-include="header"></div>
@@ -40,83 +40,65 @@
         </div>
       </div>
 
-      <div class="tsh-tabs" role="tablist" aria-label="Directory sections">
-        <button type="button" class="tsh-tab tsh-tab-active" role="tab" aria-selected="true"  data-dir-tab="emergency"><i class="fas fa-triangle-exclamation"></i> Emergency Contacts <span class="tsh-tab-count" data-dir-count="emergency">0</span></button>
-        <button type="button" class="tsh-tab"               role="tab" aria-selected="false" data-dir-tab="vendors"><i class="fas fa-toolbox"></i> Vendors <span class="tsh-tab-count" data-dir-count="vendors">0</span></button>
-        <button type="button" class="tsh-tab"               role="tab" aria-selected="false" data-dir-tab="services"><i class="fas fa-handshake-angle"></i> Services <span class="tsh-tab-count" data-dir-count="services">0</span></button>
-        <button type="button" class="tsh-tab"               role="tab" aria-selected="false" data-dir-tab="contacts"><i class="fas fa-people-group"></i> Management Committee <span class="tsh-tab-count" data-dir-count="contacts">0</span></button>
-        <button type="button" class="tsh-tab"               role="tab" aria-selected="false" data-dir-tab="resources"><i class="fas fa-link"></i> Resources <span class="tsh-tab-count" data-dir-count="resources">0</span></button>
-      </div>
+      <!-- App-shell: left nav (kinds) | center (active grid) | right rail (detail / edit) -->
+      <div class="tsh-dir-shell" id="dirShell">
+        <nav class="tsh-dir-nav" id="dirNav" role="tablist" aria-label="Directory sections"></nav>
 
-      <!-- EMERGENCY CONTACTS -->
-      <section class="tsh-dir-section" data-dir-section="emergency">
-        <div class="tsh-dir-section-actions">
-          <p class="tsh-hint"><i class="fas fa-triangle-exclamation" style="color:#dc2626"></i> Society staff numbers for quick reach — tap the phone or WhatsApp icon to call/message directly. Managers / committee / developers can add or edit entries.</p>
-          <div class="tsh-dir-section-buttons" data-dir-edit-only hidden>
-            <button type="button" class="tsh-btn tsh-btn-primary tsh-btn-sm" data-dir-add="emergency"><i class="fas fa-plus"></i>Add emergency contact</button>
-          </div>
-        </div>
-        <div class="tsh-dir-grid" data-dir-grid="emergency"></div>
-      </section>
-
-      <!-- VENDORS -->
-      <section class="tsh-dir-section" data-dir-section="vendors" hidden>
-        <div class="tsh-dir-section-actions">
-          <div class="tsh-dir-filter-pills" id="dirCategoryPills" role="group" aria-label="Filter by category"></div>
-          <div class="tsh-dir-section-buttons" data-dir-edit-only hidden>
-            <button type="button" class="tsh-btn tsh-btn-ghost tsh-btn-sm" id="dirManageCategoriesBtn"><i class="fas fa-tags"></i>Manage categories</button>
-            <button type="button" class="tsh-btn tsh-btn-ghost tsh-btn-sm" id="dirImportVendorsBtn"><i class="fas fa-file-csv"></i>Import CSV</button>
-            <button type="button" class="tsh-btn tsh-btn-primary tsh-btn-sm" data-dir-add="vendors"><i class="fas fa-plus"></i>Add vendor</button>
-          </div>
-        </div>
-        <div class="tsh-dir-grid" data-dir-grid="vendors"></div>
-      </section>
-
-      <!-- SERVICES (with desktop sidebar) -->
-      <section class="tsh-dir-section tsh-dir-section-services" data-dir-section="services" hidden>
-        <div class="tsh-dir-section-actions">
-          <p class="tsh-hint">Trusted service providers — House Help, Cook, Driver, Pest Control and more. Cards marked with a <i class="fas fa-shield-halved" style="color:#16a34a"></i> badge are verified by the society manager.</p>
-          <div class="tsh-dir-section-buttons" data-dir-edit-only hidden>
-            <button type="button" class="tsh-btn tsh-btn-ghost tsh-btn-sm" id="dirManageServiceCategoriesBtn"><i class="fas fa-tags"></i>Manage sub-categories</button>
-            <button type="button" class="tsh-btn tsh-btn-primary tsh-btn-sm" data-dir-add="services"><i class="fas fa-plus"></i>Add service</button>
-          </div>
-        </div>
-        <div class="tsh-dir-layout-sidebar">
-          <aside class="tsh-dir-sidebar" aria-label="Service sub-categories">
-            <div class="tsh-dir-sidebar-head">
-              <h3>Sub-categories</h3>
-              <span class="tsh-dir-sidebar-count" id="dirSidebarCount">0</span>
+        <div class="tsh-dir-center">
+          <!-- Per-kind heads (hint + filter pills + section buttons). Only the
+               matching one is visible; kept in DOM so their existing IDs
+               (dirCategoryPills, dirManageCategoriesBtn, etc.) survive. -->
+          <div class="tsh-dir-center-head" data-dir-head="emergency">
+            <div class="tsh-dir-section-actions">
+              <p class="tsh-hint"><i class="fas fa-triangle-exclamation" style="color:#dc2626"></i> Society staff numbers for quick reach &mdash; tap the phone or WhatsApp icon to call/message directly. Managers / committee / developers can add or edit entries.</p>
+              <div class="tsh-dir-section-buttons" data-dir-edit-only hidden>
+                <button type="button" class="tsh-btn tsh-btn-primary tsh-btn-sm" data-dir-add="emergency"><i class="fas fa-plus"></i>Add emergency contact</button>
+              </div>
             </div>
-            <ul class="tsh-dir-sidebar-list" id="dirServiceSidebar" role="listbox"></ul>
-          </aside>
-          <div class="tsh-dir-sidebar-main">
+          </div>
+          <div class="tsh-dir-center-head" data-dir-head="vendors">
+            <div class="tsh-dir-section-actions">
+              <div class="tsh-dir-filter-pills" id="dirCategoryPills" role="group" aria-label="Filter by category"></div>
+              <div class="tsh-dir-section-buttons" data-dir-edit-only hidden>
+                <button type="button" class="tsh-btn tsh-btn-ghost tsh-btn-sm" id="dirManageCategoriesBtn"><i class="fas fa-tags"></i>Manage categories</button>
+                <button type="button" class="tsh-btn tsh-btn-ghost tsh-btn-sm" id="dirImportVendorsBtn"><i class="fas fa-file-csv"></i>Import CSV</button>
+                <button type="button" class="tsh-btn tsh-btn-primary tsh-btn-sm" data-dir-add="vendors"><i class="fas fa-plus"></i>Add vendor</button>
+              </div>
+            </div>
+          </div>
+          <div class="tsh-dir-center-head" data-dir-head="services">
+            <div class="tsh-dir-section-actions">
+              <p class="tsh-hint">Trusted service providers &mdash; House Help, Cook, Driver, Pest Control and more. Cards marked with a <i class="fas fa-shield-halved" style="color:#16a34a"></i> badge are verified by the society manager.</p>
+              <div class="tsh-dir-section-buttons" data-dir-edit-only hidden>
+                <button type="button" class="tsh-btn tsh-btn-ghost tsh-btn-sm" id="dirManageServiceCategoriesBtn"><i class="fas fa-tags"></i>Manage sub-categories</button>
+                <button type="button" class="tsh-btn tsh-btn-primary tsh-btn-sm" data-dir-add="services"><i class="fas fa-plus"></i>Add service</button>
+              </div>
+            </div>
             <div class="tsh-dir-filter-pills tsh-dir-filter-pills-mobile" id="dirServicePills" role="group" aria-label="Filter by sub-category"></div>
-            <div class="tsh-dir-grid" data-dir-grid="services"></div>
           </div>
-        </div>
-      </section>
+          <div class="tsh-dir-center-head" data-dir-head="contacts">
+            <div class="tsh-dir-section-actions">
+              <p class="tsh-hint">Elected management committee members for the current term &mdash; name, designation, flat and contact number. Managers / committee / developers can add or edit entries.</p>
+              <div class="tsh-dir-section-buttons" data-dir-edit-only hidden>
+                <button type="button" class="tsh-btn tsh-btn-primary tsh-btn-sm" data-dir-add="contacts"><i class="fas fa-plus"></i>Add committee member</button>
+              </div>
+            </div>
+          </div>
+          <div class="tsh-dir-center-head" data-dir-head="resources">
+            <div class="tsh-dir-section-actions">
+              <p class="tsh-hint">Bye-laws, useful PDFs, vendor catalogues, community-shared links.</p>
+              <div class="tsh-dir-section-buttons" data-dir-edit-only hidden>
+                <button type="button" class="tsh-btn tsh-btn-primary tsh-btn-sm" data-dir-add="resources"><i class="fas fa-plus"></i>Add resource</button>
+              </div>
+            </div>
+          </div>
 
-      <!-- MANAGEMENT COMMITTEE -->
-      <section class="tsh-dir-section" data-dir-section="contacts" hidden>
-        <div class="tsh-dir-section-actions">
-          <p class="tsh-hint">Elected management committee members for the current term &mdash; name, designation, flat and contact number. Managers / committee / developers can add or edit entries.</p>
-          <div class="tsh-dir-section-buttons" data-dir-edit-only hidden>
-            <button type="button" class="tsh-btn tsh-btn-primary tsh-btn-sm" data-dir-add="contacts"><i class="fas fa-plus"></i>Add committee member</button>
-          </div>
+          <!-- Single active grid &mdash; swaps content per active kind. -->
+          <div class="tsh-dir-grid" data-dir-grid="active" id="dirActiveGrid"></div>
         </div>
-        <div class="tsh-dir-grid" data-dir-grid="contacts"></div>
-      </section>
 
-      <!-- RESOURCES -->
-      <section class="tsh-dir-section" data-dir-section="resources" hidden>
-        <div class="tsh-dir-section-actions">
-          <p class="tsh-hint">Bye-laws, useful PDFs, vendor catalogues, community-shared links.</p>
-          <div class="tsh-dir-section-buttons" data-dir-edit-only hidden>
-            <button type="button" class="tsh-btn tsh-btn-primary tsh-btn-sm" data-dir-add="resources"><i class="fas fa-plus"></i>Add resource</button>
-          </div>
-        </div>
-        <div class="tsh-dir-grid" data-dir-grid="resources"></div>
-      </section>
+        <aside class="tsh-dir-rail" id="dirRail" aria-live="polite" hidden></aside>
+      </div>
     </section>
   </main>
 
@@ -131,7 +113,7 @@
   <script src="./assets/js/ui.js?v=50"></script>
   <script src="./assets/js/pdf-report.js?v=8"></script>
   <script src="./assets/js/visitors.js?v=2"></script>
-  <script src="./assets/js/directory.js?v=12"></script>
+  <script src="./assets/js/directory.js?v=13"></script>
   <script>
   (async () => {
     await Partials.mount();
@@ -155,25 +137,19 @@
     try { who = await Flags.whoami(true); } catch (_e) {}
     const canEdit = ['MANAGER', 'COMMITTEE', 'DEVELOPER'].includes(who.primary);
 
-    // Directory.init is async (it fetches /directory) and binds tab click
-    // handlers only after that resolves. Await it before firing the hash
-    // activation so the click actually lands on a wired-up button.
+    // Directory.init is async (it fetches /directory) and builds the left-nav
+    // click handlers only after that resolves. Await it before firing hash
+    // activation so the click lands on a wired-up nav item.
     await Directory.init({ canEdit });
 
-    // Item 6: collapse the Vendors / Management Committee / Resources
-    // tablist into a <select> on mobile (CSS Bundle 11 hides nav <720px).
-    UI.mobileifyTabs(document.querySelector('.tsh-tabs[aria-label="Directory sections"]'));
-
     // Deep-link: landing's Quick Access tiles use directory.html#vendors and
-    // directory.html#committee to jump straight to the right tab. Map any
-    // committee alias onto the contacts tab (committee members live there).
-    const HASH_TO_TAB = { emergency: 'emergency', vendors: 'vendors', services: 'services', committee: 'contacts', contacts: 'contacts', resources: 'resources' };
+    // directory.html#committee to jump straight to the right kind. Map any
+    // committee alias onto the contacts kind.
+    const HASH_TO_KIND = { emergency: 'emergency', vendors: 'vendors', services: 'services', committee: 'contacts', contacts: 'contacts', resources: 'resources' };
     const activateFromHash = () => {
       const key = (location.hash || '').replace('#', '').toLowerCase();
-      const tab = HASH_TO_TAB[key];
-      if (!tab) return;
-      const btn = document.querySelector('[data-dir-tab="' + tab + '"]');
-      if (btn && btn.getAttribute('aria-selected') !== 'true') btn.click();
+      const kind = HASH_TO_KIND[key];
+      if (kind && Directory.activateKind) Directory.activateKind(kind);
     };
     activateFromHash();
     window.addEventListener('hashchange', activateFromHash);

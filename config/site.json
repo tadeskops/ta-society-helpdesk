@@ -33,7 +33,9 @@
     "FEATURE_DAILY_FLOATING_PALETTE": true,
     "FEATURE_DAILY_VISITOR_COUNTER": false,
     "FEATURE_DAILY_USER_ROLE_BADGE": true,
-    "FEATURE_DAILY_EXPORT_PDF": true
+    "FEATURE_DAILY_EXPORT_PDF": true,
+    "FEATURE_DAILY_DIRECTORY_APPSHELL": true,
+    "FEATURE_DAILY_DIRECTORY_RIGHT_RAIL": true
   },
   "tunables": {
     "DAILY_AUTO_ACK_HOURS": 24,
@@ -55,9 +57,18 @@
     "EVENTS_CACHE_SECONDS": 60,
     "POLLS_CACHE_SECONDS": 60,
     "POLLS_VOTES_CACHE_SECONDS": 30,
-    "DAILY_NOTICE_TTL_DAYS": 7
+    "DAILY_NOTICE_TTL_DAYS": 7,
+    "DIRECTORY_APPSHELL_NAV_WIDTH_PX": 240,
+    "DIRECTORY_APPSHELL_RAIL_WIDTH_PX": 340
   },
   "lists": {
+    "directoryKinds": [
+      { "key": "emergency", "label": "Emergency Contacts",   "icon": "fa-triangle-exclamation", "color": "#dc2626", "enabled": true, "order": 1 },
+      { "key": "vendors",   "label": "Vendors",              "icon": "fa-toolbox",              "color": "#ea580c", "enabled": true, "order": 2 },
+      { "key": "services",  "label": "Services",             "icon": "fa-handshake-angle",      "color": "#16a34a", "enabled": true, "order": 3 },
+      { "key": "contacts",  "label": "Management Committee", "icon": "fa-people-group",         "color": "#2563eb", "enabled": true, "order": 4 },
+      { "key": "resources", "label": "Resources",            "icon": "fa-link",                 "color": "#a855f7", "enabled": true, "order": 5 }
+    ],
     "towers": [
       "A",
       "B",

@@ -5222,3 +5222,235 @@ select.tsh-tabs-mobile::-ms-expand { display: none; }
   .tsh-backtotop { transition: opacity 100ms ease; transform: none; }
   .tsh-backtotop.is-visible { transform: none; }
 }
+
+/* ===== Directory app-shell (nav | center | rail) ========================= */
+/* Phase 1: desktop app-shell layout. Sub-features (right rail, bottom
+   tabs, export) are individually flag-gated. Widths come from tunables
+   DIRECTORY_APPSHELL_NAV_WIDTH_PX / DIRECTORY_APPSHELL_RAIL_WIDTH_PX
+   which directory.js writes into these CSS custom properties on init. */
+
+.tsh-dir-shell {
+  --tsh-dir-nav-w:  240px;
+  --tsh-dir-rail-w: 340px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--sp-3);
+  align-items: start;
+  min-height: 60vh;
+}
+@media (min-width: 900px) {
+  .tsh-dir-shell {
+    grid-template-columns: var(--tsh-dir-nav-w) minmax(0, 1fr);
+  }
+  .tsh-dir-shell.has-rail-open {
+    grid-template-columns: var(--tsh-dir-nav-w) minmax(0, 1fr) var(--tsh-dir-rail-w);
+  }
+}
+
+/* --- Left nav (kinds) --------------------------------------------------- */
+.tsh-dir-nav {
+  background: rgba(0, 0, 0, 0.18);
+  border: 1px solid var(--c-border-soft);
+  border-radius: var(--rad-lg);
+  padding: var(--sp-2);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  position: sticky;
+  top: var(--sp-3);
+}
+html[data-theme="light"] .tsh-dir-nav,
+html[data-theme="medium"] .tsh-dir-nav { background: rgba(255, 255, 255, 0.55); }
+
+/* On phones, the nav collapses to a horizontal chip strip above content
+   (Phase 2 replaces this with a fixed bottom-tab bar). */
+@media (max-width: 899px) {
+  .tsh-dir-nav {
+    position: static;
+    flex-direction: row;
+    overflow-x: auto;
+    scrollbar-width: none;
+    gap: var(--sp-1);
+  }
+  .tsh-dir-nav::-webkit-scrollbar { display: none; }
+}
+
+.tsh-dir-nav-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--rad-md);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--c-text-muted);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.tsh-dir-nav-item i.tsh-dir-nav-icon {
+  width: 1.2em;
+  text-align: center;
+  color: var(--c-text-muted);
+  transition: color 0.12s ease;
+}
+.tsh-dir-nav-item:hover {
+  background: rgba(212, 175, 55, 0.06);
+  color: var(--c-text);
+}
+.tsh-dir-nav-item.is-active {
+  background: var(--c-primary-soft);
+  color: var(--c-primary);
+  border-color: rgba(212, 175, 55, 0.35);
+  font-weight: 700;
+}
+.tsh-dir-nav-item.is-active i.tsh-dir-nav-icon { color: var(--c-primary); }
+.tsh-dir-nav-item .tsh-dir-nav-label { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; }
+.tsh-dir-nav-item .tsh-dir-nav-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.6em;
+  padding: 0 .45em;
+  border-radius: var(--rad-pill);
+  background: rgba(255, 255, 255, 0.08);
+  font-size: .72em;
+  font-weight: 700;
+  color: var(--c-text-muted);
+}
+.tsh-dir-nav-item.is-active .tsh-dir-nav-count {
+  color: var(--c-primary);
+  background: rgba(212, 175, 55, 0.14);
+}
+
+/* Nested sub-category list (Services) shown under active nav item. */
+.tsh-dir-nav-subs {
+  list-style: none;
+  margin: 4px 0 var(--sp-2) var(--sp-4);
+  padding: 0 0 0 var(--sp-2);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  border-left: 1px solid var(--c-border-soft);
+}
+@media (max-width: 899px) { .tsh-dir-nav-subs { display: none; } }
+.tsh-dir-nav-sub {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 6px var(--sp-2);
+  border-radius: var(--rad-sm);
+  background: transparent;
+  border: 0;
+  color: var(--c-text-muted);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+}
+.tsh-dir-nav-sub:hover { background: rgba(212, 175, 55, 0.06); color: var(--c-text); }
+.tsh-dir-nav-sub.is-active { color: var(--c-primary); background: var(--c-primary-soft); font-weight: 700; }
+.tsh-dir-nav-sub-label { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tsh-dir-nav-sub-badge {
+  padding: 0 6px;
+  border-radius: var(--rad-pill);
+  background: rgba(255,255,255,0.06);
+  font-size: 0.68em;
+  font-weight: 700;
+  color: var(--c-text-muted);
+}
+.tsh-dir-nav-sub.is-active .tsh-dir-nav-sub-badge { color: var(--c-primary); background: rgba(212, 175, 55, 0.14); }
+
+/* --- Center pane -------------------------------------------------------- */
+.tsh-dir-center { min-width: 0; display: flex; flex-direction: column; gap: var(--sp-3); }
+.tsh-dir-center-head { display: none; }
+.tsh-dir-center-head.is-active { display: block; }
+
+/* --- Right rail (detail / edit) ---------------------------------------- */
+.tsh-dir-rail {
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid var(--c-border-soft);
+  border-radius: var(--rad-lg);
+  padding: var(--sp-4);
+  display: none;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+html[data-theme="light"] .tsh-dir-rail,
+html[data-theme="medium"] .tsh-dir-rail { background: rgba(255, 255, 255, 0.72); }
+.tsh-dir-shell.has-rail-open .tsh-dir-rail { display: flex; }
+
+/* Mobile: rail becomes a full-screen overlay above content. */
+@media (max-width: 899px) {
+  .tsh-dir-shell.has-rail-open .tsh-dir-rail {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    border-radius: 0;
+    overflow-y: auto;
+    padding: var(--sp-4) var(--sp-4) calc(var(--sp-4) + env(safe-area-inset-bottom, 0px));
+  }
+}
+@media (min-width: 900px) {
+  .tsh-dir-rail { position: sticky; top: var(--sp-3); max-height: calc(100vh - var(--sp-6)); overflow-y: auto; }
+}
+
+.tsh-dir-rail-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  padding-bottom: var(--sp-2);
+  border-bottom: 1px solid var(--c-border-soft);
+}
+.tsh-dir-rail-title { margin: 0; font-size: var(--fs-md); font-weight: 700; color: var(--c-text); }
+.tsh-dir-rail-sub { margin: 2px 0 0; font-size: var(--fs-xs); color: var(--c-text-muted); }
+.tsh-dir-rail-close {
+  width: 32px; height: 32px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--c-border-soft);
+  color: var(--c-text-muted);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.tsh-dir-rail-close:hover { background: var(--c-primary-soft); color: var(--c-primary); }
+.tsh-dir-rail-body { display: flex; flex-direction: column; gap: var(--sp-3); }
+
+/* When rail hosts an edit form, it renders inside the standard .tsh-dir-form
+   (already themed by the modal form). Just ensure the submit strip is sticky
+   at the bottom of the rail for long forms. */
+.tsh-dir-rail .tsh-dir-form { gap: var(--sp-2); }
+.tsh-dir-rail-actions {
+  display: flex;
+  gap: var(--sp-2);
+  justify-content: flex-end;
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--c-border-soft);
+  position: sticky;
+  bottom: 0;
+  background: inherit;
+}
+
+/* --- Center-head content wraps existing hint / pills / add buttons ----- */
+.tsh-dir-center-head .tsh-dir-section-actions { margin: 0 0 var(--sp-3); }
+.tsh-dir-center-head .tsh-hint { margin: 0 0 var(--sp-2); }
+
+/* --- Responsive grid overrides for the app-shell center -----------------
+   The old grid was hard-coded to 1/2/3 cols by page width. Inside the
+   narrower app-shell center pane we want the columns to reflow off the
+   CONTAINER width, not the viewport. auto-fit + minmax + clamp gives a
+   smooth response from 1-col on phones to 3–4 col on wide desktops. */
+.tsh-dir-shell .tsh-dir-grid {
+  grid-template-columns: repeat(auto-fill, minmax(clamp(260px, 30%, 340px), 1fr));
+  gap: var(--sp-3);
+}
+@media (max-width: 480px) {
+  .tsh-dir-shell .tsh-dir-grid { grid-template-columns: 1fr; }
+}
