@@ -1,10 +1,10 @@
-/* TSH design tokens Ã¢â‚¬â€ dark navy + gold premium aesthetic, aligned
+/* TSH design tokens — dark navy + gold premium aesthetic, aligned
    with the TA Issue Manager (TIM) handover portal so both apps feel
    like one product family. Spec: tsh_requirement.md Ã‚Â§14, Ã‚Â§8.
    Mobile-first: phone styles first, widen via @media (min-width). */
 
 :root {
-  /* Palette Ã¢â‚¬â€ dark navy + gold (mirrors TIM) */
+  /* Palette — dark navy + gold (mirrors TIM) */
   --c-bg:           #0f1419;
   --c-bg-2:         #1a1f2e;
   --c-surface:      rgba(255, 255, 255, 0.04);
@@ -15,7 +15,7 @@
   --c-text:         #f1f5f9;
   --c-text-muted:   #94a3b8;
   --c-text-faint:   #64748b;
-  --c-primary:      #d4af37;       /* gold Ã¢â‚¬â€ daily-track brand */
+  --c-primary:      #d4af37;       /* gold — daily-track brand */
   --c-primary-2:    #b8961f;
   --c-primary-soft: rgba(212, 175, 55, 0.14);
   --c-success:      #22c55e;
@@ -930,7 +930,7 @@ html[data-theme="medium"] .tsh-pill-deleted    { color: #7f1d1d; background: #fe
 .tsh-pill-sev-medium   { color: var(--c-sev-medium);   background: rgba(250, 204, 21, 0.12); border-color: rgba(250, 204, 21, 0.3); }
 .tsh-pill-sev-low      { color: var(--c-sev-low);      background: rgba(148, 163, 184, 0.14); border-color: rgba(148, 163, 184, 0.25); }
 
-/* ===== Table Ã¢â€ â€™ card on phone ============================================= */
+/* ===== Table → card on phone ============================================= */
 
 .tsh-table-wrap {
   overflow-x: auto;
@@ -2023,7 +2023,7 @@ html[data-theme="medium"] .tsh-dir-card {
 .tsh-dir-form .tsh-field { margin-bottom: var(--sp-3); }
 .tsh-dir-form .tsh-field:last-child { margin-bottom: 0; }
 
-/* ===== Landing Ã¢â‚¬â€ Quick access grid (item #4) ============================
+/* ===== Landing — Quick access grid (item #4) ============================
    A unified tile system that the landing page uses to surface every
    feature in one glance. Each tile is just an <a class="tsh-quick-tile">
    that can carry `data-tsh-feature` (auto-hidden by bindHeader when the
@@ -2257,7 +2257,7 @@ html[data-theme="medium"] .tsh-dir-card {
 /* ---- Bundle 5: rotating banner + manager editor + sidebar list ------ */
 /* Retro CRT-card rotating strip. Two stacked layers crossfade; transform
    + opacity only (GPU). Animations pause on hover/focus/hidden-tab/off-
-   screen (see banner.js). Uses system monospace fonts Ã¢â‚¬â€ no extra network
+   screen (see banner.js). Uses system monospace fonts — no extra network
    cost. */
 .tsh-banner-strip {
   width: 100%;
@@ -2525,10 +2525,10 @@ a.tsh-banner-inner:focus-visible {
 }
 
 /* ===== Bundle 8: landing layout refactor (reference parity) =============
-   Reorganises the landing page into: notice strip Ã¢â€ â€™ "What would you like
-   to do today?" + two action cards Ã¢â€ â€™ Quick Access (icon-on-top tiles) Ã¢â€ â€™
-   Information area (Announcements / Events / Polls side-by-side) Ã¢â€ â€™ Staff.
-   Pure layout Ã¢â‚¬â€ no palette / typography / radius / shadow changes. */
+   Reorganises the landing page into: notice strip → "What would you like
+   to do today?" + two action cards → Quick Access (icon-on-top tiles) →
+   Information area (Announcements / Events / Polls side-by-side) → Staff.
+   Pure layout — no palette / typography / radius / shadow changes. */
 
 .tsh-section-h {
   margin: 0 0 var(--sp-4);
@@ -2539,16 +2539,16 @@ a.tsh-banner-inner:focus-visible {
 }
 .tsh-actions { margin-bottom: var(--sp-8); }
 
-/* Tighter landing top padding Ã¢â‚¬â€ the giant hero is gone, so the action
+/* Tighter landing top padding — the giant hero is gone, so the action
    cards should sit closer to the notice strip. */
 .tsh-page-landing .tsh-main { padding-top: var(--sp-6); }
 @media (min-width: 640px) {
   .tsh-page-landing .tsh-main { padding-top: var(--sp-8); }
 }
 
-/* Stacked quick-access variant Ã¢â‚¬â€ icon-on-top, centred, no arrow. Uses
+/* Stacked quick-access variant — icon-on-top, centred, no arrow. Uses
    auto-fit so the row rebalances naturally when feature flags hide any
-   tile. Each tile keeps a Ã¢â€°Â¥44px tap target on every breakpoint. */
+   tile. Each tile keeps a ≥44px tap target on every breakpoint. */
 .tsh-quick-grid--stacked {
   grid-template-columns: repeat(2, 1fr);
 }
@@ -2588,7 +2588,7 @@ a.tsh-banner-inner:focus-visible {
   display: none;
 }
 
-/* Information area Ã¢â‚¬â€ Announcements / Events / Polls. Each child <section>
+/* Information area — Announcements / Events / Polls. Each child <section>
    renders its own card UI; this wrapper just provides side-by-side flow on
    wider screens and natural stacking on mobile. Empty/hidden children are
    removed from the grid so it auto-rebalances. */
@@ -2613,7 +2613,7 @@ a.tsh-banner-inner:focus-visible {
   .tsh-track-card { transition: none; }
 }
 
-/* ===== Bundle 9: header polish Ã¢â‚¬â€ sticky scroll shadow + collapsible user box.
+/* ===== Bundle 9: header polish — sticky scroll shadow + collapsible user box.
    Items 2, 3, 7 from the redesign brief. Pure CSS where possible; a single
    ~10-line ui.js hook toggles `.is-scrolled` on .tsh-header for the shadow.
    Configurable via FEATURE_DAILY_STICKY_HEADER (default ON) which simply
@@ -2629,7 +2629,7 @@ a.tsh-banner-inner:focus-visible {
 /* (b) Collapsible user box. Default state (signed in): only the role
    badge / avatar icon is visible; the email is hidden until hover or
    keyboard focus reveals it. Sign in/out buttons collapse to icon-only
-   too Ã¢â‚¬â€ the text label sits behind .tsh-btn-label and only appears when
+   too — the text label sits behind .tsh-btn-label and only appears when
    the userbox is hovered/focused. Anonymous state ("Not signed in")
    stays compact at all times.
 
@@ -2710,7 +2710,7 @@ a.tsh-banner-inner:focus-visible {
   opacity: 1;
   margin-left: 4px;
 }
-/* Anonymous state Ã¢â‚¬â€ show the "Not signed in" text always so users on a
+/* Anonymous state — show the "Not signed in" text always so users on a
    fresh device understand the affordance. */
 .tsh-userbox [data-tsh-user].tsh-user-anon {
   max-width: 360px;
@@ -2774,7 +2774,7 @@ a.tsh-banner-inner:focus-visible {
     margin-top: 0;
   }
 }
-/* Mobile Ã¢â‚¬â€ keep userbox always-expanded so it isn't fiddly on touch. */
+/* Mobile — keep userbox always-expanded so it isn't fiddly on touch. */
 @media (max-width: 640px) {
   .tsh-userbox .tsh-user-text { display: none; }
   .tsh-userbox:focus-within .tsh-user-text {
@@ -2889,7 +2889,7 @@ a.tsh-banner-inner:focus-visible {
   .tsh-ann-dot { transition: none; }
 }
 
-/* (Item 9) Compact polls density Ã¢â‚¬â€ for use on the landing only. The
+/* (Item 9) Compact polls density — for use on the landing only. The
    manage-polls editor and any dedicated page keep the full layout. */
 .tsh-polls-list[data-density="compact"] { padding: var(--sp-3); }
 .tsh-polls-list[data-density="compact"] .tsh-polls-title { font-size: 1rem; margin-bottom: var(--sp-2); }
@@ -2901,7 +2901,7 @@ a.tsh-banner-inner:focus-visible {
 .tsh-polls-list[data-density="compact"] .tsh-poll-extras { display: none; }   /* hide alias/flat inputs in landing */
 .tsh-polls-list[data-density="compact"] + .tsh-polls-footer { margin-top: var(--sp-2); }
 
-/* (Item 9) Compact events list Ã¢â‚¬â€ used by events.js mountList on landing.
+/* (Item 9) Compact events list — used by events.js mountList on landing.
    Markup: <ol class="tsh-events-list"> with <li class="tsh-event-row">
    containing .tsh-event-date (chip) + .tsh-event-body (title + venue). */
 .tsh-events-panel {
@@ -2958,7 +2958,7 @@ a.tsh-banner-inner:focus-visible {
    desktop stays as-is. The select uses native form controls so it inherits
    the OS-level keyboard + accessibility behaviour with zero CSS work.
 
-   Configurable: no flag Ã¢â‚¬â€ the helper is opt-in per page (manage.html,
+   Configurable: no flag — the helper is opt-in per page (manage.html,
    directory.html). If a page wants the desktop look on small screens it
    simply doesn't call mobileifyTabs. */
 
@@ -2998,7 +2998,7 @@ a.tsh-banner-inner:focus-visible {
 }
 
 /* Better category-pill scrolling on the directory page if any survive
-   the mobile collapse (vendor-categories pill row stays Ã¢â‚¬â€ it's a
+   the mobile collapse (vendor-categories pill row stays — it's a
    different control with a long, dynamic option set). */
 @media (max-width: 720px) {
   .tsh-dir-filter-pills {
@@ -3673,7 +3673,7 @@ a.tsh-banner-inner:focus-visible {
 /* ===== Bundle 18: Show access-tier pill on mobile when signed in ===========
    `renderUser` in ui.js already paints a colored role badge
    (.tsh-user-role.tsh-user-role-{developer|committee|manager|resident})
-   next to the email ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the tier displayed is `who.primary` from /whoami,
+   next to the email ââ”šÂ¬” the tier displayed is `who.primary` from /whoami,
    i.e. the highest rank the signed-in user holds (RANK order:
    DEVELOPER > COMMITTEE > MANAGER > RESIDENT). On mobile Bundle 15 hides
    the whole .tsh-user-text wrapper to save space, which also clips the
@@ -3696,7 +3696,7 @@ a.tsh-banner-inner:focus-visible {
    Helpdesk") below. The desktop name+tag stay in DOM as accessible labels
    but are hidden visually.
    Tablet/phone (<=720px) the primary nav collapses behind a hamburger
-   toggle wired by ui.js#NavToggle ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â header.classList `is-nav-open`
+   toggle wired by ui.js#NavToggle ââ”šÂ¬” header.classList `is-nav-open`
    reveals the nav as a vertical dropdown panel below the header row,
    so the page starts uncluttered.
    Sections opting in with `data-tsh-collapsible` become tap-to-collapse
@@ -3744,7 +3744,7 @@ a.tsh-banner-inner:focus-visible {
   }
 }
 
-/* --- 2. Hamburger toggle + dropdown nav (removed Ã¢â‚¬â€ reverted to icon strip
+/* --- 2. Hamburger toggle + dropdown nav (removed — reverted to icon strip
      with tap-to-expand label, see Bundle 20). */
 
 /* --- 3. Collapsible sections --------------------------------------------- */
@@ -3786,7 +3786,7 @@ a.tsh-banner-inner:focus-visible {
   }
 }
 /* ============================================================
-   Bundle 20 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â mobile nav: tap-to-expand label (no hamburger);
+   Bundle 20 ââ”šÂ¬” mobile nav: tap-to-expand label (no hamburger);
    hero track-card icon + title on one row.
    ============================================================ */
 
@@ -3874,9 +3874,9 @@ a.tsh-banner-inner:focus-visible {
   }
 }
 /* ============================================================
-   Bundle 21 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â per-card collapse for .tsh-track-card on mobile.
+   Bundle 21 ââ”šÂ¬” per-card collapse for .tsh-track-card on mobile.
    Chevron injected by ui.js#CardCollapse. Desktop hides chevron
-   and ignores the collapse state ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â cards always render fully.
+   and ignores the collapse state ââ”šÂ¬” cards always render fully.
    ============================================================ */
 .tsh-card-collapse { display: none; }
 
@@ -3920,7 +3920,7 @@ a.tsh-banner-inner:focus-visible {
   .tsh-track-card.is-collapsed { row-gap: 0; }
 }
 /* ============================================================
-   Bundle 22 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Recent issues preview (#tshRecentIssues) on home.
+   Bundle 22 ââ”šÂ¬” Recent issues preview (#tshRecentIssues) on home.
    Brief, sleek one-line-per-item list. Full triage UI lives on
    /manage and /public-board; this is just an at-a-glance peek.
    ============================================================ */
@@ -3992,7 +3992,7 @@ a.tsh-banner-inner:focus-visible {
   .tsh-recent-title { font-size: 0.92rem; }
 }
 /* ============================================================
-   Bundle 23 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â KPI strip (#tshKpi) above the Recent issues list.
+   Bundle 23 ââ”šÂ¬” KPI strip (#tshKpi) above the Recent issues list.
    Four sleek tiles: Open / In Progress / Resolved 7d / Breaches.
    Tones (primary/info/success/danger) pull from existing CSS
    variables; the card colour-mixes a translucent accent so the
@@ -4139,10 +4139,10 @@ a.tsh-banner-inner:focus-visible {
 }
 
 /* ============================================================
-   Bundle 25 Ã¢â‚¬â€ Manage page polish + hover-shiver fix.
+   Bundle 25 — Manage page polish + hover-shiver fix.
 
    1. SLEEK MANAGE TOOLBAR (desktop / tablet).
-      The card head row hosts a 3Ãƒâ€”<select> + 4Ãƒâ€” button toolbar.
+      The card head row hosts a 3Ãƒ—<select> + 4Ãƒ— button toolbar.
       Without a constraint, the global `select { width: 100%; }`
       rule forces every dropdown to fill the row, which makes the
       whole toolbar wrap onto stacked lines and pushes the table
@@ -4151,24 +4151,24 @@ a.tsh-banner-inner:focus-visible {
       collapse the head into a clean two-column block (title left,
       toolbar right).
 
-   2. MOBILE MANAGE CARD GRID (Ã¢â€°Â¤720px).
+   2. MOBILE MANAGE CARD GRID (≤720px).
       The table flips to per-row cards already. On narrow widths
       long values (status pill + age + actions) squeeze the label
       next to them and overlap. Rework the cell flex layout so:
-        Ã¢â‚¬Â¢ each row uses two columns (label | value) that allow the
+        • each row uses two columns (label | value) that allow the
           value to wrap independently;
-        Ã¢â‚¬Â¢ the actions row sits on its own line with a top divider
+        • the actions row sits on its own line with a top divider
           and a wider tap target;
-        Ã¢â‚¬Â¢ the ID line becomes a small header strip (gold mono +
+        • the ID line becomes a small header strip (gold mono +
           status pill on the same row) so a glance tells the user
           what they're looking at without scrolling.
 
    3. SIGN-OUT HOVER SHIVER (desktop).
       Previously `.tsh-userbox:hover` expanded both the user-text
       chip and the Sign-out button label. Hovering Sign-out grew
-      the user-text Ã¢â€ â€™ pushed Sign-out further right Ã¢â€ â€™ cursor lost
-      the button Ã¢â€ â€™ :hover ended Ã¢â€ â€™ text shrank Ã¢â€ â€™ button slid back
-      under the cursor Ã¢â€ â€™ :hover started Ã¢â€ â€™ infinite flicker loop.
+      the user-text → pushed Sign-out further right → cursor lost
+      the button → :hover ended → text shrank → button slid back
+      under the cursor → :hover started → infinite flicker loop.
 
       Fix: scope each expansion to its own element's :hover. The
       user chip expands only when *it* is hovered; the buttons
@@ -4223,7 +4223,7 @@ a.tsh-banner-inner:focus-visible {
   }
 }
 
-/* --- 2. Mobile card grid polish (Ã¢â€°Â¤720px) ------------------------------ */
+/* --- 2. Mobile card grid polish (≤720px) ------------------------------ */
 @media (max-width: 720px) {
   .tsh-table tr {
     padding: var(--sp-3) var(--sp-4);
@@ -4231,14 +4231,14 @@ a.tsh-banner-inner:focus-visible {
   }
   /* The red overdue bar becomes a full-height left border of the
      entire card instead of clipping the first td. The original
-     desktop rule still draws an inset bar on the cell Ã¢â‚¬â€ the mobile
+     desktop rule still draws an inset bar on the cell — the mobile
      card border-left wins visually because the card has its own
      border, so we re-paint it as a 3px gold/danger flag. */
   .tsh-table tr.tsh-row-overdue {
     border-left: 3px solid var(--c-danger);
   }
   .tsh-table tr.tsh-row-overdue td:first-child::before {
-    /* Hide the inset bar on mobile Ã¢â‚¬â€ the row border-left replaces it. */
+    /* Hide the inset bar on mobile — the row border-left replaces it. */
     background: transparent;
   }
   .tsh-table td {
@@ -4281,12 +4281,12 @@ a.tsh-banner-inner:focus-visible {
     padding-inline: var(--sp-4);
   }
 
-  /* Toolbar Ã¢â‚¬â€ keep the existing 45% basis but make selects/buttons
+  /* Toolbar — keep the existing 45% basis but make selects/buttons
      a little taller so they're easier to tap. */
   .tsh-toolbar .tsh-btn { min-height: 40px; }
 }
 
-/* Extra-narrow phones Ã¢â‚¬â€ let the value drop under the label so the
+/* Extra-narrow phones — let the value drop under the label so the
    pill / date never gets clipped by a fat label column. */
 @media (max-width: 380px) {
   .tsh-table td {
@@ -4304,7 +4304,7 @@ a.tsh-banner-inner:focus-visible {
    Kept the section anchor for grep-history; rules intentionally empty. */
 
 /* ============================================================
-   Bundle 26 â€” Manage page editor collapse.
+   Bundle 26 — Manage page editor collapse.
 
    Wraps each heavy editor card on manage.html (Manage
    announcements, Manage upcoming events) in a native <details>
@@ -4313,10 +4313,10 @@ a.tsh-banner-inner:focus-visible {
    the long forms only take vertical space when actually needed.
 
    Native <details> means:
-     â€¢ no JS or persisted state â€” the browser handles the toggle
-     â€¢ full keyboard support (Enter / Space on the summary)
-     â€¢ automatic ARIA (summary acts as a button)
-     â€¢ screen-readers announce expand / collapse correctly
+     • no JS or persisted state — the browser handles the toggle
+     • full keyboard support (Enter / Space on the summary)
+     • automatic ARIA (summary acts as a button)
+     • screen-readers announce expand / collapse correctly
    ============================================================ */
 .tsh-manage-collapse { display: block; }
 
@@ -4378,7 +4378,7 @@ a.tsh-banner-inner:focus-visible {
 }
 
 /* The editor modules render their own H3 title inside their mount
-   point â€” hide it when wrapped here so the summary is the single
+   point — hide it when wrapped here so the summary is the single
    source of truth for the heading. */
 .tsh-manage-collapse .tsh-ann-editor-title,
 .tsh-manage-collapse .tsh-event-editor-title {

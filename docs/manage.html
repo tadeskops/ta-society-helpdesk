@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Manage Â· TSH</title>
+  <title>Manage · TSH</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#1a1f2e" />
   <link rel="icon" href="./assets/images/TaLogo.png" type="image/png" />
@@ -35,7 +35,7 @@
           </select>
           <button type="button" class="tsh-btn tsh-btn-primary" id="applyFiltersBtn"><i class="fas fa-filter"></i>Go</button>
           <button type="button" class="tsh-btn tsh-btn-ghost" id="refreshBtn"><i class="fas fa-sync-alt"></i>Refresh</button>
-          <button type="button" class="tsh-btn tsh-btn-ghost" id="bulkArchiveBtn" hidden><i class="fas fa-box-archive"></i>Archive old ticketsâ€¦</button>
+          <button type="button" class="tsh-btn tsh-btn-ghost" id="bulkArchiveBtn" hidden><i class="fas fa-box-archive"></i>Archive old tickets…</button>
           <button type="button" class="tsh-btn tsh-btn-ghost" id="auditBtn" hidden><i class="fas fa-clipboard-list"></i>Activity log</button>
         </div>
       </header>
@@ -142,7 +142,7 @@
     const hint  = document.getElementById('dashRoleHint');
     if (isCommittee) {
       title.innerHTML = '<i class="fas fa-people-group gold-accent"></i> Manage (Committee)';
-      hint.textContent = 'Review, assign, resolve â€” plus delete, archive old tickets, and activity log.';
+      hint.textContent = 'Review, assign, resolve — plus delete, archive old tickets, and activity log.';
     }
 
     // Role-keyed action affordances:
@@ -160,7 +160,7 @@
     // 720px. UI.mobileifyTabs is idempotent and keeps the two in sync.
     UI.mobileifyTabs(document.querySelector('.tsh-tabs[aria-label="Status"]'));
 
-    // Manager banner editor â€” visible to MANAGER+ when the flag is on.
+    // Manager banner editor — visible to MANAGER+ when the flag is on.
     if (window.Banner && Flags.on('FEATURE_DAILY_BANNER')) {
       const card = document.getElementById('bannerEditorCard');
       if (card) {
@@ -168,7 +168,7 @@
         Banner.mountEditor(document.getElementById('bannerEditor'));
       }
     }
-    // Announcements editor â€” visible to MANAGER+ when the flag is on.
+    // Announcements editor — visible to MANAGER+ when the flag is on.
     if (window.Announcements && Flags.on('FEATURE_DAILY_ANNOUNCEMENTS')) {
       const card = document.getElementById('annEditorCard');
       if (card) {
@@ -176,7 +176,7 @@
         Announcements.mountEditor(document.getElementById('annEditor'));
       }
     }
-    // Events editor â€” MANAGER+ when the flag is on. Items auto-expire 1
+    // Events editor — MANAGER+ when the flag is on. Items auto-expire 1
     // day after the event (or after DAILY_NOTICE_TTL_DAYS if no event
     // date), keeping the public list trimmed without manual cleanup.
     if (window.Events && Flags.on('FEATURE_DAILY_EVENTS')) {
@@ -186,7 +186,7 @@
         Events.mountEditor(document.getElementById('eventsEditor'));
       }
     }
-    // Polls editor + voter panel â€” visible to MANAGER+ when the flag is on.
+    // Polls editor + voter panel — visible to MANAGER+ when the flag is on.
     if (window.Polls && Flags.on('FEATURE_DAILY_POLLS')) {
       const card = document.getElementById('pollsEditorCard');
       if (card) {

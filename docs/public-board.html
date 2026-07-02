@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Public board Â· TSH</title>
+  <title>Public board · TSH</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#1a1f2e" />
   <link rel="icon" href="./assets/images/TaLogo.png" type="image/png" />
@@ -25,7 +25,7 @@
         </div>
         <label class="tsh-field tsh-field-inline tsh-search">
           <span class="tsh-visually-hidden">Search ticket id</span>
-          <input type="search" id="searchInput" placeholder="TKT-2806260345â€¦" autocomplete="off" />
+          <input type="search" id="searchInput" placeholder="TKT-2806260345…" autocomplete="off" />
         </label>
       </header>
 
@@ -61,7 +61,7 @@
     UI.bindHeader();
 
     try { await Flags.ready(); }
-    catch (_e) { /* fall through â€” list still works */ }
+    catch (_e) { /* fall through — list still works */ }
 
     try { Flags.ensureFeature('FEATURE_DAILY_PUBLIC_BOARD', 'Public board'); }
     catch (_e) { return; }
@@ -95,7 +95,7 @@
 
     // "My reports" filter: client-side narrowing keyed off the visitor's own
     // tsh_my_tickets entries (or a ?ids= deep-link). When active, the status
-    // tabs still work â€” they further narrow the my-set.
+    // tabs still work — they further narrow the my-set.
     const banner = document.getElementById('myReportsBanner');
     const params = new URLSearchParams(location.search);
     const myFlag = params.get('my') === '1';
@@ -132,13 +132,13 @@
       empty.hidden = filtered.length !== 0;
       for (const i of filtered) list.appendChild(card(i));
       // Attach lightbox to any photo thumbs that were just rendered. Re-runs
-      // are cheap â€” attach() skips grids already bound.
+      // are cheap — attach() skips grids already bound.
       if (UI.Lightbox && UI.Lightbox.attach) UI.Lightbox.attach(list);
     }
 
     function card(i) {
       // Public board cards are collapsible (default-collapsed) on every
-      // viewport â€” the head stays visible so the board reads as a clean
+      // viewport — the head stays visible so the board reads as a clean
       // scannable list; tap the head to reveal meta, body and photos.
       const desc = (i.description || '').trim();
       const top = UI.el('div', { class: 'tsh-board-card-head-top' },
@@ -157,10 +157,10 @@
         'aria-expanded': 'false',
       }, ...headKids);
       const meta = UI.el('div', { class: 'tsh-board-card-meta' },
-        UI.el('span', null, i.tower || 'â€”'),
-        UI.el('span', null, ' Â· '),
-        UI.el('span', null, i.category || 'â€”'),
-        UI.el('span', null, ' Â· '),
+        UI.el('span', null, i.tower || '—'),
+        UI.el('span', null, ' · '),
+        UI.el('span', null, i.category || '—'),
+        UI.el('span', null, ' · '),
         UI.el('span', { class: 'tsh-text-muted' }, UI.formatRel(i.updatedAt || i.createdAt)));
       const body = UI.el('p', { class: 'tsh-board-card-body' }, (i.description || '').slice(0, 200));
       const inner = UI.el('div', { class: 'tsh-board-card-inner' }, meta, body);
