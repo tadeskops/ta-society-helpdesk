@@ -462,6 +462,12 @@
           } else {
             drawMissing(doc, x, y);
           }
+          // Overlay a clickable hyperlink on the thumbnail (or placeholder)
+          // so any PDF reader opens the full-resolution image in a browser.
+          if (link) {
+            try { doc.link(x, y, INLINE_THUMB.w, INLINE_THUMB.h, { url: link }); }
+            catch (_e) { /* older jsPDF builds may lack link(); non-fatal */ }
+          }
         });
       },
     });
