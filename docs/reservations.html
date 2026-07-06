@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Reservations · TSH</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#1a1f2e" />
+  <meta name="description" content="Reserve community facilities at The Address." />
+  <link rel="icon" href="./assets/images/TaLogo.png" type="image/png" />
+  <script>(function(){try{var t=localStorage.getItem('tsh_theme');if(t!=='dark'&&t!=='light'&&t!=='medium')t='light';if(t!=='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="./assets/css/theme.css?v=85" />
+  <style>
+    /* Reservation-specific tweaks. Kept inline for Phase 1; will move to
+       theme.css in a follow-up once the design is settled. */
+    .tsh-res-picker { display: grid; grid-template-columns: repeat(auto-fit,minmax(240px,1fr)); gap: 12px; margin-bottom: 16px; }
+    .tsh-res-picker .tsh-res-fac { padding: 14px 16px; border: 1px solid var(--tsh-border, #d1d5db); border-radius: 12px; background: var(--tsh-card, #fff); cursor: pointer; display: flex; flex-direction: column; gap: 4px; transition: all .12s; }
+    .tsh-res-picker .tsh-res-fac:hover { border-color: var(--tsh-primary, #2563eb); }
+    .tsh-res-picker .tsh-res-fac.tsh-res-fac-active { border-color: var(--tsh-primary, #2563eb); background: color-mix(in srgb, var(--tsh-primary, #2563eb) 8%, transparent); box-shadow: 0 2px 6px rgba(0,0,0,.05); }
+    .tsh-res-fac-name { font-weight: 600; font-size: 15px; }
+    .tsh-res-fac-desc { font-size: 12px; opacity: .75; }
+    .tsh-res-fac-meta { font-size: 11px; opacity: .6; margin-top: 4px; }
+
+    .tsh-res-grid { display: grid; grid-template-columns: 100px repeat(3, 1fr); gap: 6px; margin: 12px 0; }
+    .tsh-res-grid-head { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; opacity: .7; padding: 6px 4px; text-align: center; }
+    .tsh-res-grid-day { padding: 8px 4px; font-size: 13px; font-weight: 500; display: flex; flex-direction: column; justify-content: center; }
+    .tsh-res-grid-day .tsh-res-grid-daydate { opacity: .7; font-size: 11px; }
+    .tsh-res-grid-cell { padding: 10px 6px; border-radius: 8px; text-align: center; font-size: 12px; font-weight: 500; cursor: pointer; background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; transition: all .12s; }
+    .tsh-res-grid-cell:hover { transform: translateY(-1px); box-shadow: 0 2px 6px rgba(0,0,0,.08); }
+    .tsh-res-grid-cell-held { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
+    .tsh-res-grid-cell-confirmed { background: #fee2e2; color: #991b1b; border-color: #fca5a5; cursor: not-allowed; }
+    .tsh-res-grid-cell-confirmed:hover { transform: none; box-shadow: none; }
+    .tsh-res-grid-cell-blackout { background: #f3f4f6; color: #6b7280; border-color: #e5e7eb; cursor: not-allowed; }
+    .tsh-res-grid-cell-blackout:hover { transform: none; box-shadow: none; }
+    .tsh-res-grid-cell-past { opacity: .35; pointer-events: none; }
+
+    .tsh-res-range { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+    .tsh-res-range label { font-size: 13px; font-weight: 500; }
+
+    .tsh-res-cards { display: grid; grid-template-columns: repeat(auto-fill,minmax(300px,1fr)); gap: 12px; }
+    .tsh-res-card { padding: 14px 16px; border: 1px solid var(--tsh-border, #d1d5db); border-radius: 12px; background: var(--tsh-card, #fff); display: flex; flex-direction: column; gap: 8px; }
+    .tsh-res-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+    .tsh-res-card-title { font-weight: 600; font-size: 14px; margin: 0; }
+    .tsh-res-card-meta { font-size: 12px; opacity: .8; line-height: 1.5; }
+    .tsh-res-card-purpose { font-size: 13px; line-height: 1.4; }
+    .tsh-res-card-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+    .tsh-res-card-owner { font-size: 11px; opacity: .6; margin-top: 2px; }
+
+    .tsh-res-pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+    .tsh-res-pill-requested   { background: #dbeafe; color: #1e40af; }
+    .tsh-res-pill-under-review{ background: #fef3c7; color: #92400e; }
+    .tsh-res-pill-confirmed   { background: #d1fae5; color: #065f46; }
+    .tsh-res-pill-rejected    { background: #fee2e2; color: #991b1b; }
+    .tsh-res-pill-cancelled   { background: #f3f4f6; color: #4b5563; }
+
+    .tsh-res-timeline { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+    .tsh-res-timeline li { display: grid; grid-template-columns: 22px 1fr; gap: 10px; font-size: 13px; }
+    .tsh-res-timeline .tsh-res-tl-dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 6px; background: var(--tsh-primary, #2563eb); justify-self: center; }
+    .tsh-res-timeline .tsh-res-tl-body { display: flex; flex-direction: column; gap: 2px; }
+    .tsh-res-timeline .tsh-res-tl-head { font-weight: 500; }
+    .tsh-res-timeline .tsh-res-tl-note { font-size: 12px; opacity: .8; }
+    .tsh-res-timeline .tsh-res-tl-when { font-size: 11px; opacity: .6; }
+
+    .tsh-res-legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 11px; opacity: .8; margin-top: 6px; }
+    .tsh-res-legend span { display: inline-flex; align-items: center; gap: 4px; }
+    .tsh-res-legend .tsh-res-swatch { width: 12px; height: 12px; border-radius: 3px; border: 1px solid rgba(0,0,0,.1); }
+
+    @media (max-width: 640px) {
+      .tsh-res-grid { grid-template-columns: 76px repeat(3, 1fr); gap: 4px; }
+      .tsh-res-grid-cell { padding: 8px 3px; font-size: 11px; }
+      .tsh-res-grid-day { padding: 6px 2px; font-size: 12px; }
+    }
+  </style>
+</head>
+<body class="tsh-page">
+  <div data-include="header"></div>
+  <div data-include="toast"></div>
+  <div data-include="modal"></div>
+
+  <main class="tsh-main tsh-main-wide">
+
+    <!-- Signed-out gate -->
+    <section class="tsh-card" data-res-signin hidden>
+      <header class="tsh-card-head">
+        <h1><i class="fas fa-calendar-check gold-accent"></i> Reservations</h1>
+      </header>
+      <div class="tsh-empty">
+        <p>Please sign in to view and manage facility reservations.</p>
+        <p><button type="button" class="tsh-btn tsh-btn-primary" data-tsh-signin><i class="fas fa-right-to-bracket"></i>Sign in with Google</button></p>
+      </div>
+    </section>
+
+    <!-- Main workspace -->
+    <section class="tsh-card" data-res-main hidden>
+      <header class="tsh-card-head tsh-card-head-row">
+        <div>
+          <h1><i class="fas fa-calendar-check gold-accent"></i> Facility Reservations</h1>
+          <p class="tsh-sub" id="resSub">Reserve community facilities. Owner remains with you even if staff creates the booking on your behalf.</p>
+        </div>
+      </header>
+
+      <!-- Tabs -->
+      <div class="tsh-tabs" role="tablist" aria-label="Reservation views">
+        <button type="button" class="tsh-tab tsh-tab-active" role="tab" aria-selected="true"  data-res-tab="book"><i class="fas fa-calendar-plus"></i> Book</button>
+        <button type="button" class="tsh-tab"               role="tab" aria-selected="false" data-res-tab="mine"><i class="fas fa-bookmark"></i> My reservations <span class="tsh-tab-count" data-res-count="mine">0</span></button>
+        <button type="button" class="tsh-tab" role="tab" aria-selected="false" data-res-tab="manage" hidden data-res-staff-only><i class="fas fa-user-shield"></i> Manage <span class="tsh-tab-count" data-res-count="manage">0</span></button>
+      </div>
+
+      <!-- BOOK TAB -->
+      <section class="tsh-tab-panel" data-res-panel="book">
+        <div class="tsh-res-picker" id="resFacilityList"></div>
+
+        <div id="resBookBody" hidden>
+          <div class="tsh-res-range">
+            <label>From <input type="date" id="resRangeFrom" /></label>
+            <label>To <input type="date" id="resRangeTo" /></label>
+            <button type="button" class="tsh-btn tsh-btn-ghost tsh-btn-sm" id="resRangeReload"><i class="fas fa-arrows-rotate"></i>Refresh</button>
+            <div class="tsh-res-legend">
+              <span><span class="tsh-res-swatch" style="background:#ecfdf5;border-color:#a7f3d0"></span> Available</span>
+              <span><span class="tsh-res-swatch" style="background:#fef3c7;border-color:#fcd34d"></span> Requested</span>
+              <span><span class="tsh-res-swatch" style="background:#fee2e2;border-color:#fca5a5"></span> Confirmed</span>
+              <span><span class="tsh-res-swatch" style="background:#f3f4f6;border-color:#e5e7eb"></span> Blocked</span>
+            </div>
+          </div>
+          <div id="resFacilityRules" class="tsh-hint" style="margin-bottom:8px"></div>
+          <div id="resAvailabilityGrid"></div>
+        </div>
+      </section>
+
+      <!-- MY TAB -->
+      <section class="tsh-tab-panel" data-res-panel="mine" hidden>
+        <div id="resMineList" class="tsh-res-cards"></div>
+      </section>
+
+      <!-- MANAGE TAB -->
+      <section class="tsh-tab-panel" data-res-panel="manage" hidden data-res-staff-only>
+        <div class="tsh-res-range">
+          <input type="search" id="resManageSearch" placeholder="Search by ticket id, resident, flat, phone, purpose…" style="flex:1;min-width:220px;padding:8px 12px;border-radius:8px;border:1px solid var(--tsh-border,#d1d5db);" />
+          <select id="resManageStatus" style="padding:8px 12px;border-radius:8px;border:1px solid var(--tsh-border,#d1d5db);">
+            <option value="all">All statuses</option>
+            <option value="requested" selected>Requested</option>
+            <option value="under-review">Under Review</option>
+            <option value="confirmed">Confirmed</option>
+            <option value="cancelled">Cancelled</option>
+            <option value="rejected">Rejected</option>
+          </select>
+        </div>
+        <div id="resManageList" class="tsh-res-cards"></div>
+      </section>
+
+    </section>
+  </main>
+
+  <div data-include="footer"></div>
+
+  <script src="./assets/js/config.js?v=11"></script>
+  <script src="./assets/js/partials.js?v=22"></script>
+  <script src="./assets/js/api.js?v=11"></script>
+  <script src="./assets/js/auth.js?v=11"></script>
+  <script src="./assets/js/flags.js?v=13"></script>
+  <script src="./assets/js/ui.js?v=50"></script>
+  <script src="./assets/js/reservations.js?v=1"></script>
+  <script>
+  (async () => {
+    await Partials.mount();
+    await Auth.init({ clientId: window.TSH_GOOGLE_CLIENT_ID });
+    UI.bindHeader();
+    Reservations.init();
+    // Re-run the page controller whenever the user signs in/out so the
+    // sign-in gate and role-scoped tabs update without a page reload.
+    Auth.onChange(() => Reservations.init());
+  })();
+  </script>
+</body>
+</html>

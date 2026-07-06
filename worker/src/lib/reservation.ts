@@ -1,0 +1,200 @@
+// Reservation domain: types, ID generation, and status-transition rules.
+// Spec: tsh_requirement.md §10.
+//
+// Design goals:
+//   - Generic engine. Facilities are configured in config/facilities.json;
+//     the code below never assumes "Community Hall" or any specific slot
+//     scheme. Adding a Guest Room, Sports Court, Pool, etc. is a pure
+//     config change plus (optionally) a new slot list.
+//   - Reservations belong to an OWNER. The person who creates the
+//     record may be a manager acting on behalf. Owner never changes;
+//     see the timeline for the audit trail.
+//   - Statuses shown to residents are simple: Requested / Under Review /
+//     Confirmed / Cancelled / Rejected. Payment-related states are
+//     Phase 2 and will decorate `status='requested'` with a
+//     `payment` sub-object rather than adding new top-level statuses,
+//     so the resident-facing status pill stays uncluttered.
+
+import { BadRequest } from './errors.ts';
+
+// ---------------------------------------------------------------- types
+
+export const RES_STATUSES = ['requested', 'under-review', 'confirmed', 'rejected', 'cancelled'] as const;
+export type ReservationStatus = typeof RES_STATUSES[number];
+
+export const TIMELINE_EVENTS = [
+  'created', 'commented', 'approved', 'rejected', 'cancelled', 'edited', 'overridden',
+] as const;
+export type TimelineEvent = typeof TIMELINE_EVENTS[number];
+
+export interface Person {
+  email: string;
+  name?: string;
+  flat?: string;
+  phone?: string;
+  role?: string;   // primary role at the time of the action
+}
+
+export interface TimelineItem {
+  at: string;      // ISO 8601
+  by: Person;
+  event: TimelineEvent;
+  note?: string;
+}
+
+export interface Reservation {
+  id: string;                    // RES-DDMMYYHHMM[-N] (IST minute)
+  facilityId: string;
+  facilityLabel: string;
+  date: string;                  // YYYY-MM-DD, IST
+  slotId: string;
+  slotLabel: string;
+  purpose: string;
+  status: ReservationStatus;
+  owner: Person;
+  createdBy: Person;
+  createdAt: string;             // ISO 8601
+  updatedAt: string;             // ISO 8601
+  timeline: TimelineItem[];
+  isDeleted?: boolean;
+}
+
+export interface FacilitySlot {
+  id: string;
+  label: string;
+  startHour: number;   // 0..23
+  endHour: number;     // 1..24 (exclusive)
+}
+
+export interface FacilityPolicy {
+  minAdvanceHours: number;
+  maxAdvanceDays: number;
+  maxConcurrentPerOwner: number;
+  requiresApproval: boolean;
+  requiresPayment?: boolean;
+  paymentAmount?: number;
+  paymentPayee?: string;
+  blackoutDates?: string[];   // YYYY-MM-DD
+}
+
+export interface Facility {
+  id: string;
+  name: string;
+  description?: string;
+  enabled: boolean;
+  capacity?: number;
+  slots: FacilitySlot[];
+  policy: FacilityPolicy;
+  rules?: string[];
+}
+
+// ------------------------------------------------------------- ID scheme
+
+// Reservation IDs follow the same "DDMMYYHHMM + optional -N" scheme as
+// helpdesk tickets (TKT-*), just with a RES- prefix. IST minute-anchored
+// so IDs sort naturally by creation time when displayed as text.
+export const RES_ID_RE = /^RES-\d{10}(?:-\d+)?$/;
+
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+
+const istParts = (ms: number) => {
+  const t = new Date(ms + IST_OFFSET_MS);
+  return {
+    d: t.getUTCDate(),
+    m: t.getUTCMonth() + 1,
+    y: t.getUTCFullYear() % 100,
+    h: t.getUTCHours(),
+    mi: t.getUTCMinutes(),
+  };
+};
+
+const p2 = (n: number): string => String(n).padStart(2, '0');
+
+export const formatResIdBase = (ms: number): string => {
+  const { d, m, y, h, mi } = istParts(ms);
+  return `RES-${p2(d)}${p2(m)}${p2(y)}${p2(h)}${p2(mi)}`;
+};
+
+export const nextResId = (existing: ReadonlySet<string>, now: number = Date.now()): string => {
+  const base = formatResIdBase(now);
+  if (!existing.has(base)) return base;
+  for (let n = 2; n < 500; n++) {
+    const cand = `${base}-${n}`;
+    if (!existing.has(cand)) return cand;
+  }
+  throw new Error('Could not allocate unique reservation id in the same minute');
+};
+
+// ------------------------------------------------------------- date utils
+
+/** IST-anchored YYYY-MM-DD for the given epoch ms. */
+export const istDateStr = (ms: number): string => {
+  const t = new Date(ms + IST_OFFSET_MS);
+  return `${t.getUTCFullYear()}-${p2(t.getUTCMonth() + 1)}-${p2(t.getUTCDate())}`;
+};
+
+/**
+ * Parse YYYY-MM-DD as midnight IST and return epoch ms.
+ * (IST is UTC+05:30 with no DST, so no ambiguity to handle.)
+ */
+export const parseIstDateMidnight = (s: string): number => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (!m) throw new BadRequest('date must be YYYY-MM-DD');
+  const y = Number(m[1]); const mo = Number(m[2]); const d = Number(m[3]);
+  if (mo < 1 || mo > 12 || d < 1 || d > 31) throw new BadRequest('date is not a valid calendar day');
+  return Date.UTC(y, mo - 1, d, 0, 0, 0, 0) - IST_OFFSET_MS;
+};
+
+/** IST-anchored epoch ms for `date @ startHour` of the given slot. */
+export const slotStartMs = (date: string, startHour: number): number => {
+  const midnight = parseIstDateMidnight(date);
+  return midnight + startHour * 60 * 60 * 1000;
+};
+
+// ------------------------------------------------------- status transitions
+
+/**
+ * Allowed transitions. Rejected/cancelled are terminal so we never
+ * silently overwrite a decision — an override must go through a
+ * dedicated "override" flow that resets the record with an audit note.
+ */
+const TRANSITIONS: Record<ReservationStatus, ReservationStatus[]> = {
+  'requested':    ['under-review', 'confirmed', 'rejected', 'cancelled'],
+  'under-review': ['confirmed', 'rejected', 'cancelled'],
+  'confirmed':    ['cancelled', 'rejected'],
+  'rejected':     [],
+  'cancelled':    [],
+};
+
+export const canTransition = (from: ReservationStatus, to: ReservationStatus): boolean =>
+  (TRANSITIONS[from] ?? []).includes(to);
+
+// -------------------------------------------------------------- helpers
+
+export const RESIDENT_STATUS_LABEL: Record<ReservationStatus, string> = {
+  'requested':    'Requested',
+  'under-review': 'Under Review',
+  'confirmed':    'Confirmed',
+  'rejected':     'Rejected',
+  'cancelled':    'Cancelled',
+};
+
+/** Whether the given reservation is "active" (uses a slot and blocks conflicts). */
+export const isActive = (r: Pick<Reservation, 'status' | 'isDeleted'>): boolean => {
+  if (r.isDeleted) return false;
+  return r.status === 'requested' || r.status === 'under-review' || r.status === 'confirmed';
+};
+
+/**
+ * Build a per-slot availability map: `${facilityId}|${date}|${slotId}` → id
+ * of the active reservation holding it. Only ACTIVE reservations occupy a
+ * slot; rejected/cancelled/deleted free it up.
+ */
+export const buildSlotIndex = (list: Reservation[]): Map<string, string> => {
+  const idx = new Map<string, string>();
+  for (const r of list) {
+    if (!isActive(r)) continue;
+    idx.set(`${r.facilityId}|${r.date}|${r.slotId}`, r.id);
+  }
+  return idx;
+};

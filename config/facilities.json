@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "facilities": [
+    {
+      "id": "community-hall",
+      "name": "Community Hall",
+      "description": "Main community hall for events, functions, and gatherings.",
+      "enabled": true,
+      "capacity": 100,
+      "slots": [
+        { "id": "morning",   "label": "Morning",   "startHour": 6,  "endHour": 12 },
+        { "id": "afternoon", "label": "Afternoon", "startHour": 12, "endHour": 18 },
+        { "id": "evening",   "label": "Evening",   "startHour": 18, "endHour": 23 }
+      ],
+      "policy": {
+        "minAdvanceHours": 24,
+        "maxAdvanceDays": 90,
+        "maxConcurrentPerOwner": 3,
+        "requiresApproval": true,
+        "requiresPayment": false,
+        "paymentAmount": 0,
+        "paymentPayee": "",
+        "blackoutDates": []
+      },
+      "rules": [
+        "Bookings must be requested at least 24 hours in advance.",
+        "Cleanliness of the hall is the responsibility of the booking owner.",
+        "No loud music after 10 PM.",
+        "Any damage to property will be recovered from the security deposit."
+      ]
+    }
+  ]
+}

@@ -534,6 +534,19 @@ Admin-only (committee can view but every input is disabled). Sections:
 
 Save → `PUT /config` (and/or `PUT /access-lists/:role`) → Worker commits the change(s) to the repo. Pages re-fetch `/config` on next load (cache 60 s).
 
+### 8.8 Reservations (`docs/reservations.html`)
+
+Community-facility booking. Behind `FEATURE_TSH_RESERVATIONS`. The page runs the generic **reservation engine** described in §10 and is the first surface built on it.
+
+Layout (mobile-first, three tabs):
+- **Book** — facility picker (chip cards, auto-selects the first when only one), then a compact 3-column availability grid (rows = days, cols = the facility's configured slots). Colours: green=Available, amber=Requested, red=Confirmed, gray=Blocked. Tap an available cell → modal with `Purpose` (required, ≥3 chars), `Flat`, `Phone`, and — staff only — an on-behalf-of email field. Submit → `POST /reservations`.
+- **My reservations** — resident-scoped list of cards showing facility, date + slot, status pill, purpose, ID, and quick actions (Timeline, Cancel).
+- **Manage** — MANAGER+ only. Same card grid but scoped to `?scope=all&status=<selected>` with a search input covering ticket id / resident / flat / phone / purpose / date. Each pending card has inline `Approve` / `Reject` / `Cancel`. Reject prompts for a required reason.
+
+Each card opens a Timeline modal (activity feed with icons + timestamps + author) and lets the owner or staff post a note.
+
+Public exposure: none. Reservation IDs and owner PII are only visible to the owner and to MANAGER+.
+
 ## 9. Configuration (`config/site.json`)
 
 The file below is a **complete inventory** of every flag and tunable the Worker recognises. Every flag has a settings-page toggle (§14.2). Defaults are baked into the Worker (`worker/src/config/defaults.ts`); when the file is missing or malformed the Worker returns the defaults, but the committed file always wins at runtime — so keep the two in sync (see §14.3).
@@ -819,3 +832,97 @@ All seven questions from the previous draft are answered. Where a decision diffe
 | 5 | **Admin self-service: immediate effect.** | Spec already has a one-admin-minimum guard; no deadlock risk. Revisit if admin count grows past ~3. |
 | 6 | **Anonymous Gmail submit kept on.** | Lowest possible friction is the entire purpose of the daily flow. Domain allow-listing adds friction with little real benefit at this scale. |
 | 7 | **Committee view-only, including System section.** | Better audit story than hiding the System section entirely. Admin remains the only role that can write. |
+
+## 18. Reservation Engine (config/facilities.json + config/reservations.json)
+
+Generic booking engine. Behind `FEATURE_TSH_RESERVATIONS`. First facility: **Community Hall**; the same engine will host Guest Room, Sports Court, Pool, EV Charger, Parking without code changes.
+
+### 18.1 Data model
+
+Two files under `config/`:
+
+- **`config/facilities.json`** â€” admin-managed. Facility definitions.
+  ```json
+  {
+    "version": 1,
+    "facilities": [
+      {
+        "id": "community-hall",
+        "name": "Community Hall",
+        "description": "â€¦",
+        "enabled": true,
+        "capacity": 100,
+        "slots": [
+          { "id": "morning",   "label": "Morning",   "startHour": 6,  "endHour": 12 },
+          { "id": "afternoon", "label": "Afternoon", "startHour": 12, "endHour": 18 },
+          { "id": "evening",   "label": "Evening",   "startHour": 18, "endHour": 23 }
+        ],
+        "policy": {
+          "minAdvanceHours": 24,
+          "maxAdvanceDays": 90,
+          "maxConcurrentPerOwner": 3,
+          "requiresApproval": true,
+          "requiresPayment": false,
+          "paymentAmount": 0,
+          "paymentPayee": "",
+          "blackoutDates": []
+        },
+        "rules": ["â€¦"]
+      }
+    ]
+  }
+  ```
+- **`config/reservations.json`** â€” auto-managed. Active + recently-terminal reservations, capped at 500. Each record:
+  ```
+  {
+    "id": "RES-DDMMYYHHMM[-N]",  // IST minute, same scheme as TKT-
+    "facilityId", "facilityLabel",
+    "date": "YYYY-MM-DD",         // IST
+    "slotId", "slotLabel",
+    "purpose",
+    "status": "requested" | "under-review" | "confirmed" | "rejected" | "cancelled",
+    "owner":     { email, name?, flat?, phone?, role? },
+    "createdBy": { email, name?, flat?, phone?, role? },
+    "createdAt", "updatedAt",
+    "timeline": [
+      { at, by: {email, name?, role}, event, note? }
+    ]
+  }
+  ```
+  Timeline event types: `created`, `commented`, `approved`, `rejected`, `cancelled`, `edited`, `overridden`.
+
+**Owner â‰  creator.** A manager may book on behalf of a resident; the record's `owner.email` is the resident's, `createdBy.email` is the manager's, and the timeline notes the delegation. Owner never changes.
+
+**Active vs freed.** A slot is held by the reservation record if `!isDeleted && status âˆˆ {requested, under-review, confirmed}`. Cancelling or rejecting frees the slot immediately.
+
+### 18.2 API
+
+All routes: JWT-required, gated by `FEATURE_TSH_RESERVATIONS`.
+
+| Method | Path | Roles | Notes |
+|---|---|---|---|
+| GET | `/facilities` | RESIDENT+ | Enabled facilities only. |
+| GET | `/facilities/:id` | RESIDENT+ | Includes policy + rules. |
+| GET | `/facilities/:id/availability?from=&to=` | RESIDENT+ | Per-day per-slot: `available` / `held` / `confirmed` / `blackout`. Range â‰¤ 120 days. |
+| POST | `/reservations` | RESIDENT+ | Body: `facilityId, date, slotId, purpose`. Optional: `ownerFlat, ownerPhone, ownerEmail`. `ownerEmail â‰  me` requires MANAGER+. Server enforces `minAdvanceHours`, `maxAdvanceDays`, `maxConcurrentPerOwner`, blackout dates, slot uniqueness. Auto-confirms if `requiresApproval=false`. |
+| GET | `/reservations?scope=&status=&facilityId=&q=` | RESIDENT+ | Residents are always scoped to their own; MANAGER+ can request `scope=all`. |
+| GET | `/reservations/:id` | owner or MANAGER+ | 403 otherwise. |
+| PATCH | `/reservations/:id` | see below | Body: `status, note?`. Approve/under-review requires MANAGER+; reject requires MANAGER+ **and** a `note` (reason); cancel is allowed by the owner or MANAGER+. Terminal states (`rejected`, `cancelled`) are one-way. |
+| POST | `/reservations/:id/comments` | owner or MANAGER+ | Appends a timeline entry with `event=commented`. |
+
+### 18.3 UI
+
+See Â§8.8. Three tabs: **Book / My reservations / Manage** (staff-only). Mobile-first cards, half-day slot grid, inline approve/reject, one universal search on the manage queue.
+
+### 18.4 Phasing
+
+- **Phase 1 (shipped):** engine, Community Hall, resident + staff flows, timeline, availability grid, universal search. In-app status only â€” no email/WhatsApp/Calendar. No payments.
+- **Phase 2:** payment-proof uploads (image + PDF) reusing the R2 photo pipeline. Adds `requiresPayment` handling and a `payment-verified` timeline event.
+- **Phase 3:** Google Calendar mirror. Application DB stays the source of truth. Worker-side OAuth, refresh-token in KV, event lifecycle create/update/delete, retry queue, admin-only sync status. Configurable from Settings.
+- **Phase 4:** notification subsystem (in-app inbox first, then email/WhatsApp adapters). Retrofit both issue events and reservation events onto the same rails.
+- **Later:** additional facilities (Guest Room, Sports Court, Pool, EV Charger, Parking) â€” pure config edits to `config/facilities.json`.
+
+### 18.5 Backups & retention
+
+`config/reservations.json` is written through GitHub Contents API on every mutation (create / status transition / comment). Full git history = complete audit trail. When the active file passes ~500 entries the terminal records are moved to `archive/reservations-YYYY-MM.json` (same monthly bucket pattern as helpdesk issues in Â§16).
+

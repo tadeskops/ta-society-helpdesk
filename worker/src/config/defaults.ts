@@ -81,6 +81,7 @@ export const DEFAULT_CONFIG: SiteConfig = {
     FEATURE_DAILY_VISITOR_COUNTER:        true,
     FEATURE_DAILY_USER_ROLE_BADGE:        true,
     FEATURE_DAILY_EXPORT_PDF:             true,
+    FEATURE_TSH_RESERVATIONS:             true,
   },
   tunables: {
     // Auto-assign sweep: a `new` ticket older than this many hours is
@@ -107,6 +108,7 @@ export const DEFAULT_CONFIG: SiteConfig = {
     POLLS_CACHE_SECONDS:        60,
     POLLS_VOTES_CACHE_SECONDS:  30,
     DAILY_NOTICE_TTL_DAYS:      7,
+    RESERVATIONS_CACHE_SECONDS: 60,
   },
   lists: {
     towers:     ['A', 'B', 'C', 'Common Area'],
