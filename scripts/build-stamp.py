@@ -29,10 +29,10 @@ CX = CY = SIZE // 2
 INK = (25, 62, 138, 255)                # official-stamp indigo blue
 INK_SOFT = (25, 62, 138, 230)
 
-OUTER_R = 380                           # outer ring radius
-INNER_R = 340                           # inner ring radius
+OUTER_R = 385                           # outer ring radius
+INNER_R = 325                           # inner ring radius (wider gap for taller text)
 TEXT_TOP_R = (OUTER_R + INNER_R) // 2   # baseline radius for curved text band
-LOGO_MAX = 340                          # bounding box for centred logo
+LOGO_MAX = 470                          # bounding box for centred logo
 
 
 def find_font(size: int) -> ImageFont.FreeTypeFont:
@@ -158,17 +158,19 @@ def main() -> int:
     draw = ImageDraw.Draw(canvas)
 
     # ---- outer + inner ring ----------------------------------------
-    for radius, width in ((OUTER_R, 8), (INNER_R, 3)):
+    # Both strokes are thicker than v1 so the border reads as a real rubber
+    # stamp even when the receipt is scaled down for A4 print.
+    for radius, width in ((OUTER_R, 14), (INNER_R, 6)):
         bbox = (CX - radius, CY - radius, CX + radius, CY + radius)
         draw.ellipse(bbox, outline=INK, width=width)
 
     # ---- curved top text -------------------------------------------
-    top_font = find_font(34)
+    top_font = find_font(36)
     # Start slightly past 9 o'clock (180 deg) sweeping clockwise across the
     # top of the ring. The text is centred by choosing the starting angle so
     # its midpoint lands at 12 o'clock (90 deg).
     top_text = "THE ADDRESS CO-OPERATIVE HOUSING SOCIETY LTD."
-    total_arc = sum((top_font.getbbox(c)[2] - top_font.getbbox(c)[0]) + 4 for c in top_text)
+    total_arc = sum((top_font.getbbox(c)[2] - top_font.getbbox(c)[0]) + 2 for c in top_text)
     arc_rad = total_arc / TEXT_TOP_R
     start_top = 90 + math.degrees(arc_rad / 2)   # centred at 12 o'clock
     draw_curved_text(
@@ -179,12 +181,12 @@ def main() -> int:
         fill=INK,
         start_angle_deg=start_top,
         clockwise=True,
-        letter_spacing_px=4,
+        letter_spacing_px=2,
     )
 
     # ---- curved bottom text ----------------------------------------
-    bot_font = find_font(38)
-    bot_text = "OFFICIAL SEAL"
+    bot_font = find_font(48)
+    bot_text = "PUNE-BANER"
     total_arc_b = sum((bot_font.getbbox(c)[2] - bot_font.getbbox(c)[0]) + 6 for c in bot_text)
     arc_rad_b = total_arc_b / TEXT_TOP_R
     # Bottom text reads left-to-right along the lower arc, so we render
