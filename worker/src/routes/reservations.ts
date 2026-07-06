@@ -33,12 +33,13 @@ import { tunable } from '../config/defaults.ts';
 import { emit as emitNotification } from '../lib/notify.ts';
 import { mirrorConfirm, mirrorRemove } from '../lib/google-calendar.ts';
 import {
-  RES_STATUSES, RES_ID_RE, nextResId, canTransition, buildSlotIndex,
-  isActive, istDateStr, parseIstDateMidnight, slotStartMs,
+  RES_STATUSES, RES_ID_RE, nextResId, canTransition,
+  isActive, istDateStr, parseIstDateMidnight,
   PROOF_MIMES, proofRepoPath, initialPaymentState, isPaymentClearedForApproval,
   DEFAULT_MAX_PER_FLAT_PER_YEAR, normalizeFlat, istYearFromDate,
   countFlatBookingsForYear,
-  type Reservation, type Facility, type FacilitySlot, type Person,
+  parseHHMM, formatHHMM, findOverlap, ensureTimeRange, effectiveHours,
+  type Reservation, type Facility, type Person,
   type TimelineItem, type ProofFile, type ProofMime,
 } from '../lib/reservation.ts';
 
@@ -189,27 +190,36 @@ const notify = async (
 
 // -------------------------------------------------------------- serialise
 
-const publicFacility = (f: Facility) => ({
-  id: f.id,
-  name: f.name,
-  description: f.description ?? '',
-  enabled: !!f.enabled,
-  capacity: f.capacity ?? 0,
-  slots: f.slots.map((s) => ({ id: s.id, label: s.label, startHour: s.startHour, endHour: s.endHour })),
-  policy: {
-    minAdvanceHours: f.policy.minAdvanceHours,
-    maxAdvanceDays: f.policy.maxAdvanceDays,
-    maxConcurrentPerOwner: f.policy.maxConcurrentPerOwner,
-    maxPerFlatPerYear: f.policy.maxPerFlatPerYear ?? DEFAULT_MAX_PER_FLAT_PER_YEAR,
-    requiresApproval: f.policy.requiresApproval,
-    requiresPayment: !!f.policy.requiresPayment,
-    paymentAmount: f.policy.paymentAmount ?? 0,
-    paymentPayee: f.policy.paymentPayee ?? '',
-    chargesInfo: f.policy.chargesInfo ?? '',
-    blackoutDates: Array.isArray(f.policy.blackoutDates) ? f.policy.blackoutDates : [],
-  },
-  rules: Array.isArray(f.rules) ? f.rules : [],
-});
+const publicFacility = (f: Facility) => {
+  const eh = effectiveHours(f.policy);
+  return {
+    id: f.id,
+    name: f.name,
+    description: f.description ?? '',
+    enabled: !!f.enabled,
+    capacity: f.capacity ?? 0,
+    /** Legacy slots — present when the facility hasn't been migrated. */
+    slots: (f.slots ?? []).map((s) => ({ id: s.id, label: s.label, startHour: s.startHour, endHour: s.endHour })),
+    policy: {
+      minAdvanceHours: f.policy.minAdvanceHours,
+      maxAdvanceDays: f.policy.maxAdvanceDays,
+      maxConcurrentPerOwner: f.policy.maxConcurrentPerOwner,
+      maxPerFlatPerYear: f.policy.maxPerFlatPerYear ?? DEFAULT_MAX_PER_FLAT_PER_YEAR,
+      openMin: eh.openMin,
+      closeMin: eh.closeMin,
+      stepMinutes: eh.stepMinutes,
+      minDurationMinutes: eh.minDurationMinutes,
+      maxDurationMinutes: eh.maxDurationMinutes,
+      requiresApproval: f.policy.requiresApproval,
+      requiresPayment: !!f.policy.requiresPayment,
+      paymentAmount: f.policy.paymentAmount ?? 0,
+      paymentPayee: f.policy.paymentPayee ?? '',
+      chargesInfo: f.policy.chargesInfo ?? '',
+      blackoutDates: Array.isArray(f.policy.blackoutDates) ? f.policy.blackoutDates : [],
+    },
+    rules: Array.isArray(f.rules) ? f.rules : [],
+  };
+};
 
 // ---------------------------------------------------------------- routes
 
@@ -248,25 +258,41 @@ export const mountReservations = (r: Router): void => {
     if (spanDays > 120) throw new BadRequest('date range must be <= 120 days');
 
     const { items } = await loadReservations(ctx);
-    const slotIdx = buildSlotIndex(items.filter((x) => x.facilityId === f.id));
+    const forFac = items.filter((x) => x.facilityId === f.id && !x.isDeleted && isActive(x)).map((r) => ensureTimeRange(r, f));
     const blackout = new Set<string>(f.policy.blackoutDates ?? []);
+    const eh = effectiveHours(f.policy);
 
-    const days: Array<{ date: string; blackout: boolean; slots: Array<{ id: string; label: string; startHour: number; endHour: number; status: 'available' | 'held' | 'confirmed' | 'blackout'; reservationId?: string }> }> = [];
+    const days: Array<{
+      date: string;
+      blackout: boolean;
+      busy: Array<{ startMin: number; endMin: number; status: 'held' | 'confirmed'; reservationId: string }>;
+    }> = [];
     for (let ms = fromMs; ms <= toMs; ms += 24 * 60 * 60 * 1000) {
       const dstr = istDateStr(ms);
       const isBlackout = blackout.has(dstr);
-      const slots = f.slots.map((s: FacilitySlot) => {
-        if (isBlackout) return { id: s.id, label: s.label, startHour: s.startHour, endHour: s.endHour, status: 'blackout' as const };
-        const key = `${f.id}|${dstr}|${s.id}`;
-        const rid = slotIdx.get(key);
-        if (!rid) return { id: s.id, label: s.label, startHour: s.startHour, endHour: s.endHour, status: 'available' as const };
-        const held = items.find((x) => x.id === rid);
-        const status = held?.status === 'confirmed' ? 'confirmed' as const : 'held' as const;
-        return { id: s.id, label: s.label, startHour: s.startHour, endHour: s.endHour, status, reservationId: rid };
-      });
-      days.push({ date: dstr, blackout: isBlackout, slots });
+      const busy = forFac
+        .filter((r) => r.date === dstr)
+        .map((r) => ({
+          startMin: r.startMin,
+          endMin: r.endMin,
+          status: (r.status === 'confirmed' ? 'confirmed' : 'held') as 'held' | 'confirmed',
+          reservationId: r.id,
+        }))
+        .sort((a, b) => a.startMin - b.startMin);
+      days.push({ date: dstr, blackout: isBlackout, busy });
     }
-    return ok(ctx.env, ctx.req, { facilityId: f.id, from, to, days });
+    return ok(ctx.env, ctx.req, {
+      facilityId: f.id,
+      from, to,
+      open: {
+        openMin:            eh.openMin,
+        closeMin:           eh.closeMin,
+        stepMinutes:        eh.stepMinutes,
+        minDurationMinutes: eh.minDurationMinutes,
+        maxDurationMinutes: eh.maxDurationMinutes,
+      },
+      days,
+    });
   });
 
   // ---- Reservations: LIST + GET ---------------------------------------
@@ -324,7 +350,6 @@ export const mountReservations = (r: Router): void => {
     const body = await parseJson<Record<string, unknown>>(ctx.req);
     const facilityId = str(body['facilityId'], 'facilityId', { min: 1, max: 60 });
     const date       = str(body['date'], 'date', { min: 10, max: 10 });
-    const slotId     = str(body['slotId'], 'slotId', { min: 1, max: 40 });
     const purpose    = str(body['purpose'], 'purpose', { min: 3, max: 400 });
     // Flat number is required so we can enforce the per-flat annual quota.
     // Normalized form is stored so "A-101", "a 101", etc. share a bucket.
@@ -334,17 +359,55 @@ export const mountReservations = (r: Router): void => {
     const ownerEmailIn = optStr(body['ownerEmail'], 'ownerEmail', { max: 120 });
     const ownerName    = optStr(body['ownerName'], 'ownerName', { max: 120 });
     const ownerPhone   = optStr(body['ownerPhone'], 'ownerPhone', { max: 40 });
+    // Time range \u2014 canonical inputs. Legacy `slotId` is still accepted
+    // for compatibility and mapped to the facility's slot table.
+    const startTimeIn = optStr(body['startTime'], 'startTime', { max: 5 });
+    const endTimeIn   = optStr(body['endTime'],   'endTime',   { max: 5 });
+    const slotIdIn    = optStr(body['slotId'],    'slotId',    { max: 40 });
 
     const facilities = await loadFacilities(ctx);
     const facility = facilities.find((f) => f.id === facilityId);
     if (!facility) throw new BadRequest(`Unknown facility ${facilityId}`);
     if (!facility.enabled) throw new BadRequest(`Facility ${facility.name} is not accepting bookings`);
-    const slot = facility.slots.find((s) => s.id === slotId);
-    if (!slot) throw new BadRequest(`Unknown slot ${slotId} for ${facility.name}`);
+
+    // Resolve the effective time range.
+    let startMin: number;
+    let endMin: number;
+    let legacySlotId: string | undefined;
+    let legacySlotLabel: string | undefined;
+    if (startTimeIn && endTimeIn) {
+      startMin = parseHHMM(startTimeIn);
+      endMin   = parseHHMM(endTimeIn);
+    } else if (slotIdIn) {
+      const slot = (facility.slots ?? []).find((s) => s.id === slotIdIn);
+      if (!slot) throw new BadRequest(`Unknown slot ${slotIdIn} for ${facility.name}`);
+      startMin = slot.startHour * 60;
+      endMin   = slot.endHour * 60;
+      legacySlotId = slot.id;
+      legacySlotLabel = `${slot.label} (${slot.startHour}:00\u2013${slot.endHour}:00)`;
+    } else {
+      throw new BadRequest('startTime + endTime (HH:MM) are required');
+    }
+    if (endMin <= startMin) throw new BadRequest('endTime must be strictly after startTime');
+
+    const eh = effectiveHours(facility.policy);
+    if (startMin < eh.openMin || endMin > eh.closeMin) {
+      throw new BadRequest(`Bookings must fall between ${formatHHMM(eh.openMin)} and ${formatHHMM(eh.closeMin)}`);
+    }
+    if (startMin % eh.stepMinutes !== 0 || endMin % eh.stepMinutes !== 0) {
+      throw new BadRequest(`Booking times must be aligned to ${eh.stepMinutes}-minute increments`);
+    }
+    const duration = endMin - startMin;
+    if (duration < eh.minDurationMinutes) {
+      throw new BadRequest(`Minimum booking length is ${eh.minDurationMinutes} minutes`);
+    }
+    if (duration > eh.maxDurationMinutes) {
+      throw new BadRequest(`Maximum booking length is ${eh.maxDurationMinutes} minutes`);
+    }
 
     // Policy checks
     const now = Date.now();
-    const startMs = slotStartMs(date, slot.startHour);
+    const startMs = parseIstDateMidnight(date) + startMin * 60 * 1000;
     const minAdvanceMs = facility.policy.minAdvanceHours * 60 * 60 * 1000;
     const maxAdvanceMs = facility.policy.maxAdvanceDays * 24 * 60 * 60 * 1000;
     if (startMs - now < minAdvanceMs) {
@@ -372,10 +435,12 @@ export const mountReservations = (r: Router): void => {
     const { items, sha } = await loadReservations(ctx);
     const active = items.filter((r) => !r.isDeleted);
 
-    // Slot conflict.
-    const slotIdx = buildSlotIndex(active.filter((r) => r.facilityId === facility.id));
-    if (slotIdx.has(`${facility.id}|${date}|${slot.id}`)) {
-      throw new BadRequest('That slot has just been taken by another booking. Please pick a different slot.');
+    // Overlap check on the target date.
+    const clash = findOverlap(active, facility.id, date, startMin, endMin);
+    if (clash) {
+      throw new BadRequest(
+        `Overlaps existing booking ${clash.id} (${formatHHMM(clash.startMin)}\u2013${formatHHMM(clash.endMin)}). Please pick another time.`,
+      );
     }
 
     // Per-owner concurrency cap.
@@ -414,8 +479,10 @@ export const mountReservations = (r: Router): void => {
       facilityId: facility.id,
       facilityLabel: facility.name,
       date,
-      slotId: slot.id,
-      slotLabel: `${slot.label} (${slot.startHour}:00–${slot.endHour}:00)`,
+      startMin,
+      endMin,
+      ...(legacySlotId ? { slotId: legacySlotId } : {}),
+      ...(legacySlotLabel ? { slotLabel: legacySlotLabel } : {}),
       purpose,
       status: facility.policy.requiresApproval ? 'requested' : 'confirmed',
       owner,
@@ -442,7 +509,7 @@ export const mountReservations = (r: Router): void => {
       actor: ctx.identity!.email,
       action: 'reservations:create',
       target: id,
-      detail: `facility=${facility.id} date=${date} slot=${slot.id} owner=${ownerEmail}`,
+      detail: `facility=${facility.id} date=${date} time=${formatHHMM(startMin)}-${formatHHMM(endMin)} owner=${ownerEmail}`,
     });
     // Notifications: tell the owner (if the creator is not the owner) and
     // all staff so the manage queue lights up in real time.
@@ -451,7 +518,7 @@ export const mountReservations = (r: Router): void => {
     for (const s of staffEmails(ctx)) notifyRecipients.add(s);
     if (notifyRecipients.size) {
       const title = `New reservation · ${facility.name}`;
-      const body = `${date} · ${slot.label} · ${owner.flat ? owner.flat + ' · ' : ''}${purpose.slice(0, 100)}`;
+      const body = `${date} · ${formatHHMM(startMin)}–${formatHHMM(endMin)} · ${owner.flat ? owner.flat + ' · ' : ''}${purpose.slice(0, 100)}`;
       await notify(ctx, Array.from(notifyRecipients), 'reservation-created', title, body, linkTo(id));
     }
     return ok(ctx.env, ctx.req, { reservation: rec }, 201);
@@ -570,7 +637,10 @@ export const mountReservations = (r: Router): void => {
     recipients.delete(meEmail);   // no self-notify
     if (recipients.size) {
       const title = `Reservation ${to} · ${rec.facilityLabel}`;
-      const body = `${rec.date} · ${rec.slotLabel}${note ? ' · ' + note.slice(0, 100) : ''}`;
+      const timeStr = typeof rec.startMin === 'number' && typeof rec.endMin === 'number'
+        ? `${formatHHMM(rec.startMin)}–${formatHHMM(rec.endMin)}`
+        : (rec.slotLabel ?? '');
+      const body = `${rec.date} · ${timeStr}${note ? ' · ' + note.slice(0, 100) : ''}`;
       await notify(ctx, Array.from(recipients), notifEvent, title, body, linkTo(rec.id));
     }
     return ok(ctx.env, ctx.req, { reservation: rec });

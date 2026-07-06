@@ -54,8 +54,16 @@ export interface Reservation {
   facilityId: string;
   facilityLabel: string;
   date: string;                  // YYYY-MM-DD, IST
-  slotId: string;
-  slotLabel: string;
+  /**
+   * Booking start / end as minutes-of-day IST (0..1440). These are the
+   * canonical fields for time-range bookings. Legacy records created
+   * before the calendar cutover only carry slotId/slotLabel; loaders
+   * synthesize startMin/endMin for them at read time.
+   */
+  startMin: number;
+  endMin: number;
+  slotId?: string;               // legacy: pre-cutover slot ids
+  slotLabel?: string;            // legacy: pre-cutover slot labels
   purpose: string;
   status: ReservationStatus;
   owner: Person;
@@ -100,6 +108,16 @@ export interface FacilityPolicy {
   maxAdvanceDays: number;
   maxConcurrentPerOwner: number;
   /**
+   * Facility open/close as minutes-of-day IST. When undefined the
+   * defaults DEFAULT_OPEN_MIN (06:00) and DEFAULT_CLOSE_MIN (23:00) apply.
+   * Bookings must sit inside this window and be aligned to stepMinutes.
+   */
+  openMin?: number;
+  closeMin?: number;
+  stepMinutes?: number;         // default 30
+  minDurationMinutes?: number;  // default 60
+  maxDurationMinutes?: number;  // default 480 (8h)
+  /**
    * Maximum active bookings a single flat may hold within one IST
    * calendar year, counted across all statuses that block a slot
    * (requested / under-review / confirmed). Cancelled and rejected
@@ -125,7 +143,8 @@ export interface Facility {
   description?: string;
   enabled: boolean;
   capacity?: number;
-  slots: FacilitySlot[];
+  /** Legacy: fixed slot presets. Optional for time-range facilities. */
+  slots?: FacilitySlot[];
   policy: FacilityPolicy;
   rules?: string[];
   calendarId?: string;   // Phase 3: Google Calendar id (e.g. xxx@group.calendar.google.com)
@@ -282,6 +301,92 @@ export const initialPaymentState = (facility: Pick<Facility, 'policy'>): Payment
 
 /** Default per-flat, per-calendar-year cap when the facility policy omits one. */
 export const DEFAULT_MAX_PER_FLAT_PER_YEAR = 2;
+
+// ---------------------------------------------------- time-range defaults
+
+export const DEFAULT_OPEN_MIN = 6 * 60;       // 06:00
+export const DEFAULT_CLOSE_MIN = 23 * 60;     // 23:00
+export const DEFAULT_STEP_MIN = 30;
+export const DEFAULT_MIN_DURATION_MIN = 60;   // 1 hour
+export const DEFAULT_MAX_DURATION_MIN = 8 * 60; // 8 hours
+
+/** Effective open-hour policy — fills in the defaults when unset. */
+export const effectiveHours = (p: Pick<FacilityPolicy, 'openMin' | 'closeMin' | 'stepMinutes' | 'minDurationMinutes' | 'maxDurationMinutes'>) => ({
+  openMin:            p.openMin            ?? DEFAULT_OPEN_MIN,
+  closeMin:           p.closeMin           ?? DEFAULT_CLOSE_MIN,
+  stepMinutes:        p.stepMinutes        ?? DEFAULT_STEP_MIN,
+  minDurationMinutes: p.minDurationMinutes ?? DEFAULT_MIN_DURATION_MIN,
+  maxDurationMinutes: p.maxDurationMinutes ?? DEFAULT_MAX_DURATION_MIN,
+});
+
+/** "HH:MM" → minutes-of-day. Throws BadRequest on malformed input. */
+export const parseHHMM = (s: string): number => {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(s).trim());
+  if (!m) throw new BadRequest(`time must be HH:MM (got "${s}")`);
+  const h = Number(m[1]);
+  const mi = Number(m[2]);
+  if (h < 0 || h > 24 || mi < 0 || mi > 59) throw new BadRequest(`time out of range: ${s}`);
+  const v = h * 60 + mi;
+  if (v > 24 * 60) throw new BadRequest(`time out of range: ${s}`);
+  return v;
+};
+
+/** minutes-of-day → "HH:MM" with 24h clamped display for the closing edge. */
+export const formatHHMM = (min: number): string => {
+  const h = Math.floor(min / 60);
+  const mi = min % 60;
+  return `${String(h).padStart(2, '0')}:${String(mi).padStart(2, '0')}`;
+};
+
+/** Two half-open ranges [a,b) overlap when they share any minute. */
+export const overlapsRange = (aStart: number, aEnd: number, bStart: number, bEnd: number): boolean =>
+  aStart < bEnd && bStart < aEnd;
+
+/** Backfill startMin/endMin for legacy records that only carry slot info. */
+export const ensureTimeRange = (r: Reservation, facility?: Facility): Reservation => {
+  if (typeof r.startMin === 'number' && typeof r.endMin === 'number' && r.endMin > r.startMin) return r;
+  // Try to parse legacy slotLabel like "Morning (6:00–12:00)" first.
+  const m = /(\d{1,2}):(\d{2})[^\d]+(\d{1,2}):(\d{2})/.exec(r.slotLabel ?? '');
+  if (m) {
+    r.startMin = Number(m[1]) * 60 + Number(m[2]);
+    r.endMin   = Number(m[3]) * 60 + Number(m[4]);
+    if (r.endMin === 0) r.endMin = 24 * 60;
+    return r;
+  }
+  // Fall back to the facility's slot table by id.
+  if (facility?.slots && r.slotId) {
+    const s = facility.slots.find((x) => x.id === r.slotId);
+    if (s) {
+      r.startMin = s.startHour * 60;
+      r.endMin   = s.endHour   * 60;
+      return r;
+    }
+  }
+  // Last-resort: mark the whole day so overlap checks still block it.
+  r.startMin = 0; r.endMin = 24 * 60;
+  return r;
+};
+
+/** Whether the given new booking overlaps any active record on the same date+facility. */
+export const findOverlap = (
+  items: Reservation[],
+  facilityId: string,
+  date: string,
+  startMin: number,
+  endMin: number,
+  excludeId?: string,
+): Reservation | undefined => {
+  for (const r of items) {
+    if (excludeId && r.id === excludeId) continue;
+    if (r.facilityId !== facilityId) continue;
+    if (r.date !== date) continue;
+    if (!isActive(r)) continue;
+    const rStart = typeof r.startMin === 'number' ? r.startMin : 0;
+    const rEnd   = typeof r.endMin   === 'number' ? r.endMin   : 24 * 60;
+    if (overlapsRange(startMin, endMin, rStart, rEnd)) return r;
+  }
+  return undefined;
+};
 
 /**
  * Canonical form for a flat identifier so `a-101`, `A 101`, and `A-101`

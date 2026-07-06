@@ -112,18 +112,37 @@ const istIso = (date: string, hour: number): string => {
   return `${date}T${h}:00:00+05:30`;
 };
 
+// Build IST-anchored ISO from a minute-of-day (0..1440).
+const istIsoFromMin = (date: string, minutes: number): string => {
+  const clamped = Math.max(0, Math.min(24 * 60, minutes));
+  const h = String(Math.floor(clamped / 60)).padStart(2, '0');
+  const m = String(clamped % 60).padStart(2, '0');
+  return `${date}T${h}:${m}:00+05:30`;
+};
+
 // ---- Event payload --------------------------------------------------
 
 const buildEventBody = (rec: Reservation, facility: Facility) => {
-  const slot = facility.slots.find((s) => s.id === rec.slotId);
-  const startHour = slot?.startHour ?? 9;
-  const endHour   = slot?.endHour   ?? Math.min(24, startHour + 1);
+  // Prefer time-range fields; fall back to legacy slot lookup for
+  // pre-cutover records that never persisted startMin/endMin.
+  let startIso: string;
+  let endIso: string;
+  if (typeof rec.startMin === 'number' && typeof rec.endMin === 'number' && rec.endMin > rec.startMin) {
+    startIso = istIsoFromMin(rec.date, rec.startMin);
+    endIso   = istIsoFromMin(rec.date, rec.endMin);
+  } else {
+    const slot = (facility.slots ?? []).find((s) => s.id === rec.slotId);
+    const startHour = slot?.startHour ?? 9;
+    const endHour   = slot?.endHour   ?? Math.min(24, startHour + 1);
+    startIso = istIso(rec.date, startHour);
+    endIso   = istIso(rec.date, endHour === 24 ? 23 : endHour);
+  }
   return {
     summary:     `${facility.name} · ${rec.owner.name || rec.owner.email}`,
     description: `${rec.purpose}\n\nReservation: ${rec.id}\nOwner: ${rec.owner.email}${rec.owner.flat ? '\nFlat: ' + rec.owner.flat : ''}`,
     location:    facility.name,
-    start:       { dateTime: istIso(rec.date, startHour), timeZone: 'Asia/Kolkata' },
-    end:         { dateTime: istIso(rec.date, endHour === 24 ? 23 : endHour),   timeZone: 'Asia/Kolkata' },
+    start:       { dateTime: startIso, timeZone: 'Asia/Kolkata' },
+    end:         { dateTime: endIso,   timeZone: 'Asia/Kolkata' },
     extendedProperties: {
       private: { tshReservationId: rec.id, tshFacilityId: rec.facilityId },
     },

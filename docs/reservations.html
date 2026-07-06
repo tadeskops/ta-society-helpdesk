@@ -81,6 +81,115 @@
       .tsh-res-grid-cell { padding: 8px 3px; font-size: 11px; }
       .tsh-res-grid-day { padding: 6px 2px; font-size: 12px; }
     }
+
+    /* ===== Google Calendar-style week/day view ============================
+       Grid-based: a time gutter on the left + N day columns. Busy blocks
+       are absolutely positioned inside each day column using top/height
+       computed from startMin/endMin. Every 30-min row is clickable so a
+       resident can quickly start a booking at that time. */
+    .tsh-cal-toolbar {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px; flex-wrap: wrap; margin: 4px 0 8px;
+    }
+    .tsh-cal-nav { display: flex; align-items: center; gap: 6px; }
+    .tsh-cal-label { font-weight: 600; font-size: 14px; margin-left: 6px; }
+    .tsh-cal-views { display: inline-flex; border: 1px solid var(--tsh-border, #d1d5db); border-radius: 8px; overflow: hidden; }
+    .tsh-cal-view { padding: 6px 12px; font-size: 13px; background: transparent; border: 0; cursor: pointer; color: var(--tsh-text, #111827); }
+    .tsh-cal-view + .tsh-cal-view { border-left: 1px solid var(--tsh-border, #d1d5db); }
+    .tsh-cal-view:disabled { opacity: .45; cursor: not-allowed; }
+    .tsh-cal-view-active { background: color-mix(in srgb, var(--tsh-primary, #2563eb) 12%, transparent); color: var(--tsh-primary, #2563eb); font-weight: 600; }
+
+    .tsh-cal-legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 11px; opacity: .8; margin-bottom: 6px; }
+    .tsh-cal-legend span { display: inline-flex; align-items: center; gap: 4px; }
+    .tsh-cal-swatch { width: 12px; height: 12px; border-radius: 3px; border: 1px solid rgba(0,0,0,.1); display: inline-block; }
+    .tsh-cal-sw-free      { background: transparent; border-color: var(--tsh-border, #d1d5db); }
+    .tsh-cal-sw-held      { background: #fef3c7; border-color: #fcd34d; }
+    .tsh-cal-sw-confirmed { background: #fee2e2; border-color: #fca5a5; }
+    .tsh-cal-sw-blackout  { background: #f3f4f6; border-color: #e5e7eb; }
+
+    .tsh-cal-host { border: 1px solid var(--tsh-border, #d1d5db); border-radius: 12px; overflow: hidden; background: var(--tsh-card, #fff); }
+    .tsh-cal-week {
+      display: grid;
+      grid-template-columns: 56px repeat(var(--cal-cols, 7), minmax(0, 1fr));
+      /* Height is set per instance from JS based on step count. */
+    }
+    .tsh-cal-head {
+      display: contents;
+    }
+    .tsh-cal-corner, .tsh-cal-daycol-head, .tsh-cal-timecol-cell, .tsh-cal-daycol {
+      border-bottom: 1px solid var(--tsh-border, #e5e7eb);
+    }
+    .tsh-cal-corner { background: var(--tsh-card, #fff); border-right: 1px solid var(--tsh-border, #e5e7eb); }
+    .tsh-cal-daycol-head {
+      padding: 8px 4px; text-align: center; font-size: 12px; font-weight: 500;
+      border-right: 1px solid var(--tsh-border, #e5e7eb);
+      background: var(--tsh-card-alt, #f9fafb);
+    }
+    .tsh-cal-daycol-head strong { display: block; font-size: 18px; font-weight: 600; }
+    .tsh-cal-daycol-head.tsh-cal-today strong { color: var(--tsh-primary, #2563eb); }
+    .tsh-cal-daycol-head.tsh-cal-past { opacity: .55; }
+    .tsh-cal-daycol-head.tsh-cal-blackout { background: repeating-linear-gradient(45deg,#f3f4f6,#f3f4f6 6px,#e5e7eb 6px,#e5e7eb 12px); color: #6b7280; }
+
+    /* Body: one column per day, containing 30-min click rows + absolute busy blocks. */
+    .tsh-cal-body { display: contents; }
+    .tsh-cal-timecol { border-right: 1px solid var(--tsh-border, #e5e7eb); position: relative; background: var(--tsh-card, #fff); }
+    .tsh-cal-timecol-cell {
+      height: var(--cal-row-h, 24px);
+      font-size: 10px; padding: 2px 4px 0 4px; text-align: right;
+      color: var(--tsh-muted, #6b7280);
+      border-bottom: 1px dashed var(--tsh-border, #eef0f3);
+    }
+    .tsh-cal-daycol { position: relative; border-right: 1px solid var(--tsh-border, #e5e7eb); }
+    .tsh-cal-slot {
+      height: var(--cal-row-h, 24px);
+      border-bottom: 1px dashed var(--tsh-border, #eef0f3);
+      cursor: pointer;
+      transition: background 100ms ease;
+    }
+    .tsh-cal-slot:hover { background: color-mix(in srgb, var(--tsh-primary, #2563eb) 10%, transparent); }
+    .tsh-cal-slot.tsh-cal-slot-past { cursor: not-allowed; background: repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(0,0,0,.03) 4px, rgba(0,0,0,.03) 8px); }
+    .tsh-cal-slot.tsh-cal-slot-past:hover { background: repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(0,0,0,.03) 4px, rgba(0,0,0,.03) 8px); }
+    .tsh-cal-daycol.tsh-cal-blackout .tsh-cal-slot { cursor: not-allowed; background: repeating-linear-gradient(45deg, #f3f4f6, #f3f4f6 6px, #e5e7eb 6px, #e5e7eb 12px); }
+
+    .tsh-cal-event {
+      position: absolute; left: 2px; right: 2px;
+      border-radius: 6px; padding: 2px 6px;
+      font-size: 11px; font-weight: 500; line-height: 1.25;
+      overflow: hidden; text-overflow: ellipsis;
+      cursor: pointer;
+      border: 1px solid transparent;
+      box-shadow: 0 1px 2px rgba(0,0,0,.06);
+    }
+    .tsh-cal-event-time { display: block; font-size: 10px; opacity: .85; font-weight: 500; }
+    .tsh-cal-event-title { display: block; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tsh-cal-event.tsh-cal-ev-held      { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
+    .tsh-cal-event.tsh-cal-ev-confirmed { background: #fee2e2; color: #991b1b; border-color: #fca5a5; }
+
+    /* Current-hour indicator (thin red line, only when Today is in view). */
+    .tsh-cal-now {
+      position: absolute; left: 0; right: 0; height: 2px;
+      background: #ef4444; box-shadow: 0 0 0 1px rgba(255,255,255,.6);
+      z-index: 4; pointer-events: none;
+    }
+    .tsh-cal-now::before {
+      content: ''; position: absolute; left: -3px; top: -3px;
+      width: 8px; height: 8px; border-radius: 50%; background: #ef4444;
+    }
+
+    @media (max-width: 720px) {
+      .tsh-cal-week { grid-template-columns: 44px repeat(var(--cal-cols, 7), minmax(0, 1fr)); }
+      .tsh-cal-timecol-cell { font-size: 9px; padding: 1px 2px 0 2px; }
+      .tsh-cal-daycol-head { font-size: 11px; padding: 6px 2px; }
+      .tsh-cal-daycol-head strong { font-size: 14px; }
+      .tsh-cal-event { font-size: 10px; padding: 2px 4px; }
+      .tsh-cal-event-time { display: none; }
+      .tsh-cal-legend { font-size: 10px; gap: 8px; }
+      .tsh-cal-label { font-size: 13px; }
+    }
+    @media (max-width: 480px) {
+      /* On phones the 7-day week is unreadable — degrade to Day view. */
+      .tsh-cal-force-day .tsh-cal-week { grid-template-columns: 56px 1fr; }
+    }
   </style>
 </head>
 <body class="tsh-page">
@@ -122,19 +231,27 @@
         <div class="tsh-res-picker" id="resFacilityList"></div>
 
         <div id="resBookBody" hidden>
-          <div class="tsh-res-range">
-            <label>From <input type="date" id="resRangeFrom" /></label>
-            <label>To <input type="date" id="resRangeTo" /></label>
-            <button type="button" class="tsh-btn tsh-btn-ghost tsh-btn-sm" id="resRangeReload"><i class="fas fa-arrows-rotate"></i>Refresh</button>
-            <div class="tsh-res-legend">
-              <span><span class="tsh-res-swatch" style="background:#ecfdf5;border-color:#a7f3d0"></span> Available</span>
-              <span><span class="tsh-res-swatch" style="background:#fef3c7;border-color:#fcd34d"></span> Requested</span>
-              <span><span class="tsh-res-swatch" style="background:#fee2e2;border-color:#fca5a5"></span> Confirmed</span>
-              <span><span class="tsh-res-swatch" style="background:#f3f4f6;border-color:#e5e7eb"></span> Blocked</span>
+          <div class="tsh-cal-toolbar">
+            <div class="tsh-cal-nav">
+              <button type="button" class="tsh-btn tsh-btn-ghost tsh-btn-sm" id="resCalPrev" aria-label="Previous week"><i class="fas fa-chevron-left"></i></button>
+              <button type="button" class="tsh-btn tsh-btn-ghost tsh-btn-sm" id="resCalToday">Today</button>
+              <button type="button" class="tsh-btn tsh-btn-ghost tsh-btn-sm" id="resCalNext" aria-label="Next week"><i class="fas fa-chevron-right"></i></button>
+              <span class="tsh-cal-label" id="resCalLabel">—</span>
+            </div>
+            <div class="tsh-cal-views" role="tablist" aria-label="Calendar view">
+              <button type="button" class="tsh-cal-view tsh-cal-view-active" data-cal-view="week">Week</button>
+              <button type="button" class="tsh-cal-view" data-cal-view="day">Day</button>
+              <button type="button" class="tsh-cal-view" data-cal-view="month" disabled title="Coming next">Month</button>
             </div>
           </div>
-          <div id="resFacilityRules" class="tsh-hint" style="margin-bottom:8px"></div>
-          <div id="resAvailabilityGrid"></div>
+          <div id="resFacilityRules" class="tsh-hint" style="margin:6px 0 10px"></div>
+          <div class="tsh-cal-legend">
+            <span><span class="tsh-cal-swatch tsh-cal-sw-free"></span> Free</span>
+            <span><span class="tsh-cal-swatch tsh-cal-sw-held"></span> Requested</span>
+            <span><span class="tsh-cal-swatch tsh-cal-sw-confirmed"></span> Confirmed</span>
+            <span><span class="tsh-cal-swatch tsh-cal-sw-blackout"></span> Blocked</span>
+          </div>
+          <div id="resCalendar" class="tsh-cal-host"></div>
         </div>
       </section>
 
@@ -171,7 +288,7 @@
   <script src="./assets/js/flags.js?v=13"></script>
   <script src="./assets/js/ui.js?v=50"></script>
   <script src="./assets/js/notify.js?v=1"></script>
-  <script src="./assets/js/reservations.js?v=2"></script>
+  <script src="./assets/js/reservations.js?v=3"></script>
   <script>
   (async () => {
     await Partials.mount();

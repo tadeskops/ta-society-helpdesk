@@ -29,6 +29,11 @@
   let mineCache = [];      // resident scope
   let manageCache = [];    // staff scope
 
+  // Calendar-view state.
+  let calView = 'week';      // 'week' | 'day' | (future: 'month')
+  let calAnchor = null;      // YYYY-MM-DD (Monday for week view, that day for day view)
+  let calPayload = null;     // last availability response
+
   const RESIDENT_STATUS_LABEL = {
     'requested':    'Requested',
     'under-review': 'Under Review',
@@ -175,7 +180,52 @@
     $$('[data-res-panel]').forEach((p) => { p.hidden = p.getAttribute('data-res-panel') !== name; });
     if (name === 'mine') refreshMine();
     if (name === 'manage') refreshManage();
-    if (name === 'book') renderAvailabilityGrid();
+    if (name === 'book' && selectedFacility) renderCalendar();
+  }
+
+  // -------------------------------------------------------- time / range utils
+
+  // Local-timezone (IST-agnostic) helpers work on YYYY-MM-DD strings only.
+  function ymdToParts(ymd) { const [y,m,d] = ymd.split('-').map(Number); return { y, m, d }; }
+  function partsToDate(p)  { return new Date(Date.UTC(p.y, p.m - 1, p.d)); }
+  function dateToYmd(d)    { return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`; }
+
+  // Add N calendar days (can be negative) to a YYYY-MM-DD.
+  function addDays(ymd, n) {
+    const p = ymdToParts(ymd);
+    const d = new Date(Date.UTC(p.y, p.m - 1, p.d + n));
+    return dateToYmd(d);
+  }
+
+  // Return the Monday of the ISO week containing ymd (Mon..Sun grid).
+  function mondayOf(ymd) {
+    const p = ymdToParts(ymd);
+    const d = new Date(Date.UTC(p.y, p.m - 1, p.d));
+    const dow = d.getUTCDay();              // 0=Sun..6=Sat
+    const offset = (dow === 0) ? -6 : 1 - dow;
+    return addDays(ymd, offset);
+  }
+
+  function formatHHMM(min) {
+    const m = Math.max(0, Math.floor(min));
+    return `${pad2(Math.floor(m / 60))}:${pad2(m % 60)}`;
+  }
+
+  function facilityHoursLabel(f) {
+    const p = (f && f.policy) || {};
+    const o = Number(p.openMin);
+    const c = Number(p.closeMin);
+    if (Number.isFinite(o) && Number.isFinite(c) && c > o) {
+      return `${formatHHMM(o)}–${formatHHMM(c)}`;
+    }
+    return 'flexible hours';
+  }
+
+  function reservationTimeLabel(r) {
+    if (r && typeof r.startMin === 'number' && typeof r.endMin === 'number' && r.endMin > r.startMin) {
+      return `${formatHHMM(r.startMin)}–${formatHHMM(r.endMin)}`;
+    }
+    return (r && r.slotLabel) || '';
   }
 
   // -------------------------------------------------------- facilities
@@ -194,13 +244,13 @@
       card.className = 'tsh-res-fac';
       card.setAttribute('data-fac', f.id);
       const capMsg = f.capacity ? ` · up to ${f.capacity} people` : '';
-      const payMsg = f.policy.requiresPayment ? ` · ₹${f.policy.paymentAmount} deposit` : '';
+      const payMsg = f.policy && f.policy.requiresPayment ? ` · ₹${f.policy.paymentAmount} deposit` : '';
       card.innerHTML =
         '<span class="tsh-res-fac-name">' + escape(f.name) + '</span>' +
         (f.description ? '<span class="tsh-res-fac-desc">' + escape(f.description) + '</span>' : '') +
         '<span class="tsh-res-fac-meta">' +
-          f.slots.length + ' slot' + (f.slots.length === 1 ? '' : 's') + '/day · ' +
-          'up to ' + f.policy.maxAdvanceDays + 'd ahead' +
+          '<i class="far fa-clock"></i> ' + escape(facilityHoursLabel(f)) + ' · ' +
+          'up to ' + (f.policy && f.policy.maxAdvanceDays || 0) + 'd ahead' +
           capMsg + payMsg +
         '</span>';
       card.addEventListener('click', () => selectFacility(f.id));
@@ -216,12 +266,15 @@
     if (!selectedFacility) return;
     $('#resBookBody').hidden = false;
     renderFacilityRules();
-    // Default range: today .. +14d
-    const from = $('#resRangeFrom');
-    const to   = $('#resRangeTo');
-    if (!from.value) from.value = istToday();
-    if (!to.value)   to.value   = istPlusDays(14);
-    renderAvailabilityGrid();
+    // Initialise calendar to Today (Monday of this week).
+    if (!calAnchor) calAnchor = mondayOf(istToday());
+    // Small screens default to a single-day view for readability.
+    if (typeof window !== 'undefined' && window.innerWidth && window.innerWidth <= 480) {
+      calView = 'day';
+      calAnchor = istToday();
+    }
+    updateViewButtons();
+    renderCalendar();
   }
 
   function renderFacilityRules() {
@@ -232,113 +285,283 @@
     host.innerHTML = '<strong>House rules:</strong> ' + rules.map(escape).join(' · ');
   }
 
+  // -------------------------------------------------------- calendar toolbar + navigation
+
   function wireRange() {
-    $('#resRangeReload').addEventListener('click', renderAvailabilityGrid);
-    $('#resRangeFrom').addEventListener('change', renderAvailabilityGrid);
-    $('#resRangeTo').addEventListener('change', renderAvailabilityGrid);
+    const prev = $('#resCalPrev');
+    const today = $('#resCalToday');
+    const next = $('#resCalNext');
+    if (prev)  prev.addEventListener('click', () => shiftCal(-1));
+    if (next)  next.addEventListener('click', () => shiftCal(+1));
+    if (today) today.addEventListener('click', jumpToToday);
+    $$('.tsh-cal-view').forEach((btn) => {
+      if (btn.disabled) return;
+      btn.addEventListener('click', () => {
+        const v = btn.getAttribute('data-cal-view');
+        if (!v || v === calView) return;
+        setView(v);
+      });
+    });
     $('#resManageSearch').addEventListener('input', () => renderManageList());
     $('#resManageStatus').addEventListener('change', () => refreshManage());
   }
 
-  // -------------------------------------------------------- availability grid
+  function setView(view) {
+    calView = view;
+    // When switching Week → Day, anchor on the day the user was likely
+    // looking at (today if it's in the visible week, otherwise the week's
+    // Monday). Day → Week anchors on the Monday of the visible day.
+    if (view === 'day') {
+      const today = istToday();
+      const weekStart = calAnchor;
+      const weekEnd = addDays(weekStart, 6);
+      calAnchor = (today >= weekStart && today <= weekEnd) ? today : weekStart;
+    } else if (view === 'week') {
+      calAnchor = mondayOf(calAnchor || istToday());
+    }
+    updateViewButtons();
+    renderCalendar();
+  }
 
-  async function renderAvailabilityGrid() {
+  function shiftCal(direction) {
+    const step = calView === 'day' ? 1 : 7;
+    calAnchor = addDays(calAnchor || istToday(), direction * step);
+    renderCalendar();
+  }
+
+  function jumpToToday() {
+    calAnchor = calView === 'day' ? istToday() : mondayOf(istToday());
+    renderCalendar();
+  }
+
+  function updateViewButtons() {
+    $$('.tsh-cal-view').forEach((btn) => {
+      btn.classList.toggle('tsh-cal-view-active', btn.getAttribute('data-cal-view') === calView);
+    });
+  }
+
+  function calRange() {
+    // How many days the current view spans, and the anchor.
+    if (calView === 'day') {
+      return { from: calAnchor, to: calAnchor, days: 1 };
+    }
+    // Week
+    return { from: calAnchor, to: addDays(calAnchor, 6), days: 7 };
+  }
+
+  function calRangeLabel(range) {
+    if (range.days === 1) return friendlyRelDate(range.from) + ' · ' + friendlyDate(range.from);
+    const a = ymdToParts(range.from);
+    const b = ymdToParts(range.to);
+    const monthA = partsToDate(a).toLocaleDateString(undefined, { month: 'short' });
+    const monthB = partsToDate(b).toLocaleDateString(undefined, { month: 'short' });
+    if (a.y === b.y && a.m === b.m) return `${monthA} ${a.d}–${b.d}, ${a.y}`;
+    if (a.y === b.y)                return `${monthA} ${a.d} – ${monthB} ${b.d}, ${a.y}`;
+    return `${monthA} ${a.d}, ${a.y} – ${monthB} ${b.d}, ${b.y}`;
+  }
+
+  // -------------------------------------------------------- calendar renderer
+
+  async function renderCalendar() {
     if (!selectedFacility) return;
-    const host = $('#resAvailabilityGrid');
-    const from = $('#resRangeFrom').value || istToday();
-    const to   = $('#resRangeTo').value   || istPlusDays(14);
-    host.innerHTML = '';
-    const spinner = document.createElement('p');
-    spinner.className = 'tsh-hint';
-    spinner.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading availability…';
-    host.appendChild(spinner);
+    const host = $('#resCalendar');
+    if (!host) return;
+    const range = calRange();
+    const label = $('#resCalLabel');
+    if (label) label.textContent = calRangeLabel(range);
+    host.innerHTML = '<p class="tsh-hint" style="padding:14px"><i class="fas fa-spinner fa-spin"></i> Loading availability…</p>';
     let payload;
     try {
-      payload = await root.Api.get(`/facilities/${encodeURIComponent(selectedFacility.id)}/availability?from=${from}&to=${to}`);
+      payload = await root.Api.get(
+        `/facilities/${encodeURIComponent(selectedFacility.id)}/availability?from=${range.from}&to=${range.to}`
+      );
     } catch (e) {
       host.innerHTML = '<p class="tsh-empty">Could not load availability: ' + escape(e && e.message || String(e)) + '</p>';
       return;
     }
-    host.innerHTML = '';
-    const grid = document.createElement('div');
-    grid.className = 'tsh-res-grid';
-    grid.style.gridTemplateColumns = `100px repeat(${selectedFacility.slots.length}, 1fr)`;
+    calPayload = payload;
+    drawCalendar(host, payload, range);
+  }
 
-    // Header row
-    grid.appendChild(headCell('Date'));
-    selectedFacility.slots.forEach((s) => grid.appendChild(headCell(s.label)));
+  function drawCalendar(host, payload, range) {
+    host.innerHTML = '';
+    const open = payload.open || {};
+    const openMin  = Number.isFinite(open.openMin)  ? open.openMin  : 6 * 60;
+    const closeMin = Number.isFinite(open.closeMin) ? open.closeMin : 23 * 60;
+    const stepMin  = Number.isFinite(open.stepMinutes) ? open.stepMinutes : 30;
+    const rowH     = 24; // px per step row
+    const totalMin = Math.max(stepMin, closeMin - openMin);
+    const totalRows = Math.ceil(totalMin / stepMin);
+
+    // Map date → busy list from server.
+    const dayIndex = new Map();
+    (payload.days || []).forEach((d) => dayIndex.set(d.date, d));
+
+    const cols = range.days;
+    const wrap = document.createElement('div');
+    wrap.className = 'tsh-cal-week';
+    wrap.style.setProperty('--cal-cols', String(cols));
+    wrap.style.setProperty('--cal-row-h', rowH + 'px');
+
+    // ---------------- HEADER ROW
+    const corner = document.createElement('div');
+    corner.className = 'tsh-cal-corner tsh-cal-daycol-head';
+    corner.setAttribute('aria-hidden', 'true');
+    wrap.appendChild(corner);
 
     const today = istToday();
     const nowMs = Date.now();
-    const minAdvanceMs = (selectedFacility.policy.minAdvanceHours || 0) * 3600 * 1000;
+    const minAdvanceMs = ((selectedFacility.policy && selectedFacility.policy.minAdvanceHours) || 0) * 3600 * 1000;
 
-    (payload.days || []).forEach((day) => {
-      const cell = document.createElement('div');
-      cell.className = 'tsh-res-grid-day';
-      cell.innerHTML =
-        '<span>' + escape(friendlyRelDate(day.date)) + '</span>' +
-        '<span class="tsh-res-grid-daydate">' + escape(day.date) + '</span>';
-      grid.appendChild(cell);
+    const dayCells = [];       // for body pass
+    for (let i = 0; i < cols; i++) {
+      const date = addDays(range.from, i);
+      const dayInfo = dayIndex.get(date) || { date, blackout: false, busy: [] };
+      const head = document.createElement('div');
+      head.className = 'tsh-cal-daycol-head';
+      if (date === today) head.classList.add('tsh-cal-today');
+      if (date < today) head.classList.add('tsh-cal-past');
+      if (dayInfo.blackout) head.classList.add('tsh-cal-blackout');
+      const dt = partsToDate(ymdToParts(date));
+      head.innerHTML =
+        '<span>' + dt.toLocaleDateString(undefined, { weekday: 'short' }) + '</span>' +
+        '<strong>' + dt.getUTCDate() + '</strong>';
+      wrap.appendChild(head);
+      dayCells.push({ date, dayInfo });
+    }
 
-      day.slots.forEach((slot) => {
-        const c = document.createElement('button');
-        c.type = 'button';
-        c.className = 'tsh-res-grid-cell';
-        // Compute IST epoch for this slot to enforce min-advance visually.
-        const [y, m, d] = day.date.split('-').map(Number);
-        const startMs = Date.UTC(y, m - 1, d, 0, 0, 0, 0) - IST_OFFSET_MS + slot.startHour * 3600 * 1000;
-        const inPast = startMs - nowMs < minAdvanceMs;
+    // ---------------- BODY: time gutter
+    const timecol = document.createElement('div');
+    timecol.className = 'tsh-cal-timecol';
+    timecol.style.gridRow = 'auto';
+    for (let r = 0; r < totalRows; r++) {
+      const cellMin = openMin + r * stepMin;
+      const t = document.createElement('div');
+      t.className = 'tsh-cal-timecol-cell';
+      // Label only on the hour to keep the gutter uncluttered.
+      t.textContent = (cellMin % 60 === 0) ? formatHHMM(cellMin) : '';
+      timecol.appendChild(t);
+    }
+    wrap.appendChild(timecol);
 
-        let label = 'Available';
-        if (slot.status === 'confirmed') {
-          c.classList.add('tsh-res-grid-cell-confirmed');
-          label = 'Confirmed';
-        } else if (slot.status === 'held') {
-          c.classList.add('tsh-res-grid-cell-held');
-          label = 'Requested';
-        } else if (slot.status === 'blackout' || day.blackout) {
-          c.classList.add('tsh-res-grid-cell-blackout');
-          label = 'Blocked';
-        } else if (inPast) {
-          c.classList.add('tsh-res-grid-cell-past');
-          label = 'Available';
+    // ---------------- BODY: day columns with busy blocks
+    dayCells.forEach(({ date, dayInfo }) => {
+      const col = document.createElement('div');
+      col.className = 'tsh-cal-daycol';
+      if (dayInfo.blackout) col.classList.add('tsh-cal-blackout');
+
+      // Click rows (one per step).
+      for (let r = 0; r < totalRows; r++) {
+        const cellMin = openMin + r * stepMin;
+        const slot = document.createElement('div');
+        slot.className = 'tsh-cal-slot';
+        slot.setAttribute('data-date', date);
+        slot.setAttribute('data-min', String(cellMin));
+        // Determine if this cell is in the past (min-advance enforced).
+        const [y, m, d] = date.split('-').map(Number);
+        const startMs = Date.UTC(y, m - 1, d, 0, 0, 0, 0) - IST_OFFSET_MS + cellMin * 60 * 1000;
+        const inPast = (startMs - nowMs) < minAdvanceMs;
+        if (inPast || dayInfo.blackout) slot.classList.add('tsh-cal-slot-past');
+        else {
+          slot.addEventListener('click', () => {
+            const dur = defaultDurationFor(cellMin, closeMin, selectedFacility.policy);
+            openBookModal(date, cellMin, Math.min(closeMin, cellMin + dur));
+          });
         }
+        col.appendChild(slot);
+      }
 
-        c.innerHTML = '<div>' + escape(label) + '</div>';
-        if (slot.status === 'available' && !inPast) {
-          c.addEventListener('click', () => openBookModal(day.date, slot));
-        } else if (slot.status === 'held' || slot.status === 'confirmed') {
-          c.addEventListener('click', () => openReservationById(slot.reservationId));
+      // Busy blocks (absolute positioning).
+      (dayInfo.busy || []).forEach((b) => {
+        const s = Math.max(openMin, Number(b.startMin) || 0);
+        const e = Math.min(closeMin, Number(b.endMin) || 0);
+        if (e <= s) return;
+        const top    = ((s - openMin) / stepMin) * rowH;
+        const height = Math.max(rowH * 0.75, ((e - s) / stepMin) * rowH);
+        const ev = document.createElement('div');
+        ev.className = 'tsh-cal-event tsh-cal-ev-' + (b.status === 'confirmed' ? 'confirmed' : 'held');
+        ev.style.top = top + 'px';
+        ev.style.height = (height - 2) + 'px';
+        ev.innerHTML =
+          '<span class="tsh-cal-event-time">' + formatHHMM(s) + '–' + formatHHMM(e) + '</span>' +
+          '<span class="tsh-cal-event-title">' + (b.status === 'confirmed' ? 'Confirmed' : 'Requested') + '</span>';
+        ev.title = `${formatHHMM(s)}–${formatHHMM(e)} · ${b.status}`;
+        if (b.reservationId) {
+          ev.addEventListener('click', (ev2) => {
+            ev2.stopPropagation();
+            openReservationById(b.reservationId);
+          });
         }
-        grid.appendChild(c);
+        col.appendChild(ev);
       });
+
+      // "Now" indicator when Today is in this column.
+      if (date === today) {
+        const nowIst = new Date(Date.now() + IST_OFFSET_MS);
+        const nowMin = nowIst.getUTCHours() * 60 + nowIst.getUTCMinutes();
+        if (nowMin >= openMin && nowMin <= closeMin) {
+          const nowLine = document.createElement('div');
+          nowLine.className = 'tsh-cal-now';
+          nowLine.style.top = (((nowMin - openMin) / stepMin) * rowH) + 'px';
+          col.appendChild(nowLine);
+        }
+      }
+
+      wrap.appendChild(col);
     });
-    host.appendChild(grid);
+
+    host.appendChild(wrap);
   }
 
-  function headCell(text) {
-    const c = document.createElement('div');
-    c.className = 'tsh-res-grid-head';
-    c.textContent = text;
-    return c;
+  function defaultDurationFor(startMin, closeMin, policy) {
+    const p = policy || {};
+    const minD = Number.isFinite(p.minDurationMinutes) ? p.minDurationMinutes : 60;
+    const maxD = Number.isFinite(p.maxDurationMinutes) ? p.maxDurationMinutes : 8 * 60;
+    // Aim for the smaller of "60 minutes" and "as much time as remains".
+    const remaining = Math.max(0, closeMin - startMin);
+    return Math.max(minD, Math.min(60, remaining, maxD));
   }
 
   // -------------------------------------------------------- book modal
 
-  function openBookModal(date, slot) {
+  function openBookModal(date, startMin, endMin) {
     if (!selectedFacility) return;
     const isStaff = who && root.Flags.isAtLeast && root.Flags.isAtLeast(who.primary, 'MANAGER');
-
-    const wrap = document.createElement('div');
-    wrap.className = 'tsh-form';
     const policy = selectedFacility.policy || {};
     const perFlatCap = Number(policy.maxPerFlatPerYear || 2);
     const chargesInfo = (policy.chargesInfo || '').trim();
+    const stepMin = Number.isFinite(policy.stepMinutes) ? policy.stepMinutes : 30;
+    const minD = Number.isFinite(policy.minDurationMinutes) ? policy.minDurationMinutes : 60;
+    const maxD = Number.isFinite(policy.maxDurationMinutes) ? policy.maxDurationMinutes : 8 * 60;
+    const closeMin = Number.isFinite(policy.closeMin) ? policy.closeMin : 23 * 60;
+
+    // Build duration options in policy-compliant increments.
+    const durChoices = [];
+    for (let d = minD; d <= maxD; d += stepMin) durChoices.push(d);
+    const initialDur = Math.max(minD, Math.min(maxD, endMin - startMin));
+
+    const durLabel = (d) => {
+      const h = Math.floor(d / 60), m = d % 60;
+      if (m === 0) return h + ' hour' + (h === 1 ? '' : 's');
+      return h ? `${h}h ${m}m` : `${m}m`;
+    };
+
+    const wrap = document.createElement('div');
+    wrap.className = 'tsh-form';
     wrap.innerHTML =
       '<div class="tsh-form-row"><label><span class="tsh-form-label">Facility</span>' +
       '<input type="text" value="' + escape(selectedFacility.name) + '" disabled /></label></div>' +
-      '<div class="tsh-form-row"><label><span class="tsh-form-label">Date &amp; slot</span>' +
-      '<input type="text" value="' + escape(friendlyDate(date)) + ' · ' + escape(slot.label) + '" disabled /></label></div>' +
+      '<div class="tsh-form-row"><label><span class="tsh-form-label">Date</span>' +
+      '<input type="text" value="' + escape(friendlyRelDate(date) + ' · ' + friendlyDate(date)) + '" disabled /></label></div>' +
+      '<div class="tsh-form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' +
+        '<label><span class="tsh-form-label">Start time</span>' +
+        '<input type="time" data-book-start value="' + formatHHMM(startMin) + '" step="' + (stepMin * 60) + '" required /></label>' +
+        '<label><span class="tsh-form-label">Duration</span>' +
+        '<select data-book-duration>' +
+          durChoices.map((d) => '<option value="' + d + '"' + (d === initialDur ? ' selected' : '') + '>' + durLabel(d) + '</option>').join('') +
+        '</select></label>' +
+      '</div>' +
+      '<p class="tsh-hint" style="margin-top:-2px;font-size:12px;"><i class="far fa-clock"></i> End time: <strong data-book-end-label>' + formatHHMM(endMin) + '</strong></p>' +
       '<div class="tsh-form-row"><label><span class="tsh-form-label">Purpose <span style="color:#dc2626">*</span></span>' +
       '<input type="text" data-book-purpose maxlength="400" placeholder="e.g., 8th birthday party for A-101" required /></label></div>' +
       '<div class="tsh-form-row"><label><span class="tsh-form-label">Flat number <span style="color:#dc2626">*</span></span>' +
@@ -359,6 +582,20 @@
         (policy.paymentPayee ? ' to ' + escape(policy.paymentPayee) : '') +
         '. You will be asked to upload payment proof after the booking is created.</p>' : '');
 
+    // Live-update the "End time" label as user edits start/duration.
+    const startEl    = wrap.querySelector('[data-book-start]');
+    const durEl      = wrap.querySelector('[data-book-duration]');
+    const endLabelEl = wrap.querySelector('[data-book-end-label]');
+    const parseHM = (s) => { const [h, m] = String(s || '').split(':').map(Number); return (h || 0) * 60 + (m || 0); };
+    const updateEnd = () => {
+      const s = parseHM(startEl.value);
+      const d = Number(durEl.value) || minD;
+      const e = Math.min(closeMin, s + d);
+      endLabelEl.textContent = formatHHMM(e);
+    };
+    startEl.addEventListener('change', updateEnd);
+    durEl.addEventListener('change', updateEnd);
+
     root.UI.modal({
       title: 'Request Reservation',
       body: wrap,
@@ -375,19 +612,21 @@
       const owner   = ownerEl ? ownerEl.value.trim() : '';
       if (!purpose || purpose.length < 3) { root.UI.toast('Please describe the purpose (min 3 characters).', { kind: 'warn' }); return; }
       if (!flat) { root.UI.toast('Flat number is required — it is used to enforce the yearly booking limit.', { kind: 'warn' }); return; }
-      submitBooking(date, slot.id, purpose, flat, phone, owner);
+      const sMin = parseHM(startEl.value);
+      const eMin = Math.min(closeMin, sMin + (Number(durEl.value) || minD));
+      submitBooking(date, formatHHMM(sMin), formatHHMM(eMin), purpose, flat, phone, owner);
     });
     setTimeout(() => wrap.querySelector('[data-book-purpose]').focus(), 60);
   }
 
-  async function submitBooking(date, slotId, purpose, flat, phone, ownerEmail) {
-    const body = { facilityId: selectedFacility.id, date, slotId, purpose, ownerFlat: flat };
+  async function submitBooking(date, startTime, endTime, purpose, flat, phone, ownerEmail) {
+    const body = { facilityId: selectedFacility.id, date, startTime, endTime, purpose, ownerFlat: flat };
     if (phone) body.ownerPhone = phone;
     if (ownerEmail) body.ownerEmail = ownerEmail;
     try {
       const res = await root.Api.post('/reservations', body);
       root.UI.toast('Reservation ' + res.reservation.id + ' created.', { kind: 'success' });
-      renderAvailabilityGrid();
+      renderCalendar();
       refreshMine();
       refreshManage();
     } catch (e) {
@@ -467,7 +706,7 @@
       '<div>' +
         '<h3 class="tsh-res-card-title">' + escape(r.facilityLabel) + '</h3>' +
         '<div class="tsh-res-card-meta">' +
-          '<i class="fas fa-calendar-day"></i> ' + escape(friendlyRelDate(r.date)) + ' · ' + escape(r.slotLabel) +
+          '<i class="fas fa-calendar-day"></i> ' + escape(friendlyRelDate(r.date)) + ' · ' + escape(reservationTimeLabel(r)) +
         '</div>' +
       '</div>' +
       '<span class="tsh-res-pill tsh-res-pill-' + r.status + '">' + escape(RESIDENT_STATUS_LABEL[r.status] || r.status) + '</span>';
@@ -557,7 +796,7 @@
     const meEmail = (who && who.email || '').toLowerCase();
     const isOwner = r.owner.email.toLowerCase() === meEmail;
     wrap.innerHTML =
-      '<p><strong>' + escape(r.facilityLabel) + '</strong> · ' + escape(friendlyRelDate(r.date)) + ' · ' + escape(r.slotLabel) + '</p>' +
+      '<p><strong>' + escape(r.facilityLabel) + '</strong> · ' + escape(friendlyRelDate(r.date)) + ' · ' + escape(reservationTimeLabel(r)) + '</p>' +
       '<p style="margin:6px 0"><span class="tsh-res-pill tsh-res-pill-' + r.status + '">' + escape(RESIDENT_STATUS_LABEL[r.status] || r.status) + '</span> · ID <code>' + escape(r.id) + '</code></p>' +
       '<p style="margin:6px 0;font-size:13px">' + escape(r.purpose) + '</p>' +
       (isStaff ?
@@ -699,7 +938,7 @@
     try {
       await root.Api.patch('/reservations/' + encodeURIComponent(r.id), { status: to });
       root.UI.toast('Reservation ' + to + '.', { kind: 'success' });
-      renderAvailabilityGrid();
+      if (selectedFacility) renderCalendar();
       refreshMine();
       refreshManage();
     } catch (e) {
@@ -726,7 +965,7 @@
     try {
       await root.Api.patch('/reservations/' + encodeURIComponent(r.id), { status: 'rejected', note: reason });
       root.UI.toast('Reservation rejected.', { kind: 'success' });
-      renderAvailabilityGrid();
+      if (selectedFacility) renderCalendar();
       refreshMine();
       refreshManage();
     } catch (e) {

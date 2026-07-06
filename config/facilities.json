@@ -7,16 +7,16 @@
       "description": "Main community hall for events, functions, and gatherings.",
       "enabled": true,
       "capacity": 100,
-      "slots": [
-        { "id": "morning",   "label": "Morning",   "startHour": 6,  "endHour": 12 },
-        { "id": "afternoon", "label": "Afternoon", "startHour": 12, "endHour": 18 },
-        { "id": "evening",   "label": "Evening",   "startHour": 18, "endHour": 23 }
-      ],
       "policy": {
         "minAdvanceHours": 24,
         "maxAdvanceDays": 90,
         "maxConcurrentPerOwner": 3,
         "maxPerFlatPerYear": 2,
+        "openMin": 360,
+        "closeMin": 1380,
+        "stepMinutes": 30,
+        "minDurationMinutes": 60,
+        "maxDurationMinutes": 480,
         "requiresApproval": true,
         "requiresPayment": false,
         "paymentAmount": 0,

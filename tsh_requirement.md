@@ -864,12 +864,12 @@ Two files under `config/`:
         "description": "…",
         "enabled": true,
         "capacity": 100,
-        "slots": [
-          { "id": "morning",   "label": "Morning",   "startHour": 6,  "endHour": 12 },
-          { "id": "afternoon", "label": "Afternoon", "startHour": 12, "endHour": 18 },
-          { "id": "evening",   "label": "Evening",   "startHour": 18, "endHour": 23 }
-        ],
         "policy": {
+          "openMin": 360,               // 06:00 — first bookable minute (IST minutes-from-midnight)
+          "closeMin": 1380,             // 23:00 — last bookable minute
+          "stepMinutes": 30,            // booking-time grid resolution
+          "minDurationMinutes": 60,     // shortest allowed booking
+          "maxDurationMinutes": 480,    // longest allowed booking (8h)
           "minAdvanceHours": 24,
           "maxAdvanceDays": 90,
           "maxConcurrentPerOwner": 3,
@@ -886,13 +886,15 @@ Two files under `config/`:
     ]
   }
   ```
+  Legacy facilities may still declare a fixed `slots: [{id,label,startHour,endHour}]` list for the old three-slot UX; the engine keeps accepting `slotId` on POST for backward compatibility.
 - **`config/reservations.json`** — auto-managed. Active + recently-terminal reservations, capped at 500. Each record:
   ```
   {
     "id": "RES-DDMMYYHHMM[-N]",  // IST minute, same scheme as TKT-
     "facilityId", "facilityLabel",
     "date": "YYYY-MM-DD",         // IST
-    "slotId", "slotLabel",
+    "startMin", "endMin",         // IST minutes-from-midnight; endMin > startMin, aligned to stepMinutes
+    "slotId?", "slotLabel?",      // legacy — only set when the booking came in via slotId
     "purpose",
     "status": "requested" | "under-review" | "confirmed" | "rejected" | "cancelled",
     "owner":     { email, name?, flat?, phone?, role? },
@@ -917,8 +919,8 @@ All routes: JWT-required, gated by `FEATURE_TSH_RESERVATIONS`.
 |---|---|---|---|
 | GET | `/facilities` | RESIDENT+ | Enabled facilities only. |
 | GET | `/facilities/:id` | RESIDENT+ | Includes policy + rules. |
-| GET | `/facilities/:id/availability?from=&to=` | RESIDENT+ | Per-day per-slot: `available` / `held` / `confirmed` / `blackout`. Range ≤ 120 days. |
-| POST | `/reservations` | RESIDENT+ | Body: `facilityId, date, slotId, purpose, ownerFlat` (required — flat is normalized case/space-insensitive and used for the annual quota). Optional: `ownerPhone, ownerEmail, ownerName`. `ownerEmail ≠ me` requires MANAGER+. Server enforces `minAdvanceHours`, `maxAdvanceDays`, `maxConcurrentPerOwner`, `maxPerFlatPerYear` (default **2** — active bookings per flat per IST calendar year, cancelled/rejected records do not count), blackout dates, slot uniqueness. Auto-confirms if `requiresApproval=false`. |
+| GET | `/facilities/:id/availability?from=&to=` | RESIDENT+ | Response shape: `{ open: { openMin, closeMin, stepMinutes, minDurationMinutes, maxDurationMinutes }, days: [{ date, blackout, busy: [{ startMin, endMin, status: 'held'|'confirmed', reservationId }] }] }`. Busy list is sorted by `startMin`. Range ≤ 120 days. |
+| POST | `/reservations` | RESIDENT+ | Body: `facilityId, date, purpose, ownerFlat` (all required — flat is normalized case/space-insensitive and used for the annual quota) **plus** either `startTime` + `endTime` (`HH:MM`, canonical) **or** legacy `slotId`. Optional: `ownerPhone, ownerEmail, ownerName`. `ownerEmail ≠ me` requires MANAGER+. Server enforces `openMin/closeMin` bounds, `stepMinutes` alignment, `min/maxDurationMinutes`, overlap against existing active bookings, `minAdvanceHours`, `maxAdvanceDays`, `maxConcurrentPerOwner`, `maxPerFlatPerYear` (default **2** — active bookings per flat per IST calendar year, cancelled/rejected records do not count), and blackout dates. Auto-confirms if `requiresApproval=false`. |
 | GET | `/reservations?scope=&status=&facilityId=&q=` | RESIDENT+ | Residents are always scoped to their own; MANAGER+ can request `scope=all`. |
 | GET | `/reservations/:id` | owner or MANAGER+ | 403 otherwise. |
 | PATCH | `/reservations/:id` | see below | Body: `status, note?`. Approve/under-review requires MANAGER+; reject requires MANAGER+ **and** a `note` (reason); cancel is allowed by the owner or MANAGER+. Terminal states (`rejected`, `cancelled`) are one-way. |
@@ -926,7 +928,9 @@ All routes: JWT-required, gated by `FEATURE_TSH_RESERVATIONS`.
 
 ### 18.3 UI
 
-See §8.8. Three tabs: **Book / My reservations / Manage** (staff-only). Mobile-first cards, half-day slot grid, inline approve/reject, one universal search on the manage queue.
+See §8.8. Three tabs: **Book / My reservations / Manage** (staff-only). Mobile-first cards, inline approve/reject, one universal search on the manage queue.
+
+The Book tab is a **Google-Calendar-style time-range picker** — no fixed morning/afternoon/evening columns. A toolbar exposes **Prev / Today / Next** navigation plus a **Week / Day / Month** view switcher (Month view arrives in Stage 2). Each day column is a 30-minute grid; busy blocks are absolutely positioned by `startMin`/`endMin` with colour by status (`held` = amber, `confirmed` = red, `blackout` = hatched). Clicking any free 30-minute row opens the booking modal pre-filled with that start time and a 1-hour default duration; the resident can adjust start-time and choose a duration from a policy-compliant dropdown (60 min → `maxDurationMinutes`, stepped by `stepMinutes`). The end-time is shown live below the row. Screens ≤ 480 px auto-collapse the week grid into single-day view for readability.
 
 ### 18.4 Phasing
 
@@ -934,6 +938,7 @@ See §8.8. Three tabs: **Book / My reservations / Manage** (staff-only). Mobile-
 - **Phase 2 (shipped):** payment-proof uploads (image + PDF) reusing the same in-repo binary pipeline as issue photos, but downloads are served through the **auth-gated worker route** `GET /reservations/:id/payment-proof/:idx` — never via a public `raw.githubusercontent` URL — because payment screenshots contain PII. Adds `payment` sub-object on each reservation and three timeline events (`payment-uploaded`, `payment-verified`, `payment-rejected`). Confirming a booking on a paid facility is gated on `payment.status === 'verified'`. See §18.6.
 - **Phase 3 (shipped):** Google Calendar mirror — see §20. Flag `FEATURE_TSH_RESERVATIONS_CALENDAR` (default **off**). Fires on `→ confirmed` (create event) and `→ cancelled` / `→ rejected` (delete event). Best-effort with retry queue and ADMIN-only status + drain endpoints. App DB stays the source of truth.
 - **Phase 4 (shipped):** notification subsystem — see §19. In-app inbox first (header bell + polling); email/WhatsApp adapters slot in later without touching call sites. Reservation events (create / approve / reject / cancel / comment / payment-uploaded / payment-verified / payment-rejected) all wired.
+- **Phase 5 — Time-range engine + Week view (shipped, Stage 1 of the UX cut-over):** Fixed 3-slot bookings replaced by free-form `startMin`/`endMin` time ranges. Facilities configure `openMin`, `closeMin`, `stepMinutes`, `minDurationMinutes`, `maxDurationMinutes` in policy. Conflicts are detected by interval overlap (not slot equality); back-to-back bookings that touch endpoints are allowed. The frontend Book tab is a Google-Calendar-style Week / Day view with click-to-book. Legacy `slotId` requests still accepted for backward compatibility (server backfills `startMin`/`endMin` from the slot label or the facility's `slots[]`). **Stage 2 (Month view)** and **Stage 3 (Year overview + agenda polish)** are pending.
 - **Later:** additional facilities (Guest Room, Sports Court, Pool, EV Charger, Parking) — pure config edits to `config/facilities.json`.
 
 ### 18.5 Backups & retention

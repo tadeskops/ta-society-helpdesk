@@ -96,14 +96,27 @@ const send = (method: string, path: string, body?: any, identity?: string) => {
     headers['X-Test-Identity'] = identity;
     headers['Authorization'] = `Bearer fake-jwt-for-${identity}`;
   }
-  // Convenience for the many legacy cases that predate the required
-  // ownerFlat field: if a POST /reservations body doesn't set a flat,
-  // fill in a default so the yearly-quota check has something to key on.
-  // Focused flat-required / flat-quota tests pass their own value and are
-  // therefore unaffected.
+  // Convenience shim for legacy tests written against the fixed-slot
+  // engine. On POST /reservations we translate a shorthand slotId into
+  // startTime/endTime and inject a default ownerFlat when absent, so
+  // the pre-cutover test bodies keep working. Focused time-range and
+  // flat-required tests pass their own values and are unaffected.
   let effectiveBody = body;
-  if (method === 'POST' && path === '/reservations' && body && typeof body === 'object' && !('ownerFlat' in body)) {
-    effectiveBody = { ...body, ownerFlat: 'A-101' };
+  if (method === 'POST' && path === '/reservations' && body && typeof body === 'object') {
+    const b: any = { ...body };
+    if (!('ownerFlat' in b)) b.ownerFlat = 'A-101';
+    if (!('startTime' in b) && !('endTime' in b) && typeof b.slotId === 'string') {
+      const map: Record<string, [string, string]> = {
+        morning:   ['06:00', '12:00'],
+        afternoon: ['12:00', '18:00'],
+        evening:   ['18:00', '23:00'],
+        day:       ['08:00', '20:00'],
+      };
+      const times = map[b.slotId];
+      if (times) { b.startTime = times[0]; b.endTime = times[1]; }
+      delete b.slotId;
+    }
+    effectiveBody = b;
   }
   return worker.fetch(
     new Request(`https://w.x${path}`, { method, headers, ...(effectiveBody ? { body: JSON.stringify(effectiveBody) } : {}) }),
@@ -133,6 +146,11 @@ const seedFacilities = () => {
             maxAdvanceDays: 365,
             maxConcurrentPerOwner: 2,
             maxPerFlatPerYear: 99,
+            openMin: 6 * 60,
+            closeMin: 23 * 60,
+            stepMinutes: 30,
+            minDurationMinutes: 60,
+            maxDurationMinutes: 8 * 60,
             requiresApproval: true,
             requiresPayment: false,
             paymentAmount: 0,
@@ -180,13 +198,16 @@ describe('GET /facilities', () => {
 });
 
 describe('GET /facilities/:id/availability', () => {
-  it('marks all slots available when no bookings exist', async () => {
+  it('returns an empty busy list when no bookings exist', async () => {
     const d = soon();
     const r = await send('GET', `/facilities/community-hall/availability?from=${d}&to=${d}`, undefined, 'resident1@x.com');
     expect(r.status).toBe(200);
     const j = await r.json() as any;
     expect(j.data.days).toHaveLength(1);
-    expect(j.data.days[0].slots.every((s: any) => s.status === 'available')).toBe(true);
+    expect(j.data.days[0].busy).toEqual([]);
+    expect(j.data.open.stepMinutes).toBe(30);
+    expect(j.data.open.openMin).toBeGreaterThanOrEqual(0);
+    expect(j.data.open.closeMin).toBeGreaterThan(j.data.open.openMin);
   });
 });
 
@@ -216,7 +237,7 @@ describe('POST /reservations', () => {
     expect(r.status).toBe(401);
   });
 
-  it('rejects conflicts on the same facility/date/slot', async () => {
+  it('rejects overlapping bookings on the same facility/date', async () => {
     const d = soon();
     const a = await send('POST', '/reservations', {
       facilityId: 'community-hall', date: d, slotId: 'morning', purpose: 'First',
@@ -227,7 +248,7 @@ describe('POST /reservations', () => {
     }, 'resident2@x.com');
     expect(b.status).toBe(400);
     const j = await b.json() as any;
-    expect(j.error).toMatch(/slot/i);
+    expect(j.error).toMatch(/overlap/i);
   });
 
   it('enforces per-owner concurrency cap', async () => {
@@ -268,6 +289,84 @@ describe('POST /reservations', () => {
       purpose: 'sneaky', ownerEmail: 'someone@x.com',
     }, 'resident1@x.com');
     expect(r.status).toBe(403);
+  });
+});
+
+describe('POST /reservations — time-range validation', () => {
+  const dbase = () => soon();
+
+  it('accepts a free-form 90-minute booking', async () => {
+    const r = await send('POST', '/reservations', {
+      facilityId: 'community-hall', date: dbase(),
+      startTime: '10:00', endTime: '11:30',
+      purpose: 'Yoga class', ownerFlat: 'C-303',
+    }, 'resident1@x.com');
+    expect(r.status).toBe(201);
+    const j = await r.json() as any;
+    expect(j.data.reservation.startMin).toBe(600);
+    expect(j.data.reservation.endMin).toBe(690);
+  });
+
+  it('rejects step-misaligned times (step=30)', async () => {
+    const r = await send('POST', '/reservations', {
+      facilityId: 'community-hall', date: dbase(),
+      startTime: '10:15', endTime: '11:15',
+      purpose: 'test x', ownerFlat: 'C-303',
+    }, 'resident1@x.com');
+    expect(r.status).toBe(400);
+    const j = await r.json() as any;
+    expect(j.error).toMatch(/aligned/i);
+  });
+
+  it('rejects durations shorter than the minimum', async () => {
+    const r = await send('POST', '/reservations', {
+      facilityId: 'community-hall', date: dbase(),
+      startTime: '10:00', endTime: '10:30',
+      purpose: 'too short', ownerFlat: 'C-303',
+    }, 'resident1@x.com');
+    expect(r.status).toBe(400);
+    const j = await r.json() as any;
+    expect(j.error).toMatch(/minimum/i);
+  });
+
+  it('rejects durations longer than the maximum', async () => {
+    const r = await send('POST', '/reservations', {
+      facilityId: 'community-hall', date: dbase(),
+      startTime: '06:00', endTime: '17:00',
+      purpose: 'too long', ownerFlat: 'C-303',
+    }, 'resident1@x.com');
+    expect(r.status).toBe(400);
+    const j = await r.json() as any;
+    expect(j.error).toMatch(/maximum/i);
+  });
+
+  it('allows non-overlapping back-to-back bookings that touch endpoints', async () => {
+    const d = dbase();
+    const a = await send('POST', '/reservations', {
+      facilityId: 'community-hall', date: d,
+      startTime: '10:00', endTime: '11:00', purpose: 'first', ownerFlat: 'D-404',
+    }, 'resident1@x.com');
+    expect(a.status).toBe(201);
+    const b = await send('POST', '/reservations', {
+      facilityId: 'community-hall', date: d,
+      startTime: '11:00', endTime: '12:00', purpose: 'second', ownerFlat: 'D-405',
+    }, 'resident2@x.com');
+    expect(b.status).toBe(201);
+  });
+
+  it('rejects overlapping bookings with a helpful message', async () => {
+    const d = dbase();
+    await send('POST', '/reservations', {
+      facilityId: 'community-hall', date: d,
+      startTime: '10:00', endTime: '12:00', purpose: 'first', ownerFlat: 'E-505',
+    }, 'resident1@x.com');
+    const b = await send('POST', '/reservations', {
+      facilityId: 'community-hall', date: d,
+      startTime: '11:00', endTime: '13:00', purpose: 'second', ownerFlat: 'E-506',
+    }, 'resident2@x.com');
+    expect(b.status).toBe(400);
+    const j = await b.json() as any;
+    expect(j.error).toMatch(/overlap/i);
   });
 });
 
@@ -444,6 +543,11 @@ const seedPaidFacility = () => {
             maxAdvanceDays: 365,
             maxConcurrentPerOwner: 2,
             maxPerFlatPerYear: 99,
+            openMin: 8 * 60,
+            closeMin: 20 * 60,
+            stepMinutes: 30,
+            minDurationMinutes: 60,
+            maxDurationMinutes: 12 * 60,
             requiresApproval: true,
             requiresPayment: true,
             paymentAmount: 500,
