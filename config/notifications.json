@@ -496,6 +496,19 @@
       ],
       "link": "reservations.html?open=CH-0707260126",
       "actor": "ta.deskops@gmail.com"
+    },
+    {
+      "id": "NTF-mr9nb7bu-8",
+      "recipient": "ta.deskops@gmail.com",
+      "event": "payment-verified",
+      "title": "Payment verified · CH-0707260126",
+      "body": "Community Hall · 2026-07-16 · Verified from statement",
+      "createdAt": "2026-07-06T20:01:22.650Z",
+      "channels": [
+        "in-app"
+      ],
+      "link": "reservations.html?open=CH-0707260126",
+      "actor": "ta.deskops@gmail.com"
     }
   ]
 }
