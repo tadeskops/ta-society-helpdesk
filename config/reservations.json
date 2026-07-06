@@ -9,7 +9,7 @@
       "startMin": 570,
       "endMin": 810,
       "purpose": "Bday",
-      "status": "requested",
+      "status": "cancelled",
       "owner": {
         "email": "ta.deskops@gmail.com",
         "flat": "A-1601"
@@ -19,7 +19,7 @@
         "role": "ADMIN"
       },
       "createdAt": "2026-07-06T14:53:38.282Z",
-      "updatedAt": "2026-07-06T14:53:38.282Z",
+      "updatedAt": "2026-07-06T14:54:53.743Z",
       "timeline": [
         {
           "at": "2026-07-06T14:53:38.282Z",
@@ -29,6 +29,14 @@
           },
           "event": "created",
           "note": "Awaiting manager review."
+        },
+        {
+          "at": "2026-07-06T14:54:53.743Z",
+          "by": {
+            "email": "ta.deskops@gmail.com",
+            "role": "ADMIN"
+          },
+          "event": "cancelled"
         }
       ],
       "payment": {
