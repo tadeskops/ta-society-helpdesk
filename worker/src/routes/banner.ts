@@ -15,6 +15,7 @@ import { BadRequest } from '../lib/errors.ts';
 import { getFile, putFile } from '../github/client.ts';
 import { writeAudit } from '../lib/audit.ts';
 import { tunable } from '../config/defaults.ts';
+import { filterSeed } from '../lib/seed.ts';
 
 const BANNER_PATH = 'config/banner.json';
 const MAX_ITEMS = 20;
@@ -118,7 +119,7 @@ export const mountBanner = (r: Router): void => {
     ensureAllowed(ctx, { flags: ['FEATURE_DAILY_BANNER'] });
     const b = await loadBanner(ctx);
     const now = Date.now();
-    const active = b.items.filter((it) => !isExpired(it, now));
+    const active = filterSeed(b.items.filter((it) => !isExpired(it, now)), ctx.config);
     return ok(ctx.env, ctx.req, { version: b.version, items: active });
   });
 

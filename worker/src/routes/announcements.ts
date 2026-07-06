@@ -13,6 +13,7 @@ import { ensureAllowed } from '../middleware/rbac.ts';
 import { parseJson, str, optStr, isObj } from '../lib/validate.ts';
 import { BadRequest } from '../lib/errors.ts';
 import { getFile, putFile } from '../github/client.ts';
+import { filterSeed } from '../lib/seed.ts';
 import { writeAudit } from '../lib/audit.ts';
 import { tunable } from '../config/defaults.ts';
 
@@ -126,7 +127,7 @@ export const mountAnnouncements = (r: Router): void => {
     // Filter expired so residents never see stale notices. The storage
     // file is pruned the next time a writer saves.
     const now = Date.now();
-    const active = a.items.filter((it) => !isExpired(it, now));
+    const active = filterSeed(a.items.filter((it) => !isExpired(it, now)), ctx.config);
     return ok(ctx.env, ctx.req, { version: a.version, items: active });
   });
 

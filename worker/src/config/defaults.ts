@@ -70,7 +70,10 @@ export const DEFAULT_CONFIG: SiteConfig = {
     FEATURE_DAILY_COMMITTEE_DASHBOARD:    true,
     FEATURE_DAILY_KPI_DASHBOARD:          true,
     FEATURE_DAILY_COMMITTEE_VIEW:         true,
-    FEATURE_DAILY_SHOW_DEMO_ISSUES:       true,
+    // Fail-closed: seeded/demo content (issues + system@seed items) stays
+    // hidden unless a site explicitly turns this on. Prevents sample data
+    // from leaking to residents when site.json is missing / malformed.
+    FEATURE_DAILY_SHOW_DEMO_ISSUES:       false,
     FEATURE_DAILY_DIRECTORY:              true,
     FEATURE_DAILY_DIRECTORY_SERVICES:     true,
     FEATURE_DAILY_BANNER:                 true,

@@ -17,6 +17,7 @@ import { BadRequest } from '../lib/errors.ts';
 import { getFile, putFile } from '../github/client.ts';
 import { writeAudit } from '../lib/audit.ts';
 import { tunable } from '../config/defaults.ts';
+import { filterSeed } from '../lib/seed.ts';
 
 const EVT_PATH = 'config/events.json';
 const MAX_ITEMS = 50;
@@ -141,9 +142,9 @@ export const mountEvents = (r: Router): void => {
     const e = await load(ctx);
     const now = Date.now();
     // Sort upcoming first, then by closest eventAt; expired filtered out.
-    const active = e.items
+    const active = filterSeed(e.items
       .filter((it) => !isExpired(it, now))
-      .sort((a, b) => Date.parse(a.eventAt) - Date.parse(b.eventAt));
+      .sort((a, b) => Date.parse(a.eventAt) - Date.parse(b.eventAt)), ctx.config);
     return ok(ctx.env, ctx.req, { version: e.version, items: active });
   });
 

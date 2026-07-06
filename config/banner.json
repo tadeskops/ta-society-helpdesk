@@ -1,12 +1,4 @@
 {
   "version": 1,
-  "items": [
-    {
-      "id": "welcome",
-      "text": "Welcome to the Society Helpdesk \u2014 report any issue from the Daily Issue tile.",
-      "severity": "info",
-      "createdAt": "2026-06-28T00:00:00.000Z",
-      "createdBy": "system@seed"
-    }
-  ]
+  "items": []
 }

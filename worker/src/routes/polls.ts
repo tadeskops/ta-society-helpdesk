@@ -20,6 +20,7 @@ import { BadRequest, NotFound } from '../lib/errors.ts';
 import { getFile, putFile } from '../github/client.ts';
 import { writeAudit } from '../lib/audit.ts';
 import { tunable } from '../config/defaults.ts';
+import { filterSeed } from '../lib/seed.ts';
 
 const POLLS_PATH = 'config/polls.json';
 const VOTES_PATH = 'config/poll-votes.json';
@@ -169,7 +170,8 @@ export const mountPolls = (r: Router): void => {
     const polls = await loadPolls(ctx);
     const votes = await loadVotes(ctx);
     const myEmail = ctx.identity?.email;
-    const items = polls.items.map((p) => ({
+    const visible = filterSeed(polls.items, ctx.config);
+    const items = visible.map((p) => ({
       ...p,
       open: isPollOpen(p),
       totals: tallyPoll(p, votes),

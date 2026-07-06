@@ -28,6 +28,44 @@ const normaliseEmails = (raw: unknown): string[] => {
   return raw.filter((x): x is string => typeof x === 'string').map((s) => s.trim().toLowerCase()).filter(Boolean);
 };
 
+// Basic RFC-lite email shape: <local>@<label>.<tld≥2>. Catches obvious
+// typos (missing @, no dot, no TLD) but doesn't reject weird-but-valid
+// TLDs. Used only for surfacing warnings, never for filtering.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+// Common TLD suffixes we recognise. If an email's TLD isn't on this list
+// we log a warn — that's how we'd have caught ".coam" vs ".com".
+const KNOWN_TLDS = new Set([
+  'com', 'org', 'net', 'edu', 'gov', 'mil', 'int', 'co', 'io', 'ai',
+  'app', 'dev', 'me', 'in', 'us', 'uk', 'ca', 'au', 'de', 'fr', 'jp',
+  'info', 'biz', 'name', 'pro',
+]);
+
+const warnSuspiciousEmails = (env: Env, list: string, emails: string[]): void => {
+  for (const e of emails) {
+    if (!EMAIL_RE.test(e)) {
+      log.warn(env, 'config_access_email_malformed', { list, email: e });
+      continue;
+    }
+    const tld = e.split('.').pop() ?? '';
+    if (!KNOWN_TLDS.has(tld)) {
+      log.warn(env, 'config_access_email_suspicious_tld', { list, email: e, tld });
+    }
+  }
+};
+
+// Per-file loader that returns the parsed value, or `undefined` if the
+// file is truly missing (404). Any other failure — network error, JSON
+// parse error, upstream 5xx — is logged and treated as `undefined` so a
+// single bad file never silently blanks an allow-list without a trace.
+const loadOptional = async <T>(env: Env, path: string): Promise<T | undefined> => {
+  try {
+    return await getJson<T>(env, path);
+  } catch (e) {
+    log.warn(env, 'config_file_load_failed', { path, err: String(e) });
+    return undefined;
+  }
+};
+
 const deepMerge = <T>(base: T, override: Partial<T> | undefined): T => {
   if (!override) return base;
   const out: Record<string, unknown> = { ...(base as Record<string, unknown>) };
@@ -43,11 +81,11 @@ const deepMerge = <T>(base: T, override: Partial<T> | undefined): T => {
 
 const loadFromGithub = async (env: Env): Promise<{ config: SiteConfig; access: AccessLists }> => {
   const [siteRaw, mgrRaw, comRaw, adminRaw, devLegacyRaw] = await Promise.all([
-    getJson<Partial<SiteConfig>>(env, 'config/site.json').catch(() => undefined),
-    getJson<unknown>(env, 'config/managers.json').catch(() => []),
-    getJson<unknown>(env, 'config/committee.json').catch(() => []),
-    getJson<unknown>(env, 'config/admins.json').catch(() => undefined),
-    getJson<unknown>(env, 'config/developers.json').catch(() => undefined),
+    loadOptional<Partial<SiteConfig>>(env, 'config/site.json'),
+    loadOptional<unknown>(env, 'config/managers.json'),
+    loadOptional<unknown>(env, 'config/committee.json'),
+    loadOptional<unknown>(env, 'config/admins.json'),
+    loadOptional<unknown>(env, 'config/developers.json'),
   ]);
 
   const config = deepMerge(DEFAULT_CONFIG, siteRaw);
@@ -64,6 +102,10 @@ const loadFromGithub = async (env: Env): Promise<{ config: SiteConfig; access: A
     committee: normaliseEmails(comRaw),
     admins,
   };
+
+  warnSuspiciousEmails(env, 'managers',  access.managers);
+  warnSuspiciousEmails(env, 'committee', access.committee);
+  warnSuspiciousEmails(env, 'admins',    access.admins);
 
   return { config, access };
 };
