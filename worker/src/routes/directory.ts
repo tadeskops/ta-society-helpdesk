@@ -50,6 +50,9 @@ interface DirEntry {
   verified?: boolean;
   verifiedBy?: string;
   verifiedAt?: string;
+  // Landing-page pin. When true on an emergency contact, the home page
+  // renders it as a quick-call card at the top of the landing screen.
+  pinToHome?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -209,6 +212,7 @@ const sanitiseEntry = (raw: unknown, kind: 'vendor' | 'contact' | 'resource' | '
       out.verifiedAt = incomingAt || new Date().toISOString();
     }
   }
+  if (typeof raw['pinToHome'] === 'boolean' && raw['pinToHome']) out.pinToHome = true;
   return out;
 };
 

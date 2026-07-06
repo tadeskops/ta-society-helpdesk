@@ -361,3 +361,48 @@ describe('PUT /directory � services', () => {
     expect(r.status).toBe(400);
   });
 });
+
+
+describe('PUT /directory pinToHome', () => {
+  it('persists pinToHome=true on emergency contacts and echoes it back on GET', async () => {
+    const r = await send('PUT', '/directory', {
+      directory: {
+        version: 1, vendorCategories: [], serviceCategories: [],
+        vendors: [], contacts: [], resources: [], services: [],
+        emergency: [{
+          name: 'Amol Kharwadkar',
+          role: 'Society Manager',
+          phones: ['9272330487'],
+          notes: 'On Society Payroll',
+          pinToHome: true,
+        }],
+      },
+    }, 'mgr@x.com');
+    expect(r.status).toBe(200);
+    _resetDirectoryCacheForTests();
+    const g = await send('GET', '/directory');
+    const gj = await g.json() as any;
+    expect(gj.data.emergency).toHaveLength(1);
+    expect(gj.data.emergency[0].pinToHome).toBe(true);
+    expect(gj.data.emergency[0].role).toBe('Society Manager');
+  });
+
+  it('omits pinToHome when the field is missing or false', async () => {
+    const r = await send('PUT', '/directory', {
+      directory: {
+        version: 1, vendorCategories: [], serviceCategories: [],
+        vendors: [], contacts: [], resources: [], services: [],
+        emergency: [
+          { name: 'Security Desk', role: 'Security', phones: ['9000000000'], pinToHome: false },
+          { name: 'Backup Guard', role: 'Security', phones: ['9000000001'] },
+        ],
+      },
+    }, 'mgr@x.com');
+    expect(r.status).toBe(200);
+    _resetDirectoryCacheForTests();
+    const g = await send('GET', '/directory');
+    const gj = await g.json() as any;
+    expect(gj.data.emergency[0].pinToHome).toBeUndefined();
+    expect(gj.data.emergency[1].pinToHome).toBeUndefined();
+  });
+});

@@ -5225,3 +5225,137 @@ select.tsh-tabs-mobile::-ms-expand { display: none; }
   .tsh-backtotop { transition: opacity 100ms ease; transform: none; }
   .tsh-backtotop.is-visible { transform: none; }
 }
+
+/* ------------------------------------------------------------------ */
+/* Home-page "Society Manager" quick card — pinned emergency contacts */
+/* ------------------------------------------------------------------ */
+.tsh-home-mgr { margin: 12px 0 20px; }
+.tsh-home-mgr-wrap { display: block; }
+.tsh-home-mgr-list {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+.tsh-home-mgr-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--tsh-border, #e5e7eb);
+  border-radius: 12px;
+  background: var(--tsh-surface, #ffffff);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+.tsh-home-mgr-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.tsh-home-mgr-avatar {
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #fef3c7, #fde68a);
+  color: #92400e;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+}
+.tsh-home-mgr-head-body { flex: 1 1 auto; min-width: 0; }
+.tsh-home-mgr-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.tsh-home-mgr-name {
+  margin: 4px 0 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--tsh-fg, #111827);
+}
+.tsh-home-mgr-note {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  color: var(--tsh-muted, #6b7280);
+  line-height: 1.35;
+}
+.tsh-home-mgr-edit {
+  align-self: flex-start;
+  padding: 4px 10px;
+  border: 1px solid var(--tsh-border, #e5e7eb);
+  border-radius: 6px;
+  background: var(--tsh-surface, #ffffff);
+  color: var(--tsh-fg, #111827);
+  font-size: 0.78rem;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.tsh-home-mgr-edit:hover { background: #f3f4f6; }
+.tsh-home-mgr-phones {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--tsh-border, #e5e7eb);
+}
+.tsh-home-mgr-phone {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.tsh-home-mgr-phone > i {
+  color: #b45309;
+}
+.tsh-home-mgr-num {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.95rem;
+  color: var(--tsh-fg, #111827);
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.tsh-home-mgr-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: none;
+  border: 1px solid transparent;
+}
+.tsh-home-mgr-btn-call {
+  background: #1d4ed8;
+  color: #ffffff;
+}
+.tsh-home-mgr-btn-call:hover { background: #1e40af; }
+.tsh-home-mgr-btn-wa {
+  background: #25d366;
+  color: #ffffff;
+}
+.tsh-home-mgr-btn-wa:hover { background: #128c7e; }
+.tsh-home-mgr-email {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--tsh-muted, #6b7280);
+  text-decoration: none;
+}
+.tsh-home-mgr-email:hover { color: var(--tsh-fg, #111827); text-decoration: underline; }
+
+@media (max-width: 480px) {
+  .tsh-home-mgr-phone { row-gap: 4px; }
+  .tsh-home-mgr-btn span { display: none; }
+  .tsh-home-mgr-btn { padding: 8px 10px; font-size: 0.9rem; }
+}

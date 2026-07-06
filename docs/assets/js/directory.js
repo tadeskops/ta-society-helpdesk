@@ -25,7 +25,8 @@
       { name: 'phones',  label: 'Phones',       type: 'phones',   max: 30, maxCount: 5 },
       { name: 'address', label: 'Address',      type: 'text',     max: 240 },
       { name: 'email',   label: 'Email',        type: 'email',    max: 120 },
-      { name: 'notes',   label: 'Notes',        type: 'textarea', max: 500, placeholder: 'Wing covered, shift hours, alternate contact…' },
+      { name: 'notes',   label: 'Notes',        type: 'textarea', max: 500, placeholder: 'Wing covered, shift hours, alternate contact\u2026' },
+      { name: 'pinToHome', label: 'Show on Home page', type: 'checkbox', help: 'Renders this contact as a quick-call card on the landing page (Society Manager, security desk, etc.).' },
     ],
     vendors: [
       { name: 'name',     label: 'Vendor name',   type: 'text',   required: true, max: 120 },

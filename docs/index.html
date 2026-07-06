@@ -9,7 +9,7 @@
   <link rel="icon" href="./assets/images/TaLogo.png" type="image/png" />
   <script>(function(){try{var t=localStorage.getItem('tsh_theme');if(t!=='dark'&&t!=='light'&&t!=='medium')t='light';if(t!=='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="./assets/css/theme.css?v=85" />
+  <link rel="stylesheet" href="./assets/css/theme.css?v=86" />
 </head>
 <body class="tsh-page tsh-page-landing">
   <div data-include="header"></div>
@@ -20,6 +20,15 @@
   <main class="tsh-main">
     <!-- 1. Rotating manager-curated notice strip (full-width). -->
     <div id="tshBannerStrip" hidden></div>
+
+    <!-- 1b. Society Manager (and other pinned emergency contacts) quick card.
+         Rendered from /directory by home-manager.js. Hidden until the widget
+         finds at least one entry marked pinToHome (or falls back to any
+         emergency contact whose role reads "Society Manager"). -->
+    <section id="tshHomeMgr" class="tsh-home-mgr"
+             data-tsh-feature="FEATURE_DAILY_DIRECTORY"
+             hidden
+             aria-label="Society manager quick contact"></section>
 
     <!-- 2. Primary actions â€” the two reporting tracks. Always the most
          prominent thing on the page. Daily uses class-based disable so the
@@ -172,6 +181,7 @@
   <script src="./assets/js/announcements.js?v=3"></script>
   <script src="./assets/js/events.js?v=4"></script>
   <script src="./assets/js/polls.js?v=1"></script>
+  <script src="./assets/js/home-manager.js?v=1"></script>
   <script>
   (async () => {
     await Partials.mount();
@@ -185,6 +195,8 @@
 
       // Rotating manager banner across the top of the landing page.
       if (window.Banner) Banner.mountStrip(document.getElementById('tshBannerStrip'));
+      // Society Manager quick-call card (pinned emergency contacts).
+      if (window.HomeManager) HomeManager.mount(document.getElementById('tshHomeMgr'));
       // Admin-toggled announcements section.
       if (window.Announcements) Announcements.mountList(document.getElementById('tshAnnouncements'));
       // Polls (per-signed-in vote, SVG bar charts). The landing renders the
