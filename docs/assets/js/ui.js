@@ -521,7 +521,7 @@
   };
 
   // ----- IconLabel (mobile tap-to-reveal nav labels) ----------------------
-  // The Bundle 15 mobile header collapses nav links + sign-in/out buttons
+  // The Bundle 15 mobile header collapses nav links + the sign-out button
   // to icon-only chips. First-time visitors need a way to discover what
   // each icon means without a hamburger menu. On phones (<=480px) the
   // first tap on an icon expands it inline (animating width) to reveal
@@ -529,10 +529,18 @@
   // icon, tapping outside, or 2.5s of inactivity collapses the preview.
   // Expansion direction (right vs left) is picked based on remaining
   // viewport width so the label never clips the edge.
+  //
+  // NOTE: `[data-tsh-signin]` is deliberately NOT in the selector — its
+  // label is already forced visible on phones via theme.css, so the
+  // two-tap reveal would only add latency to the primary sign-in CTA.
+  // Google Identity Services also requires the sign-in popup to open
+  // from a direct user gesture; intercepting the first click can cause
+  // some mobile browsers to treat the follow-up as untrusted and block
+  // the popup silently.
   const IconLabel = (function () {
     const MQ = '(max-width: 480px)';
     const TIMEOUT_MS = 2500;
-    const SELECTOR = '.tsh-nav a, .tsh-userbox [data-tsh-signin], .tsh-userbox [data-tsh-signout]';
+    const SELECTOR = '.tsh-nav a, .tsh-userbox [data-tsh-signout]';
     let armed = null;
     let timer = null;
     function clearTimer() { if (timer) { clearTimeout(timer); timer = null; } }
@@ -943,8 +951,15 @@
       }
     } catch (_e) { /* ignore */ }
 
-    signin.addEventListener('click', () => root.Auth.signIn());
-    signout.addEventListener('click', () => { root.Auth.signOut(); root.Flags && root.Flags.invalidate(); location.reload(); });
+    // Sign in / sign out. Wired through bindIconActivation so the same
+    // gesture works on desktop (click), touch devices (touchend) and
+    // double-click, with an internal 350ms dedupe so a single tap never
+    // fires the handler twice. The dedupe matters most on mobile where
+    // iOS Safari occasionally drops the first `click` on small icon-only
+    // chips — the touchend fallback covers that case without risking a
+    // duplicate sign-in when the native click does arrive.
+    bindIconActivation(signin, () => root.Auth.signIn());
+    bindIconActivation(signout, () => { root.Auth.signOut(); root.Flags && root.Flags.invalidate(); location.reload(); });
 
     // Export PDF button — visible only when signed in AND the feature flag is on.
     // Click opens the TSH_REPORT wizard. Pages register their data source via
