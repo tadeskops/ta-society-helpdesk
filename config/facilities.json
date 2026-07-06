@@ -16,10 +16,12 @@
         "minAdvanceHours": 24,
         "maxAdvanceDays": 90,
         "maxConcurrentPerOwner": 3,
+        "maxPerFlatPerYear": 2,
         "requiresApproval": true,
         "requiresPayment": false,
         "paymentAmount": 0,
         "paymentPayee": "",
+        "chargesInfo": "Community Hall bookings may attract a maintenance/cleaning fee and a refundable security deposit as decided by the committee. The manager will confirm the applicable amount before approving your request. Any damage to property is recovered from the deposit.",
         "blackoutDates": []
       },
       "rules": [

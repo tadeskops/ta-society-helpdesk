@@ -99,10 +99,23 @@ export interface FacilityPolicy {
   minAdvanceHours: number;
   maxAdvanceDays: number;
   maxConcurrentPerOwner: number;
+  /**
+   * Maximum active bookings a single flat may hold within one IST
+   * calendar year, counted across all statuses that block a slot
+   * (requested / under-review / confirmed). Cancelled and rejected
+   * bookings do not count. Undefined → default of 2.
+   */
+  maxPerFlatPerYear?: number;
   requiresApproval: boolean;
   requiresPayment?: boolean;
   paymentAmount?: number;
   paymentPayee?: string;
+  /**
+   * Free-form paragraph shown on the booking form and detail page to
+   * explain any fees, deposits, cleaning charges, or refund policy for
+   * this facility. Leave empty to hide the block.
+   */
+  chargesInfo?: string;
   blackoutDates?: string[];   // YYYY-MM-DD
 }
 
@@ -264,3 +277,43 @@ export const initialPaymentState = (facility: Pick<Facility, 'policy'>): Payment
   if (facility.policy.paymentPayee)               s.payee  = facility.policy.paymentPayee;
   return s;
 };
+
+// ------------------------------------------------------ flat quota helpers
+
+/** Default per-flat, per-calendar-year cap when the facility policy omits one. */
+export const DEFAULT_MAX_PER_FLAT_PER_YEAR = 2;
+
+/**
+ * Canonical form for a flat identifier so `a-101`, `A 101`, and `A-101`
+ * all count against the same yearly quota. Trim, uppercase, collapse
+ * runs of whitespace, and drop any character outside [A-Z0-9-].
+ */
+export const normalizeFlat = (s: string): string =>
+  s.trim().toUpperCase().replace(/\s+/g, '-').replace(/[^A-Z0-9-]/g, '');
+
+/** IST calendar year for a YYYY-MM-DD string (already IST-anchored). */
+export const istYearFromDate = (date: string): number => Number(date.slice(0, 4));
+
+/**
+ * Whether the given normalized flat has already hit its yearly cap for
+ * this facility. Counts only active reservations (see isActive) whose
+ * IST date falls in the same calendar year as `newDate`.
+ */
+export const countFlatBookingsForYear = (
+  items: Reservation[],
+  facilityId: string,
+  flatNorm: string,
+  year: number,
+): number => {
+  let n = 0;
+  for (const r of items) {
+    if (r.facilityId !== facilityId) continue;
+    if (!isActive(r)) continue;
+    if (istYearFromDate(r.date) !== year) continue;
+    if (!r.owner.flat) continue;
+    if (normalizeFlat(r.owner.flat) !== flatNorm) continue;
+    n++;
+  }
+  return n;
+};
+

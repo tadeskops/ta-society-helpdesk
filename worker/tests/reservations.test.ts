@@ -96,8 +96,17 @@ const send = (method: string, path: string, body?: any, identity?: string) => {
     headers['X-Test-Identity'] = identity;
     headers['Authorization'] = `Bearer fake-jwt-for-${identity}`;
   }
+  // Convenience for the many legacy cases that predate the required
+  // ownerFlat field: if a POST /reservations body doesn't set a flat,
+  // fill in a default so the yearly-quota check has something to key on.
+  // Focused flat-required / flat-quota tests pass their own value and are
+  // therefore unaffected.
+  let effectiveBody = body;
+  if (method === 'POST' && path === '/reservations' && body && typeof body === 'object' && !('ownerFlat' in body)) {
+    effectiveBody = { ...body, ownerFlat: 'A-101' };
+  }
   return worker.fetch(
-    new Request(`https://w.x${path}`, { method, headers, ...(body ? { body: JSON.stringify(body) } : {}) }),
+    new Request(`https://w.x${path}`, { method, headers, ...(effectiveBody ? { body: JSON.stringify(effectiveBody) } : {}) }),
     env as any,
   );
 };
@@ -123,10 +132,12 @@ const seedFacilities = () => {
             minAdvanceHours: 1,     // tests use dates 7d ahead so this is trivially satisfied
             maxAdvanceDays: 365,
             maxConcurrentPerOwner: 2,
+            maxPerFlatPerYear: 99,
             requiresApproval: true,
             requiresPayment: false,
             paymentAmount: 0,
             paymentPayee: '',
+            chargesInfo: '',
             blackoutDates: [],
           },
           rules: [],
@@ -260,6 +271,69 @@ describe('POST /reservations', () => {
   });
 });
 
+describe('POST /reservations — flat quota', () => {
+  it('requires ownerFlat', async () => {
+    const d = soon();
+    // Bypass the helper default by explicitly setting an empty string.
+    const r = await send('POST', '/reservations', {
+      facilityId: 'community-hall', date: d, slotId: 'morning',
+      purpose: 'no flat', ownerFlat: '',
+    }, 'resident1@x.com');
+    expect(r.status).toBe(400);
+    const j = await r.json() as any;
+    expect(j.error).toMatch(/ownerFlat/i);
+  });
+
+  it('enforces the per-flat, per-year cap', async () => {
+    // Seed a facility with cap=2 so we can hit it deterministically.
+    files.set('config/facilities.json', {
+      sha: 'sha-fac-cap',
+      content: JSON.stringify({
+        version: 1,
+        facilities: [
+          {
+            id: 'community-hall',
+            name: 'Community Hall',
+            enabled: true,
+            slots: [
+              { id: 'morning',   label: 'Morning',   startHour: 6,  endHour: 12 },
+              { id: 'afternoon', label: 'Afternoon', startHour: 12, endHour: 18 },
+              { id: 'evening',   label: 'Evening',   startHour: 18, endHour: 23 },
+            ],
+            policy: {
+              minAdvanceHours: 1, maxAdvanceDays: 365,
+              maxConcurrentPerOwner: 99, maxPerFlatPerYear: 2,
+              requiresApproval: true, requiresPayment: false,
+              paymentAmount: 0, paymentPayee: '', chargesInfo: '', blackoutDates: [],
+            },
+            rules: [],
+          },
+        ],
+      }),
+    });
+    _resetReservationCachesForTests();
+    const d = soon();
+    const first = await send('POST', '/reservations', {
+      facilityId: 'community-hall', date: d, slotId: 'morning',
+      purpose: 'one', ownerFlat: 'B-202',
+    }, 'resident1@x.com');
+    expect(first.status).toBe(201);
+    const second = await send('POST', '/reservations', {
+      facilityId: 'community-hall', date: d, slotId: 'afternoon',
+      // Different case + spacing normalizes to the same bucket.
+      purpose: 'two', ownerFlat: 'b 202',
+    }, 'resident2@x.com');
+    expect(second.status).toBe(201);
+    const third = await send('POST', '/reservations', {
+      facilityId: 'community-hall', date: d, slotId: 'evening',
+      purpose: 'three', ownerFlat: 'B-202',
+    }, 'resident3@x.com');
+    expect(third.status).toBe(400);
+    const j = await third.json() as any;
+    expect(j.error).toMatch(/limit 2 per calendar year|already has/i);
+  });
+});
+
 describe('GET /reservations', () => {
   it('resident sees only own reservations', async () => {
     const d = soon();
@@ -369,10 +443,12 @@ const seedPaidFacility = () => {
             minAdvanceHours: 1,
             maxAdvanceDays: 365,
             maxConcurrentPerOwner: 2,
+            maxPerFlatPerYear: 99,
             requiresApproval: true,
             requiresPayment: true,
             paymentAmount: 500,
             paymentPayee: 'TA Society Welfare',
+            chargesInfo: '',
             blackoutDates: [],
           },
           rules: [],

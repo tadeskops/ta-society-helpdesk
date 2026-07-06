@@ -36,6 +36,8 @@ import {
   RES_STATUSES, RES_ID_RE, nextResId, canTransition, buildSlotIndex,
   isActive, istDateStr, parseIstDateMidnight, slotStartMs,
   PROOF_MIMES, proofRepoPath, initialPaymentState, isPaymentClearedForApproval,
+  DEFAULT_MAX_PER_FLAT_PER_YEAR, normalizeFlat, istYearFromDate,
+  countFlatBookingsForYear,
   type Reservation, type Facility, type FacilitySlot, type Person,
   type TimelineItem, type ProofFile, type ProofMime,
 } from '../lib/reservation.ts';
@@ -198,10 +200,12 @@ const publicFacility = (f: Facility) => ({
     minAdvanceHours: f.policy.minAdvanceHours,
     maxAdvanceDays: f.policy.maxAdvanceDays,
     maxConcurrentPerOwner: f.policy.maxConcurrentPerOwner,
+    maxPerFlatPerYear: f.policy.maxPerFlatPerYear ?? DEFAULT_MAX_PER_FLAT_PER_YEAR,
     requiresApproval: f.policy.requiresApproval,
     requiresPayment: !!f.policy.requiresPayment,
     paymentAmount: f.policy.paymentAmount ?? 0,
     paymentPayee: f.policy.paymentPayee ?? '',
+    chargesInfo: f.policy.chargesInfo ?? '',
     blackoutDates: Array.isArray(f.policy.blackoutDates) ? f.policy.blackoutDates : [],
   },
   rules: Array.isArray(f.rules) ? f.rules : [],
@@ -322,9 +326,13 @@ export const mountReservations = (r: Router): void => {
     const date       = str(body['date'], 'date', { min: 10, max: 10 });
     const slotId     = str(body['slotId'], 'slotId', { min: 1, max: 40 });
     const purpose    = str(body['purpose'], 'purpose', { min: 3, max: 400 });
+    // Flat number is required so we can enforce the per-flat annual quota.
+    // Normalized form is stored so "A-101", "a 101", etc. share a bucket.
+    const ownerFlatRaw = str(body['ownerFlat'], 'ownerFlat', { min: 1, max: 40 });
+    const ownerFlatNorm = normalizeFlat(ownerFlatRaw);
+    if (!ownerFlatNorm) throw new BadRequest('ownerFlat must contain at least one letter or digit');
     const ownerEmailIn = optStr(body['ownerEmail'], 'ownerEmail', { max: 120 });
     const ownerName    = optStr(body['ownerName'], 'ownerName', { max: 120 });
-    const ownerFlat    = optStr(body['ownerFlat'], 'ownerFlat', { max: 40 });
     const ownerPhone   = optStr(body['ownerPhone'], 'ownerPhone', { max: 40 });
 
     const facilities = await loadFacilities(ctx);
@@ -376,14 +384,26 @@ export const mountReservations = (r: Router): void => {
       throw new BadRequest(`You already have ${held.length} active reservation(s); cancel one before creating another.`);
     }
 
+    // Per-flat, per-year quota. Cancelled/rejected records do not count,
+    // so a flat that hits the cap can free a slot by cancelling first.
+    const perFlatCap = facility.policy.maxPerFlatPerYear ?? DEFAULT_MAX_PER_FLAT_PER_YEAR;
+    const year = istYearFromDate(date);
+    const flatUsed = countFlatBookingsForYear(active, facility.id, ownerFlatNorm, year);
+    if (flatUsed >= perFlatCap) {
+      throw new BadRequest(
+        `Flat ${ownerFlatRaw} already has ${flatUsed} booking(s) at ${facility.name} in ${year} ` +
+        `(limit ${perFlatCap} per calendar year). Cancel an existing booking or wait for next year.`,
+      );
+    }
+
     // Allocate ID and record.
     const existing = new Set<string>(items.map((r) => r.id));
     const id = nextResId(existing, now);
 
     const owner: Person = {
       email: ownerEmail,
+      flat: ownerFlatRaw,
       ...(ownerName ? { name: ownerName } : {}),
-      ...(ownerFlat ? { flat: ownerFlat } : {}),
       ...(ownerPhone ? { phone: ownerPhone } : {}),
     };
     const createdBy = personFromCtx(ctx);

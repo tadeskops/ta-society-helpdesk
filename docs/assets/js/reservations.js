@@ -331,6 +331,9 @@
 
     const wrap = document.createElement('div');
     wrap.className = 'tsh-form';
+    const policy = selectedFacility.policy || {};
+    const perFlatCap = Number(policy.maxPerFlatPerYear || 2);
+    const chargesInfo = (policy.chargesInfo || '').trim();
     wrap.innerHTML =
       '<div class="tsh-form-row"><label><span class="tsh-form-label">Facility</span>' +
       '<input type="text" value="' + escape(selectedFacility.name) + '" disabled /></label></div>' +
@@ -338,16 +341,22 @@
       '<input type="text" value="' + escape(friendlyDate(date)) + ' · ' + escape(slot.label) + '" disabled /></label></div>' +
       '<div class="tsh-form-row"><label><span class="tsh-form-label">Purpose <span style="color:#dc2626">*</span></span>' +
       '<input type="text" data-book-purpose maxlength="400" placeholder="e.g., 8th birthday party for A-101" required /></label></div>' +
-      '<div class="tsh-form-row"><label><span class="tsh-form-label">Flat number</span>' +
-      '<input type="text" data-book-flat maxlength="40" placeholder="A-101" /></label></div>' +
+      '<div class="tsh-form-row"><label><span class="tsh-form-label">Flat number <span style="color:#dc2626">*</span></span>' +
+      '<input type="text" data-book-flat maxlength="40" placeholder="A-101" required /></label>' +
+      '<span class="tsh-hint" style="display:block;margin-top:4px;font-size:12px;color:var(--tsh-muted,#6b7280)">' +
+      '<i class="fas fa-info-circle"></i> Each flat can book this facility up to <strong>' + perFlatCap + '</strong> time(s) per calendar year.' +
+      '</span></div>' +
       '<div class="tsh-form-row"><label><span class="tsh-form-label">Phone (optional)</span>' +
       '<input type="tel" data-book-phone maxlength="40" placeholder="+91-9x-xxx-xxxx" /></label></div>' +
       (isStaff ?
         '<div class="tsh-form-row"><label><span class="tsh-form-label">Book on behalf of (email)</span>' +
         '<input type="email" data-book-owner maxlength="120" placeholder="Leave blank to book for yourself" /></label></div>' : '') +
-      (selectedFacility.policy.requiresPayment ?
-        '<p class="tsh-hint"><i class="fas fa-info-circle"></i> This facility requires a deposit of ₹' + selectedFacility.policy.paymentAmount +
-        (selectedFacility.policy.paymentPayee ? ' to ' + escape(selectedFacility.policy.paymentPayee) : '') +
+      (chargesInfo ?
+        '<p class="tsh-hint" style="background:rgba(59,130,246,0.08);border-left:3px solid #3b82f6;padding:8px 10px;border-radius:4px;margin-top:8px;">' +
+        '<i class="fas fa-receipt"></i> <strong>Charges:</strong> ' + escape(chargesInfo) + '</p>' : '') +
+      (policy.requiresPayment ?
+        '<p class="tsh-hint"><i class="fas fa-info-circle"></i> This facility requires a deposit of ₹' + policy.paymentAmount +
+        (policy.paymentPayee ? ' to ' + escape(policy.paymentPayee) : '') +
         '. You will be asked to upload payment proof after the booking is created.</p>' : '');
 
     root.UI.modal({
@@ -365,14 +374,14 @@
       const ownerEl = wrap.querySelector('[data-book-owner]');
       const owner   = ownerEl ? ownerEl.value.trim() : '';
       if (!purpose || purpose.length < 3) { root.UI.toast('Please describe the purpose (min 3 characters).', { kind: 'warn' }); return; }
+      if (!flat) { root.UI.toast('Flat number is required — it is used to enforce the yearly booking limit.', { kind: 'warn' }); return; }
       submitBooking(date, slot.id, purpose, flat, phone, owner);
     });
     setTimeout(() => wrap.querySelector('[data-book-purpose]').focus(), 60);
   }
 
   async function submitBooking(date, slotId, purpose, flat, phone, ownerEmail) {
-    const body = { facilityId: selectedFacility.id, date, slotId, purpose };
-    if (flat)  body.ownerFlat  = flat;
+    const body = { facilityId: selectedFacility.id, date, slotId, purpose, ownerFlat: flat };
     if (phone) body.ownerPhone = phone;
     if (ownerEmail) body.ownerEmail = ownerEmail;
     try {

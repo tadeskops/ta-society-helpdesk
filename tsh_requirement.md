@@ -873,10 +873,12 @@ Two files under `config/`:
           "minAdvanceHours": 24,
           "maxAdvanceDays": 90,
           "maxConcurrentPerOwner": 3,
+          "maxPerFlatPerYear": 2,
           "requiresApproval": true,
           "requiresPayment": false,
           "paymentAmount": 0,
           "paymentPayee": "",
+          "chargesInfo": "Free-text paragraph shown on the booking form describing fees, deposit, cleaning charges, refund policy, etc. Leave empty to hide.",
           "blackoutDates": []
         },
         "rules": ["…"]
@@ -916,7 +918,7 @@ All routes: JWT-required, gated by `FEATURE_TSH_RESERVATIONS`.
 | GET | `/facilities` | RESIDENT+ | Enabled facilities only. |
 | GET | `/facilities/:id` | RESIDENT+ | Includes policy + rules. |
 | GET | `/facilities/:id/availability?from=&to=` | RESIDENT+ | Per-day per-slot: `available` / `held` / `confirmed` / `blackout`. Range ≤ 120 days. |
-| POST | `/reservations` | RESIDENT+ | Body: `facilityId, date, slotId, purpose`. Optional: `ownerFlat, ownerPhone, ownerEmail`. `ownerEmail ≠ me` requires MANAGER+. Server enforces `minAdvanceHours`, `maxAdvanceDays`, `maxConcurrentPerOwner`, blackout dates, slot uniqueness. Auto-confirms if `requiresApproval=false`. |
+| POST | `/reservations` | RESIDENT+ | Body: `facilityId, date, slotId, purpose, ownerFlat` (required — flat is normalized case/space-insensitive and used for the annual quota). Optional: `ownerPhone, ownerEmail, ownerName`. `ownerEmail ≠ me` requires MANAGER+. Server enforces `minAdvanceHours`, `maxAdvanceDays`, `maxConcurrentPerOwner`, `maxPerFlatPerYear` (default **2** — active bookings per flat per IST calendar year, cancelled/rejected records do not count), blackout dates, slot uniqueness. Auto-confirms if `requiresApproval=false`. |
 | GET | `/reservations?scope=&status=&facilityId=&q=` | RESIDENT+ | Residents are always scoped to their own; MANAGER+ can request `scope=all`. |
 | GET | `/reservations/:id` | owner or MANAGER+ | 403 otherwise. |
 | PATCH | `/reservations/:id` | see below | Body: `status, note?`. Approve/under-review requires MANAGER+; reject requires MANAGER+ **and** a `note` (reason); cancel is allowed by the owner or MANAGER+. Terminal states (`rejected`, `cancelled`) are one-way. |
