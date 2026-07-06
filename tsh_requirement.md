@@ -613,7 +613,10 @@ The file below is a **complete inventory** of every flag and tunable the Worker 
     "EVENTS_CACHE_SECONDS":      60,
     "POLLS_CACHE_SECONDS":       60,
     "POLLS_VOTES_CACHE_SECONDS": 30,
-    "DAILY_NOTICE_TTL_DAYS":      7
+    "DAILY_NOTICE_TTL_DAYS":      7,
+    "RESERVATIONS_CACHE_SECONDS": 60,
+    "RESERVATION_PROOF_MAX_BYTES": 5242880,   // 5 MB per payment proof
+    "RESERVATION_MAX_PROOFS":      5           // per reservation
   },
   "lists": {
     "towers":       ["A", "B", "C", "Common Area"],
@@ -841,7 +844,7 @@ Generic booking engine. Behind `FEATURE_TSH_RESERVATIONS`. First facility: **Com
 
 Two files under `config/`:
 
-- **`config/facilities.json`** â€” admin-managed. Facility definitions.
+- **`config/facilities.json`** — admin-managed. Facility definitions.
   ```json
   {
     "version": 1,
@@ -849,7 +852,7 @@ Two files under `config/`:
       {
         "id": "community-hall",
         "name": "Community Hall",
-        "description": "â€¦",
+        "description": "…",
         "enabled": true,
         "capacity": 100,
         "slots": [
@@ -867,12 +870,12 @@ Two files under `config/`:
           "paymentPayee": "",
           "blackoutDates": []
         },
-        "rules": ["â€¦"]
+        "rules": ["…"]
       }
     ]
   }
   ```
-- **`config/reservations.json`** â€” auto-managed. Active + recently-terminal reservations, capped at 500. Each record:
+- **`config/reservations.json`** — auto-managed. Active + recently-terminal reservations, capped at 500. Each record:
   ```
   {
     "id": "RES-DDMMYYHHMM[-N]",  // IST minute, same scheme as TKT-
@@ -891,9 +894,9 @@ Two files under `config/`:
   ```
   Timeline event types: `created`, `commented`, `approved`, `rejected`, `cancelled`, `edited`, `overridden`.
 
-**Owner â‰  creator.** A manager may book on behalf of a resident; the record's `owner.email` is the resident's, `createdBy.email` is the manager's, and the timeline notes the delegation. Owner never changes.
+**Owner ≠ creator.** A manager may book on behalf of a resident; the record's `owner.email` is the resident's, `createdBy.email` is the manager's, and the timeline notes the delegation. Owner never changes.
 
-**Active vs freed.** A slot is held by the reservation record if `!isDeleted && status âˆˆ {requested, under-review, confirmed}`. Cancelling or rejecting frees the slot immediately.
+**Active vs freed.** A slot is held by the reservation record if `!isDeleted && status ∈ {requested, under-review, confirmed}`. Cancelling or rejecting frees the slot immediately.
 
 ### 18.2 API
 
@@ -903,8 +906,8 @@ All routes: JWT-required, gated by `FEATURE_TSH_RESERVATIONS`.
 |---|---|---|---|
 | GET | `/facilities` | RESIDENT+ | Enabled facilities only. |
 | GET | `/facilities/:id` | RESIDENT+ | Includes policy + rules. |
-| GET | `/facilities/:id/availability?from=&to=` | RESIDENT+ | Per-day per-slot: `available` / `held` / `confirmed` / `blackout`. Range â‰¤ 120 days. |
-| POST | `/reservations` | RESIDENT+ | Body: `facilityId, date, slotId, purpose`. Optional: `ownerFlat, ownerPhone, ownerEmail`. `ownerEmail â‰  me` requires MANAGER+. Server enforces `minAdvanceHours`, `maxAdvanceDays`, `maxConcurrentPerOwner`, blackout dates, slot uniqueness. Auto-confirms if `requiresApproval=false`. |
+| GET | `/facilities/:id/availability?from=&to=` | RESIDENT+ | Per-day per-slot: `available` / `held` / `confirmed` / `blackout`. Range ≤ 120 days. |
+| POST | `/reservations` | RESIDENT+ | Body: `facilityId, date, slotId, purpose`. Optional: `ownerFlat, ownerPhone, ownerEmail`. `ownerEmail ≠ me` requires MANAGER+. Server enforces `minAdvanceHours`, `maxAdvanceDays`, `maxConcurrentPerOwner`, blackout dates, slot uniqueness. Auto-confirms if `requiresApproval=false`. |
 | GET | `/reservations?scope=&status=&facilityId=&q=` | RESIDENT+ | Residents are always scoped to their own; MANAGER+ can request `scope=all`. |
 | GET | `/reservations/:id` | owner or MANAGER+ | 403 otherwise. |
 | PATCH | `/reservations/:id` | see below | Body: `status, note?`. Approve/under-review requires MANAGER+; reject requires MANAGER+ **and** a `note` (reason); cancel is allowed by the owner or MANAGER+. Terminal states (`rejected`, `cancelled`) are one-way. |
@@ -912,17 +915,46 @@ All routes: JWT-required, gated by `FEATURE_TSH_RESERVATIONS`.
 
 ### 18.3 UI
 
-See Â§8.8. Three tabs: **Book / My reservations / Manage** (staff-only). Mobile-first cards, half-day slot grid, inline approve/reject, one universal search on the manage queue.
+See §8.8. Three tabs: **Book / My reservations / Manage** (staff-only). Mobile-first cards, half-day slot grid, inline approve/reject, one universal search on the manage queue.
 
 ### 18.4 Phasing
 
-- **Phase 1 (shipped):** engine, Community Hall, resident + staff flows, timeline, availability grid, universal search. In-app status only â€” no email/WhatsApp/Calendar. No payments.
-- **Phase 2:** payment-proof uploads (image + PDF) reusing the R2 photo pipeline. Adds `requiresPayment` handling and a `payment-verified` timeline event.
+- **Phase 1 (shipped):** engine, Community Hall, resident + staff flows, timeline, availability grid, universal search. In-app status only — no email/WhatsApp/Calendar. No payments.
+- **Phase 2 (shipped):** payment-proof uploads (image + PDF) reusing the same in-repo binary pipeline as issue photos, but downloads are served through the **auth-gated worker route** `GET /reservations/:id/payment-proof/:idx` — never via a public `raw.githubusercontent` URL — because payment screenshots contain PII. Adds `payment` sub-object on each reservation and three timeline events (`payment-uploaded`, `payment-verified`, `payment-rejected`). Confirming a booking on a paid facility is gated on `payment.status === 'verified'`. See §18.6.
 - **Phase 3:** Google Calendar mirror. Application DB stays the source of truth. Worker-side OAuth, refresh-token in KV, event lifecycle create/update/delete, retry queue, admin-only sync status. Configurable from Settings.
 - **Phase 4:** notification subsystem (in-app inbox first, then email/WhatsApp adapters). Retrofit both issue events and reservation events onto the same rails.
-- **Later:** additional facilities (Guest Room, Sports Court, Pool, EV Charger, Parking) â€” pure config edits to `config/facilities.json`.
+- **Later:** additional facilities (Guest Room, Sports Court, Pool, EV Charger, Parking) — pure config edits to `config/facilities.json`.
 
 ### 18.5 Backups & retention
 
-`config/reservations.json` is written through GitHub Contents API on every mutation (create / status transition / comment). Full git history = complete audit trail. When the active file passes ~500 entries the terminal records are moved to `archive/reservations-YYYY-MM.json` (same monthly bucket pattern as helpdesk issues in Â§16).
+`config/reservations.json` is written through GitHub Contents API on every mutation (create / status transition / comment). Full git history = complete audit trail. When the active file passes ~500 entries the terminal records are moved to `archive/reservations-YYYY-MM.json` (same monthly bucket pattern as helpdesk issues in §16). Payment proofs live under `payments/RES-<id>/<NN>.<ext>` and are retained as long as the parent reservation record.
+
+### 18.6 Payments (Phase 2)
+
+Facilities that set `policy.requiresPayment: true` acquire a `payment` sub-object on every new reservation, seeded to:
+
+```json
+{
+  "status": "pending",
+  "amount": <policy.paymentAmount>,
+  "payee":  "<policy.paymentPayee>",
+  "proofs": []
+}
+```
+
+**States:** `not-required` (facility has no payment) · `pending` (booking created, no proof yet) · `submitted` (owner uploaded ≥1 proof) · `verified` (manager+ confirmed the payment) · `rejected` (manager+ refused, resident may re-upload).
+
+**Endpoints (in addition to §18.2):**
+
+| Method | Path | Roles | Notes |
+|---|---|---|---|
+| POST | `/reservations/:id/payment-proof` | owner or MANAGER+ | Body: `dataUrl` (data URL, base64, ≤ `RESERVATION_PROOF_MAX_BYTES` = 5 MB, mime in { `image/jpeg`, `image/png`, `image/webp`, `application/pdf` }), optional `name`, `txnRef`. Bounded by `RESERVATION_MAX_PROOFS` = 5. Flips `payment.status` to `submitted`. Appends timeline `payment-uploaded`. |
+| GET | `/reservations/:id/payment-proof/:idx` | owner or MANAGER+ | Streams the file bytes from GitHub via the worker token. `Cache-Control: private, no-store`. **Never** exposed at a public raw URL. |
+| PATCH | `/reservations/:id/payment` | MANAGER+ only | Body: `status` ∈ { `verified`, `rejected`, `pending` }, optional `note`, `txnRef`. Verify requires ≥1 proof. Reject requires a note. Appends timeline `payment-verified` / `payment-rejected`. |
+
+**Booking gate:** `PATCH /reservations/:id { status: 'confirmed' }` returns 400 when the facility requires payment and `payment.status !== 'verified'`. Managers must verify the payment first (or leave the reservation in `under-review` / `requested`).
+
+**Storage layout:** `payments/RES-DDMMYYHHMM/NN.ext` — one folder per reservation, one file per proof, extension derived from mime (jpg/png/webp/pdf). All writes go through `putBinaryB64` (same helper used by issue photos). Repo is public but the folder is not linked from anywhere and every download requires an authenticated worker call.
+
+**Tunables (`config/site.json` → `tunables`):** `RESERVATION_PROOF_MAX_BYTES` (default `5_242_880`), `RESERVATION_MAX_PROOFS` (default `5`).
 

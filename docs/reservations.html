@@ -52,6 +52,17 @@
     .tsh-res-pill-confirmed   { background: #d1fae5; color: #065f46; }
     .tsh-res-pill-rejected    { background: #fee2e2; color: #991b1b; }
     .tsh-res-pill-cancelled   { background: #f3f4f6; color: #4b5563; }
+    .tsh-res-pill-pay-not-required { background: #f3f4f6; color: #4b5563; }
+    .tsh-res-pill-pay-pending      { background: #fef3c7; color: #92400e; }
+    .tsh-res-pill-pay-submitted    { background: #dbeafe; color: #1e40af; }
+    .tsh-res-pill-pay-verified     { background: #d1fae5; color: #065f46; }
+    .tsh-res-pill-pay-rejected     { background: #fee2e2; color: #991b1b; }
+
+    .tsh-res-card-payment { font-size: 12px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 4px; padding-top: 6px; border-top: 1px dashed var(--tsh-border, #e5e7eb); }
+    .tsh-res-payment-panel { margin-top: 8px; padding: 10px 12px; border-radius: 10px; background: #f9fafb; border: 1px solid var(--tsh-border, #e5e7eb); }
+    .tsh-res-proof-list { list-style: none; padding: 0; margin: 8px 0 0; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+    .tsh-res-proof-list a { color: var(--tsh-primary, #2563eb); text-decoration: none; }
+    .tsh-res-proof-list a:hover { text-decoration: underline; }
 
     .tsh-res-timeline { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
     .tsh-res-timeline li { display: grid; grid-template-columns: 22px 1fr; gap: 10px; font-size: 13px; }
@@ -159,7 +170,7 @@
   <script src="./assets/js/auth.js?v=11"></script>
   <script src="./assets/js/flags.js?v=13"></script>
   <script src="./assets/js/ui.js?v=50"></script>
-  <script src="./assets/js/reservations.js?v=1"></script>
+  <script src="./assets/js/reservations.js?v=2"></script>
   <script>
   (async () => {
     await Partials.mount();

@@ -17,6 +17,7 @@ vi.mock('../src/auth/jwt.ts', () => ({
 
 // In-memory fake for the two config files this feature writes.
 const files = new Map<string, { sha: string; content: string }>();
+const binaries = new Map<string, { sha: string; bytes: Uint8Array }>();
 let putCount = 0;
 
 vi.mock('../src/github/client.ts', () => ({
@@ -32,7 +33,19 @@ vi.mock('../src/github/client.ts', () => ({
     return { sha: `sha-${putCount}` };
   }),
   appendToFile: vi.fn(async () => undefined),
-  putBinaryB64: vi.fn(async () => ({ sha: 'sha-x' })),
+  putBinaryB64: vi.fn(async (_env: any, path: string, b64: string) => {
+    putCount++;
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    binaries.set(path, { sha: `sha-${putCount}`, bytes });
+    return { sha: `sha-${putCount}` };
+  }),
+  getBinaryFile: vi.fn(async (_env: any, path: string) => {
+    const b = binaries.get(path);
+    if (!b) return undefined;
+    return { sha: b.sha, bytes: b.bytes };
+  }),
   createIssue: vi.fn(),
   listIssues: vi.fn(async () => []),
   getIssue: vi.fn(),
@@ -132,6 +145,7 @@ const soon = (): string => {
 
 beforeEach(() => {
   files.clear();
+  binaries.clear();
   putCount = 0;
   _resetReservationCachesForTests();
   seedFacilities();
@@ -335,5 +349,228 @@ describe('POST /reservations/:id/comments', () => {
     expect(r.status).toBe(200);
     const j = await r.json() as any;
     expect(j.data.reservation.timeline.some((t: any) => t.event === 'commented' && t.note === 'Please confirm asap')).toBe(true);
+  });
+});
+
+// ============================================================ Payments (Phase 2)
+
+const seedPaidFacility = () => {
+  files.set('config/facilities.json', {
+    sha: 'sha-fac',
+    content: JSON.stringify({
+      version: 1,
+      facilities: [
+        {
+          id: 'guest-room',
+          name: 'Guest Room',
+          enabled: true,
+          slots: [{ id: 'day', label: 'Full day', startHour: 8, endHour: 20 }],
+          policy: {
+            minAdvanceHours: 1,
+            maxAdvanceDays: 365,
+            maxConcurrentPerOwner: 2,
+            requiresApproval: true,
+            requiresPayment: true,
+            paymentAmount: 500,
+            paymentPayee: 'TA Society Welfare',
+            blackoutDates: [],
+          },
+          rules: [],
+        },
+      ],
+    }),
+  });
+};
+
+// A tiny 1x1 PNG (67 bytes) encoded in base64 — smallest usable image blob.
+const PNG_1X1 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+const PNG_DATA_URL = `data:image/png;base64,${PNG_1X1}`;
+
+const bookPaid = async (identity = 'resident1@x.com') => {
+  _resetReservationCachesForTests();
+  seedPaidFacility();
+  const d = soon();
+  const c = await send('POST', '/reservations', {
+    facilityId: 'guest-room', date: d, slotId: 'day', purpose: 'guest stay',
+  }, identity);
+  return (await c.json() as any).data.reservation.id as string;
+};
+
+describe('POST /reservations (payment gating)', () => {
+  it('seeds payment.status=pending on paid facilities', async () => {
+    _resetReservationCachesForTests();
+    seedPaidFacility();
+    const d = soon();
+    const r = await send('POST', '/reservations', {
+      facilityId: 'guest-room', date: d, slotId: 'day', purpose: 'guest stay',
+    }, 'resident1@x.com');
+    expect(r.status).toBe(201);
+    const j = await r.json() as any;
+    expect(j.data.reservation.payment).toBeDefined();
+    expect(j.data.reservation.payment.status).toBe('pending');
+    expect(j.data.reservation.payment.amount).toBe(500);
+    expect(j.data.reservation.payment.payee).toBe('TA Society Welfare');
+  });
+});
+
+describe('POST /reservations/:id/payment-proof', () => {
+  it('uploads a proof and flips status to submitted', async () => {
+    const id = await bookPaid();
+    _resetReservationCachesForTests();
+    const r = await send('POST', `/reservations/${id}/payment-proof`, {
+      dataUrl: PNG_DATA_URL, name: 'upi-screenshot.png', txnRef: 'UPI-999',
+    }, 'resident1@x.com');
+    expect(r.status).toBe(201);
+    const j = await r.json() as any;
+    expect(j.data.reservation.payment.status).toBe('submitted');
+    expect(j.data.reservation.payment.proofs).toHaveLength(1);
+    expect(j.data.reservation.payment.proofs[0].mime).toBe('image/png');
+    expect(j.data.reservation.payment.txnRef).toBe('UPI-999');
+    expect(j.data.reservation.timeline.some((t: any) => t.event === 'payment-uploaded')).toBe(true);
+  });
+
+  it('forbids upload by a non-owner resident', async () => {
+    const id = await bookPaid();
+    _resetReservationCachesForTests();
+    const r = await send('POST', `/reservations/${id}/payment-proof`, {
+      dataUrl: PNG_DATA_URL, name: 'x.png',
+    }, 'resident2@x.com');
+    expect(r.status).toBe(403);
+  });
+
+  it('rejects unsupported mime types', async () => {
+    const id = await bookPaid();
+    _resetReservationCachesForTests();
+    const r = await send('POST', `/reservations/${id}/payment-proof`, {
+      dataUrl: 'data:text/plain;base64,SGVsbG8=', name: 'x.txt',
+    }, 'resident1@x.com');
+    expect(r.status).toBe(400);
+  });
+
+  it('refuses uploads on facilities that do not require payment', async () => {
+    // Community-Hall facility already seeded (no payment required).
+    const d = soon();
+    const c = await send('POST', '/reservations', {
+      facilityId: 'community-hall', date: d, slotId: 'morning', purpose: 'no-pay',
+    }, 'resident1@x.com');
+    const id = (await c.json() as any).data.reservation.id;
+    _resetReservationCachesForTests();
+    const r = await send('POST', `/reservations/${id}/payment-proof`, {
+      dataUrl: PNG_DATA_URL, name: 'x.png',
+    }, 'resident1@x.com');
+    expect(r.status).toBe(400);
+  });
+});
+
+describe('GET /reservations/:id/payment-proof/:idx', () => {
+  it('streams the file to the owner', async () => {
+    const id = await bookPaid();
+    _resetReservationCachesForTests();
+    await send('POST', `/reservations/${id}/payment-proof`, {
+      dataUrl: PNG_DATA_URL, name: 'a.png',
+    }, 'resident1@x.com');
+    _resetReservationCachesForTests();
+    const r = await send('GET', `/reservations/${id}/payment-proof/1`, undefined, 'resident1@x.com');
+    expect(r.status).toBe(200);
+    expect(r.headers.get('Content-Type')).toBe('image/png');
+    expect(r.headers.get('Cache-Control')).toContain('no-store');
+    const buf = new Uint8Array(await r.arrayBuffer());
+    expect(buf.length).toBeGreaterThan(0);
+  });
+
+  it('forbids a non-owner resident from downloading', async () => {
+    const id = await bookPaid();
+    _resetReservationCachesForTests();
+    await send('POST', `/reservations/${id}/payment-proof`, {
+      dataUrl: PNG_DATA_URL, name: 'a.png',
+    }, 'resident1@x.com');
+    _resetReservationCachesForTests();
+    const r = await send('GET', `/reservations/${id}/payment-proof/1`, undefined, 'resident2@x.com');
+    expect(r.status).toBe(403);
+  });
+
+  it('allows a manager to download any proof', async () => {
+    const id = await bookPaid();
+    _resetReservationCachesForTests();
+    await send('POST', `/reservations/${id}/payment-proof`, {
+      dataUrl: PNG_DATA_URL, name: 'a.png',
+    }, 'resident1@x.com');
+    _resetReservationCachesForTests();
+    const r = await send('GET', `/reservations/${id}/payment-proof/1`, undefined, 'mgr@x.com');
+    expect(r.status).toBe(200);
+  });
+});
+
+describe('PATCH /reservations/:id/payment', () => {
+  it('requires MANAGER+ to verify', async () => {
+    const id = await bookPaid();
+    _resetReservationCachesForTests();
+    await send('POST', `/reservations/${id}/payment-proof`, {
+      dataUrl: PNG_DATA_URL, name: 'a.png',
+    }, 'resident1@x.com');
+    _resetReservationCachesForTests();
+    const r = await send('PATCH', `/reservations/${id}/payment`, { status: 'verified' }, 'resident1@x.com');
+    expect(r.status).toBe(403);
+  });
+
+  it('rejects verify when no proof has been uploaded', async () => {
+    const id = await bookPaid();
+    _resetReservationCachesForTests();
+    const r = await send('PATCH', `/reservations/${id}/payment`, { status: 'verified' }, 'mgr@x.com');
+    expect(r.status).toBe(400);
+  });
+
+  it('requires a note when rejecting a payment', async () => {
+    const id = await bookPaid();
+    _resetReservationCachesForTests();
+    await send('POST', `/reservations/${id}/payment-proof`, {
+      dataUrl: PNG_DATA_URL, name: 'a.png',
+    }, 'resident1@x.com');
+    _resetReservationCachesForTests();
+    const r = await send('PATCH', `/reservations/${id}/payment`, { status: 'rejected' }, 'mgr@x.com');
+    expect(r.status).toBe(400);
+  });
+
+  it('verifies the payment and records the timeline event', async () => {
+    const id = await bookPaid();
+    _resetReservationCachesForTests();
+    await send('POST', `/reservations/${id}/payment-proof`, {
+      dataUrl: PNG_DATA_URL, name: 'a.png', txnRef: 'UPI-42',
+    }, 'resident1@x.com');
+    _resetReservationCachesForTests();
+    const r = await send('PATCH', `/reservations/${id}/payment`, {
+      status: 'verified', note: 'seen in bank statement',
+    }, 'mgr@x.com');
+    expect(r.status).toBe(200);
+    const j = await r.json() as any;
+    expect(j.data.reservation.payment.status).toBe('verified');
+    expect(j.data.reservation.payment.verifiedBy).toBe('mgr@x.com');
+    expect(j.data.reservation.timeline.some((t: any) => t.event === 'payment-verified')).toBe(true);
+  });
+});
+
+describe('PATCH /reservations/:id (payment gate)', () => {
+  it('blocks confirming a paid booking until payment is verified', async () => {
+    const id = await bookPaid();
+    _resetReservationCachesForTests();
+    const r = await send('PATCH', `/reservations/${id}`, { status: 'confirmed' }, 'mgr@x.com');
+    expect(r.status).toBe(400);
+    const j = await r.json() as any;
+    expect(String(j.error || '')).toMatch(/payment/i);
+  });
+
+  it('lets a manager confirm once payment is verified', async () => {
+    const id = await bookPaid();
+    _resetReservationCachesForTests();
+    await send('POST', `/reservations/${id}/payment-proof`, {
+      dataUrl: PNG_DATA_URL, name: 'a.png',
+    }, 'resident1@x.com');
+    _resetReservationCachesForTests();
+    await send('PATCH', `/reservations/${id}/payment`, { status: 'verified' }, 'mgr@x.com');
+    _resetReservationCachesForTests();
+    const r = await send('PATCH', `/reservations/${id}`, { status: 'confirmed' }, 'mgr@x.com');
+    expect(r.status).toBe(200);
+    const j = await r.json() as any;
+    expect(j.data.reservation.status).toBe('confirmed');
   });
 });

@@ -38,23 +38,37 @@
   };
 
   const TIMELINE_LABEL = {
-    'created':    'Reservation created',
-    'commented':  'Comment',
-    'approved':   'Approved',
-    'rejected':   'Rejected',
-    'cancelled':  'Cancelled',
-    'edited':     'Edited',
-    'overridden': 'Overridden',
+    'created':           'Reservation created',
+    'commented':         'Comment',
+    'approved':          'Approved',
+    'rejected':          'Rejected',
+    'cancelled':         'Cancelled',
+    'edited':            'Edited',
+    'overridden':        'Overridden',
+    'payment-uploaded':  'Payment proof uploaded',
+    'payment-verified':  'Payment verified',
+    'payment-rejected':  'Payment rejected',
   };
 
   const TIMELINE_ICON = {
-    'created':    'fa-circle-plus',
-    'commented':  'fa-comment',
-    'approved':   'fa-circle-check',
-    'rejected':   'fa-circle-xmark',
-    'cancelled':  'fa-ban',
-    'edited':     'fa-pen',
-    'overridden': 'fa-shield-halved',
+    'created':           'fa-circle-plus',
+    'commented':         'fa-comment',
+    'approved':          'fa-circle-check',
+    'rejected':          'fa-circle-xmark',
+    'cancelled':         'fa-ban',
+    'edited':            'fa-pen',
+    'overridden':        'fa-shield-halved',
+    'payment-uploaded':  'fa-file-invoice-dollar',
+    'payment-verified':  'fa-money-check-dollar',
+    'payment-rejected':  'fa-triangle-exclamation',
+  };
+
+  const PAYMENT_STATUS_LABEL = {
+    'not-required': 'Not required',
+    'pending':      'Awaiting proof',
+    'submitted':    'Under review',
+    'verified':     'Verified',
+    'rejected':     'Rejected',
   };
 
   // -------------------------------------------------------- date utils
@@ -463,6 +477,18 @@
       'created ' + escape(root.UI.formatRel ? root.UI.formatRel(r.createdAt) : friendlyDateTime(r.createdAt));
     card.appendChild(meta);
 
+    if (r.payment) {
+      const pay = document.createElement('div');
+      pay.className = 'tsh-res-card-payment';
+      pay.innerHTML =
+        '<i class="fas fa-indian-rupee-sign"></i> ' +
+        (r.payment.amount ? '₹' + r.payment.amount + ' · ' : '') +
+        '<span class="tsh-res-pill tsh-res-pill-pay-' + r.payment.status + '">' +
+        escape(PAYMENT_STATUS_LABEL[r.payment.status] || r.payment.status) + '</span>' +
+        (r.payment.proofs && r.payment.proofs.length ? ' · ' + r.payment.proofs.length + ' proof(s)' : '');
+      card.appendChild(pay);
+    }
+
     const actions = document.createElement('div');
     actions.className = 'tsh-res-card-actions';
 
@@ -519,6 +545,8 @@
   function openDetailModal(r) {
     const wrap = document.createElement('div');
     const isStaff = who && root.Flags.isAtLeast && root.Flags.isAtLeast(who.primary, 'MANAGER');
+    const meEmail = (who && who.email || '').toLowerCase();
+    const isOwner = r.owner.email.toLowerCase() === meEmail;
     wrap.innerHTML =
       '<p><strong>' + escape(r.facilityLabel) + '</strong> · ' + escape(friendlyRelDate(r.date)) + ' · ' + escape(r.slotLabel) + '</p>' +
       '<p style="margin:6px 0"><span class="tsh-res-pill tsh-res-pill-' + r.status + '">' + escape(RESIDENT_STATUS_LABEL[r.status] || r.status) + '</span> · ID <code>' + escape(r.id) + '</code></p>' +
@@ -527,9 +555,87 @@
         '<p class="tsh-res-card-owner" style="margin:6px 0">Owner: ' + escape(r.owner.name || r.owner.email) +
         (r.owner.flat ? ' · ' + escape(r.owner.flat) : '') +
         (r.owner.phone ? ' · ' + escape(r.owner.phone) : '') +
-        ' · ' + escape(r.owner.email) + '</p>' : '') +
-      '<hr />' +
-      '<h4 style="margin:0 0 8px">Activity</h4>';
+        ' · ' + escape(r.owner.email) + '</p>' : '');
+
+    // Payment panel — only shown when the facility policy requires payment.
+    if (r.payment) {
+      const pay = document.createElement('div');
+      pay.className = 'tsh-res-payment-panel';
+      pay.innerHTML =
+        '<h4 style="margin:12px 0 6px"><i class="fas fa-indian-rupee-sign"></i> Payment</h4>' +
+        '<p style="margin:2px 0;font-size:13px">' +
+          (r.payment.amount ? '<strong>₹' + r.payment.amount + '</strong>' : '') +
+          (r.payment.payee ? ' to ' + escape(r.payment.payee) : '') +
+          ' · <span class="tsh-res-pill tsh-res-pill-pay-' + r.payment.status + '">' +
+          escape(PAYMENT_STATUS_LABEL[r.payment.status] || r.payment.status) + '</span>' +
+        '</p>' +
+        (r.payment.txnRef ? '<p style="margin:2px 0;font-size:12px">Ref: <code>' + escape(r.payment.txnRef) + '</code></p>' : '') +
+        (r.payment.note ? '<p style="margin:2px 0;font-size:12px;color:var(--tsh-muted,#6b7280)">Note: ' + escape(r.payment.note) + '</p>' : '');
+
+      const list = document.createElement('ul');
+      list.className = 'tsh-res-proof-list';
+      (r.payment.proofs || []).forEach((p, idx) => {
+        const li = document.createElement('li');
+        const kbytes = Math.max(1, Math.round((p.size || 0) / 1024));
+        const iconClass = p.mime === 'application/pdf' ? 'fa-file-pdf' : 'fa-file-image';
+        li.innerHTML =
+          '<i class="fas ' + iconClass + '"></i> ' +
+          '<a href="#" data-proof-idx="' + (idx + 1) + '">' + escape(p.name) + '</a> ' +
+          '<span style="color:var(--tsh-muted,#6b7280);font-size:12px">' + kbytes + ' KB · ' + escape(friendlyDateTime(p.uploadedAt)) + '</span>';
+        list.appendChild(li);
+      });
+      pay.appendChild(list);
+      // Delegate clicks — worker streams the file behind auth.
+      list.addEventListener('click', (ev) => {
+        const a = ev.target && ev.target.closest && ev.target.closest('a[data-proof-idx]');
+        if (!a) return;
+        ev.preventDefault();
+        const idx = a.getAttribute('data-proof-idx');
+        openProofDownload(r.id, idx);
+      });
+
+      const canUpload = (isOwner || isStaff) &&
+        (r.payment.status === 'pending' || r.payment.status === 'rejected') &&
+        (r.status === 'requested' || r.status === 'under-review');
+      const canDecide = isStaff && r.payment.proofs && r.payment.proofs.length > 0 && r.payment.status === 'submitted';
+
+      const btns = document.createElement('div');
+      btns.className = 'tsh-res-card-actions';
+      btns.style.marginTop = '8px';
+
+      if (canUpload) {
+        const upBtn = document.createElement('button');
+        upBtn.type = 'button';
+        upBtn.className = 'tsh-btn tsh-btn-primary tsh-btn-sm';
+        upBtn.innerHTML = '<i class="fas fa-cloud-arrow-up"></i> Upload proof';
+        upBtn.addEventListener('click', () => uploadPaymentProof(r));
+        btns.appendChild(upBtn);
+      }
+      if (canDecide) {
+        const okBtn = document.createElement('button');
+        okBtn.type = 'button';
+        okBtn.className = 'tsh-btn tsh-btn-primary tsh-btn-sm';
+        okBtn.innerHTML = '<i class="fas fa-check"></i> Verify payment';
+        okBtn.addEventListener('click', () => verifyPayment(r));
+        btns.appendChild(okBtn);
+
+        const noBtn = document.createElement('button');
+        noBtn.type = 'button';
+        noBtn.className = 'tsh-btn tsh-btn-ghost tsh-btn-sm';
+        noBtn.innerHTML = '<i class="fas fa-xmark"></i> Reject payment';
+        noBtn.addEventListener('click', () => rejectPayment(r));
+        btns.appendChild(noBtn);
+      }
+      if (btns.childNodes.length) pay.appendChild(btns);
+      wrap.appendChild(pay);
+    }
+
+    const hr = document.createElement('hr');
+    wrap.appendChild(hr);
+    const acth = document.createElement('h4');
+    acth.style.margin = '0 0 8px';
+    acth.textContent = 'Activity';
+    wrap.appendChild(acth);
     const tl = document.createElement('ul');
     tl.className = 'tsh-res-timeline';
     (r.timeline || []).slice().reverse().forEach((t) => {
@@ -616,6 +722,120 @@
       refreshManage();
     } catch (e) {
       root.UI.toast(e && e.message || 'Reject failed.', { kind: 'danger' });
+    }
+  }
+
+  // -------------------------------------------------------- payment proofs
+
+  const PROOF_MAX_BYTES = 5 * 1024 * 1024;
+  const PROOF_MIMES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+
+  function fileToDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      const fr = new FileReader();
+      fr.onload = () => resolve(String(fr.result || ''));
+      fr.onerror = () => reject(fr.error || new Error('Could not read file'));
+      fr.readAsDataURL(file);
+    });
+  }
+
+  function uploadPaymentProof(r) {
+    const wrap = document.createElement('div');
+    wrap.innerHTML =
+      '<p style="margin:0 0 8px;font-size:13px">Upload a UPI / bank screenshot or receipt PDF. Max 5&nbsp;MB. Only you and society staff can view it.</p>' +
+      '<input type="file" data-proof-file accept="image/png,image/jpeg,image/webp,application/pdf" />' +
+      '<label style="display:block;margin-top:10px;font-size:12px;font-weight:600">Transaction reference (optional)</label>' +
+      '<input type="text" data-proof-ref maxlength="80" placeholder="e.g., UPI ref, txn id" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--tsh-border,#d1d5db)" />';
+    root.UI.modal({
+      title: 'Upload payment proof',
+      body: wrap,
+      actions: [
+        { label: 'Cancel', value: null },
+        { label: 'Upload', value: 'upload', primary: true },
+      ],
+    }).then(async (choice) => {
+      if (choice !== 'upload') return;
+      const fEl = wrap.querySelector('[data-proof-file]');
+      const f = fEl && fEl.files && fEl.files[0];
+      if (!f) { root.UI.toast('Pick a file first.', { kind: 'warn' }); return; }
+      if (PROOF_MIMES.indexOf(f.type) === -1) { root.UI.toast('Only images (JPG/PNG/WebP) or PDF are accepted.', { kind: 'warn' }); return; }
+      if (f.size > PROOF_MAX_BYTES) { root.UI.toast('File is too large (max 5 MB).', { kind: 'warn' }); return; }
+      const ref = (wrap.querySelector('[data-proof-ref]').value || '').trim();
+      try {
+        const dataUrl = await fileToDataUrl(f);
+        const body = { dataUrl, name: f.name };
+        if (ref) body.txnRef = ref;
+        await root.Api.post('/reservations/' + encodeURIComponent(r.id) + '/payment-proof', body);
+        root.UI.toast('Payment proof uploaded. Staff will verify shortly.', { kind: 'success' });
+        refreshMine();
+        refreshManage();
+      } catch (e) {
+        root.UI.toast(e && e.message || 'Upload failed', { kind: 'danger' });
+      }
+    });
+  }
+
+  async function openProofDownload(resId, idx) {
+    // The worker route is authenticated. We fetch the file as a blob and
+    // pop it in a new tab so the browser handles PDF vs image rendering.
+    try {
+      const base = (root.Api && root.Api.base && root.Api.base()) || (root.TSH_WORKER_BASE || '');
+      const url = base + '/reservations/' + encodeURIComponent(resId) + '/payment-proof/' + encodeURIComponent(idx);
+      const token = root.Auth && root.Auth.token && root.Auth.token();
+      const res = await fetch(url, {
+        headers: token ? { 'Authorization': 'Bearer ' + token } : {},
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const blob = await res.blob();
+      const objUrl = URL.createObjectURL(blob);
+      const w = window.open(objUrl, '_blank');
+      if (!w) root.UI.toast('Pop-up blocked. Allow pop-ups to view the proof.', { kind: 'warn' });
+      // Revoke shortly after; the new tab has already latched onto the URL.
+      setTimeout(() => URL.revokeObjectURL(objUrl), 60_000);
+    } catch (e) {
+      root.UI.toast('Could not open proof: ' + (e && e.message || e), { kind: 'danger' });
+    }
+  }
+
+  async function verifyPayment(r) {
+    try {
+      await root.Api.patch('/reservations/' + encodeURIComponent(r.id) + '/payment', {
+        status: 'verified',
+        note: 'Verified from statement',
+      });
+      root.UI.toast('Payment verified. You can now confirm the booking.', { kind: 'success' });
+      refreshMine();
+      refreshManage();
+    } catch (e) {
+      root.UI.toast(e && e.message || 'Verify failed', { kind: 'danger' });
+    }
+  }
+
+  async function rejectPayment(r) {
+    const wrap = document.createElement('div');
+    wrap.innerHTML =
+      '<p>Share a short reason for rejecting the payment. The resident will see this and can re-upload.</p>' +
+      '<textarea data-pay-reject-reason style="width:100%;min-height:80px;padding:8px;border-radius:8px;border:1px solid var(--tsh-border,#d1d5db)" placeholder="e.g., screenshot is not readable"></textarea>';
+    const choice = await root.UI.modal({
+      title: 'Reject payment proof',
+      body: wrap,
+      actions: [
+        { label: 'Cancel', value: null },
+        { label: 'Reject', value: 'reject', primary: true, danger: true },
+      ],
+    });
+    if (choice !== 'reject') return;
+    const reason = wrap.querySelector('[data-pay-reject-reason]').value.trim();
+    if (!reason) { root.UI.toast('Reason is required.', { kind: 'warn' }); return; }
+    try {
+      await root.Api.patch('/reservations/' + encodeURIComponent(r.id) + '/payment', {
+        status: 'rejected', note: reason,
+      });
+      root.UI.toast('Payment rejected. Resident will be prompted to re-upload.', { kind: 'success' });
+      refreshMine();
+      refreshManage();
+    } catch (e) {
+      root.UI.toast(e && e.message || 'Reject failed', { kind: 'danger' });
     }
   }
 

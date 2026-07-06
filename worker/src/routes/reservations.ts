@@ -26,15 +26,16 @@ import { ok } from '../lib/envelope.ts';
 import { ensureAllowed } from '../middleware/rbac.ts';
 import { BadRequest, NotFound, Forbidden } from '../lib/errors.ts';
 import { parseJson, str, optStr, oneOf } from '../lib/validate.ts';
-import { getFile, putFile } from '../github/client.ts';
+import { getFile, putFile, putBinaryB64, getBinaryFile } from '../github/client.ts';
 import { writeAudit } from '../lib/audit.ts';
 import { isAtLeast } from '../auth/roles.ts';
 import { tunable } from '../config/defaults.ts';
 import {
   RES_STATUSES, RES_ID_RE, nextResId, canTransition, buildSlotIndex,
   isActive, istDateStr, parseIstDateMidnight, slotStartMs,
+  PROOF_MIMES, proofRepoPath, initialPaymentState, isPaymentClearedForApproval,
   type Reservation, type Facility, type FacilitySlot, type Person,
-  type TimelineItem,
+  type TimelineItem, type ProofFile, type ProofMime,
 } from '../lib/reservation.ts';
 
 const RES_PATH = 'config/reservations.json';
@@ -374,6 +375,8 @@ export const mountReservations = (r: Router): void => {
         },
       ],
     };
+    const initialPayment = initialPaymentState(facility);
+    if (initialPayment) rec.payment = initialPayment;
 
     items.push(rec);
     await saveReservations(ctx, items, sha, ctx.identity!.email, `create ${id}`);
@@ -417,6 +420,16 @@ export const mountReservations = (r: Router): void => {
       if (!isOwner && !isStaff) throw new Forbidden('Only the owner or a manager can cancel');
     } else if (to === 'requested') {
       throw new BadRequest('Cannot reset a reservation to Requested');
+    }
+
+    // Payment gate: cannot confirm a reservation on a paid facility until
+    // the payment proof has been verified (see §18.6).
+    if (to === 'confirmed') {
+      const facilities = await loadFacilities(ctx);
+      const facility = facilities.find((f) => f.id === rec.facilityId);
+      if (facility && !isPaymentClearedForApproval(rec, facility)) {
+        throw new BadRequest('Cannot confirm: payment has not been verified yet');
+      }
     }
 
     if (!canTransition(rec.status, to)) {
@@ -475,6 +488,165 @@ export const mountReservations = (r: Router): void => {
     await saveReservations(ctx, items, sha, ctx.identity!.email, `comment ${rec.id}`);
     return ok(ctx.env, ctx.req, { reservation: rec });
   });
+
+  // ---- Payment proofs (Phase 2) ---------------------------------------
+
+  const DATA_URL_RE = /^data:([\w+/.-]+);base64,([A-Za-z0-9+/=]+)$/;
+
+  r.post('/reservations/:id/payment-proof', async (ctx: Ctx, params) => {
+    ensureAllowed(ctx, { flags: [FLAG], requireIdentity: true, roles: ['RESIDENT', 'MANAGER', 'COMMITTEE', 'ADMIN'] });
+    const body = await parseJson<Record<string, unknown>>(ctx.req);
+    const dataUrl = str(body['dataUrl'], 'dataUrl', { min: 30, max: 10_000_000 });
+    const nameIn  = optStr(body['name'], 'name', { max: 120 });
+    const txnRef  = optStr(body['txnRef'], 'txnRef', { max: 80 });
+
+    const { items, sha } = await loadReservations(ctx);
+    const idx = items.findIndex((x) => x.id === params['id'] && !x.isDeleted);
+    if (idx === -1) throw new NotFound(`Reservation ${params['id']} not found`);
+    const rec = items[idx]!;
+    const meEmail = ctx.identity!.email.toLowerCase();
+    const isOwner = rec.owner.email.toLowerCase() === meEmail;
+    const isStaff = isAtLeast(ctx.roles, 'MANAGER');
+    if (!isOwner && !isStaff) throw new Forbidden('Only the owner or a manager can upload a payment proof');
+
+    const facilities = await loadFacilities(ctx);
+    const facility = facilities.find((f) => f.id === rec.facilityId);
+    if (!facility) throw new BadRequest('Facility for this reservation is missing');
+    if (!facility.policy.requiresPayment) throw new BadRequest('This facility does not require payment');
+
+    if (!rec.payment) rec.payment = { status: 'pending', proofs: [] };
+    const maxProofs = tunable(ctx.config, 'RESERVATION_MAX_PROOFS', 5);
+    if (rec.payment.proofs.length >= maxProofs) {
+      throw new BadRequest(`Already ${rec.payment.proofs.length} proof(s) on file (max ${maxProofs})`);
+    }
+
+    const m = DATA_URL_RE.exec(dataUrl);
+    if (!m) throw new BadRequest('dataUrl must be data:<mime>;base64,<payload>');
+    const mime = m[1]!;
+    const b64  = m[2]!;
+    if (!(PROOF_MIMES as readonly string[]).includes(mime)) {
+      throw new BadRequest(`unsupported mime type: ${mime}`);
+    }
+    const padding = b64.endsWith('==') ? 2 : b64.endsWith('=') ? 1 : 0;
+    const byteSize = Math.floor((b64.length * 3) / 4) - padding;
+    const maxBytes = tunable(ctx.config, 'RESERVATION_PROOF_MAX_BYTES', 5_242_880);
+    if (byteSize > maxBytes) {
+      throw new BadRequest(`file is ${byteSize} bytes; exceeds RESERVATION_PROOF_MAX_BYTES (${maxBytes})`);
+    }
+
+    const nextIdx = rec.payment.proofs.length + 1;
+    const path = proofRepoPath(rec.id, nextIdx, mime as ProofMime);
+    await putBinaryB64(
+      ctx.env, path, b64,
+      `reservations: payment proof for ${rec.id} by ${ctx.identity!.email}`,
+      ctx.identity!.email,
+    );
+
+    const nowIso = new Date().toISOString();
+    const proof: ProofFile = {
+      path,
+      name: nameIn || `proof-${nextIdx}`,
+      mime: mime as ProofMime,
+      size: byteSize,
+      uploadedAt: nowIso,
+      uploadedBy: ctx.identity!.email,
+    };
+    rec.payment.proofs.push(proof);
+    rec.payment.status = 'submitted';
+    if (txnRef) rec.payment.txnRef = txnRef;
+
+    pushTimeline(rec, {
+      at: nowIso,
+      by: personFromCtx(ctx),
+      event: 'payment-uploaded',
+      note: txnRef ? `txn: ${txnRef}` : `${proof.name} (${Math.round(byteSize / 1024)} KB)`,
+    });
+
+    items[idx] = rec;
+    await saveReservations(ctx, items, sha, ctx.identity!.email, `payment-uploaded ${rec.id}`);
+    await writeAudit(ctx.env, {
+      actor: ctx.identity!.email,
+      action: 'reservations:payment-uploaded',
+      target: rec.id,
+      detail: `path=${path} bytes=${byteSize} txnRef=${txnRef ?? ''}`,
+    });
+    return ok(ctx.env, ctx.req, { reservation: rec }, 201);
+  });
+
+  r.get('/reservations/:id/payment-proof/:idx', async (ctx: Ctx, params) => {
+    ensureAllowed(ctx, { flags: [FLAG], requireIdentity: true, roles: ['RESIDENT', 'MANAGER', 'COMMITTEE', 'ADMIN'] });
+    const { items } = await loadReservations(ctx);
+    const rec = items.find((x) => x.id === params['id'] && !x.isDeleted);
+    if (!rec) throw new NotFound(`Reservation ${params['id']} not found`);
+    const meEmail = ctx.identity!.email.toLowerCase();
+    const isOwner = rec.owner.email.toLowerCase() === meEmail;
+    const isStaff = isAtLeast(ctx.roles, 'MANAGER');
+    if (!isOwner && !isStaff) throw new Forbidden('Not your reservation');
+    const n = Number.parseInt(params['idx'] ?? '', 10);
+    if (!Number.isFinite(n) || n < 1) throw new BadRequest('proof index must be >= 1');
+    const proof = rec.payment?.proofs[n - 1];
+    if (!proof) throw new NotFound(`Proof #${n} not found`);
+    const bin = await getBinaryFile(ctx.env, proof.path);
+    if (!bin) throw new NotFound(`Proof file ${proof.path} missing`);
+    // Stream bytes with the recorded mime. No cache (PII).
+    return new Response(bin.bytes as unknown as BodyInit, {
+      status: 200,
+      headers: {
+        'Content-Type': proof.mime,
+        'Content-Length': String(bin.bytes.length),
+        'Cache-Control': 'private, no-store',
+        'Content-Disposition': `inline; filename="${encodeURIComponent(proof.name)}"`,
+      },
+    });
+  });
+
+  r.patch('/reservations/:id/payment', async (ctx: Ctx, params) => {
+    ensureAllowed(ctx, { flags: [FLAG], requireIdentity: true, roles: ['MANAGER', 'COMMITTEE', 'ADMIN'] });
+    const body = await parseJson<Record<string, unknown>>(ctx.req);
+    const status = oneOf(body['status'], 'status', ['verified', 'rejected', 'pending'] as const);
+    const note = optStr(body['note'], 'note', { max: 500 });
+    const txnRef = optStr(body['txnRef'], 'txnRef', { max: 80 });
+
+    const { items, sha } = await loadReservations(ctx);
+    const idx = items.findIndex((x) => x.id === params['id'] && !x.isDeleted);
+    if (idx === -1) throw new NotFound(`Reservation ${params['id']} not found`);
+    const rec = items[idx]!;
+    if (!rec.payment) throw new BadRequest('This reservation has no payment on file');
+    if (status === 'rejected' && (!note || !note.trim())) {
+      throw new BadRequest('reason (note) is required when rejecting a payment');
+    }
+    if (status === 'verified' && rec.payment.proofs.length === 0) {
+      throw new BadRequest('Cannot verify: no proof has been uploaded');
+    }
+
+    const nowIso = new Date().toISOString();
+    rec.payment.status = status;
+    if (txnRef) rec.payment.txnRef = txnRef;
+    if (note) rec.payment.note = note;
+    if (status === 'verified') {
+      rec.payment.verifiedAt = nowIso;
+      rec.payment.verifiedBy = ctx.identity!.email;
+    }
+
+    const event: TimelineItem['event'] =
+      status === 'verified' ? 'payment-verified' :
+      status === 'rejected' ? 'payment-rejected' :
+      'edited';
+    const item: TimelineItem = { at: nowIso, by: personFromCtx(ctx), event };
+    if (note) item.note = note;
+    pushTimeline(rec, item);
+
+    items[idx] = rec;
+    await saveReservations(ctx, items, sha, ctx.identity!.email, `${event} ${rec.id}`);
+    await writeAudit(ctx.env, {
+      actor: ctx.identity!.email,
+      action: `reservations:${event}`,
+      target: rec.id,
+      detail: note ? `note=${note}` : '',
+    });
+    return ok(ctx.env, ctx.req, { reservation: rec });
+  });
+
 };
 
 // Re-export ID validator so tests can share the regex.

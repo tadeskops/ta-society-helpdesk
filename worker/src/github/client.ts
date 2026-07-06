@@ -65,6 +65,27 @@ export const getJson = async <T>(env: Env, path: string): Promise<T | undefined>
   }
 };
 
+export interface GithubBinary {
+  sha: string;
+  bytes: Uint8Array;
+}
+
+/** Fetch a binary file (photo, PDF, etc.) via the Contents API. */
+export const getBinaryFile = async (env: Env, path: string): Promise<GithubBinary | undefined> => {
+  const url = `${API}/repos/${repoPath(env)}/contents/${encodeURI(path)}?ref=${env.GH_BRANCH}`;
+  const res = await fetch(url, { headers: headers(env) });
+  if (res.status === 404) return undefined;
+  if (!res.ok) {
+    log.error(env, 'github_get_binary_failed', { path, status: res.status });
+    throw new UpstreamError(`GitHub getBinary ${path} -> ${res.status}`);
+  }
+  const json = (await res.json()) as { sha: string; content: string; encoding: 'base64' };
+  const bin = atob(json.content.replace(/\n/g, ''));
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return { sha: json.sha, bytes };
+};
+
 export const putFile = async (
   env: Env,
   path: string,

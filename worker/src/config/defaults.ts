@@ -109,6 +109,8 @@ export const DEFAULT_CONFIG: SiteConfig = {
     POLLS_VOTES_CACHE_SECONDS:  30,
     DAILY_NOTICE_TTL_DAYS:      7,
     RESERVATIONS_CACHE_SECONDS: 60,
+    RESERVATION_PROOF_MAX_BYTES: 5_242_880,   // 5 MB per file
+    RESERVATION_MAX_PROOFS:      5,           // per reservation
   },
   lists: {
     towers:     ['A', 'B', 'C', 'Common Area'],

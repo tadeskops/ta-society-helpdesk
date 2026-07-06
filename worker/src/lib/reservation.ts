@@ -22,8 +22,15 @@ import { BadRequest } from './errors.ts';
 export const RES_STATUSES = ['requested', 'under-review', 'confirmed', 'rejected', 'cancelled'] as const;
 export type ReservationStatus = typeof RES_STATUSES[number];
 
+export const PAYMENT_STATUSES = ['not-required', 'pending', 'submitted', 'verified', 'rejected'] as const;
+export type PaymentStatus = typeof PAYMENT_STATUSES[number];
+
+export const PROOF_MIMES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'] as const;
+export type ProofMime = typeof PROOF_MIMES[number];
+
 export const TIMELINE_EVENTS = [
   'created', 'commented', 'approved', 'rejected', 'cancelled', 'edited', 'overridden',
+  'payment-uploaded', 'payment-verified', 'payment-rejected',
 ] as const;
 export type TimelineEvent = typeof TIMELINE_EVENTS[number];
 
@@ -56,7 +63,28 @@ export interface Reservation {
   createdAt: string;             // ISO 8601
   updatedAt: string;             // ISO 8601
   timeline: TimelineItem[];
+  payment?: PaymentState;
   isDeleted?: boolean;
+}
+
+export interface ProofFile {
+  path: string;                  // repo path e.g. payments/RES-xxx/01.jpg
+  name: string;                  // original client filename
+  mime: ProofMime;
+  size: number;                  // bytes
+  uploadedAt: string;            // ISO 8601
+  uploadedBy: string;            // email
+}
+
+export interface PaymentState {
+  status: PaymentStatus;
+  amount?: number;
+  payee?: string;
+  txnRef?: string;
+  proofs: ProofFile[];
+  verifiedAt?: string;
+  verifiedBy?: string;
+  note?: string;                 // last verifier/rejecter note
 }
 
 export interface FacilitySlot {
@@ -197,4 +225,40 @@ export const buildSlotIndex = (list: Reservation[]): Map<string, string> => {
     idx.set(`${r.facilityId}|${r.date}|${r.slotId}`, r.id);
   }
   return idx;
+};
+
+// ------------------------------------------------------ payment helpers
+
+const extForMime = (m: ProofMime): string =>
+  m === 'application/pdf' ? 'pdf' :
+  m === 'image/png'       ? 'png' :
+  m === 'image/webp'      ? 'webp' : 'jpg';
+
+/** Repo path for a payment proof — served via worker, never public raw. */
+export const proofRepoPath = (resId: string, idx: number, mime: ProofMime): string =>
+  `payments/${resId}/${p2(idx)}.${extForMime(mime)}`;
+
+/**
+ * Whether a facility booking is cleared for confirmation.
+ * If the facility does not require payment → always true.
+ * Otherwise the record's payment.status must be 'verified'.
+ */
+export const isPaymentClearedForApproval = (
+  r: Pick<Reservation, 'payment'>,
+  facility: Pick<Facility, 'policy'>,
+): boolean => {
+  if (!facility.policy.requiresPayment) return true;
+  return r.payment?.status === 'verified';
+};
+
+/** Initial payment state for a newly-created reservation. */
+export const initialPaymentState = (facility: Pick<Facility, 'policy'>): PaymentState | undefined => {
+  if (!facility.policy.requiresPayment) return undefined;
+  const s: PaymentState = {
+    status: 'pending',
+    proofs: [],
+  };
+  if (facility.policy.paymentAmount !== undefined) s.amount = facility.policy.paymentAmount;
+  if (facility.policy.paymentPayee)               s.payee  = facility.policy.paymentPayee;
+  return s;
 };
