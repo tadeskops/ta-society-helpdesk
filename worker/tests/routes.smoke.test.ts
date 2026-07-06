@@ -239,7 +239,7 @@ describe('lifecycle PATCH', () => {
 });
 
 describe('soft-delete (manager+)', () => {
-  it('manager soft-deletes (archive flow goes through /delete in the worker)', async () => {
+  it('manager archive with reason succeeds (spec §6.5)', async () => {
     await send('POST', '/issues', {
       tower: 'A', category: 'Lift', subCategory: 'Stuck',
       location: 'lift 1', description: 'lift stuck on G',
@@ -247,12 +247,22 @@ describe('soft-delete (manager+)', () => {
     const r = await send('POST', '/issues/DLY-00001/delete', { reason: '[archive] retention' }, 'mgr@x.com');
     expect(r.status).toBe(200);
   });
-  it('committee can delete; subsequent public read returns 404', async () => {
+  it('manager archive without a reason is rejected 400', async () => {
     await send('POST', '/issues', {
       tower: 'A', category: 'Lift', subCategory: 'Stuck',
       location: 'lift 1', description: 'lift stuck on G',
     });
-    const del = await send('POST', '/issues/DLY-00001/delete', { reason: 'duplicate' }, 'cmt@x.com');
+    const r = await send('POST', '/issues/DLY-00001/delete', {}, 'mgr@x.com');
+    expect(r.status).toBe(400);
+    const r2 = await send('POST', '/issues/DLY-00001/delete', { reason: '   ' }, 'mgr@x.com');
+    expect(r2.status).toBe(400);
+  });
+  it('committee can delete without a reason; subsequent public read returns 404', async () => {
+    await send('POST', '/issues', {
+      tower: 'A', category: 'Lift', subCategory: 'Stuck',
+      location: 'lift 1', description: 'lift stuck on G',
+    });
+    const del = await send('POST', '/issues/DLY-00001/delete', {}, 'cmt@x.com');
     expect(del.status).toBe(200);
     const pub = await send('GET', '/issues/DLY-00001/public');
     expect(pub.status).toBe(404);

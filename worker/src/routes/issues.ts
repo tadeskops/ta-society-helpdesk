@@ -6,9 +6,10 @@
 //   PATCH  /issues/:id                 status transition (manager+)
 //   POST   /issues/:id/photos          attach photos (manager+)
 //   POST   /issues/:id/redact          edit body (committee+)
-//   POST   /issues/:id/delete          soft-delete (manager+; manager must
-//                                      record a reason — UI enforces the
-//                                      asterisk + popup)
+//   POST   /issues/:id/delete          soft-delete
+//                                      – manager: reason REQUIRED (server-
+//                                        enforced; UI adds the [archive] tag)
+//                                      – committee/admin: reason optional
 //   POST   /issues/bulk-archive        retention sweep (committee+)
 //   POST   /issues/auto-assign-sweep   promote `new` → `assigned` after
 //                                      DAILY_AUTO_ASSIGN_HOURS (admin;
@@ -39,6 +40,7 @@ import { isFeatureOn, tunable } from '../config/defaults.ts';
 import { parseJson, str, optStr, optBool, optNum, oneOf, normalisePhone, isObj } from '../lib/validate.ts';
 import { verifyTurnstile } from '../lib/turnstile.ts';
 import { writeAudit } from '../lib/audit.ts';
+import { isAtLeast } from '../auth/roles.ts';
 
 // ---- In-memory submission throttle (per Worker isolate) ------------------
 // Soft cap. Cloudflare can spawn multiple isolates so the cap is approximate
@@ -507,6 +509,11 @@ const mountDelete = (r: Router): void => {
 
     const raw = await parseJson<Record<string, unknown>>(ctx.req).catch(() => ({} as Record<string, unknown>));
     const reason = optStr(raw['reason'], 'reason', { max: 500 });
+    // Manager archive: reason MUST be non-empty (spec §6.5). Committee/admin
+    // delete: reason is optional — oversight authority already covers intent.
+    if (!isAtLeast(ctx.roles, 'COMMITTEE') && !(reason && reason.trim())) {
+      throw new BadRequest('reason is required when archiving as a manager');
+    }
     const actor = ctx.identity!.email;
     await softDelete(ctx, issue, actor, reason);
     return ok(ctx.env, ctx.req, { id, deleted: true });

@@ -124,7 +124,7 @@ Four roles. Precedence (highest wins for landing-page routing):
 | Role | How identified | Capabilities |
 |---|---|---|
 | **Resident** | Anonymous Google sign-in (any Gmail) | Submit a daily issue; read the public board (PII redacted); look up own ticket by id. **Cannot** call any privileged action. |
-| **Society Manager** | Email in `config/managers.json` | Assign vendor + severity / mark in progress / resolve / reject / reopen. Can add photos to existing issues. **Cannot delete, cannot edit historical fields, cannot change settings.** |
+| **Society Manager** | Email in `config/managers.json` | Assign vendor + severity / mark in progress / resolve / reject / reopen. Can add photos to existing issues. **Can archive** an issue via `POST /issues/:id/delete` **with a mandatory non-empty reason** — the audit log tags this flow with an `[archive]` prefix (see §6.5). **Cannot** redact bodies, bulk-archive, edit historical fields, or change settings. |
 | **Technical Committee** | Email in `config/committee.json` | Everything a manager can do, **plus** edit/redact issue body, overwrite resolution notes after the fact, soft-delete (lock + tombstone), bulk archive, view audit log. **Read-only** access to settings (can see what's configured, cannot change it). |
 | **Admin** | Email in `config/admins.json` (legacy: `config/developers.json`) | Everything committee can do, **plus** edit `config/site.json` (feature flags, visibility, lists), manage all three allow-lists from the settings page, edit system bindings (repo, branch, Worker URL, photo-storage strategy). |
 
@@ -190,34 +190,56 @@ Four roles. Precedence (highest wins for landing-page routing):
 ```
 ta-society-helpdesk/
 ├── docs/                              ← GitHub Pages root
-│   ├── index.html                     ← landing (split card)
+│   ├── index.html                     ← landing (split card + quick tiles + widgets)
 │   ├── daily-report.html              ← resident quick-report card
 │   ├── daily-confirm.html             ← post-submit confirmation
-│   ├── manager-dashboard.html         ← manager triage
-│   ├── committee-dashboard.html       ← committee superset (delete, redact, audit)
-│   ├── public-board.html              ← read-only status board
-│   ├── settings.html                  ← admin-only settings page
+│   ├── manage.html                    ← unified triage queue (manager+; role gate inside)
+│   ├── manager-dashboard.html         ← KPI overview for MANAGER (counters + trends)
+│   ├── committee-dashboard.html       ← KPI overview for COMMITTEE (superset counters + trend)
+│   ├── public-board.html              ← read-only status board (PII redacted)
+│   ├── directory.html                 ← society directory (vendors, committee, resources)
+│   ├── settings.html                  ← admin-write / committee-read settings page
 │   ├── assets/
 │   │   ├── css/theme.css              ← visual tokens shared with handover portal
 │   │   ├── js/auth.js                 ← Google Sign-In shim
 │   │   ├── js/api.js                  ← Worker fetch wrapper
-│   │   └── images/logo.svg            ← same logo as handover portal
-│   └── partials/                      ← shared header / footer / modals
-├── worker/                            ← Cloudflare Worker
-│   ├── src/index.ts
+│   │   ├── js/flags.js                ← feature-flag helper + ensureAuthorized IIFE
+│   │   ├── js/dashboard.js            ← triage-queue controller (manage.html)
+│   │   ├── js/kpi.js                  ← KPI tile controller (manager/committee dashboards)
+│   │   ├── js/pdf-report.js           ← PDF export wizard + /reports/backup uploader
+│   │   └── images/                    ← logo assets (same visual family as handover portal)
+│   └── partials/                      ← shared header / footer / modals / pdf-report shell
+├── worker/                            ← Cloudflare Worker (TypeScript, vitest)
+│   ├── src/
+│   │   ├── index.ts                   ← fetch() + scheduled() entrypoints
+│   │   ├── auth/{jwt,roles}.ts        ← Google JWT verify + role resolution
+│   │   ├── config/{loader,defaults}.ts
+│   │   ├── github/client.ts           ← REST wrapper (contents:write, issues:write)
+│   │   ├── lib/{router,ctx,envelope,errors,issue,validate,turnstile,audit,log}.ts
+│   │   ├── middleware/rbac.ts         ← ensureAllowed(flags + roles + requireIdentity)
+│   │   └── routes/                    ← one file per area (see §5)
+│   ├── tests/                         ← vitest suite (146 tests)
 │   ├── wrangler.toml
 │   └── package.json
 ├── config/                            ← runtime config (committed; edits via settings page)
-│   ├── site.json                      ← feature flags, visibility, lists, bindings
+│   ├── site.json                      ← feature flags, tunables, lists, system bindings
 │   ├── managers.json                  ← email allow-list (manager)
 │   ├── committee.json                 ← email allow-list (committee)
 │   ├── admins.json                    ← email allow-list (admin; legacy name: developers.json)
-│   └── audit.log                      ← append-only audit of settings changes
-├── photos/                            ← per-ticket photo folders (when in-repo storage selected)
-│   └── DLY-<n>/                       ← uploaded at issue-create time
-├── backups/                           ← scheduled PDF reports
-│   ├── TSH_Report.pdf                 ← anonymised
-│   └── TSH_Full_Report.pdf            ← full content
+│   ├── audit.log                      ← append-only audit of settings + issue events
+│   ├── directory.json                 ← society directory source of truth (§14.5)
+│   ├── banner.json                    ← optional site-wide banner content
+│   ├── announcements.json             ← noticeboard entries
+│   ├── events.json                    ← upcoming-events list
+│   ├── polls.json                     ← active/past polls
+│   └── poll-votes.json                ← anonymised aggregated vote counts
+├── photos/                            ← per-ticket photo folders (in-repo storage)
+│   └── DLY-<n>/                       ← uploaded at issue-create time or via /issues/:id/photos
+├── backups/                           ← scheduled + on-demand PDF snapshots
+│   ├── TSH_Report.pdf                 ← anonymised, always-latest (canonical alias)
+│   ├── TSH_Full_Report.pdf            ← full content, always-latest (canonical alias)
+│   ├── TSH_Report_MMYY.pdf            ← monthly frozen copy
+│   └── YYYY-MM-DD/HHMM-<source>.{json,pdf}  ← dated per-run audit trail
 ├── .github/workflows/
 │   ├── deploy-pages.yml
 │   ├── deploy-worker.yml
@@ -228,25 +250,58 @@ ta-society-helpdesk/
 
 ## 5. Worker API surface
 
-All write paths verify the Google JWT first, then check the role allow-list. Read paths that don't touch PII may skip the JWT check.
+All write paths verify the Google JWT first, then check the role allow-list. Read paths that don't touch PII may skip the JWT check. Every response is wrapped in the envelope described in §5.1.
+
+### 5.a Issues (core daily-track data)
 
 | Method + Path | Auth | Roles allowed | Purpose |
 |---|---|---|---|
-| `POST /issues` | JWT (Resident or higher) | All | Create a daily issue. Worker validates the schema and creates the GitHub Issue with labels. |
-| `GET /issues` | JWT | Manager, Committee, Admin | List issues for the manager/committee dashboard. Server-side filter by status/tower/category. |
-| `GET /issues/public` | None | All (incl. anonymous) | Public board read; PII fields scrubbed. |
-| `GET /issues/:id/public` | None | All | Confirmation-page lookup by ticket id. PII redacted. |
-| `PATCH /issues/:id` | JWT | Manager, Committee, Admin | Status transitions (assign / in-progress / resolve / reject / reopen). Audit comment posted on every change. |
+| `POST /issues` | JWT (or anonymous when `FEATURE_DAILY_ANONYMOUS_SUBMIT` is on) | All | Create a daily issue. Turnstile-verified when `FEATURE_DAILY_TURNSTILE` is on. Rate-limited by `DAILY_RATE_LIMIT_SECONDS` + `DAILY_DAILY_LIMIT`. |
+| `GET /issues` | JWT | Manager, Committee, Admin | List issues for the triage queue. Server-side filter by `status`, `tower`. Hidden: `deleted`, `seed:demo` (unless `FEATURE_DAILY_SHOW_DEMO_ISSUES`). |
+| `GET /issues/public` | None | All (incl. anonymous) | Public board read; PII fields scrubbed (§5.2). |
+| `GET /issues/:id/public` | None | All | Confirmation-page lookup. PII redacted. |
+| `PATCH /issues/:id` | JWT | Manager, Committee, Admin | Status transitions (§7). Audit comment posted on every change. |
 | `POST /issues/:id/photos` | JWT | Manager, Committee, Admin | Attach additional photos to an existing issue. |
 | `POST /issues/:id/redact` | JWT | Committee, Admin | Edit issue body to remove PII / fix typos. Stored as an edit + audit comment. |
-| `POST /issues/:id/delete` | JWT | Committee, Admin | Soft-delete: add `deleted` label, lock issue, replace body with tombstone. Issue is hidden from all read endpoints. |
-| `POST /issues/bulk-archive` | JWT | Committee, Admin | Run retention sweep manually (sweeps `RESOLVED` / `REJECTED` issues older than retention window). |
-| `GET /config` | None | All | Returns `site.json` (feature flags, visibility, lists). Used by every page on load. PII-free by definition. |
-| `PUT /config` | JWT | Admin | Overwrite `config/site.json`. Worker commits to the repo with an audit-log line. |
+| `POST /issues/:id/delete` | JWT | **Manager (reason REQUIRED, `[archive]`-prefixed), Committee, Admin (reason optional)** | Soft-delete: add `deleted` label, lock issue, replace body with tombstone. See §6.5. |
+| `POST /issues/bulk-archive` | JWT | Committee, Admin | Manual retention sweep — soft-deletes `resolved` / `rejected` issues older than `DAILY_ARCHIVE_AFTER_DAYS`. |
+| `POST /issues/auto-assign-sweep` | JWT | Admin | Promote `new` tickets older than `DAILY_AUTO_ASSIGN_HOURS` to `assigned`. Also invoked from the Worker `scheduled()` cron. |
+| `POST /issues/backfill-tkt-ids` | JWT | Admin | One-shot migration helper: back-fills `tkt:` labels on legacy `DLY-*` issues. Safe to remove once no un-tagged legacy issues remain. |
+
+### 5.b Identity, config, audit
+
+| Method + Path | Auth | Roles allowed | Purpose |
+|---|---|---|---|
+| `GET /whoami` | JWT | All | Returns `{ email, roles[] }` for the verified caller. Cache: `WHOAMI_CACHE_SECONDS`. |
+| `GET /config` | None | All | Returns `site.json` (features, tunables, lists, system). Cache: `CONFIG_CACHE_SECONDS`. |
+| `PUT /config` | JWT | Admin | Overwrite `config/site.json` via GitHub commit + audit-log line. |
 | `GET /access-lists` | JWT | Committee (read), Admin (read) | Returns the three allow-lists. |
 | `PUT /access-lists/:role` | JWT | Admin | Overwrites one allow-list. Enforces one-admin-minimum guard. |
-| `GET /audit` | JWT | Committee, Admin | Returns recent entries from `config/audit.log`. |
-| `GET /whoami` | JWT | All | Returns `{ email, roles[] }` for the verified caller. |
+| `GET /audit` | JWT | Committee, Admin | Recent entries from `config/audit.log`. |
+
+### 5.c Community surfaces (all flag-gated)
+
+| Method + Path | Auth | Roles allowed | Flag | Purpose |
+|---|---|---|---|---|
+| `GET /directory` | None | All | `FEATURE_DAILY_DIRECTORY` | Read `config/directory.json` (vendors, committee, resources). §14.5. |
+| `PUT /directory` | JWT | Admin | `FEATURE_DAILY_DIRECTORY` | Overwrite directory JSON. |
+| `GET /banner` | None | All | `FEATURE_DAILY_BANNER` | Read `config/banner.json` (site-wide notice). |
+| `PUT /banner` | JWT | Admin | `FEATURE_DAILY_BANNER` | Overwrite banner content. |
+| `GET /announcements` | None | All | `FEATURE_DAILY_ANNOUNCEMENTS` | Read `config/announcements.json`. |
+| `PUT /announcements` | JWT | Committee, Admin | `FEATURE_DAILY_ANNOUNCEMENTS` | Overwrite announcements list. |
+| `GET /events` | None | All | `FEATURE_DAILY_EVENTS` | Read `config/events.json` (upcoming events). |
+| `PUT /events` | JWT | Committee, Admin | `FEATURE_DAILY_EVENTS` | Overwrite events list. |
+| `GET /polls` | None | All | `FEATURE_DAILY_POLLS` | Read `config/polls.json`. |
+| `PUT /polls` | JWT | Admin | `FEATURE_DAILY_POLLS` | Overwrite polls list. |
+| `POST /polls/:id/vote` | JWT | Resident+ | `FEATURE_DAILY_POLLS` | Cast one vote; aggregated into `poll-votes.json`. |
+| `GET /metrics` | JWT | Manager, Committee, Admin | `FEATURE_DAILY_KPI_DASHBOARD` | KPI counters + trend series for the dashboard pages. |
+
+### 5.d Reports & backups
+
+| Method + Path | Auth | Roles allowed | Purpose |
+|---|---|---|---|
+| `POST /reports/backup` | JWT | All (Resident+) — dated audit copy only | Save a client-generated snapshot (`snapshot`, optional `pdfB64`, `source`, `fileName`) as `backups/YYYY-MM-DD/HHMM-<source>.{json,pdf}`. **Canonical aliases** (`backups/TSH_Report.pdf` and `backups/TSH_Report_MMYY.pdf`) are only refreshed when the caller is COMMITTEE/ADMIN **and** the body sets `updateCanonical: true` — this prevents narrow filtered exports from clobbering the always-latest download. |
+| `GET /reports/backups` | JWT | Committee, Admin | Metadata for the last 50 saved snapshots. |
 
 ### 5.1 Response envelope
 
@@ -264,11 +319,24 @@ Every response is `{ ok: boolean, data?: any, error?: string }`. HTTP status cod
 
 One GitHub Issue per ticket. The Worker is the only writer.
 
-### 6.1 Title
+### 6.1 Title & ticket id
+
+**Current (canonical) format**
+
+`TKT-DDMMYYHHMM[-N] · <category> · <tower>` — example: `TKT-2806260345 · Lift · Common Area`
+
+- Base id `TKT-DDMMYYHHMM` is derived from the issue's `created_at` in IST (Asia/Kolkata) — day, month, year, hour, minute.
+- If two or more tickets are created inside the same IST minute, the second onwards get a `-2`, `-3`, … suffix. The first ticket in a minute stays bare.
+- The id is persisted as a `tkt:<id>` label on the GitHub Issue so lookups by ticket id are O(1) (`labels=daily,tkt:<id>`).
+- Rationale: the id is human-typable, sortable by time, and prevents leaking exact GitHub Issue numbers on public surfaces.
+
+**Legacy / read-only fallback**
 
 `DLY-<padded-id> · <category> · <tower>` — example: `DLY-00142 · Lift · T2`
 
-`<padded-id>` is the GitHub Issue number, zero-padded to 5 digits, prefixed `DLY-`. Issue number is GitHub's natural sequence — no separate counter.
+- `<padded-id>` is the raw GitHub Issue number zero-padded to 5 digits.
+- Old tickets created before the `TKT-*` scheme retain their `DLY-*` titles. `POST /issues/backfill-tkt-ids` mints and applies `tkt:` labels for them so lookups keep working.
+- Any endpoint that resolves a ticket id (e.g. `PATCH /issues/:id`) accepts `TKT-*`, `DLY-*`, or the raw issue number for compatibility.
 
 ### 6.2 Body (Markdown sections)
 
@@ -323,9 +391,9 @@ Every status transition posts a comment with shape:
 
 Comments are append-only and never edited. The full lifecycle is reconstructable from issue events alone.
 
-### 6.5 Soft-delete (committee+ only)
+### 6.5 Soft-delete (manager can archive; committee/admin can delete)
 
-GitHub Issues cannot be hard-deleted via API at the repo-admin level. "Delete" therefore means:
+GitHub Issues cannot be hard-deleted via API at the repo-admin level. "Delete" therefore means the same physical operation for every role:
 
 1. Apply `deleted` label.
 2. Lock the issue (`locked = true`, `lock_reason = 'resolved'`).
@@ -334,6 +402,18 @@ GitHub Issues cannot be hard-deleted via API at the repo-admin level. "Delete" t
 5. Append a line to `config/audit.log`.
 
 The issue is preserved on GitHub (so the audit trail survives); only its visibility through the app is removed. Hard-delete remains a manual step on github.com if ever required.
+
+**Role-specific UX (single shared endpoint)** — see also §2 and the row for `POST /issues/:id/delete` in §5.a.
+
+| Role | UI label | Reason field | Audit tag written | Rationale |
+|---|---|---|---|---|
+| **Manager** | "Archive" | REQUIRED (UI + server enforced) | `[archive] <reason>` | Manager can immediately clear spam / obvious duplicates; the mandatory reason gives committee oversight after the fact. |
+| **Committee** | "Delete" | Optional | `<reason or blank>` | Committee already carries oversight authority; the audit log still captures actor + timestamp. |
+| **Admin** | "Delete" | Optional | `<reason or blank>` | Same as committee. |
+
+> **Status:** Shipped since 2026-07-06 (commit hardening the server-side reason check for managers). Rationale: managers do the daily spam / duplicate cleanup and the mandatory reason gives committee full traceability; soft-delete is reversible on github.com so a rash archive is not permanent. Any future revision that removes manager delete rights MUST update this table, the `mountDelete` role list, the Archive UI in `docs/assets/js/dashboard.js`, and §2 in the same commit.
+
+A committee member can reverse a manager's archive by removing the `deleted` label + unlocking the issue via GitHub UI; the app UI does not currently expose an "un-archive" button, so this is deliberately a github.com-side action to keep the app surface small.
 
 ## 7. Lifecycle (allowed transitions)
 
@@ -352,7 +432,7 @@ The default flow is deliberately minimized: `new → assigned → in-progress �
 | `in-progress` | `rejected` | reject (found not actionable) | Manager+ |
 | `resolved` | `in-progress` | reopen | Manager+ |
 | `rejected` | `new` | reopen | Manager+ |
-| any → `deleted` | soft-delete | Committee+ |
+| any → `deleted` | archive (Manager, reason required) / delete (Committee+, reason optional) — see §6.5 | Manager+ |
 
 Any other transition is rejected by the Worker with `Forbidden transition: <from> → <to>`.
 
@@ -372,8 +452,10 @@ One page per role surface. Routes never branch by role inside a single HTML; the
 | `daily-report.html` (intake) | when `FEATURE_DAILY_ANONYMOUS_SUBMIT` | full | full | full | full |
 | `daily-confirm.html` | full (id required) | full | full | full | full |
 | `public-board.html` | full (PII redacted) | full (PII redacted) | full | full | full |
-| `manager-dashboard.html` | denied | denied | full | full | full |
-| `committee-dashboard.html` | denied | denied | denied | full | full |
+| `directory.html` | full (when `FEATURE_DAILY_DIRECTORY`) | full | full | full | full |
+| `manage.html` (triage queue) | denied | denied | full | full (Archive→Delete, plus redact + bulk-archive) | full |
+| `manager-dashboard.html` (KPI) | denied | denied | full | full | full |
+| `committee-dashboard.html` (KPI + weekly trend) | denied | denied | denied | full | full |
 | `settings.html` | denied | denied | denied | read-only | full write |
 
 Denied = redirect to `index.html` with a one-line toast. Read-only = page renders, every input/button is `disabled`, server-side `PUT`s would be rejected anyway.
@@ -415,13 +497,23 @@ Single-screen mobile-first card. Identity fields are optional. Photos optional. 
 
 Tracking ID, copy button, share-via-WhatsApp deep link (`wa.me/?text=…`), "What happens next" three-step explainer, `[Report another]` and `[View status]` buttons.
 
-### 8.4 Manager dashboard (`docs/manager-dashboard.html`)
+### 8.4 Triage queue (`docs/manage.html`)
 
-Modeled visually on the handover committee dashboard. Tabs: `New` · `Assigned` · `In Progress` · `Resolved (today)` · `Rejected` · `All`. Row actions: Assign · Mark in progress · Resolve · Reject. Quick filters: tower / category / severity / age. Rows older than `DAILY_AUTO_ASSIGN_HOURS` in status `new` are flagged red — they will be auto-promoted to `assigned` on the next cron tick if no manager acts first.
+Single unified queue used by both managers and committee (role-gated inside the page via `Flags.ensureAuthorized('MANAGER')`). Tabs: `New` · `Assigned` · `In progress` · `Resolved` · `Rejected` · `All`. Row actions per role:
 
-### 8.5 Committee dashboard (`docs/committee-dashboard.html`)
+- **Manager**: Assign · Mark in progress · Resolve · Reject · Archive (reason required).
+- **Committee / Admin**: same, plus Redact body · Delete (reason optional) · Bulk-archive · Audit-log viewer.
 
-Superset of the manager dashboard. Adds: edit/redact body, overwrite resolution notes, soft-delete, bulk archive, audit-log viewer. Visually identical layout — the extra actions appear in the detail modal's overflow menu, not as separate primary buttons, to keep the chrome consistent.
+Quick filters: tower / category / severity / age. Rows older than `DAILY_AUTO_ASSIGN_HOURS` in status `new` are flagged red — they will be auto-promoted to `assigned` on the next cron tick if no manager acts first. The PDF-export wizard on this page sets `source: 'manage'` + `updateCanonical: true` so the always-latest `TSH_Report.pdf` gets refreshed (§5.d).
+
+### 8.5 KPI dashboards (`docs/manager-dashboard.html`, `docs/committee-dashboard.html`)
+
+Read-only landing pages for the operator roles — they show live counters (open / new / overdue / resolved-today / etc.), not the triage queue itself. The primary CTA is `[Manage queue]` → `manage.html`.
+
+- **Manager dashboard**: counters for the manager's own workload — open by status, tower breakdown, age buckets.
+- **Committee dashboard**: superset — same counters plus weekly trend and top-N categories. Flag: `FEATURE_DAILY_COMMITTEE_VIEW`.
+
+Both pages are flag-gated by `FEATURE_DAILY_KPI_DASHBOARD`. Data comes from `GET /metrics`.
 
 ### 8.6 Public board (`docs/public-board.html`)
 
@@ -442,44 +534,90 @@ Save → `PUT /config` (and/or `PUT /access-lists/:role`) → Worker commits the
 
 ## 9. Configuration (`config/site.json`)
 
+The file below is a **complete inventory** of every flag and tunable the Worker recognises. Every flag has a settings-page toggle (§14.2). Defaults are baked into the Worker (`worker/src/config/defaults.ts`); when the file is missing or malformed the Worker returns the defaults, but the committed file always wins at runtime — so keep the two in sync (see §14.3).
+
 ```jsonc
 {
   "version": 1,
   "features": {
-    "FEATURE_DAILY_TRACK":            true,
-    "FEATURE_DAILY_ANONYMOUS_SUBMIT": true,
-    "FEATURE_DAILY_PHOTO_UPLOAD":     true,
-    "FEATURE_DAILY_WHATSAPP_SHARE":   true,
-    "FEATURE_DAILY_COST_FIELD":       false,
-    "FEATURE_DAILY_PUBLIC_RESOLVED":  true,
-    "FEATURE_DAILY_PUBLIC_REJECTED":  false,
-    "FEATURE_DAILY_PUBLIC_PHOTOS":    true,
-    "FEATURE_DAILY_PUBLIC_PDF":       true,
-    "FEATURE_DAILY_AUDIT_LOG_UI":     true,
-    "FEATURE_DAILY_TURNSTILE":        true
+    // Core intake / triage
+    "FEATURE_DAILY_TRACK":                 true,   // master switch
+    "FEATURE_DAILY_ANONYMOUS_SUBMIT":      false,  // if false, POST /issues needs a verified JWT
+    "FEATURE_DAILY_PHOTO_UPLOAD":          true,
+    "FEATURE_DAILY_WHATSAPP_SHARE":        true,
+    "FEATURE_DAILY_COST_FIELD":            false,
+    "FEATURE_DAILY_TURNSTILE":             false,  // Cloudflare Turnstile on the intake form
+    "FEATURE_DAILY_AUTOSAVE_DRAFT":        true,
+    "FEATURE_DAILY_SEVERITY":              false,
+    "FEATURE_DAILY_SLA":                   false,
+    // Public surfaces
+    "FEATURE_DAILY_PUBLIC_BOARD":          true,
+    "FEATURE_DAILY_PUBLIC_RESOLVED":       true,
+    "FEATURE_DAILY_PUBLIC_REJECTED":       false,
+    "FEATURE_DAILY_PUBLIC_PHOTOS":         true,
+    "FEATURE_DAILY_PUBLIC_PDF":            true,
+    "FEATURE_DAILY_REJECTED_FILTER":       true,
+    // Operator surfaces
+    "FEATURE_DAILY_MANAGER_DASHBOARD":     true,
+    "FEATURE_DAILY_COMMITTEE_DASHBOARD":   true,
+    "FEATURE_DAILY_COMMITTEE_VIEW":        true,
+    "FEATURE_DAILY_KPI_DASHBOARD":         true,
+    "FEATURE_DAILY_AUDIT_LOG_UI":          true,
+    "FEATURE_DAILY_COMMITTEE_PHOTO":       false,  // committee may attach photos to existing issues
+    "FEATURE_DAILY_EXPORT_PDF":            true,
+    "FEATURE_DAILY_WEEKLY_REPORT":         false,
+    // Landing-page widgets (all optional)
+    "FEATURE_DAILY_DIRECTORY":             true,
+    "FEATURE_DAILY_DIRECTORY_SERVICES":    true,
+    "FEATURE_DAILY_ANNOUNCEMENTS":         true,
+    "FEATURE_DAILY_EVENTS":                true,
+    "FEATURE_DAILY_POLLS":                 false,
+    "FEATURE_DAILY_BANNER":                false,
+    "FEATURE_DAILY_FLOATING_PALETTE":      true,
+    "FEATURE_DAILY_VISITOR_COUNTER":       false,
+    "FEATURE_DAILY_USER_ROLE_BADGE":       true,
+    "FEATURE_DAILY_SHOW_DEMO_ISSUES":      false   // dev-only: include seed:demo issues in lists
   },
   "tunables": {
-    "DAILY_AUTO_ASSIGN_HOURS": 4,
-    "DAILY_ARCHIVE_AFTER_DAYS": 90,
-    "DAILY_PHOTO_MAX_PER_ISSUE": 6,
-    "DAILY_PHOTO_MAX_BYTES":    5242880
+    "DAILY_AUTO_ASSIGN_HOURS":    4,          // cron auto-promotes `new` after this many hours
+    "DAILY_ARCHIVE_AFTER_DAYS":  90,          // retention window for /issues/bulk-archive
+    "DAILY_PHOTO_MAX_PER_ISSUE":  6,
+    "DAILY_PHOTO_MAX_BYTES":      5242880,    // 5 MB per photo
+    "DAILY_PHOTO_MAX_DIM":        1600,       // client-side downscale target
+    "DAILY_PHOTO_JPEG_QUALITY":   0.85,
+    "DAILY_RATE_LIMIT_SECONDS":  20,          // per-submitter cooldown between POST /issues
+    "DAILY_DAILY_LIMIT":         20,          // per-submitter daily cap
+    "DAILY_DESC_MIN":             5,
+    "DAILY_DESC_MAX":          2000,
+    "DAILY_LOCATION_MAX":       120,
+    "CONFIG_CACHE_SECONDS":      60,
+    "WHOAMI_CACHE_SECONDS":       5,
+    "DIRECTORY_CACHE_SECONDS":  120,
+    "BANNER_CACHE_SECONDS":      60,
+    "ANNOUNCEMENTS_CACHE_SECONDS": 60,
+    "EVENTS_CACHE_SECONDS":      60,
+    "POLLS_CACHE_SECONDS":       60,
+    "POLLS_VOTES_CACHE_SECONDS": 30,
+    "DAILY_NOTICE_TTL_DAYS":      7
   },
   "lists": {
-    "towers":       ["T1","T2","T3","T4"],
-    "categories":   ["Lift","Water","Lights","Cleaning","Security","Other"],
-    "subCategories": { "Lift": ["Stuck","Doors not closing","Buttons faulty","Other"] }
+    "towers":       ["A", "B", "C", "Common Area"],
+    "categories":   ["Lift", "Water", "Electricity", "Plumbing", "Cleaning", "Security", "Garden", "Pest Control", "Parking", "Waste Management", "Intercom", "Building & Civil", "Clubhouse", "Swimming Pool", "Gym", "CCTV", "Fire Safety", "Noise / Nuisance", "Vendor / Service", "Other"],
+    "subCategories": { "Lift": ["Stuck", "Doors not closing", ...], /* every category has its own list */ }
   },
   "system": {
-    "issuesRepo":         "tadeskops/ta-society-helpdesk",
-    "backupBranch":       "main",
-    "workerUrl":          "https://daily-worker.tadeskops.workers.dev",
-    "handoverPortalUrl":  "https://tadeskops.github.io/ta-issue-manager/",
-    "photoStorage":       "in-repo"
+    "issuesRepo":        "tadeskops/ta-society-helpdesk",
+    "backupBranch":      "main",
+    "workerUrl":         "https://tsh-worker.tadeskops.workers.dev",
+    "handoverPortalUrl": "https://tadeskops.github.io/ta-issue-manager/",
+    "photoStorage":      "in-repo"
   }
 }
 ```
 
-Defaults are baked into the Worker (`DEFAULT_CONFIG`); when the file is missing or malformed the Worker returns the defaults. CONFIG values always override.
+### 9.1 Default drift check
+
+The file above (`config/site.json`) is authoritative at runtime. `worker/src/config/defaults.ts` holds a fallback used only when the file is missing or malformed. **Any PR that changes a flag or tunable MUST touch both files** — see §14.3.
 
 ## 10. Cloudflare Worker secrets
 
