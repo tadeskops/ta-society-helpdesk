@@ -54,3 +54,4 @@
 {"at":"2026-07-06T18:37:39.311Z","actor":"ta.deskops@gmail.com","action":"facility:update","target":"gym-area","detail":"role=ADMIN"}
 {"at":"2026-07-06T18:38:35.196Z","actor":"ta.deskops@gmail.com","action":"facility:update","target":"gym-area","detail":"role=ADMIN"}
 {"at":"2026-07-06T18:40:20.822Z","actor":"ta.deskops@gmail.com","action":"reservations:create","target":"RES-0707260010","detail":"facility=gym-area date=2026-07-09 time=08:00-12:00 owner=ta.deskops@gmail.com"}
+{"at":"2026-07-06T18:45:32.112Z","actor":"ta.deskops@gmail.com","action":"receipts:template","target":"photos/receipts/template-0a4c072925b3c73d.pdf","detail":"bytes=239593 mime=application/pdf"}
