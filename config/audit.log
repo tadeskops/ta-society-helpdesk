@@ -47,3 +47,4 @@
 {"at":"2026-06-28T10:14:21.371Z","actor":"ta.deskops@gmail.com","action":"issue:delete","target":"DLY-00003"}
 {"at":"2026-06-29T06:04:35.659Z","actor":"ta.deskops@gmail.com","action":"directory:put","target":"config/directory.json","detail":"vendors=1 contacts=12 resources=0 services=1 emergency=0"}
 {"at":"2026-07-06T14:41:25.645Z","actor":"ta.deskops@gmail.com","action":"facility:update","target":"community-hall","detail":"role=ADMIN"}
+{"at":"2026-07-06T14:48:39.157Z","actor":"ta.deskops@gmail.com","action":"announcements:put","target":"config/announcements.json","detail":"items=1"}
