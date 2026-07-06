@@ -147,7 +147,7 @@
     .tsh-cal-sw-confirmed { background: #fee2e2; border-color: #fca5a5; }
     .tsh-cal-sw-blackout  { background: #f3f4f6; border-color: #e5e7eb; }
 
-    .tsh-cal-host { border: 1px solid var(--tsh-border, #d1d5db); border-radius: 12px; overflow: hidden; background: var(--tsh-card, #fff); }
+    .tsh-cal-host { border: 1px solid var(--tsh-border, #d1d5db); border-radius: 12px; overflow: hidden auto; background: var(--tsh-card, #fff); max-height: var(--tsh-cal-max-h, 560px); scroll-behavior: smooth; }
     .tsh-cal-week {
       display: grid;
       grid-template-columns: 56px repeat(var(--cal-cols, 7), minmax(0, 1fr));
@@ -158,6 +158,10 @@
     }
     .tsh-cal-corner, .tsh-cal-daycol-head, .tsh-cal-timecol-cell, .tsh-cal-daycol {
       border-bottom: 1px solid var(--tsh-border, #e5e7eb);
+    }
+    /* Pin header row while the body scrolls so day/date labels stay in view. */
+    .tsh-cal-corner, .tsh-cal-daycol-head {
+      position: sticky; top: 0; z-index: 5;
     }
     .tsh-cal-corner { background: var(--tsh-card, #fff); border-right: 1px solid var(--tsh-border, #e5e7eb); }
     .tsh-cal-daycol-head {
@@ -179,6 +183,8 @@
       color: var(--tsh-muted, #6b7280);
       border-bottom: 1px dashed var(--tsh-border, #eef0f3);
     }
+    /* Hour boundary: solid divider instead of dashed one, and stronger font. */
+    .tsh-cal-timecol-cell.tsh-cal-hour { border-bottom-style: solid; border-bottom-color: var(--tsh-border, #e5e7eb); font-weight: 600; color: var(--tsh-text, #111827); font-size: 11px; }
     .tsh-cal-daycol { position: relative; border-right: 1px solid var(--tsh-border, #e5e7eb); }
     .tsh-cal-slot {
       height: var(--cal-row-h, 24px);
@@ -186,10 +192,32 @@
       cursor: pointer;
       transition: background 100ms ease;
     }
-    .tsh-cal-slot:hover { background: color-mix(in srgb, var(--tsh-primary, #2563eb) 10%, transparent); }
+    .tsh-cal-slot.tsh-cal-hour { border-bottom-style: solid; border-bottom-color: var(--tsh-border, #e5e7eb); }
+    .tsh-cal-slot:hover { background: color-mix(in srgb, var(--tsh-primary, #2563eb) 12%, transparent); box-shadow: inset 2px 0 0 var(--tsh-primary, #2563eb); }
     .tsh-cal-slot.tsh-cal-slot-past { cursor: not-allowed; background: repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(0,0,0,.03) 4px, rgba(0,0,0,.03) 8px); }
-    .tsh-cal-slot.tsh-cal-slot-past:hover { background: repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(0,0,0,.03) 4px, rgba(0,0,0,.03) 8px); }
+    .tsh-cal-slot.tsh-cal-slot-past:hover { background: repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(0,0,0,.03) 4px, rgba(0,0,0,.03) 8px); box-shadow: none; }
     .tsh-cal-daycol.tsh-cal-blackout .tsh-cal-slot { cursor: not-allowed; background: repeating-linear-gradient(45deg, #f3f4f6, #f3f4f6 6px, #e5e7eb 6px, #e5e7eb 12px); }
+
+    /* ----- Sleek quick-pick strip -----
+       One row of hour chips summarising availability for the currently
+       anchored day (today when viewing the week). Click a free chip to
+       jump straight into the book modal. */
+    .tsh-cal-quick { display: flex; align-items: center; gap: 10px; margin: 6px 0 8px; padding: 8px 10px; border: 1px solid var(--tsh-border, #e5e7eb); border-radius: 10px; background: var(--tsh-card-alt, #f9fafb); flex-wrap: wrap; }
+    .tsh-cal-quick-label { font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--tsh-muted, #6b7280); flex: 0 0 auto; }
+    .tsh-cal-quick-chips { display: flex; gap: 4px; flex-wrap: wrap; }
+    .tsh-cal-quick-chip {
+      padding: 4px 9px; border-radius: 999px; border: 1px solid var(--tsh-border, #d1d5db);
+      background: var(--tsh-card, #fff); color: var(--tsh-text, #111827);
+      font-size: 12px; font-weight: 500; cursor: pointer; line-height: 1.2;
+      transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+    }
+    .tsh-cal-quick-chip:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 2px 6px rgba(0,0,0,.08); border-color: var(--tsh-primary, #2563eb); }
+    .tsh-cal-quick-chip.tsh-cal-quick-busy    { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
+    .tsh-cal-quick-chip.tsh-cal-quick-full    { background: #fee2e2; color: #991b1b; border-color: #fca5a5; }
+    .tsh-cal-quick-chip.tsh-cal-quick-past    { opacity: .5; cursor: not-allowed; }
+    .tsh-cal-quick-chip.tsh-cal-quick-past:hover { transform: none; box-shadow: none; border-color: var(--tsh-border, #d1d5db); }
+    .tsh-cal-quick-chip.tsh-cal-quick-blocked { background: repeating-linear-gradient(45deg,#f3f4f6,#f3f4f6 4px,#e5e7eb 4px,#e5e7eb 8px); color: #6b7280; cursor: not-allowed; }
+    .tsh-cal-quick-empty { font-size: 12px; color: var(--tsh-muted, #6b7280); }
 
     .tsh-cal-event {
       position: absolute; left: 2px; right: 2px;
@@ -305,6 +333,7 @@
             <span><span class="tsh-cal-swatch tsh-cal-sw-confirmed"></span> Confirmed</span>
             <span><span class="tsh-cal-swatch tsh-cal-sw-blackout"></span> Blocked</span>
           </div>
+          <div id="resQuickBook" class="tsh-cal-quick" hidden></div>
           <div id="resCalendar" class="tsh-cal-host"></div>
         </div>
       </section>
@@ -343,7 +372,7 @@
   <script src="./assets/js/ui.js?v=51"></script>
   <script src="./assets/js/notify.js?v=1"></script>
   <script src="./assets/js/pdf-report.js?v=9"></script>
-  <script src="./assets/js/reservations.js?v=8"></script>
+  <script src="./assets/js/reservations.js?v=9"></script>
   <script>
   (async () => {
     await Partials.mount();

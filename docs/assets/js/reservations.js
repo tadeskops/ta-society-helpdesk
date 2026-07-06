@@ -444,9 +444,19 @@
     const openMin  = Number.isFinite(open.openMin)  ? open.openMin  : 6 * 60;
     const closeMin = Number.isFinite(open.closeMin) ? open.closeMin : 23 * 60;
     const stepMin  = Number.isFinite(open.stepMinutes) ? open.stepMinutes : 30;
-    const rowH     = 24; // px per step row
     const totalMin = Math.max(stepMin, closeMin - openMin);
     const totalRows = Math.ceil(totalMin / stepMin);
+    // Adaptive row height. On Day view (1 wide column) rows can grow
+    // for easier clicking; on Week view we compress so the whole day
+    // fits inside a ~520 px scroll body without the eye-tiring 1500 px
+    // strip we used to render for 15-minute grids.
+    const target = calView === 'day' ? 640 : 520;
+    const minRow = calView === 'day' ? 22 : 14;
+    const maxRow = calView === 'day' ? 44 : 26;
+    const rowH = Math.max(minRow, Math.min(maxRow, Math.floor(target / totalRows)));
+    // How many step-rows make up an hour (used to draw solid hour lines
+    // and for the quick-pick strip).
+    const rowsPerHour = Math.max(1, Math.round(60 / stepMin));
 
     // Map date → busy list from server.
     const dayIndex = new Map();
@@ -493,6 +503,7 @@
       const cellMin = openMin + r * stepMin;
       const t = document.createElement('div');
       t.className = 'tsh-cal-timecol-cell';
+      if (cellMin % 60 === 0) t.classList.add('tsh-cal-hour');
       // Label only on the hour to keep the gutter uncluttered.
       t.textContent = (cellMin % 60 === 0) ? formatHHMM(cellMin) : '';
       timecol.appendChild(t);
@@ -510,6 +521,7 @@
         const cellMin = openMin + r * stepMin;
         const slot = document.createElement('div');
         slot.className = 'tsh-cal-slot';
+        if (cellMin % 60 === 0) slot.classList.add('tsh-cal-hour');
         slot.setAttribute('data-date', date);
         slot.setAttribute('data-min', String(cellMin));
         // Determine if this cell is in the past (min-advance enforced).
@@ -566,6 +578,135 @@
     });
 
     host.appendChild(wrap);
+
+    // Sleek extras: quick-pick chip strip above the grid, and auto-scroll
+    // the grid so the current hour (or the day's opening hour if we're
+    // ahead of/behind today) is centred on load.
+    renderQuickBook(payload, range, {
+      openMin, closeMin, stepMin, minAdvanceMs, nowMs, today,
+    });
+    scrollCalendarToNow(host, { openMin, closeMin, stepMin, rowH, today, range });
+  }
+
+  function scrollCalendarToNow(host, opt) {
+    if (!host) return;
+    const { openMin, closeMin, stepMin, rowH, today, range } = opt;
+    let target;
+    if (range.from <= today && today <= range.to) {
+      const nowIst = new Date(Date.now() + IST_OFFSET_MS);
+      const nowMin = nowIst.getUTCHours() * 60 + nowIst.getUTCMinutes();
+      if (nowMin >= openMin && nowMin <= closeMin) target = nowMin;
+      else target = openMin;
+    } else {
+      target = openMin;
+    }
+    const y = Math.max(0, ((target - openMin) / stepMin) * rowH - Math.floor(host.clientHeight * 0.35));
+    try { host.scrollTo({ top: y, behavior: 'auto' }); }
+    catch (_e) { host.scrollTop = y; }
+  }
+
+  // ---------- Quick-pick strip (sleek time selector) --------------------
+  // Renders one chip per hour in the current facility's open window,
+  // scoped to the "quick day": today if today is inside the visible
+  // range, otherwise the first day of that range. Chips are colour-coded
+  // free / partly-busy / fully-busy / past / blocked and, when free,
+  // launch the book modal for that hour.
+
+  function renderQuickBook(payload, range, opt) {
+    const host = $('#resQuickBook');
+    if (!host || !selectedFacility) return;
+    const { openMin, closeMin, stepMin, minAdvanceMs, nowMs, today } = opt;
+
+    // Pick the "quick day".
+    const quickDate = (range.from <= today && today <= range.to)
+      ? today
+      : range.from;
+
+    const days = payload.days || [];
+    const dayInfo = days.find((d) => d && d.date === quickDate) || { date: quickDate, blackout: false, busy: [] };
+
+    if (dayInfo.blackout) {
+      host.hidden = false;
+      host.innerHTML =
+        '<span class="tsh-cal-quick-label"><i class="far fa-calendar-xmark"></i> ' + escape(friendlyRelDate(quickDate)) + '</span>' +
+        '<span class="tsh-cal-quick-empty">Blocked for this facility.</span>';
+      return;
+    }
+
+    // Bucket busy segments into hour slots for a quick scan.
+    const busy = dayInfo.busy || [];
+    const chips = [];
+    const startHour = Math.floor(openMin / 60);
+    const endHour = Math.ceil(closeMin / 60);
+    for (let h = startHour; h < endHour; h++) {
+      const hourStart = h * 60;
+      const hourEnd = hourStart + 60;
+      // Clip against the facility's actual open window.
+      const winStart = Math.max(hourStart, openMin);
+      const winEnd = Math.min(hourEnd, closeMin);
+      if (winEnd - winStart < stepMin) continue;
+      let occupied = 0;
+      let anyConfirmed = false;
+      busy.forEach((b) => {
+        const s = Math.max(winStart, Number(b.startMin) || 0);
+        const e = Math.min(winEnd, Number(b.endMin) || 0);
+        if (e > s) {
+          occupied += (e - s);
+          if (b.status === 'confirmed') anyConfirmed = true;
+        }
+      });
+      const capacity = winEnd - winStart;
+      const [y, mo, d] = quickDate.split('-').map(Number);
+      const cellMs = Date.UTC(y, mo - 1, d, 0, 0, 0, 0) - IST_OFFSET_MS + winStart * 60 * 1000;
+      const inPast = (cellMs - nowMs) < minAdvanceMs;
+
+      let cls = 'tsh-cal-quick-chip';
+      let label = String(h).padStart(2, '0') + ':00';
+      let title = label + ' \u2013 ' + String(h + 1).padStart(2, '0') + ':00';
+      if (inPast) {
+        cls += ' tsh-cal-quick-past';
+        title += ' \u00b7 past / too soon';
+      } else if (occupied >= capacity) {
+        cls += ' tsh-cal-quick-full';
+        title += ' \u00b7 fully booked (' + (anyConfirmed ? 'confirmed' : 'requested') + ')';
+      } else if (occupied > 0) {
+        cls += ' tsh-cal-quick-busy';
+        title += ' \u00b7 partly booked \u2014 pick a free slot in the grid';
+      } else {
+        title += ' \u00b7 free \u2014 click to book';
+      }
+
+      chips.push({ label, title, cls, hourStart: winStart, inPast, blockedOrFull: (inPast || occupied >= capacity) });
+    }
+
+    if (!chips.length) {
+      host.hidden = true;
+      return;
+    }
+
+    host.hidden = false;
+    host.innerHTML = '';
+    const lbl = document.createElement('span');
+    lbl.className = 'tsh-cal-quick-label';
+    lbl.innerHTML = '<i class="fas fa-bolt"></i> Quick book &middot; ' + escape(friendlyRelDate(quickDate));
+    host.appendChild(lbl);
+
+    const strip = document.createElement('div');
+    strip.className = 'tsh-cal-quick-chips';
+    chips.forEach((c) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = c.cls;
+      b.textContent = c.label;
+      b.title = c.title;
+      if (c.blockedOrFull) b.disabled = true;
+      else b.addEventListener('click', () => {
+        const dur = defaultDurationFor(c.hourStart, closeMin, selectedFacility.policy);
+        openBookModal(quickDate, c.hourStart, Math.min(closeMin, c.hourStart + dur));
+      });
+      strip.appendChild(b);
+    });
+    host.appendChild(strip);
   }
 
   function defaultDurationFor(startMin, closeMin, policy) {
