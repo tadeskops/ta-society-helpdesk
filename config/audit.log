@@ -52,3 +52,4 @@
 {"at":"2026-07-06T14:53:39.866Z","actor":"ta.deskops@gmail.com","action":"reservations:create","target":"RES-0607262023","detail":"facility=community-hall date=2026-07-09 time=09:30-13:30 owner=ta.deskops@gmail.com"}
 {"at":"2026-07-06T14:54:54.621Z","actor":"ta.deskops@gmail.com","action":"reservations:cancelled","target":"RES-0607262023","detail":""}
 {"at":"2026-07-06T18:37:39.311Z","actor":"ta.deskops@gmail.com","action":"facility:update","target":"gym-area","detail":"role=ADMIN"}
+{"at":"2026-07-06T18:38:35.196Z","actor":"ta.deskops@gmail.com","action":"facility:update","target":"gym-area","detail":"role=ADMIN"}
