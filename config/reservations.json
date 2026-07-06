@@ -115,7 +115,7 @@
         "role": "ADMIN"
       },
       "createdAt": "2026-07-06T19:56:26.857Z",
-      "updatedAt": "2026-07-06T20:00:55.785Z",
+      "updatedAt": "2026-07-06T20:01:17.362Z",
       "timeline": [
         {
           "at": "2026-07-06T19:56:26.857Z",
@@ -134,10 +134,19 @@
           },
           "event": "payment-uploaded",
           "note": "receipt-RES-0707260010.pdf (235 KB)"
+        },
+        {
+          "at": "2026-07-06T20:01:17.362Z",
+          "by": {
+            "email": "ta.deskops@gmail.com",
+            "role": "ADMIN"
+          },
+          "event": "payment-verified",
+          "note": "Verified from statement"
         }
       ],
       "payment": {
-        "status": "submitted",
+        "status": "verified",
         "proofs": [
           {
             "path": "payments/CH-0707260126/01.pdf",
@@ -149,7 +158,10 @@
           }
         ],
         "amount": 5000,
-        "payee": "Society Manager"
+        "payee": "Society Manager",
+        "note": "Verified from statement",
+        "verifiedAt": "2026-07-06T20:01:17.362Z",
+        "verifiedBy": "ta.deskops@gmail.com"
       }
     }
   ]
