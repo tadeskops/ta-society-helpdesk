@@ -23,16 +23,24 @@ from PIL import Image, ImageDraw, ImageFont
 ROOT = Path(__file__).resolve().parent.parent
 LOGO = ROOT / "assets" / "images" / "TaLogo.png"
 OUT  = ROOT / "assets" / "images" / "TaStampBlue.png"
+OUT_OVERLAY = ROOT / "assets" / "images" / "TaStampBlueOverlay.png"
+OVERLAY_ALPHA = 0.65                    # 0..1 opacity for the receipt overlay
 
 SIZE = 800                              # square canvas
 CX = CY = SIZE // 2
 INK = (25, 62, 138, 255)                # official-stamp indigo blue
 INK_SOFT = (25, 62, 138, 230)
+GOLD = (200, 164, 94, 255)              # matches the TaLogo gold theme
 
 OUTER_R = 385                           # outer ring radius
-INNER_R = 325                           # inner ring radius (wider gap for taller text)
-TEXT_TOP_R = (OUTER_R + INNER_R) // 2   # baseline radius for curved text band
-LOGO_MAX = 470                          # bounding box for centred logo
+INNER_R = 300                           # inner ring radius (band widened for taller text)
+TEXT_TOP_R = 335                        # baseline radius: leaves a comfortable gap under outer ring
+LOGO_MAX = 380                          # bounding box for centred logo (~150% of v1 visible size)
+STAR_GAP_DEG = 6                        # angular gap between text endpoint and star
+STAR_R_OUT = 20
+STAR_R_IN = 9
+PIN_TEXT = "PIN 411045"                 # gold caption printed under the logo
+PIN_FSIZE = 34
 
 
 def find_font(size: int) -> ImageFont.FreeTypeFont:
@@ -123,10 +131,26 @@ def draw_star(draw: ImageDraw.ImageDraw, cx: int, cy: int, r_out: int, r_in: int
 
 
 def blue_tinted_logo(source: Path, max_dim: int) -> Image.Image:
-    """Load the gold logo and remap its opaque pixels to the stamp blue."""
+    """Load the gold logo and remap its opaque pixels to the stamp blue.
+
+    The source PNG carries a chunk of transparent padding around the actual
+    geometric pattern, which was making ``max_dim`` look far smaller than the
+    number suggests. We crop to the non-transparent bounding box first so
+    the requested size describes the visible artwork, not the padded canvas.
+    """
     src = Image.open(source).convert("RGBA")
-    # Contain within max_dim x max_dim keeping aspect ratio.
-    src.thumbnail((max_dim, max_dim), Image.LANCZOS)
+    # Auto-trim transparent margins so max_dim scales the artwork itself.
+    bbox = src.split()[-1].getbbox()
+    if bbox:
+        src = src.crop(bbox)
+    # Scale to fill max_dim (thumbnail() never upsizes, so we compute the
+    # ratio ourselves and use resize() — the source TaLogo.png is only
+    # ~200 px square and needs a proper upscale to fill the stamp interior).
+    w, h = src.size
+    scale = max_dim / max(w, h)
+    if scale != 1:
+        new_size = (max(1, int(round(w * scale))), max(1, int(round(h * scale))))
+        src = src.resize(new_size, Image.LANCZOS)
 
     px = src.load()
     w, h = src.size
@@ -165,14 +189,15 @@ def main() -> int:
         draw.ellipse(bbox, outline=INK, width=width)
 
     # ---- curved top text -------------------------------------------
-    top_font = find_font(36)
+    top_font = find_font(40)
     # Start slightly past 9 o'clock (180 deg) sweeping clockwise across the
     # top of the ring. The text is centred by choosing the starting angle so
     # its midpoint lands at 12 o'clock (90 deg).
     top_text = "THE ADDRESS CO-OPERATIVE HOUSING SOCIETY LTD."
-    total_arc = sum((top_font.getbbox(c)[2] - top_font.getbbox(c)[0]) + 2 for c in top_text)
+    total_arc = sum((top_font.getbbox(c)[2] - top_font.getbbox(c)[0]) + 1 for c in top_text)
     arc_rad = total_arc / TEXT_TOP_R
-    start_top = 90 + math.degrees(arc_rad / 2)   # centred at 12 o'clock
+    half_arc_deg = math.degrees(arc_rad / 2)
+    start_top = 90 + half_arc_deg   # centred at 12 o'clock
     draw_curved_text(
         canvas,
         top_text,
@@ -181,11 +206,11 @@ def main() -> int:
         fill=INK,
         start_angle_deg=start_top,
         clockwise=True,
-        letter_spacing_px=2,
+        letter_spacing_px=1,
     )
 
     # ---- curved bottom text ----------------------------------------
-    bot_font = find_font(48)
+    bot_font = find_font(56)
     bot_text = "PUNE-BANER"
     total_arc_b = sum((bot_font.getbbox(c)[2] - bot_font.getbbox(c)[0]) + 6 for c in bot_text)
     arc_rad_b = total_arc_b / TEXT_TOP_R
@@ -204,20 +229,45 @@ def main() -> int:
     )
 
     # ---- side star separators --------------------------------------
-    for side_deg in (0, 180):   # 3 o'clock and 9 o'clock
-        theta = math.radians(side_deg)
+    # Anchored to the exact endpoints of the top text arc so they always
+    # follow whatever sentence the top ring carries (edit TOP_TEXT and the
+    # stars still land just outside the first and last glyph).
+    for edge_deg in (start_top + STAR_GAP_DEG, 90 - half_arc_deg - STAR_GAP_DEG):
+        theta = math.radians(edge_deg)
         sx = int(CX + TEXT_TOP_R * math.cos(theta))
         sy = int(CY - TEXT_TOP_R * math.sin(theta))
-        draw_star(draw, sx, sy, r_out=18, r_in=8, fill=INK)
+        draw_star(draw, sx, sy, r_out=STAR_R_OUT, r_in=STAR_R_IN, fill=INK)
 
     # ---- central blue-tinted logo ----------------------------------
     logo = blue_tinted_logo(LOGO, LOGO_MAX)
     lw, lh = logo.size
-    canvas.alpha_composite(logo, (CX - lw // 2, CY - lh // 2))
+    # Shift the logo up slightly so the PIN caption has room underneath
+    # without colliding with the inner ring or the PUNE-BANER arc.
+    logo_y = CY - lh // 2 - 30
+    canvas.alpha_composite(logo, (CX - lw // 2, logo_y))
+
+    # ---- gold PIN caption under the logo ---------------------------
+    pin_font = find_font(PIN_FSIZE)
+    pw = pin_font.getbbox(PIN_TEXT)[2] - pin_font.getbbox(PIN_TEXT)[0]
+    ph = pin_font.getbbox(PIN_TEXT)[3] - pin_font.getbbox(PIN_TEXT)[1]
+    pin_y = logo_y + lh + 6
+    draw.text((CX - pw / 2, pin_y), PIN_TEXT, font=pin_font, fill=GOLD)
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
     canvas.save(OUT, format="PNG", optimize=True)
     print(f"Wrote {OUT.relative_to(ROOT)} ({OUT.stat().st_size:,} bytes)")
+
+    # ---- overlay variant -------------------------------------------
+    # Same artwork but with every non-transparent pixel scaled down to
+    # ~65% opacity so the stamp can sit ON TOP of receipt text and the
+    # text underneath still reads through. Use this variant whenever the
+    # stamp is composited over a filled page rather than a blank card.
+    overlay = canvas.copy()
+    r, g, b, a = overlay.split()
+    a = a.point(lambda v: int(v * OVERLAY_ALPHA))
+    overlay = Image.merge("RGBA", (r, g, b, a))
+    overlay.save(OUT_OVERLAY, format="PNG", optimize=True)
+    print(f"Wrote {OUT_OVERLAY.relative_to(ROOT)} ({OUT_OVERLAY.stat().st_size:,} bytes, {int(OVERLAY_ALPHA*100)}% opacity)")
     return 0
 
 

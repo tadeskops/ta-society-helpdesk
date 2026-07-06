@@ -412,8 +412,51 @@ export const composeReceiptPdf = async (
     y: footY, size: 9, font: italic, color: muted,
   });
 
+  // ---- confirmed stamp overlay ----
+  // Every archived receipt is by definition for a confirmed booking, so
+  // we always overlay the official rubber stamp. Fetched from the public
+  // docs site once per worker isolate and cached in-memory for the
+  // isolate's lifetime. Failures are swallowed so a CDN blip never blocks
+  // a receipt archive from being written.
+  try {
+    const stampBytes = await loadStampOverlay();
+    if (stampBytes) {
+      const img = await pdfDoc.embedPng(stampBytes);
+      const w = MM(45);
+      const h = w;   // source is square
+      page.drawImage(img, {
+        x: A4.w - marginX - w,
+        y: footY + MM(12),
+        width: w, height: h,
+      });
+    }
+  } catch (_e) { /* best-effort */ }
+
   return await pdfDoc.save();
 };
+
+// ------------------------------------------------------------- stamp overlay
+
+// Module-scoped cache: the worker isolate reuses the same fetched bytes
+// across every request until the isolate is recycled. Public GitHub Pages
+// URL is hard-coded because the stamp is a fixed brand asset, not a
+// per-society configurable.
+const STAMP_URL = 'https://tadeskops.github.io/ta-society-helpdesk/assets/images/TaStampBlueOverlay.png';
+let _stampCache: Uint8Array | null | undefined;
+
+async function loadStampOverlay(): Promise<Uint8Array | null> {
+  if (_stampCache !== undefined) return _stampCache;
+  try {
+    const res = await fetch(STAMP_URL, { cf: { cacheTtl: 3600, cacheEverything: true } });
+    if (!res.ok) throw new Error(`stamp fetch ${res.status}`);
+    const buf = await res.arrayBuffer();
+    _stampCache = new Uint8Array(buf);
+  } catch (e) {
+    log('warn', { at: 'receipt-archive.loadStampOverlay', err: (e as Error).message });
+    _stampCache = null;
+  }
+  return _stampCache;
+}
 
 // ------------------------------------------------------------- archive push
 

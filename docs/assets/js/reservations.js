@@ -2324,6 +2324,36 @@
     });
   }
 
+  // Cached "confirmed" stamp overlay. Fetched once per page load and reused
+  // for every receipt build so we don't hit the network on each print.
+  // Returns { dataUrl, bytes } or null if the asset is unavailable (never
+  // throws — the stamp is a best-effort visual, absence must not break the
+  // receipt build).
+  let _stampCache = null;
+  async function loadStampAsset() {
+    if (_stampCache !== undefined && _stampCache !== null) return _stampCache;
+    try {
+      const res = await fetch('./assets/images/TaStampBlueOverlay.png', {
+        mode: 'cors', credentials: 'omit',
+      });
+      if (!res.ok) throw new Error('stamp fetch ' + res.status);
+      const buf = await res.arrayBuffer();
+      const bytes = new Uint8Array(buf);
+      // Data URL for jsPDF path — cheaper to build once than to re-encode.
+      const blob = new Blob([bytes], { type: 'image/png' });
+      const dataUrl = await new Promise((resolve, reject) => {
+        const rd = new FileReader();
+        rd.onload = () => resolve(String(rd.result || ''));
+        rd.onerror = () => reject(rd.error || new Error('read failed'));
+        rd.readAsDataURL(blob);
+      });
+      _stampCache = { bytes, dataUrl };
+    } catch (_e) {
+      _stampCache = null;
+    }
+    return _stampCache;
+  }
+
   function receiptFieldRows(r) {
     const dateLabel = friendlyDate ? friendlyDate(r.date) : r.date;
     const rows = [
@@ -2344,7 +2374,7 @@
     return rows;
   }
 
-  function buildReceiptDoc(r, templateDataUrl, templateMime) {
+  function buildReceiptDoc(r, templateDataUrl, templateMime, stampDataUrl) {
     const { jsPDF } = root.jspdf;
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     const pageW = 210, pageH = 297;
@@ -2398,6 +2428,16 @@
     doc.text('This is a system-generated receipt. Retain a copy for your records.',
       pageW / 2, pageH - 12, { align: 'center' });
     doc.setTextColor(0);
+
+    // Confirmed stamp overlay — bottom-right, above the footer rule.
+    // Uses the semi-transparent overlay PNG so any text underneath still
+    // reads through. Only stamped when the booking is actually confirmed.
+    if (r.status === 'confirmed' && stampDataUrl) {
+      try {
+        const sW = 45, sH = 45;   // mm
+        doc.addImage(stampDataUrl, 'PNG', pageW - 20 - sW, pageH - 30 - sH - 2, sW, sH);
+      } catch (_e) { /* best-effort */ }
+    }
     return doc;
   }
 
@@ -2421,7 +2461,10 @@
     const ready = await waitForJspdfLite(6000);
     if (!ready) throw new Error('PDF library did not load. Please retry.');
     const dataUrl = await fetchAsDataUrl(tpl.url);
-    const doc = buildReceiptDoc(r, dataUrl, tpl.mime || 'image/jpeg');
+    // Load the confirmed-stamp overlay in parallel; loadStampAsset is
+    // best-effort and returns null on failure so the receipt still builds.
+    const stampAsset = await loadStampAsset();
+    const doc = buildReceiptDoc(r, dataUrl, tpl.mime || 'image/jpeg', stampAsset && stampAsset.dataUrl);
     return {
       bloburl: doc.output('bloburl'),
       download: (name) => doc.save(name),
@@ -2531,6 +2574,27 @@
     const note = 'This is a system-generated receipt. Retain a copy for your records.';
     const nw = font.widthOfTextAtSize(note, 9);
     draw(page, note, { x: (pageW - nw) / 2, y: footY - 20, size: 9, font, color: rgb(0.35, 0.35, 0.35) });
+
+    // ---- confirmed stamp overlay -----------------------------------
+    // Only drawn on confirmed bookings so pending/rejected receipts
+    // never look officially approved. Placed bottom-right above the
+    // footer rule at ~45 mm wide with the overlay PNG's own 65% alpha
+    // giving the rubber-stamp look over any text underneath.
+    if (r.status === 'confirmed') {
+      try {
+        const stampAsset = await loadStampAsset();
+        if (stampAsset && stampAsset.bytes) {
+          const stampImg = await pdfDoc.embedPng(stampAsset.bytes);
+          const stampW = MM(45);
+          const stampH = stampW;   // square source
+          const stampX = pageW - marginX - stampW;
+          const stampY = footY + MM(10);
+          page.drawImage(stampImg, {
+            x: stampX, y: stampY, width: stampW, height: stampH,
+          });
+        }
+      } catch (_e) { /* best-effort; keep the receipt even if stamp fails */ }
+    }
 
     const outBytes = await pdfDoc.save();
     const blob = new Blob([outBytes], { type: 'application/pdf' });
