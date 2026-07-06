@@ -34,6 +34,13 @@
   let calAnchor = null;      // YYYY-MM-DD (Monday for week view, that day for day view)
   let calPayload = null;     // last availability response
 
+  // Wizard-mode state (Book tab). `bookMode` toggles between the calendar
+  // and the 4-step guided wizard (Facility → Date & Time → Details → Review).
+  // Residents default to 'wizard'; staff default to 'calendar' since the
+  // drag-book UX + on-behalf-of workflow is faster there.
+  let bookMode = 'wizard';
+  let wiz = { step: 1, date: null, startMin: null, durationMin: null, purpose: '', flat: '', phone: '', ownerEmail: '', tc: false, heatmapMonth: null, heatmap: null, submitting: false };
+
   const RESIDENT_STATUS_LABEL = {
     'requested':    'Requested',
     'under-review': 'Under Review',
@@ -140,6 +147,10 @@
     who = await root.Flags.whoami();
     const isStaff = who && root.Flags.isAtLeast && root.Flags.isAtLeast(who.primary, 'MANAGER');
     $$('[data-res-staff-only]').forEach((el) => { el.hidden = !isStaff; });
+
+    // Staff default to Calendar mode; residents to the guided Wizard.
+    bookMode = isStaff ? 'calendar' : 'wizard';
+    wireBookMode();
 
     wireTabs();
     wireRange();
@@ -307,7 +318,7 @@
     const sel = $('#resFacilitySelect');
     if (sel && sel.value !== id && selectedFacility) sel.value = selectedFacility.id;
     if (!selectedFacility) return;
-    $('#resBookBody').hidden = false;
+    applyBookModeVisibility();
     // Blurb: description + hours + advance-booking window.
     const blurb = $('#resFacilityBlurb');
     if (blurb) {
@@ -321,6 +332,11 @@
       blurb.innerHTML = bits.join(' &nbsp;·&nbsp; ');
     }
     renderFacilityRules();
+    // Reset wizard state when the facility changes.
+    wiz.step = 1;
+    wiz.date = null; wiz.startMin = null; wiz.durationMin = null;
+    wiz.heatmap = null; wiz.heatmapMonth = null;
+    wiz.tc = false;
     // Initialise calendar to Today (Monday of this week).
     if (!calAnchor) calAnchor = mondayOf(istToday());
     // Small screens default to a single-day view for readability.
@@ -329,7 +345,8 @@
       calAnchor = istToday();
     }
     updateViewButtons();
-    renderCalendar();
+    if (bookMode === 'wizard') renderWizard();
+    else renderCalendar();
   }
 
   function renderFacilityRules() {
@@ -830,6 +847,541 @@
     } catch (e) {
       root.UI.toast(e && e.message || 'Booking failed', { kind: 'danger' });
     }
+  }
+
+  // ================================================================
+  // Guided wizard (residents-first booking flow).
+  // Same endpoints as calendar mode: GET /facilities/:id/availability
+  // populates the month heatmap + hour chips, and POST /reservations
+  // is called on submit (reusing the calendar's submitBooking helper).
+  // ================================================================
+
+  function wireBookMode() {
+    $$('[data-book-mode]').forEach((btn) => {
+      btn.addEventListener('click', () => setBookMode(btn.getAttribute('data-book-mode')));
+    });
+    // Set initial button state to reflect the default derived from role.
+    $$('[data-book-mode]').forEach((btn) => btn.classList.toggle('on', btn.getAttribute('data-book-mode') === bookMode));
+  }
+
+  function setBookMode(mode) {
+    if (mode !== 'wizard' && mode !== 'calendar') return;
+    bookMode = mode;
+    $$('[data-book-mode]').forEach((btn) => btn.classList.toggle('on', btn.getAttribute('data-book-mode') === bookMode));
+    applyBookModeVisibility();
+    if (!selectedFacility) return;
+    if (bookMode === 'wizard') renderWizard();
+    else renderCalendar();
+  }
+
+  function applyBookModeVisibility() {
+    const wizBody = $('#resWizardBody');
+    const calBody = $('#resBookBody');
+    if (wizBody) wizBody.hidden = !(selectedFacility && bookMode === 'wizard');
+    if (calBody) calBody.hidden = !(selectedFacility && bookMode === 'calendar');
+  }
+
+  function dayOfWeekUTC(ymd) {
+    const [y, m, d] = ymd.split('-').map(Number);
+    return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+  }
+  function monthStartOf(ymd) {
+    const [y, m] = ymd.split('-').map(Number);
+    return `${y}-${pad2(m)}-01`;
+  }
+  function inr(n) { return '\u20b9' + Number(n || 0).toLocaleString('en-IN'); }
+
+  async function renderWizard() {
+    if (!selectedFacility) return;
+    renderWizStepper();
+    renderWizSummary();
+    await renderWizStepPanel();
+  }
+
+  const WIZ_STEPS = [
+    { n: 1, name: 'Facility' },
+    { n: 2, name: 'Date & Time' },
+    { n: 3, name: 'Details' },
+    { n: 4, name: 'Review' },
+  ];
+
+  function wizStepSummary(n) {
+    if (n === 1) return selectedFacility ? selectedFacility.name : '\u2014';
+    if (n === 2) {
+      if (!wiz.date || wiz.startMin == null || !wiz.durationMin) return 'Select a slot';
+      return `${friendlyRelDate(wiz.date).split(' ')[0]} \u00b7 ${formatHHMM(wiz.startMin)}\u2013${formatHHMM(wiz.startMin + wiz.durationMin)}`;
+    }
+    if (n === 3) return wiz.purpose ? (wiz.purpose.length > 22 ? wiz.purpose.slice(0, 22) + '\u2026' : wiz.purpose) : 'Purpose + flat';
+    if (n === 4) return wiz.tc ? 'Ready to submit' : 'Confirm details';
+    return '';
+  }
+
+  function wizCanJumpTo(n) {
+    if (n <= 1) return true;
+    if (n <= 2) return !!selectedFacility;
+    if (n <= 3) return !!selectedFacility && !!wiz.date && wiz.startMin != null && !!wiz.durationMin;
+    return (wiz.purpose || '').trim().length >= 3 && !!(wiz.flat || '').trim();
+  }
+
+  function renderWizStepper() {
+    const host = $('#resWizStepper');
+    if (!host) return;
+    host.innerHTML = WIZ_STEPS.map((s) => {
+      const cls = s.n < wiz.step ? 'done' : (s.n === wiz.step ? 'active' : '');
+      return (
+        '<div class="step ' + cls + '" data-wiz-goto="' + s.n + '">' +
+          '<div class="num">' + (s.n < wiz.step ? '<i class="fas fa-check"></i>' : s.n) + '</div>' +
+          '<div class="lbl"><b>' + s.n + '. ' + escape(s.name) + '</b><small>' + escape(wizStepSummary(s.n)) + '</small></div>' +
+        '</div>'
+      );
+    }).join('');
+    host.querySelectorAll('[data-wiz-goto]').forEach((el) => el.addEventListener('click', () => {
+      const n = Number(el.getAttribute('data-wiz-goto'));
+      if (n <= wiz.step || wizCanJumpTo(n)) { wiz.step = n; renderWizard(); }
+    }));
+  }
+
+  async function renderWizStepPanel() {
+    const host = $('#resWizSteps');
+    if (!host) return;
+    if (wiz.step === 1) return renderWizStepFacility(host);
+    if (wiz.step === 2) return renderWizStepDateTime(host);
+    if (wiz.step === 3) return renderWizStepDetails(host);
+    if (wiz.step === 4) return renderWizStepReview(host);
+  }
+
+  // -------- Step 1: Facility --------
+  function renderWizStepFacility(host) {
+    const isStaff = who && root.Flags.isAtLeast && root.Flags.isAtLeast(who.primary, 'MANAGER');
+    host.innerHTML =
+      '<div class="tsh-res-wiz-step">' +
+        '<h2><i class="fas fa-building-columns"></i> Pick a facility</h2>' +
+        '<p class="sub">All community facilities configured for booking.</p>' +
+        '<div class="tsh-res-wiz-facs">' +
+          facilities.map((f) => {
+            const p = f.policy || {};
+            const isPick = selectedFacility && f.id === selectedFacility.id;
+            const badges = [];
+            if (Number(p.paymentAmount) > 0) badges.push('<span class="badge">' + inr(p.paymentAmount) + ' base</span>');
+            if ((p.rateCard || []).some((r) => /weekend/i.test(r.label || ''))) badges.push('<span class="badge blue">Weekend rate</span>');
+            if (p.requiresPayment) badges.push('<span class="badge gray">Deposit</span>');
+            if (!p.requiresPayment) badges.push('<span class="badge gray">Free</span>');
+            const icon = f.icon || 'fa-building';
+            return (
+              '<div class="tsh-res-wiz-fac ' + (isPick ? 'pick' : '') + '" data-wiz-fid="' + escape(f.id) + '">' +
+                '<div class="icon"><i class="fas ' + escape(icon) + '"></i></div>' +
+                '<div class="name">' + escape(f.name) + '</div>' +
+                (f.description ? '<div class="meta">' + escape(f.description) + '</div>' : '') +
+                '<div class="meta">' +
+                  (f.capacity ? '<i class="fas fa-users"></i> up to ' + f.capacity + ' \u00b7 ' : '') +
+                  '<i class="far fa-clock"></i> ' + escape(facilityHoursLabel(f)) +
+                '</div>' +
+                (Number(p.paymentAmount) > 0
+                  ? '<div class="price">from ' + inr(p.paymentAmount) + '</div>'
+                  : '<div class="price">Free</div>') +
+                '<div class="badges">' + badges.join('') + '</div>' +
+              '</div>'
+            );
+          }).join('') +
+        '</div>' +
+      '</div>' +
+      '<div style="display:flex;gap:8px;">' +
+        '<button type="button" class="tsh-btn tsh-btn-primary" data-wiz-next>' +
+          '<i class="fas fa-arrow-right"></i> Continue to date &amp; time' +
+        '</button>' +
+      '</div>';
+    host.querySelectorAll('[data-wiz-fid]').forEach((el) => el.addEventListener('click', () => {
+      const fid = el.getAttribute('data-wiz-fid');
+      if (selectedFacility && selectedFacility.id === fid) return;
+      selectFacility(fid);  // resets wizard state and re-renders
+    }));
+    host.querySelector('[data-wiz-next]').addEventListener('click', () => { wiz.step = 2; renderWizard(); });
+  }
+
+  // -------- Step 2: Date & Time (heatmap + hour chips + duration) --------
+  async function ensureWizHeatmap() {
+    const today = istToday();
+    const p = selectedFacility.policy || {};
+    if (!wiz.heatmapMonth) wiz.heatmapMonth = monthStartOf(today);
+    if (wiz.heatmap && wiz.heatmap._month === wiz.heatmapMonth && wiz.heatmap._fid === selectedFacility.id) return;
+    const [y, m] = wiz.heatmapMonth.split('-').map(Number);
+    const firstOfMonth = wiz.heatmapMonth;
+    const nextMonth = m === 12 ? `${y + 1}-01-01` : `${y}-${pad2(m + 1)}-01`;
+    const lastOfMonth = addDays(nextMonth, -1);
+    const from = firstOfMonth > today ? firstOfMonth : today;
+    const maxTo = addDays(today, Number(p.maxAdvanceDays || 30));
+    const to = lastOfMonth < maxTo ? lastOfMonth : maxTo;
+    if (from > to) {
+      wiz.heatmap = { open: {}, days: [], _month: wiz.heatmapMonth, _fid: selectedFacility.id, _from: from, _to: to };
+      return;
+    }
+    try {
+      const payload = await root.Api.get(
+        `/facilities/${encodeURIComponent(selectedFacility.id)}/availability?from=${from}&to=${to}`
+      );
+      payload._month = wiz.heatmapMonth;
+      payload._fid = selectedFacility.id;
+      payload._from = from; payload._to = to;
+      wiz.heatmap = payload;
+    } catch (e) {
+      root.UI.toast('Could not load availability: ' + (e && e.message || e), { kind: 'danger' });
+      wiz.heatmap = { open: {}, days: [], _month: wiz.heatmapMonth, _fid: selectedFacility.id, _from: from, _to: to };
+    }
+  }
+
+  // Per-day heatmap load, using the §8.8 status priority:
+  //   Blocked (blackout) > Confirmed (any confirmed booking) > Requested
+  //   (any held booking) > Available. This keeps the wizard's colour
+  //   language identical to the calendar-mode legend so residents learn
+  //   one meaning: green=Available, amber=Requested, red=Confirmed,
+  //   gray=Blocked.
+  function wizDayLoad(dayEntry, _policy) {
+    if (!dayEntry) return { cls: '', label: 'Available' };
+    if (dayEntry.blackout) return { cls: 'blocked', label: 'Blocked' };
+    const busy = dayEntry.busy || [];
+    if (busy.some((b) => b.status === 'confirmed')) return { cls: 'confirmed', label: 'Has a confirmed booking' };
+    if (busy.some((b) => b.status === 'held'))      return { cls: 'requested', label: 'Has a requested booking' };
+    return { cls: '', label: 'Available' };
+  }
+
+  function wizComputePrice(policy, date, durationMin) {
+    const lines = [];
+    const hours = (durationMin || 0) / 60;
+    const base = Number(policy.paymentAmount || 0);
+    if (base > 0) lines.push({ label: `Base rental (${hours.toFixed(1).replace(/\.0$/, '')}h)`, amount: base });
+    if (date) {
+      const dow = dayOfWeekUTC(date);
+      if (dow === 0 || dow === 6) {
+        const w = (policy.rateCard || []).find((r) => /weekend/i.test(r.label || ''));
+        if (w && typeof w.amount === 'number') lines.push({ label: String(w.label), amount: Number(w.amount) });
+      }
+    }
+    const dep = (policy.rateCard || []).find((r) => /deposit/i.test(r.label || ''));
+    if (dep && typeof dep.amount === 'number') lines.push({ label: String(dep.label), amount: Number(dep.amount) });
+    const total = lines.reduce((s, l) => s + Number(l.amount || 0), 0);
+    return { lines, total };
+  }
+
+  async function renderWizStepDateTime(host) {
+    host.innerHTML = '<div class="tsh-res-wiz-step"><p class="sub"><i class="fas fa-spinner fa-spin"></i> Loading availability\u2026</p></div>';
+    await ensureWizHeatmap();
+    if (wiz.step !== 2) return;  // user navigated away
+    const p = selectedFacility.policy || {};
+    const today = istToday();
+    const [y, m] = wiz.heatmapMonth.split('-').map(Number);
+    const monthLabel = new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+
+    // Monday-first 6-week grid.
+    const firstDow = new Date(Date.UTC(y, m - 1, 1)).getUTCDay();
+    const monOffset = firstDow === 0 ? -6 : 1 - firstDow;
+    const gridStart = addDays(wiz.heatmapMonth, monOffset);
+    const cells = [];
+    for (let i = 0; i < 42; i++) cells.push(addDays(gridStart, i));
+
+    const byDate = new Map((wiz.heatmap.days || []).map((d) => [d.date, d]));
+    const minAllowed = addDays(today, Math.ceil(Number(p.minAdvanceHours || 0) / 24));
+    const maxAllowed = addDays(today, Number(p.maxAdvanceDays || 30));
+
+    const monthGrid = cells.map((c) => {
+      const cy = c.split('-')[0], cm = c.split('-')[1];
+      const dayNum = Number(c.split('-')[2]);
+      const inMonth = Number(cy) === y && Number(cm) === m;
+      if (!inMonth) return '<div class="day other">' + dayNum + '</div>';
+      if (c < today) return '<div class="day past">' + dayNum + '</div>';
+      if (c < minAllowed || c > maxAllowed) return '<div class="day blocked" title="Outside booking window">' + dayNum + '</div>';
+      const entry = byDate.get(c);
+      const load = wizDayLoad(entry, p);
+      const isToday = c === today;
+      const isPick = c === wiz.date;
+      return '<div class="day ' + load.cls + ' ' + (isToday ? 'today' : '') + ' ' + (isPick ? 'pick' : '') + '" data-wiz-day="' + c + '" title="' + escape(load.label) + '">' + dayNum + '</div>';
+    }).join('');
+
+    // Hour chips for the picked date (one chip per hour).
+    let chipsHtml = '<p class="sub" style="margin:6px 0 0;">Pick a date on the calendar first.</p>';
+    if (wiz.date) {
+      const entry = byDate.get(wiz.date);
+      const busy = (entry && entry.busy) || [];
+      const blackout = entry && entry.blackout;
+      const openMin = Number(p.openMin || 0), closeMin = Number(p.closeMin || 22 * 60);
+      const chips = [];
+      for (let hMin = openMin; hMin + 60 <= closeMin; hMin += 60) {
+        const eMin = hMin + 60;
+        const overlap = busy.find((b) => !(b.endMin <= hMin || b.startMin >= eMin));
+        const now = new Date(Date.now() + IST_OFFSET_MS);
+        const nowMin = now.getUTCHours() * 60 + now.getUTCMinutes();
+        const inPast = wiz.date === today && hMin < nowMin + Number(p.minAdvanceHours || 0) * 60;
+        let cls = '';
+        if (blackout) cls = 'blocked';
+        else if (inPast) cls = 'past';
+        else if (overlap) cls = overlap.status === 'confirmed' ? 'full' : 'busy';
+        if (wiz.startMin === hMin && !cls) cls = 'pick';
+        chips.push('<button type="button" class="tsh-res-wiz-chip ' + cls + '" data-wiz-hour="' + hMin + '"' +
+          (cls === 'full' || cls === 'past' || cls === 'blocked' ? ' disabled' : '') + '>' +
+          formatHHMM(hMin) + '</button>');
+      }
+      chipsHtml = chips.join('');
+    }
+
+    // Duration slider — clamped to remaining room in the operating window.
+    const stepMin = Number(p.stepMinutes || 30);
+    const durMin = Number(p.minDurationMinutes || 60);
+    const durMax = Number(p.maxDurationMinutes || 480);
+    if (wiz.startMin != null) {
+      const roomLeft = Number(p.closeMin || 22 * 60) - wiz.startMin;
+      const cap = Math.min(durMax, roomLeft - (roomLeft % stepMin));
+      if (!wiz.durationMin || wiz.durationMin > cap) wiz.durationMin = Math.min(cap, Math.max(durMin, wiz.durationMin || durMin));
+    }
+    const durLabel = (d) => {
+      const h = Math.floor(d / 60), mm = d % 60;
+      if (mm === 0) return h + ' hour' + (h === 1 ? '' : 's');
+      return h ? `${h}h ${mm}m` : `${mm}m`;
+    };
+    const endMin = wiz.startMin != null && wiz.durationMin ? wiz.startMin + wiz.durationMin : null;
+
+    host.innerHTML =
+      '<div class="tsh-res-wiz-step">' +
+        '<h2><i class="fas fa-calendar-check"></i> Pick a date and start time</h2>' +
+        '<p class="sub">The heatmap uses the same colour code as the calendar view: <b style="color:#166534">green</b> = Available, <b style="color:#92400e">amber</b> = Requested, <b style="color:#991b1b">red</b> = Confirmed, <b style="color:#6b7280">gray</b> = Blocked (outside window or blackout).</p>' +
+        '<div class="tsh-res-wiz-picker">' +
+          '<div class="tsh-res-wiz-heat">' +
+            '<div class="tsh-res-wiz-heat-head">' +
+              '<button type="button" data-wiz-mon-prev title="Previous month">&lsaquo;</button>' +
+              '<span>' + escape(monthLabel) + '</span>' +
+              '<button type="button" data-wiz-mon-next title="Next month">&rsaquo;</button>' +
+            '</div>' +
+            '<div class="tsh-res-wiz-month">' +
+              '<div class="dow">M</div><div class="dow">T</div><div class="dow">W</div><div class="dow">T</div><div class="dow">F</div><div class="dow">S</div><div class="dow">S</div>' +
+              monthGrid +
+            '</div>' +
+            '<div class="tsh-res-wiz-heat-legend">' +
+              '<span><i style="background:#dcfce7;border:1px solid #86efac"></i> Available</span>' +
+              '<span><i style="background:#fef3c7;border:1px solid #fcd34d"></i> Requested</span>' +
+              '<span><i style="background:#fee2e2;border:1px solid #fca5a5"></i> Confirmed</span>' +
+              '<span><i style="background:#f3f4f6;border:1px solid #e5e7eb"></i> Blocked</span>' +
+            '</div>' +
+          '</div>' +
+          '<div class="tsh-res-wiz-times">' +
+            '<h4><i class="far fa-clock"></i> Start time' + (wiz.date ? ' \u00b7 ' + escape(friendlyRelDate(wiz.date)) : '') + '</h4>' +
+            '<div class="tsh-res-wiz-chips">' + chipsHtml + '</div>' +
+            (wiz.startMin != null ?
+              '<h4><i class="far fa-hourglass"></i> Duration</h4>' +
+              '<div class="tsh-res-wiz-duration">' +
+                '<input type="range" min="' + durMin + '" max="' + Math.min(durMax, Number(p.closeMin || 22 * 60) - wiz.startMin) + '" step="' + stepMin + '" value="' + (wiz.durationMin || durMin) + '" data-wiz-dur />' +
+                '<div class="val" data-wiz-dur-lbl>' + escape(durLabel(wiz.durationMin || durMin)) + '</div>' +
+              '</div>' +
+              '<p class="sub" style="margin-top:6px;">Ends at <b style="color:var(--tsh-primary,#2563eb)" data-wiz-end>' + formatHHMM(endMin || wiz.startMin + (wiz.durationMin || durMin)) + '</b>. Min ' + durLabel(durMin) + ' \u00b7 max ' + durLabel(durMax) + ' per facility policy.</p>'
+            : '') +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div style="display:flex;gap:8px;">' +
+        '<button type="button" class="tsh-btn tsh-btn-ghost" data-wiz-back><i class="fas fa-arrow-left"></i> Back</button>' +
+        '<button type="button" class="tsh-btn tsh-btn-primary" data-wiz-next' + (!wiz.date || wiz.startMin == null || !wiz.durationMin ? ' disabled' : '') + '>Continue to details <i class="fas fa-arrow-right"></i></button>' +
+      '</div>';
+
+    // Wire events
+    host.querySelectorAll('[data-wiz-day]').forEach((el) => el.addEventListener('click', () => {
+      wiz.date = el.getAttribute('data-wiz-day');
+      wiz.startMin = null; wiz.durationMin = null;
+      renderWizard();
+    }));
+    host.querySelectorAll('[data-wiz-hour]').forEach((el) => el.addEventListener('click', () => {
+      if (el.hasAttribute('disabled')) return;
+      wiz.startMin = Number(el.getAttribute('data-wiz-hour'));
+      wiz.durationMin = wiz.durationMin || Number(p.minDurationMinutes || 60);
+      const roomLeft = Number(p.closeMin || 22 * 60) - wiz.startMin;
+      if (wiz.durationMin > roomLeft) wiz.durationMin = roomLeft - (roomLeft % stepMin);
+      renderWizard();
+    }));
+    const durEl = host.querySelector('[data-wiz-dur]');
+    if (durEl) {
+      durEl.addEventListener('input', () => {
+        wiz.durationMin = Number(durEl.value);
+        const lblEl = host.querySelector('[data-wiz-dur-lbl]');
+        if (lblEl) lblEl.textContent = durLabel(wiz.durationMin);
+        const endEl = host.querySelector('[data-wiz-end]');
+        if (endEl) endEl.textContent = formatHHMM(wiz.startMin + wiz.durationMin);
+        renderWizSummary();
+        renderWizStepper();
+      });
+    }
+    const mp = host.querySelector('[data-wiz-mon-prev]');
+    if (mp) mp.addEventListener('click', () => wizShiftMonth(-1));
+    const mn = host.querySelector('[data-wiz-mon-next]');
+    if (mn) mn.addEventListener('click', () => wizShiftMonth(+1));
+    host.querySelector('[data-wiz-back]').addEventListener('click', () => { wiz.step = 1; renderWizard(); });
+    const nb = host.querySelector('[data-wiz-next]');
+    nb.addEventListener('click', () => { if (!nb.hasAttribute('disabled')) { wiz.step = 3; renderWizard(); } });
+  }
+
+  function wizShiftMonth(delta) {
+    const [y, m] = wiz.heatmapMonth.split('-').map(Number);
+    let ny = y, nm = m + delta;
+    while (nm <= 0) { nm += 12; ny -= 1; }
+    while (nm > 12) { nm -= 12; ny += 1; }
+    wiz.heatmapMonth = `${ny}-${pad2(nm)}-01`;
+    wiz.heatmap = null;
+    renderWizard();
+  }
+
+  // -------- Step 3: Details --------
+  function renderWizStepDetails(host) {
+    const f = selectedFacility, p = f.policy || {};
+    const isStaff = who && root.Flags.isAtLeast && root.Flags.isAtLeast(who.primary, 'MANAGER');
+    host.innerHTML =
+      '<div class="tsh-res-wiz-step">' +
+        '<h2><i class="fas fa-user-pen"></i> Booking details</h2>' +
+        '<p class="sub">Purpose helps the managing committee approve faster. Flat number enforces the ' + Number(p.maxPerFlatPerYear || 2) + '/year booking limit.</p>' +
+        '<div style="display:grid;grid-template-columns:1fr;gap:12px;">' +
+          '<label><span class="tsh-form-label">Purpose <span style="color:#dc2626">*</span></span>' +
+            '<input type="text" data-wiz-purpose maxlength="400" placeholder="e.g., 8th birthday party for A-101" value="' + escape(wiz.purpose) + '" required /></label>' +
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">' +
+            '<label><span class="tsh-form-label">Flat number <span style="color:#dc2626">*</span></span>' +
+              '<input type="text" data-wiz-flat maxlength="40" placeholder="A-101" value="' + escape(wiz.flat) + '" required /></label>' +
+            '<label><span class="tsh-form-label">Phone (optional)</span>' +
+              '<input type="tel" data-wiz-phone maxlength="40" placeholder="+91-9x-xxx-xxxx" value="' + escape(wiz.phone) + '" /></label>' +
+          '</div>' +
+          (isStaff ?
+            '<label><span class="tsh-form-label">Book on behalf of (email)</span>' +
+              '<input type="email" data-wiz-owner maxlength="120" placeholder="Leave blank to book for yourself" value="' + escape(wiz.ownerEmail) + '" /></label>'
+          : '') +
+        '</div>' +
+        renderRateCard(p.rateCard) +
+        renderGuidelines(p.usageGuidelines) +
+        (p.chargesInfo ? '<p class="tsh-hint" style="margin-top:8px;background:rgba(59,130,246,0.08);border-left:3px solid #3b82f6;padding:8px 10px;border-radius:4px;"><i class="fas fa-receipt"></i> <strong>Charges:</strong> ' + escape(p.chargesInfo) + '</p>' : '') +
+      '</div>' +
+      '<div style="display:flex;gap:8px;">' +
+        '<button type="button" class="tsh-btn tsh-btn-ghost" data-wiz-back><i class="fas fa-arrow-left"></i> Back</button>' +
+        '<button type="button" class="tsh-btn tsh-btn-primary" data-wiz-next>Review &amp; submit <i class="fas fa-arrow-right"></i></button>' +
+      '</div>';
+    host.querySelector('[data-wiz-purpose]').addEventListener('input', (e) => { wiz.purpose = e.target.value; renderWizSummary(); renderWizStepper(); });
+    host.querySelector('[data-wiz-flat]').addEventListener('input', (e) => { wiz.flat = e.target.value; renderWizSummary(); });
+    host.querySelector('[data-wiz-phone]').addEventListener('input', (e) => { wiz.phone = e.target.value; });
+    const ownEl = host.querySelector('[data-wiz-owner]');
+    if (ownEl) ownEl.addEventListener('input', (e) => { wiz.ownerEmail = e.target.value; });
+    host.querySelector('[data-wiz-back]').addEventListener('click', () => { wiz.step = 2; renderWizard(); });
+    host.querySelector('[data-wiz-next]').addEventListener('click', () => {
+      if ((wiz.purpose || '').trim().length < 3) { root.UI.toast('Please describe the purpose (min 3 characters).', { kind: 'warn' }); return; }
+      if (!(wiz.flat || '').trim()) { root.UI.toast('Flat number is required to enforce the yearly booking limit.', { kind: 'warn' }); return; }
+      wiz.step = 4; renderWizard();
+    });
+    setTimeout(() => { const el = host.querySelector('[data-wiz-purpose]'); if (el && !wiz.purpose) el.focus(); }, 60);
+  }
+
+  // -------- Step 4: Review + submit --------
+  function renderWizStepReview(host) {
+    const f = selectedFacility, p = f.policy || {};
+    const price = wizComputePrice(p, wiz.date, wiz.durationMin);
+    const endMin = wiz.startMin + wiz.durationMin;
+    host.innerHTML =
+      '<div class="tsh-res-wiz-step">' +
+        '<h2><i class="fas fa-check-double"></i> Review and confirm</h2>' +
+        '<p class="sub">Double-check the details below. Once submitted, the managing committee will review' + (p.requiresPayment ? ' and ask you to upload payment proof.' : '.') + '</p>' +
+        '<div class="tsh-res-ratecard">' +
+          '<table>' +
+            '<tr><th>Facility</th><td class="tsh-res-rc-amount">' + escape(f.name) + '</td></tr>' +
+            '<tr><th>Date</th><td class="tsh-res-rc-amount">' + escape(friendlyDate(wiz.date)) + '</td></tr>' +
+            '<tr><th>Time</th><td class="tsh-res-rc-amount">' + formatHHMM(wiz.startMin) + '\u2013' + formatHHMM(endMin) + ' (' + (wiz.durationMin / 60).toFixed(1).replace(/\.0$/, '') + ' h)</td></tr>' +
+            '<tr><th>Purpose</th><td class="tsh-res-rc-amount">' + escape(wiz.purpose) + '</td></tr>' +
+            '<tr><th>Flat</th><td class="tsh-res-rc-amount">' + escape(wiz.flat) + '</td></tr>' +
+            (wiz.phone ? '<tr><th>Phone</th><td class="tsh-res-rc-amount">' + escape(wiz.phone) + '</td></tr>' : '') +
+            (wiz.ownerEmail ? '<tr><th>On behalf of</th><td class="tsh-res-rc-amount">' + escape(wiz.ownerEmail) + '</td></tr>' : '') +
+          '</table>' +
+        '</div>' +
+        (price.lines.length ?
+          '<div class="tsh-res-ratecard" style="background:#eff6ff;border-color:#bfdbfe;">' +
+            '<div style="font-weight:600;margin-bottom:4px;font-size:12px;"><i class="fas fa-indian-rupee-sign"></i> Estimated charges <span style="font-weight:400;opacity:.75;">(committee confirms final amount at approval)</span></div>' +
+            '<table>' +
+              price.lines.map((l) => '<tr><td>' + escape(l.label) + '</td><td class="tsh-res-rc-amount">' + inr(l.amount) + '</td></tr>').join('') +
+              '<tr><th>Estimated total</th><td class="tsh-res-rc-amount" style="color:var(--tsh-primary,#2563eb);font-size:14px;">' + inr(price.total) + '</td></tr>' +
+            '</table>' +
+          '</div>'
+          : '<p class="tsh-hint" style="background:#ecfdf5;border-left:3px solid #059669;padding:8px 10px;border-radius:4px;color:#065f46;"><i class="fas fa-circle-check"></i> This facility is free \u2014 no payment step.</p>') +
+        ((f.rules || []).length ? '<div class="tsh-res-guide"><h5><i class="fas fa-gavel"></i> House rules</h5><ul>' + (f.rules || []).map((r) => '<li>' + escape(r) + '</li>').join('') + '</ul></div>' : '') +
+        renderGuidelines(p.usageGuidelines) +
+        (p.requiresPayment ? '<p class="tsh-hint" style="margin-top:8px;background:#eff6ff;border-left:3px solid var(--tsh-primary,#2563eb);padding:8px 10px;border-radius:4px;color:#1e3a8a;"><i class="fas fa-file-invoice-dollar"></i> After you submit, you\'ll be prompted to upload payment proof (screenshot or PDF). Booking is confirmed only after the committee verifies the payment.</p>' : '') +
+        '<div class="tsh-res-wiz-tc">' +
+          '<label><input type="checkbox" data-wiz-tc' + (wiz.tc ? ' checked' : '') + ' /><span>I have read the house rules and etiquette; I understand cancellation follows the facility\'s policy and my flat\'s booking quota decrements on submit.</span></label>' +
+        '</div>' +
+      '</div>' +
+      '<div style="display:flex;gap:8px;">' +
+        '<button type="button" class="tsh-btn tsh-btn-ghost" data-wiz-back><i class="fas fa-arrow-left"></i> Back</button>' +
+        '<button type="button" class="tsh-btn tsh-btn-primary" data-wiz-submit' + (wiz.tc && !wiz.submitting ? '' : ' disabled') + '>' +
+          '<i class="fas fa-paper-plane"></i> ' + (wiz.submitting ? 'Submitting\u2026' : 'Submit reservation request') +
+        '</button>' +
+      '</div>';
+    const tcEl = host.querySelector('[data-wiz-tc]');
+    tcEl.addEventListener('change', () => { wiz.tc = tcEl.checked; renderWizard(); });
+    host.querySelector('[data-wiz-back]').addEventListener('click', () => { wiz.step = 3; renderWizard(); });
+    host.querySelector('[data-wiz-submit]').addEventListener('click', () => submitWizardBooking());
+  }
+
+  async function submitWizardBooking() {
+    if (wiz.submitting) return;
+    wiz.submitting = true;
+    renderWizard();
+    try {
+      await submitBooking(
+        wiz.date,
+        formatHHMM(wiz.startMin),
+        formatHHMM(wiz.startMin + wiz.durationMin),
+        wiz.purpose.trim(),
+        wiz.flat.trim(),
+        wiz.phone.trim(),
+        wiz.ownerEmail.trim()
+      );
+      // Reset the wizard so the user can start a fresh booking; switch to
+      // My reservations so they can immediately upload payment proof if
+      // the facility requires it (Phase 2 payment flow lives there).
+      wiz.step = 1; wiz.date = null; wiz.startMin = null; wiz.durationMin = null;
+      wiz.purpose = ''; wiz.flat = ''; wiz.phone = ''; wiz.ownerEmail = ''; wiz.tc = false;
+      wiz.heatmap = null;
+      wiz.submitting = false;
+      showTab('mine');
+    } catch (_e) {
+      // Errors already toasted by submitBooking; keep the form open.
+      wiz.submitting = false;
+      renderWizard();
+    }
+  }
+
+  // -------- Live summary rail (always visible on the right) --------
+  function renderWizSummary() {
+    const host = $('#resWizSummary');
+    if (!host || !selectedFacility) return;
+    const f = selectedFacility, p = f.policy || {};
+    const hasTiming = !!(wiz.date && wiz.startMin != null && wiz.durationMin);
+    const price = hasTiming ? wizComputePrice(p, wiz.date, wiz.durationMin) : { lines: [], total: 0 };
+    const priceBlock = !hasTiming
+      ? '<div class="tsh-res-wiz-price"><div class="row" style="justify-content:center;color:#6b7280;font-style:italic;">Pick a date and time to see the estimate</div></div>'
+      : (price.total === 0
+          ? '<div class="tsh-res-wiz-price"><div class="row free"><span><i class="fas fa-gift"></i> No charge for this facility</span><span>Free</span></div></div>'
+          : '<div class="tsh-res-wiz-price">' +
+              price.lines.map((l) => '<div class="row"><span>' + escape(l.label) + '</span><span>' + inr(l.amount) + '</span></div>').join('') +
+              '<div class="row total"><span>Estimated total</span><span>' + inr(price.total) + '</span></div>' +
+            '</div>');
+    host.innerHTML =
+      '<h3><i class="fas fa-clipboard-list"></i> Your booking</h3>' +
+      '<div class="kv">' +
+        '<div class="k">Facility</div><div class="v">' + escape(f.name) + '</div>' +
+        '<div class="k">Date</div><div class="v ' + (wiz.date ? '' : 'muted') + '">' + (wiz.date ? escape(friendlyDate(wiz.date)) : 'Not selected') + '</div>' +
+        '<div class="k">Time</div><div class="v ' + (wiz.startMin != null && wiz.durationMin ? '' : 'muted') + '">' + (wiz.startMin != null && wiz.durationMin ? formatHHMM(wiz.startMin) + '\u2013' + formatHHMM(wiz.startMin + wiz.durationMin) : 'Not selected') + '</div>' +
+        '<div class="k">Duration</div><div class="v ' + (wiz.durationMin ? '' : 'muted') + '">' + (wiz.durationMin ? (wiz.durationMin / 60).toFixed(1).replace(/\.0$/, '') + ' hours' : '\u2014') + '</div>' +
+        '<div class="k">Purpose</div><div class="v ' + (wiz.purpose ? '' : 'muted') + '">' + (wiz.purpose ? escape(wiz.purpose) : 'Not entered') + '</div>' +
+        '<div class="k">Flat</div><div class="v ' + (wiz.flat ? '' : 'muted') + '">' + (wiz.flat ? escape(wiz.flat) : 'Not entered') + '</div>' +
+      '</div>' +
+      priceBlock +
+      '<div class="tsh-res-wiz-nav">' +
+        (wiz.step > 1 ? '<button type="button" class="tsh-btn tsh-btn-ghost" data-wiz-sum-back><i class="fas fa-arrow-left"></i> Back</button>' : '') +
+        (wiz.step < 4 ? '<button type="button" class="tsh-btn tsh-btn-primary" data-wiz-sum-next>Next <i class="fas fa-arrow-right"></i></button>' :
+          '<button type="button" class="tsh-btn tsh-btn-primary" data-wiz-sum-submit' + (wiz.tc && !wiz.submitting ? '' : ' disabled') + '><i class="fas fa-paper-plane"></i> Submit</button>') +
+      '</div>';
+    const b = host.querySelector('[data-wiz-sum-back]');
+    if (b) b.addEventListener('click', () => { wiz.step -= 1; renderWizard(); });
+    const n = host.querySelector('[data-wiz-sum-next]');
+    if (n) n.addEventListener('click', () => { if (wizCanJumpTo(wiz.step + 1)) { wiz.step += 1; renderWizard(); } else { root.UI.toast('Complete this step first.', { kind: 'warn' }); } });
+    const s = host.querySelector('[data-wiz-sum-submit]');
+    if (s) s.addEventListener('click', () => submitWizardBooking());
   }
 
   // -------------------------------------------------------- facility settings (MANAGER+)

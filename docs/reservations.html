@@ -258,6 +258,121 @@
       /* On phones the 7-day week is unreadable — degrade to Day view. */
       .tsh-cal-force-day .tsh-cal-week { grid-template-columns: 56px 1fr; }
     }
+
+    /* ============================================================
+       Guided Wizard mode — residents-first Facility → Time →
+       Details → Review flow. Toggled with the mode strip above the
+       facility bar. Reuses the same /facilities, /availability and
+       POST /reservations endpoints as calendar mode.
+       ============================================================ */
+    .tsh-res-mode { display: inline-flex; border: 1px solid var(--tsh-border, #d1d5db); border-radius: 8px; overflow: hidden; margin: 8px 0 10px; background: var(--tsh-card, #fff); }
+    .tsh-res-mode button { padding: 6px 14px; background: transparent; border: 0; font-size: 13px; font-weight: 500; color: var(--tsh-muted, #6b7280); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+    .tsh-res-mode button + button { border-left: 1px solid var(--tsh-border, #d1d5db); }
+    .tsh-res-mode button.on { background: var(--tsh-primary, #2563eb); color: #fff; }
+
+    .tsh-res-wiz { display: grid; grid-template-columns: 1fr 320px; gap: 16px; align-items: flex-start; margin-top: 8px; }
+    .tsh-res-wiz-step { background: var(--tsh-card, #fff); border: 1px solid var(--tsh-border, #d1d5db); border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+    .tsh-res-wiz-step h2 { margin: 0 0 4px; font-size: 15px; color: var(--tsh-text, #111827); display: flex; align-items: center; gap: 6px; }
+    .tsh-res-wiz-step .sub { color: var(--tsh-muted, #6b7280); font-size: 12px; margin: 0 0 12px; }
+
+    .tsh-res-wiz-stepper { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; background: var(--tsh-card, #fff); border: 1px solid var(--tsh-border, #d1d5db); border-radius: 10px; overflow: hidden; margin-bottom: 12px; }
+    .tsh-res-wiz-stepper .step { padding: 10px 12px; display: flex; align-items: center; gap: 10px; position: relative; cursor: pointer; user-select: none; }
+    .tsh-res-wiz-stepper .step + .step::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 1px; background: var(--tsh-border, #e5e7eb); }
+    .tsh-res-wiz-stepper .step.disabled { cursor: not-allowed; opacity: .5; }
+    .tsh-res-wiz-stepper .step .num { width: 24px; height: 24px; border-radius: 50%; background: #f3f4f6; border: 2px solid var(--tsh-border, #d1d5db); display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; color: var(--tsh-muted, #6b7280); }
+    .tsh-res-wiz-stepper .step.done .num { background: #16a34a; border-color: #16a34a; color: #fff; }
+    .tsh-res-wiz-stepper .step.active .num { background: var(--tsh-primary, #2563eb); border-color: var(--tsh-primary, #2563eb); color: #fff; }
+    .tsh-res-wiz-stepper .step .lbl { font-size: 12px; line-height: 1.2; }
+    .tsh-res-wiz-stepper .step .lbl b { display: block; font-size: 12px; font-weight: 600; color: var(--tsh-text, #111827); }
+    .tsh-res-wiz-stepper .step .lbl small { color: var(--tsh-muted, #6b7280); font-size: 11px; }
+
+    .tsh-res-wiz-facs { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+    .tsh-res-wiz-fac { padding: 12px; border: 1px solid var(--tsh-border, #d1d5db); border-radius: 10px; background: var(--tsh-card, #fff); cursor: pointer; transition: all .12s; }
+    .tsh-res-wiz-fac:hover { border-color: var(--tsh-primary, #2563eb); transform: translateY(-1px); box-shadow: 0 2px 6px rgba(0,0,0,.06); }
+    .tsh-res-wiz-fac.pick { border-color: var(--tsh-primary, #2563eb); background: color-mix(in srgb, var(--tsh-primary, #2563eb) 8%, transparent); box-shadow: 0 2px 6px rgba(37,99,235,.15); }
+    .tsh-res-wiz-fac .icon { font-size: 22px; color: #d97706; margin-bottom: 4px; }
+    .tsh-res-wiz-fac .name { font-weight: 600; font-size: 14px; margin-bottom: 2px; }
+    .tsh-res-wiz-fac .meta { font-size: 11px; color: var(--tsh-muted, #6b7280); }
+    .tsh-res-wiz-fac .price { font-size: 12px; color: #059669; margin-top: 4px; font-weight: 600; }
+    .tsh-res-wiz-fac .badges { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px; }
+    /* Facility-card badges use blue/gray only. Amber (#fef3c7) and red (#fee2e2)
+       are reserved exclusively for availability status per requirement §8.8
+       (Requested / Confirmed) so users learn one consistent colour language. */
+    .tsh-res-wiz-fac .badge { font-size: 10px; padding: 1px 6px; border-radius: 4px; background: #dbeafe; color: #1e40af; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+    .tsh-res-wiz-fac .badge.blue { background: #dbeafe; color: #1e40af; }
+    .tsh-res-wiz-fac .badge.gray { background: #f3f4f6; color: #4b5563; }
+
+    .tsh-res-wiz-picker { display: grid; grid-template-columns: 260px 1fr; gap: 14px; }
+    .tsh-res-wiz-heat { border: 1px solid var(--tsh-border, #e5e7eb); border-radius: 10px; padding: 10px; background: #fafafa; }
+    .tsh-res-wiz-heat-head { display: flex; justify-content: space-between; align-items: center; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--tsh-muted, #6b7280); font-weight: 600; }
+    .tsh-res-wiz-heat-head button { background: #fff; border: 1px solid var(--tsh-border, #d1d5db); border-radius: 4px; width: 24px; height: 24px; cursor: pointer; color: var(--tsh-muted, #6b7280); font-size: 11px; padding: 0; }
+    .tsh-res-wiz-heat-head button:hover:not(:disabled) { color: var(--tsh-primary, #2563eb); border-color: var(--tsh-primary, #2563eb); }
+    .tsh-res-wiz-heat-head button:disabled { opacity: .3; cursor: not-allowed; }
+    .tsh-res-wiz-month { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; font-size: 11px; margin-top: 8px; }
+    .tsh-res-wiz-month .dow { text-align: center; color: var(--tsh-muted, #6b7280); font-weight: 600; font-size: 10px; }
+    /* Heatmap-day colour scale — locked to §8.8: green=Available,
+       amber=Requested (at least one held booking that day),
+       red=Confirmed (at least one confirmed booking that day),
+       gray=Blocked (blackout). Confirmed wins over Requested when both exist. */
+    .tsh-res-wiz-month .day { padding: 6px 2px; text-align: center; border-radius: 4px; cursor: pointer; background: #dcfce7; color: #166534; font-weight: 500; font-size: 11px; border: 1px solid #86efac; }
+    .tsh-res-wiz-month .day:hover:not(.past):not(.blocked):not(.other) { transform: translateY(-1px); box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+    .tsh-res-wiz-month .day.requested { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
+    .tsh-res-wiz-month .day.confirmed { background: #fee2e2; color: #991b1b; border-color: #fca5a5; }
+    .tsh-res-wiz-month .day.blocked   { background: #f3f4f6; color: #9ca3af; border-color: #e5e7eb; cursor: not-allowed; }
+    .tsh-res-wiz-month .day.past { opacity: .3; cursor: not-allowed; background: transparent; color: var(--tsh-muted, #6b7280); }
+    .tsh-res-wiz-month .day.other { opacity: .35; background: transparent; color: var(--tsh-muted, #6b7280); cursor: default; }
+    .tsh-res-wiz-month .day.today { outline: 2px solid var(--tsh-primary, #2563eb); }
+    .tsh-res-wiz-month .day.pick { background: var(--tsh-primary, #2563eb); color: #fff; font-weight: 700; }
+    .tsh-res-wiz-heat-legend { display: flex; gap: 8px; flex-wrap: wrap; font-size: 10px; margin-top: 8px; color: var(--tsh-muted, #6b7280); }
+    .tsh-res-wiz-heat-legend span { display: inline-flex; align-items: center; gap: 3px; }
+    .tsh-res-wiz-heat-legend i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; font-style: normal; }
+
+    .tsh-res-wiz-times h4 { margin: 0 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--tsh-muted, #6b7280); font-weight: 600; }
+    .tsh-res-wiz-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+    .tsh-res-wiz-chip { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--tsh-border, #d1d5db); background: #fff; color: var(--tsh-text, #111827); font-size: 12px; cursor: pointer; }
+    .tsh-res-wiz-chip:hover:not(:disabled):not(.full):not(.past):not(.blocked) { border-color: var(--tsh-primary, #2563eb); }
+    .tsh-res-wiz-chip.busy { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
+    .tsh-res-wiz-chip.full { background: #fee2e2; color: #991b1b; border-color: #fca5a5; cursor: not-allowed; }
+    .tsh-res-wiz-chip.past { opacity: .4; cursor: not-allowed; }
+    .tsh-res-wiz-chip.blocked { background: repeating-linear-gradient(45deg,#f3f4f6,#f3f4f6 4px,#e5e7eb 4px,#e5e7eb 8px); color: #6b7280; cursor: not-allowed; }
+    .tsh-res-wiz-chip.pick { background: var(--tsh-primary, #2563eb); color: #fff; border-color: var(--tsh-primary, #2563eb); font-weight: 700; }
+
+    .tsh-res-wiz-duration { display: flex; align-items: center; gap: 12px; }
+    .tsh-res-wiz-duration input[type="range"] { flex: 1; accent-color: var(--tsh-primary, #2563eb); }
+    .tsh-res-wiz-duration .val { min-width: 100px; text-align: right; font-weight: 700; color: var(--tsh-text, #111827); }
+
+    .tsh-res-wiz-summary { background: var(--tsh-card, #fff); border: 1px solid var(--tsh-border, #d1d5db); border-radius: 12px; padding: 14px; position: sticky; top: 16px; }
+    .tsh-res-wiz-summary h3 { margin: 0 0 10px; font-size: 14px; color: var(--tsh-text, #111827); display: flex; align-items: center; gap: 6px; }
+    .tsh-res-wiz-summary .kv { display: grid; grid-template-columns: 90px 1fr; gap: 4px 8px; font-size: 12px; margin-bottom: 10px; }
+    .tsh-res-wiz-summary .kv .k { color: var(--tsh-muted, #6b7280); }
+    .tsh-res-wiz-summary .kv .v { color: var(--tsh-text, #111827); font-weight: 500; word-break: break-word; }
+    .tsh-res-wiz-summary .kv .v.muted { color: var(--tsh-muted, #6b7280); font-weight: 400; font-style: italic; }
+    .tsh-res-wiz-price { background: #f9fafb; border-radius: 8px; padding: 10px; font-size: 12px; margin-bottom: 12px; border: 1px dashed var(--tsh-border, #e5e7eb); }
+    .tsh-res-wiz-price .row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+    .tsh-res-wiz-price .row:last-child { margin-bottom: 0; }
+    /* Price emphasis stays in brand blue rather than amber so it can't be
+       misread as a Requested-status signal. Free-total stays green because
+       Free is Available in the §8.8 scale. */
+    .tsh-res-wiz-price .row.total { border-top: 1px solid var(--tsh-border, #e5e7eb); padding-top: 6px; margin-top: 6px; font-weight: 700; color: var(--tsh-primary, #2563eb); font-size: 13px; }
+    .tsh-res-wiz-price .row.free { color: #059669; font-weight: 600; }
+    .tsh-res-wiz-nav { display: flex; gap: 8px; margin-top: 4px; }
+    .tsh-res-wiz-nav button { flex: 1; justify-content: center; }
+    /* Terms-and-conditions strip uses a neutral notice colour rather than
+       amber so the wizard reserves amber strictly for Requested status. */
+    .tsh-res-wiz-tc { margin-top: 12px; padding: 10px 12px; background: #f9fafb; border-left: 3px solid var(--tsh-primary, #2563eb); border-radius: 6px; font-size: 12px; }
+    .tsh-res-wiz-tc label { display: flex; gap: 8px; align-items: flex-start; cursor: pointer; }
+    .tsh-res-wiz-tc input { margin-top: 2px; }
+
+    @media (max-width: 900px) {
+      .tsh-res-wiz { grid-template-columns: 1fr; }
+      .tsh-res-wiz-picker { grid-template-columns: 1fr; }
+      .tsh-res-wiz-stepper { grid-template-columns: 1fr 1fr; }
+      .tsh-res-wiz-summary { position: static; }
+    }
+    @media (max-width: 480px) {
+      .tsh-res-wiz-stepper { grid-template-columns: 1fr; }
+      .tsh-res-wiz-stepper .step { padding: 8px 10px; }
+    }
   </style>
 </head>
 <body class="tsh-page">
@@ -311,6 +426,25 @@
           </button>
         </div>
         <p id="resFacilityBlurb" class="tsh-hint" style="margin:2px 0 10px"></p>
+
+        <!-- Book-mode strip: Wizard (default for residents) vs Calendar.
+             Wired in reservations.js:setBookMode(). Staff default to Calendar
+             because on-behalf-of + drag-book is faster in that view. -->
+        <div class="tsh-res-mode" role="tablist" aria-label="Book mode">
+          <button type="button" class="on" data-book-mode="wizard"><i class="fas fa-magic-wand-sparkles"></i> Guided wizard</button>
+          <button type="button"           data-book-mode="calendar"><i class="fas fa-table-cells-large"></i> Calendar</button>
+        </div>
+
+        <!-- Wizard body: 4-step Facility → Date & Time → Details → Review.
+             Rendered by reservations.js:renderWizard(). Reuses the same
+             /facilities, /availability and POST /reservations endpoints. -->
+        <div id="resWizardBody" hidden>
+          <div class="tsh-res-wiz-stepper" id="resWizStepper"></div>
+          <div class="tsh-res-wiz">
+            <div id="resWizSteps"></div>
+            <div id="resWizSummary" class="tsh-res-wiz-summary"></div>
+          </div>
+        </div>
 
         <div id="resBookBody" hidden>
           <div class="tsh-cal-toolbar">
@@ -372,7 +506,7 @@
   <script src="./assets/js/ui.js?v=51"></script>
   <script src="./assets/js/notify.js?v=1"></script>
   <script src="./assets/js/pdf-report.js?v=9"></script>
-  <script src="./assets/js/reservations.js?v=9"></script>
+  <script src="./assets/js/reservations.js?v=11"></script>
   <script>
   (async () => {
     await Partials.mount();
