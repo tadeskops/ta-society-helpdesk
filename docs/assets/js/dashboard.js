@@ -29,7 +29,7 @@
   //   allowDelete   -> shows 'Delete'  (reason optional). Committee+.
   let opts = { role: 'MANAGER', allowDelete: false, allowArchive: false };
   let allIssues = [];
-  let currentStatus = 'new';
+  let currentStatus = '';
 
   async function reload() {
     const tbody = document.querySelector('#issuesTable tbody');
