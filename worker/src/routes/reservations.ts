@@ -667,25 +667,32 @@ export const mountReservations = (r: Router): void => {
       throw new BadRequest(`Maximum booking length is ${eh.maxDurationMinutes} minutes`);
     }
 
-    // Policy checks
+    // Policy checks. Committee & Admin bypass the advance-notice,
+    // advance-window, blackout, per-owner-cap and per-flat-quota rules so
+    // they can book "anytime" (spec: any staff-priority booking). Society
+    // Manager (MANAGER) still follows the resident rules and must request
+    // approval like everyone else.
+    const meEmail = ctx.identity!.email.toLowerCase();
+    const isStaff = isAtLeast(ctx.roles, 'MANAGER');
+    const bypassPolicy = ctx.roles.primary === 'COMMITTEE' || ctx.roles.primary === 'ADMIN';
     const now = Date.now();
     const startMs = parseIstDateMidnight(date) + startMin * 60 * 1000;
-    const minAdvanceMs = facility.policy.minAdvanceHours * 60 * 60 * 1000;
-    const maxAdvanceMs = facility.policy.maxAdvanceDays * 24 * 60 * 60 * 1000;
-    if (startMs - now < minAdvanceMs) {
-      throw new BadRequest(`This facility requires at least ${facility.policy.minAdvanceHours}h advance notice`);
-    }
-    if (startMs - now > maxAdvanceMs) {
-      throw new BadRequest(`This facility can only be booked up to ${facility.policy.maxAdvanceDays} days ahead`);
-    }
-    if ((facility.policy.blackoutDates ?? []).includes(date)) {
-      throw new BadRequest('That date is blocked for this facility');
+    if (!bypassPolicy) {
+      const minAdvanceMs = facility.policy.minAdvanceHours * 60 * 60 * 1000;
+      const maxAdvanceMs = facility.policy.maxAdvanceDays * 24 * 60 * 60 * 1000;
+      if (startMs - now < minAdvanceMs) {
+        throw new BadRequest(`This facility requires at least ${facility.policy.minAdvanceHours}h advance notice`);
+      }
+      if (startMs - now > maxAdvanceMs) {
+        throw new BadRequest(`This facility can only be booked up to ${facility.policy.maxAdvanceDays} days ahead`);
+      }
+      if ((facility.policy.blackoutDates ?? []).includes(date)) {
+        throw new BadRequest('That date is blocked for this facility');
+      }
     }
 
     // Owner resolution: residents may only book for themselves.
     // Staff (MANAGER+) may book on-behalf by providing ownerEmail.
-    const meEmail = ctx.identity!.email.toLowerCase();
-    const isStaff = isAtLeast(ctx.roles, 'MANAGER');
     let ownerEmail = meEmail;
     if (ownerEmailIn) {
       const requested = ownerEmailIn.toLowerCase();
@@ -705,22 +712,24 @@ export const mountReservations = (r: Router): void => {
       );
     }
 
-    // Per-owner concurrency cap.
-    const held = active.filter((r) => r.owner.email.toLowerCase() === ownerEmail && isActive(r));
-    if (held.length >= facility.policy.maxConcurrentPerOwner) {
-      throw new BadRequest(`You already have ${held.length} active reservation(s); cancel one before creating another.`);
-    }
+    if (!bypassPolicy) {
+      // Per-owner concurrency cap.
+      const held = active.filter((r) => r.owner.email.toLowerCase() === ownerEmail && isActive(r));
+      if (held.length >= facility.policy.maxConcurrentPerOwner) {
+        throw new BadRequest(`You already have ${held.length} active reservation(s); cancel one before creating another.`);
+      }
 
-    // Per-flat, per-year quota. Cancelled/rejected records do not count,
-    // so a flat that hits the cap can free a slot by cancelling first.
-    const perFlatCap = facility.policy.maxPerFlatPerYear ?? DEFAULT_MAX_PER_FLAT_PER_YEAR;
-    const year = istYearFromDate(date);
-    const flatUsed = countFlatBookingsForYear(active, facility.id, ownerFlatNorm, year);
-    if (flatUsed >= perFlatCap) {
-      throw new BadRequest(
-        `Flat ${ownerFlatRaw} already has ${flatUsed} booking(s) at ${facility.name} in ${year} ` +
-        `(limit ${perFlatCap} per calendar year). Cancel an existing booking or wait for next year.`,
-      );
+      // Per-flat, per-year quota. Cancelled/rejected records do not count,
+      // so a flat that hits the cap can free a slot by cancelling first.
+      const perFlatCap = facility.policy.maxPerFlatPerYear ?? DEFAULT_MAX_PER_FLAT_PER_YEAR;
+      const year = istYearFromDate(date);
+      const flatUsed = countFlatBookingsForYear(active, facility.id, ownerFlatNorm, year);
+      if (flatUsed >= perFlatCap) {
+        throw new BadRequest(
+          `Flat ${ownerFlatRaw} already has ${flatUsed} booking(s) at ${facility.name} in ${year} ` +
+          `(limit ${perFlatCap} per calendar year). Cancel an existing booking or wait for next year.`,
+        );
+      }
     }
 
     // Allocate ID and record.
@@ -1184,6 +1193,85 @@ export const mountReservations = (r: Router): void => {
       );
     }
     return ok(ctx.env, ctx.req, { reservation: rec });
+  });
+
+  // ---- Receipt template (staff-upload of the letterhead/background used
+  // when generating the confirmation-receipt PDF). Stored as a committed
+  // image or PDF under photos/receipts/, with the current pointer + metadata
+  // held in config/site.json → system.receiptTemplate. Public GET so the
+  // client can render receipts without a preflight admin round-trip.
+
+  r.get('/receipts/template', async (ctx: Ctx) => {
+    ensureAllowed(ctx, { flags: [FLAG] });
+    const f = await getFile(ctx.env, 'config/site.json');
+    let tpl: unknown = null;
+    if (f) {
+      try {
+        const parsed = JSON.parse(f.content) as { system?: { receiptTemplate?: unknown } };
+        tpl = parsed.system?.receiptTemplate ?? null;
+      } catch { /* ignore */ }
+    }
+    return ok(ctx.env, ctx.req, { template: tpl });
+  });
+
+  r.post('/receipts/template', async (ctx: Ctx) => {
+    ensureAllowed(ctx, {
+      flags: [FLAG],
+      roles: ['MANAGER', 'COMMITTEE', 'ADMIN'],
+      requireIdentity: true,
+    });
+    const body = await parseJson<Record<string, unknown>>(ctx.req);
+    const dataUrl = str(body['dataUrl'], 'dataUrl', { min: 30, max: 12_000_000 });
+    const note = optStr(body['note'], 'note', { max: 200 });
+    const m = /^data:(image\/(?:jpe?g|png|webp)|application\/pdf);base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl);
+    if (!m) throw new BadRequest('dataUrl must be image/jpeg|png|webp or application/pdf base64');
+    const mime = m[1]!;
+    const b64  = m[2]!;
+    const padding = b64.endsWith('==') ? 2 : b64.endsWith('=') ? 1 : 0;
+    const byteSize = Math.floor((b64.length * 3) / 4) - padding;
+    const maxBytes = tunable(ctx.config, 'DAILY_PHOTO_MAX_BYTES', 5_242_880);
+    if (byteSize > maxBytes) throw new BadRequest(`template ${byteSize} bytes exceeds DAILY_PHOTO_MAX_BYTES (${maxBytes})`);
+    const ext = mime === 'image/png' ? 'png'
+      : mime === 'image/webp' ? 'webp'
+      : mime === 'application/pdf' ? 'pdf' : 'jpg';
+    const buf = new Uint8Array(8);
+    crypto.getRandomValues(buf);
+    const hex = Array.from(buf).map((x) => x.toString(16).padStart(2, '0')).join('');
+    const path = `photos/receipts/template-${hex}.${ext}`;
+    const url = `https://raw.githubusercontent.com/${ctx.env.GH_OWNER}/${ctx.env.GH_REPO}/${ctx.env.GH_BRANCH}/${path}`;
+    const actor = ctx.identity!.email;
+    await putBinaryB64(ctx.env, path, b64, `receipts: template ${hex}.${ext} by ${actor}`, actor);
+
+    // Merge into config/site.json.system.receiptTemplate.
+    const siteFile = await getFile(ctx.env, 'config/site.json');
+    if (!siteFile) throw new BadRequest('config/site.json not found');
+    let site: Record<string, unknown>;
+    try { site = JSON.parse(siteFile.content) as Record<string, unknown>; }
+    catch { throw new BadRequest('config/site.json is not valid JSON'); }
+    const system = (site['system'] && typeof site['system'] === 'object')
+      ? site['system'] as Record<string, unknown>
+      : {};
+    system['receiptTemplate'] = {
+      url,
+      mime,
+      bytes: byteSize,
+      updatedBy: actor,
+      updatedAt: new Date().toISOString(),
+      ...(note ? { note } : {}),
+    };
+    site['system'] = system;
+    const serialised = JSON.stringify(site, null, 2) + '\n';
+    await putFile(
+      ctx.env, 'config/site.json', serialised,
+      `receipts: update template pointer by ${actor}`,
+      actor, siteFile.sha,
+    );
+    await writeAudit(ctx.env, {
+      actor, action: 'receipts:template',
+      target: path,
+      detail: `bytes=${byteSize} mime=${mime}${note ? ' note=' + note.slice(0, 60) : ''}`,
+    });
+    return ok(ctx.env, ctx.req, { template: system['receiptTemplate'] });
   });
 
 };

@@ -294,6 +294,12 @@
       bar.title = 'Society Manager, Committee & Admin: edit rates, rate history, rules and policy for this facility.';
       bar.onclick = () => openFacilitySettings();
     }
+    const tplBtn = $('#resReceiptTemplate');
+    if (tplBtn) {
+      const isStaff = who && root.Flags.isAtLeast && root.Flags.isAtLeast(who.primary, 'MANAGER');
+      tplBtn.hidden = !isStaff;
+      tplBtn.onclick = () => openReceiptTemplateManager();
+    }
   }
 
   function selectFacility(id) {
@@ -1018,6 +1024,19 @@
     detailBtn.addEventListener('click', () => openDetailModal(r));
     actions.appendChild(detailBtn);
 
+    // Receipt (print + download PDF). Available to the owner and every staff
+    // role once the booking is confirmed \u2014 payment verification is only a
+    // gating step for the confirm transition itself, so a confirmed booking
+    // is always eligible for a printable receipt.
+    if ((isOwner || isStaff) && r.status === 'confirmed') {
+      const receiptBtn = document.createElement('button');
+      receiptBtn.type = 'button';
+      receiptBtn.className = 'tsh-btn tsh-btn-ghost tsh-btn-sm';
+      receiptBtn.innerHTML = '<i class="fas fa-receipt"></i> Receipt';
+      receiptBtn.addEventListener('click', () => openReceiptModal(r));
+      actions.appendChild(receiptBtn);
+    }
+
     if (staffMode && (r.status === 'requested' || r.status === 'under-review')) {
       const approveBtn = document.createElement('button');
       approveBtn.type = 'button';
@@ -1501,8 +1520,291 @@
     { key: 'status',      label: 'Status',       width: 22, on: true,               read: (r) => r.status },
   ];
 
+  // ---------------------------------------------------- receipt template
+
+  // Small in-memory cache of the /receipts/template payload so repeated
+  // Receipt clicks don't hit the worker. Invalidated after a successful
+  // upload in openReceiptTemplateManager().
+  let receiptTemplateCache = null;
+  let receiptTemplateFetchedAt = 0;
+
+  async function getReceiptTemplate(forceRefresh) {
+    const now = Date.now();
+    if (!forceRefresh && receiptTemplateCache !== null && (now - receiptTemplateFetchedAt) < 60_000) {
+      return receiptTemplateCache;
+    }
+    try {
+      const res = await root.Api.get('/receipts/template');
+      receiptTemplateCache = (res && res.template) || null;
+      receiptTemplateFetchedAt = now;
+      return receiptTemplateCache;
+    } catch (_e) {
+      receiptTemplateCache = null;
+      receiptTemplateFetchedAt = now;
+      return null;
+    }
+  }
+
+  // Lightweight version of pdf-report.js\u2019 waitForJsPdf that doesn't
+  // require the autoTable plugin (we only need core jsPDF for receipts).
+  async function waitForJspdfLite(maxMs) {
+    const ready = () => !!(root.jspdf && root.jspdf.jsPDF);
+    if (ready()) return true;
+    const deadline = Date.now() + (maxMs || 6000);
+    while (Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 120));
+      if (ready()) return true;
+    }
+    return false;
+  }
+
+  async function fetchAsDataUrl(url) {
+    const res = await fetch(url, { mode: 'cors', credentials: 'omit' });
+    if (!res.ok) throw new Error('template fetch ' + res.status);
+    const blob = await res.blob();
+    return await new Promise((resolve, reject) => {
+      const rd = new FileReader();
+      rd.onload = () => resolve(String(rd.result || ''));
+      rd.onerror = () => reject(rd.error || new Error('read failed'));
+      rd.readAsDataURL(blob);
+    });
+  }
+
+  function receiptFieldRows(r) {
+    const dateLabel = friendlyDate ? friendlyDate(r.date) : r.date;
+    const rows = [
+      { k: 'Booking ID',   v: r.id },
+      { k: 'Resident',     v: (r.owner.name || r.owner.email) + (r.owner.flat ? ' \u00b7 Flat ' + r.owner.flat : '') },
+      { k: 'Contact',      v: [r.owner.email, r.owner.phone].filter(Boolean).join(' \u00b7 ') || '\u2014' },
+      { k: 'Facility',     v: r.facilityLabel },
+      { k: 'Date',         v: dateLabel },
+      { k: 'Time',         v: reservationTimeLabel ? reservationTimeLabel(r) : '' },
+      { k: 'Purpose',      v: r.purpose || '' },
+    ];
+    if (r.payment) {
+      rows.push({ k: 'Charges', v: (r.payment.amount != null ? '\u20b9' + r.payment.amount : '\u2014') + ' \u00b7 ' + (PAYMENT_STATUS_LABEL[r.payment.status] || r.payment.status) });
+      if (r.payment.reference) rows.push({ k: 'Payment ref', v: r.payment.reference });
+      if (r.payment.verifiedBy) rows.push({ k: 'Verified by', v: r.payment.verifiedBy });
+    }
+    rows.push({ k: 'Status', v: (RESIDENT_STATUS_LABEL[r.status] || r.status) });
+    return rows;
+  }
+
+  function buildReceiptDoc(r, templateDataUrl, templateMime) {
+    const { jsPDF } = root.jspdf;
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const pageW = 210, pageH = 297;
+    // Template header \u2014 image only in v1 (PDF composition needs pdf-lib).
+    // Fit within the top 45mm of the page keeping the source aspect ratio.
+    const headerH = 45;
+    const imgFmt = templateMime === 'image/png' ? 'PNG'
+      : templateMime === 'image/webp' ? 'WEBP' : 'JPEG';
+    try {
+      doc.addImage(templateDataUrl, imgFmt, 5, 5, pageW - 10, headerH);
+    } catch (_e) {
+      // Fallback: draw a stroked box so the receipt still renders even if
+      // the letterhead image is missing or the format is rejected.
+      doc.setDrawColor(180); doc.rect(5, 5, pageW - 10, headerH);
+      doc.setFontSize(10); doc.text('(letterhead unavailable)', pageW / 2, 5 + headerH / 2, { align: 'center' });
+    }
+
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(16);
+    doc.text('BOOKING RECEIPT', pageW / 2, 5 + headerH + 12, { align: 'center' });
+
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(11);
+    let y = 5 + headerH + 24;
+    receiptFieldRows(r).forEach((row) => {
+      doc.setFont('helvetica', 'bold');   doc.text(String(row.k) + ':', 20, y);
+      doc.setFont('helvetica', 'normal');
+      const wrapped = doc.splitTextToSize(String(row.v || '\u2014'), 120);
+      doc.text(wrapped, 60, y);
+      y += 7 * (Array.isArray(wrapped) ? wrapped.length : 1) + 1;
+      if (y > pageH - 40) { doc.addPage(); y = 20; }
+    });
+
+    doc.setDrawColor(220); doc.line(20, pageH - 30, pageW - 20, pageH - 30);
+    doc.setFontSize(9); doc.setTextColor(90);
+    doc.text('Printed ' + new Date().toLocaleString(), 20, pageH - 22);
+    const me = (who && (who.email || who.name)) || '';
+    if (me) doc.text('by ' + me, 20, pageH - 17);
+    doc.text('This is a system-generated receipt. Retain a copy for your records.',
+      pageW / 2, pageH - 12, { align: 'center' });
+    doc.setTextColor(0);
+    return doc;
+  }
+
+  async function openReceiptModal(r) {
+    let tpl;
+    try { tpl = await getReceiptTemplate(false); }
+    catch (_e) { tpl = null; }
+    if (!tpl || !tpl.url) {
+      root.UI.toast('No receipt template uploaded yet. A Society Manager, Committee member or Admin can upload one from the Reservations page (Receipt template button).', { kind: 'warn' });
+      return;
+    }
+    if (tpl.mime === 'application/pdf') {
+      root.UI.toast('PDF letterheads aren\u2019t supported yet on this page. Please upload a PNG or JPEG image as the receipt template.', { kind: 'warn' });
+      return;
+    }
+    const ready = await waitForJspdfLite(6000);
+    if (!ready) { root.UI.toast('PDF library did not load. Please retry.', { kind: 'danger' }); return; }
+
+    let templateDataUrl;
+    try { templateDataUrl = await fetchAsDataUrl(tpl.url); }
+    catch (e) {
+      root.UI.toast('Could not load template: ' + (e && e.message || e), { kind: 'danger' });
+      return;
+    }
+
+    let doc, bloburl;
+    try {
+      doc = buildReceiptDoc(r, templateDataUrl, tpl.mime || 'image/jpeg');
+      bloburl = doc.output('bloburl');
+    } catch (e) {
+      root.UI.toast('Receipt build failed: ' + (e && e.message || e), { kind: 'danger' });
+      return;
+    }
+
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'display:flex;flex-direction:column;gap:8px;';
+    const bar = document.createElement('div');
+    bar.style.cssText = 'display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;';
+    const printBtn = document.createElement('button');
+    printBtn.type = 'button';
+    printBtn.className = 'tsh-btn tsh-btn-ghost tsh-btn-sm';
+    printBtn.innerHTML = '<i class="fas fa-print"></i> Print';
+    const dlBtn = document.createElement('button');
+    dlBtn.type = 'button';
+    dlBtn.className = 'tsh-btn tsh-btn-primary tsh-btn-sm';
+    dlBtn.innerHTML = '<i class="fas fa-file-arrow-down"></i> Download PDF';
+    bar.append(printBtn, dlBtn);
+
+    const frame = document.createElement('iframe');
+    frame.title = 'Receipt preview';
+    frame.style.cssText = 'width:100%;height:65vh;min-height:420px;border:1px solid var(--tsh-border,#e5e7eb);border-radius:6px;background:#f9fafb;';
+    frame.src = bloburl;
+    wrap.append(bar, frame);
+
+    printBtn.addEventListener('click', () => {
+      try {
+        if (frame.contentWindow) {
+          frame.contentWindow.focus();
+          frame.contentWindow.print();
+        } else {
+          window.open(bloburl, '_blank');
+        }
+      } catch (e) {
+        root.UI.toast('Print blocked: ' + (e && e.message || e), { kind: 'warn' });
+      }
+    });
+    dlBtn.addEventListener('click', () => {
+      try { doc.save('receipt-' + r.id + '.pdf'); }
+      catch (e) { root.UI.toast('Download failed: ' + (e && e.message || e), { kind: 'danger' }); }
+    });
+
+    root.UI.modal({
+      title: 'Receipt \u00b7 ' + r.id,
+      body: wrap,
+      size: 'lg',
+      actions: [{ label: 'Close', value: null }],
+    });
+  }
+
+  function openReceiptTemplateManager() {
+    const isStaff = who && root.Flags.isAtLeast && root.Flags.isAtLeast(who.primary, 'MANAGER');
+    if (!isStaff) return;
+
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'display:flex;flex-direction:column;gap:10px;';
+    wrap.innerHTML =
+      '<p class="tsh-hint" style="margin:0;">' +
+        'Upload the letterhead image that appears at the top of every printed booking receipt. ' +
+        'PNG or JPEG (up to ~5&nbsp;MB) works best. The current template applies immediately to all confirmed bookings.' +
+      '</p>' +
+      '<div data-tpl-current style="min-height:80px;padding:8px;border:1px dashed var(--tsh-border,#e5e7eb);border-radius:6px;background:#fafafa;">' +
+        '<span class="tsh-hint">Loading current template\u2026</span>' +
+      '</div>' +
+      '<div class="tsh-form-row">' +
+        '<label class="tsh-form-label" style="display:block;">New letterhead ' +
+        '<input type="file" accept="image/png,image/jpeg,image/webp,application/pdf" data-tpl-file style="display:block;margin-top:4px;" />' +
+        '</label>' +
+      '</div>' +
+      '<label class="tsh-form-label" style="display:block;">Note (optional) ' +
+        '<input type="text" maxlength="200" data-tpl-note placeholder="e.g. Approved by committee, updated 2026-07" style="display:block;width:100%;margin-top:4px;" />' +
+      '</label>' +
+      '<div data-tpl-preview></div>';
+
+    const currentBox = wrap.querySelector('[data-tpl-current]');
+    const fileEl     = wrap.querySelector('[data-tpl-file]');
+    const noteEl     = wrap.querySelector('[data-tpl-note]');
+    const previewBox = wrap.querySelector('[data-tpl-preview]');
+    let pendingDataUrl = '';
+
+    getReceiptTemplate(true).then((tpl) => {
+      if (!tpl || !tpl.url) {
+        currentBox.innerHTML = '<span class="tsh-hint">No template uploaded yet.</span>';
+        return;
+      }
+      const meta = 'Uploaded ' + (tpl.updatedAt ? String(tpl.updatedAt).slice(0, 10) : '?') +
+                   (tpl.updatedBy ? ' by ' + escape(tpl.updatedBy) : '') +
+                   (tpl.mime ? ' \u00b7 ' + escape(tpl.mime) : '');
+      if (tpl.mime === 'application/pdf') {
+        currentBox.innerHTML =
+          '<div style="font-size:12px;color:var(--tsh-muted,#6b7280);">' + meta + '</div>' +
+          '<a href="' + escape(tpl.url) + '" target="_blank" rel="noopener">Open current PDF template</a>';
+      } else {
+        currentBox.innerHTML =
+          '<div style="font-size:12px;color:var(--tsh-muted,#6b7280);margin-bottom:6px;">' + meta + '</div>' +
+          '<img src="' + escape(tpl.url) + '" alt="Current template" style="max-width:100%;max-height:160px;border:1px solid var(--tsh-border,#e5e7eb);border-radius:4px;" />';
+      }
+    });
+
+    fileEl.addEventListener('change', () => {
+      const f = fileEl.files && fileEl.files[0];
+      if (!f) { pendingDataUrl = ''; previewBox.innerHTML = ''; return; }
+      if (f.size > 12_000_000) {
+        root.UI.toast('File too large (' + Math.round(f.size / 1024) + ' KB). Please keep the letterhead under ~12 MB.', { kind: 'warn' });
+        fileEl.value = ''; return;
+      }
+      const rd = new FileReader();
+      rd.onload = () => {
+        pendingDataUrl = String(rd.result || '');
+        if (f.type === 'application/pdf') {
+          previewBox.innerHTML = '<div class="tsh-hint">PDF preview not shown. Uploading will replace the current template.</div>';
+        } else {
+          previewBox.innerHTML =
+            '<div class="tsh-hint" style="margin-bottom:4px;">Preview of new template:</div>' +
+            '<img src="' + pendingDataUrl + '" alt="Preview" style="max-width:100%;max-height:160px;border:1px solid var(--tsh-border,#e5e7eb);border-radius:4px;" />';
+        }
+      };
+      rd.onerror = () => root.UI.toast('Could not read the selected file.', { kind: 'danger' });
+      rd.readAsDataURL(f);
+    });
+
+    root.UI.modal({
+      title: 'Receipt template',
+      body: wrap,
+      actions: [
+        { label: 'Cancel', value: null },
+        { label: 'Upload & save', value: 'save', primary: true },
+      ],
+    }).then(async (choice) => {
+      if (choice !== 'save') return;
+      if (!pendingDataUrl) { root.UI.toast('Choose an image or PDF first.', { kind: 'warn' }); return; }
+      try {
+        const body = { dataUrl: pendingDataUrl };
+        const note = (noteEl.value || '').trim();
+        if (note) body.note = note;
+        const res = await root.Api.post('/receipts/template', body);
+        receiptTemplateCache = (res && res.template) || null;
+        receiptTemplateFetchedAt = Date.now();
+        root.UI.toast('Receipt template updated.', { kind: 'success' });
+      } catch (e) {
+        root.UI.toast('Upload failed: ' + (e && e.message || e), { kind: 'danger' });
+      }
+    });
+  }
+
   async function bindPdfReport() {
-    if (!root.TSH_REPORT || typeof root.TSH_REPORT.bind !== 'function') return;
     // Configurable, default enabled: FEATURE_BOOKINGS_REPORT ships true in
     // config/site.json. Admins can flip it to false to hide the report
     // wiring (the header Export icon then also hides on this page because

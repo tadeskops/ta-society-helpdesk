@@ -936,3 +936,182 @@ describe('PATCH /facilities auto-priceHistory', () => {
     expect(hist[0].source).toBe('manual entry');
   });
 });
+
+// -------------------------------------------------- staff booking bypass
+
+describe('POST /reservations — Committee/Admin bypass policy limits', () => {
+  // Force strict policy: 48h advance notice, 5-day window, hard caps, and
+  // a blackout on the exact target date so every guard fires for residents.
+  const seedStrict = (blackoutDate: string) => {
+    files.set('config/facilities.json', {
+      sha: 'sha-strict',
+      content: JSON.stringify({
+        version: 1,
+        facilities: [{
+          id: 'community-hall',
+          name: 'Community Hall',
+          enabled: true,
+          slots: [
+            { id: 'morning',   label: 'Morning',   startHour: 6,  endHour: 12 },
+            { id: 'afternoon', label: 'Afternoon', startHour: 12, endHour: 18 },
+            { id: 'evening',   label: 'Evening',   startHour: 18, endHour: 23 },
+          ],
+          policy: {
+            minAdvanceHours: 48,
+            maxAdvanceDays: 5,
+            maxConcurrentPerOwner: 1,
+            maxPerFlatPerYear: 1,
+            openMin: 6 * 60, closeMin: 23 * 60, stepMinutes: 30,
+            minDurationMinutes: 60, maxDurationMinutes: 8 * 60,
+            requiresApproval: true, requiresPayment: false,
+            paymentAmount: 0, paymentPayee: '', chargesInfo: '',
+            blackoutDates: [blackoutDate],
+          },
+          rules: [],
+        }],
+      }),
+    });
+    _resetReservationCachesForTests();
+  };
+
+  // Tomorrow in IST-ish (matches soon() shape). 24h ahead violates the 48h
+  // rule and, if we pick the exact same date, also fails the blackout.
+  const tomorrow = (): string => {
+    const d = new Date(Date.now() + 24 * 60 * 60 * 1000 + 5.5 * 60 * 60 * 1000);
+    const p = (n: number) => String(n).padStart(2, '0');
+    return `${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())}`;
+  };
+
+  it('resident is blocked by min-advance-notice', async () => {
+    const d = tomorrow();
+    seedStrict('2099-01-01');
+    const r = await send('POST', '/reservations', {
+      facilityId: 'community-hall', date: d, slotId: 'morning',
+      purpose: 'too soon',
+    }, 'resident1@x.com');
+    expect(r.status).toBe(400);
+    const j = await r.json() as any;
+    expect(j.error).toMatch(/advance notice/i);
+  });
+
+  it('committee ignores min-advance-notice', async () => {
+    const d = tomorrow();
+    seedStrict('2099-01-01');
+    const r = await send('POST', '/reservations', {
+      facilityId: 'community-hall', date: d, slotId: 'morning',
+      purpose: 'staff last-minute',
+    }, 'cmt@x.com');
+    expect(r.status).toBe(201);
+  });
+
+  it('admin ignores blackout dates', async () => {
+    const d = tomorrow();
+    seedStrict(d);
+    const r = await send('POST', '/reservations', {
+      facilityId: 'community-hall', date: d, slotId: 'morning',
+      purpose: 'staff override on blackout',
+    }, 'dev@x.com');
+    expect(r.status).toBe(201);
+  });
+
+  it('committee ignores per-flat-per-year quota', async () => {
+    // Pick a date that satisfies the strict policy for residents too, so
+    // the quota is the only thing that ends up blocking the second booking.
+    const in3 = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000 + 5.5 * 60 * 60 * 1000);
+    const p = (n: number) => String(n).padStart(2, '0');
+    const d = `${in3.getUTCFullYear()}-${p(in3.getUTCMonth() + 1)}-${p(in3.getUTCDate())}`;
+    seedStrict('2099-01-01');
+    // Fill the quota with a resident booking first.
+    const r1 = await send('POST', '/reservations', {
+      facilityId: 'community-hall', date: d, slotId: 'morning',
+      purpose: 'quota holder', ownerFlat: 'C-303',
+    }, 'resident1@x.com');
+    expect(r1.status).toBe(201);
+    // A resident on the same flat would now be blocked.
+    const r2 = await send('POST', '/reservations', {
+      facilityId: 'community-hall', date: d, slotId: 'afternoon',
+      purpose: 'over quota', ownerFlat: 'C-303',
+    }, 'resident2@x.com');
+    expect(r2.status).toBe(400);
+    // Staff sails through.
+    const r3 = await send('POST', '/reservations', {
+      facilityId: 'community-hall', date: d, slotId: 'evening',
+      purpose: 'staff override quota', ownerFlat: 'C-303',
+    }, 'cmt@x.com');
+    expect(r3.status).toBe(201);
+  });
+
+  it('society manager is still bound by the policy', async () => {
+    const d = tomorrow();
+    seedStrict('2099-01-01');
+    const r = await send('POST', '/reservations', {
+      facilityId: 'community-hall', date: d, slotId: 'morning',
+      purpose: 'manager too soon',
+    }, 'mgr@x.com');
+    expect(r.status).toBe(400);
+    const j = await r.json() as any;
+    expect(j.error).toMatch(/advance notice/i);
+  });
+});
+
+// -------------------------------------------------- receipt template
+
+describe('/receipts/template', () => {
+  const seedSite = () => {
+    files.set('config/site.json', {
+      sha: 'sha-site',
+      content: JSON.stringify({
+        version: 1,
+        features: {}, tunables: {}, lists: {},
+        system: { issuesRepo: 'x/y' },
+      }),
+    });
+  };
+
+  it('GET returns null when no template is configured', async () => {
+    seedSite();
+    const r = await send('GET', '/receipts/template', undefined, 'resident1@x.com');
+    expect(r.status).toBe(200);
+    const j = await r.json() as any;
+    expect(j.data.template).toBe(null);
+  });
+
+  it('POST is forbidden for residents', async () => {
+    seedSite();
+    const r = await send('POST', '/receipts/template', {
+      dataUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAQMAAAAl21bKAAAAA1BMVEUAAACnej3aAAAAAXRSTlMAQObYZgAAAApJREFUCNdjYAAAAAIAAeIhvDMAAAAASUVORK5CYII=',
+    }, 'resident1@x.com');
+    expect(r.status).toBe(403);
+  });
+
+  it('POST from a manager stores the template and GET reflects it', async () => {
+    seedSite();
+    const dataUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAQMAAAAl21bKAAAAA1BMVEUAAACnej3aAAAAAXRSTlMAQObYZgAAAApJREFUCNdjYAAAAAIAAeIhvDMAAAAASUVORK5CYII=';
+    const r = await send('POST', '/receipts/template', {
+      dataUrl, note: 'Approved letterhead',
+    }, 'mgr@x.com');
+    expect(r.status).toBe(200);
+    const j = await r.json() as any;
+    expect(j.data.template.mime).toBe('image/png');
+    expect(j.data.template.url).toMatch(/^https:\/\/raw\.githubusercontent\.com\/.+\/photos\/receipts\/template-[0-9a-f]+\.png$/);
+    expect(j.data.template.updatedBy).toBe('mgr@x.com');
+    expect(j.data.template.note).toBe('Approved letterhead');
+
+    const g = await send('GET', '/receipts/template', undefined, 'resident1@x.com');
+    const gj = await g.json() as any;
+    expect(gj.data.template.url).toBe(j.data.template.url);
+    // Bytes were committed under photos/receipts/.
+    const stored = Array.from(binaries.keys()).find((k) => k.startsWith('photos/receipts/template-'));
+    expect(stored).toBeDefined();
+  });
+
+  it('POST rejects non-image, non-PDF payloads', async () => {
+    seedSite();
+    const r = await send('POST', '/receipts/template', {
+      dataUrl: 'data:text/plain;base64,aGVsbG8=',
+    }, 'cmt@x.com');
+    expect(r.status).toBe(400);
+    const j = await r.json() as any;
+    expect(j.error).toMatch(/image\/jpeg\|png\|webp or application\/pdf/i);
+  });
+});
