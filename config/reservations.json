@@ -96,6 +96,43 @@
         }
       ],
       "isDeleted": true
+    },
+    {
+      "id": "CH-0707260126",
+      "facilityId": "community-hall",
+      "facilityLabel": "Community Hall",
+      "date": "2026-07-16",
+      "startMin": 480,
+      "endMin": 540,
+      "purpose": "efrtgf",
+      "status": "requested",
+      "owner": {
+        "email": "ta.deskops@gmail.com",
+        "flat": "B-1605"
+      },
+      "createdBy": {
+        "email": "ta.deskops@gmail.com",
+        "role": "ADMIN"
+      },
+      "createdAt": "2026-07-06T19:56:26.857Z",
+      "updatedAt": "2026-07-06T19:56:26.857Z",
+      "timeline": [
+        {
+          "at": "2026-07-06T19:56:26.857Z",
+          "by": {
+            "email": "ta.deskops@gmail.com",
+            "role": "ADMIN"
+          },
+          "event": "created",
+          "note": "Awaiting manager review."
+        }
+      ],
+      "payment": {
+        "status": "pending",
+        "proofs": [],
+        "amount": 5000,
+        "payee": "Society Manager"
+      }
     }
   ]
 }
