@@ -879,6 +879,13 @@
     const calBody = $('#resBookBody');
     if (wizBody) wizBody.hidden = !(selectedFacility && bookMode === 'wizard');
     if (calBody) calBody.hidden = !(selectedFacility && bookMode === 'calendar');
+    // The top Facility bar (dropdown + Settings & rates + Receipt template
+    // + blurb) is only meaningful in Calendar mode; Wizard mode picks the
+    // facility in Step 1 so showing the bar there is redundant.
+    $$('[data-book-only]').forEach((el) => {
+      const only = el.getAttribute('data-book-only');
+      el.hidden = (only !== bookMode);
+    });
   }
 
   function dayOfWeekUTC(ymd) {

@@ -412,7 +412,7 @@
 
       <!-- BOOK TAB -->
       <section class="tsh-tab-panel" data-res-panel="book">
-        <div class="tsh-res-fac-bar">
+        <div class="tsh-res-fac-bar" data-book-only="calendar">
           <label class="tsh-res-fac-select-wrap">
             <span class="tsh-form-label"><i class="fas fa-building-columns"></i> Facility</span>
             <select id="resFacilitySelect" class="tsh-res-fac-select"></select>
@@ -425,7 +425,7 @@
             <i class="fas fa-file-image"></i> Receipt template
           </button>
         </div>
-        <p id="resFacilityBlurb" class="tsh-hint" style="margin:2px 0 10px"></p>
+        <p id="resFacilityBlurb" class="tsh-hint" style="margin:2px 0 10px" data-book-only="calendar"></p>
 
         <!-- Book-mode strip: Wizard (default for residents) vs Calendar.
              Wired in reservations.js:setBookMode(). Staff default to Calendar
@@ -506,7 +506,7 @@
   <script src="./assets/js/ui.js?v=51"></script>
   <script src="./assets/js/notify.js?v=1"></script>
   <script src="./assets/js/pdf-report.js?v=9"></script>
-  <script src="./assets/js/reservations.js?v=12"></script>
+  <script src="./assets/js/reservations.js?v=13"></script>
   <script>
   (async () => {
     await Partials.mount();
