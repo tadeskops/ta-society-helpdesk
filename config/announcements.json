@@ -1,15 +1,4 @@
 {
   "version": 1,
-  "items": [
-    {
-      "id": "hall-rental-rates-agm-item-2",
-      "title": "Community Hall — Rental Rates (Committee Resolution, Item 2)",
-      "body": "The committee reviewed the booking charges and usage policy for the Community Hall to ensure uniformity and effective utilization.\n\nResolution: It was resolved that the Community Hall shall be available for booking at a rental charge of ₹5,000 for a duration of up to 4 hours.\n\nIn case the booked event exceeds the permitted duration, an additional charge of ₹1,500 per hour shall be levied for every extra hour or part thereof.\n\nOutcome: Passed unanimously.\n\nThis rental schedule supersedes the earlier flat ₹1,500 figure circulated on 1 June 2026. All other elements of that notice — manager coordination, booking-not-confirmed-till-paid, grandfathering of existing Google Form reservations — continue to apply.\n\n— Management Committee",
-      "createdAt": "2026-07-06T00:00:00.000Z",
-      "createdBy": "management-committee",
-      "updatedAt": "2026-07-06T14:48:37.992Z",
-      "pinned": true,
-      "expiresAt": "2027-07-06T00:00:00.000Z"
-    }
-  ]
+  "items": []
 }
