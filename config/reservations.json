@@ -45,6 +45,37 @@
         "amount": 5000,
         "payee": "Society Manager"
       }
+    },
+    {
+      "id": "RES-0707260010",
+      "facilityId": "gym-area",
+      "facilityLabel": "Gym Area",
+      "date": "2026-07-09",
+      "startMin": 480,
+      "endMin": 720,
+      "purpose": "234",
+      "status": "confirmed",
+      "owner": {
+        "email": "ta.deskops@gmail.com",
+        "flat": "23456"
+      },
+      "createdBy": {
+        "email": "ta.deskops@gmail.com",
+        "role": "ADMIN"
+      },
+      "createdAt": "2026-07-06T18:40:19.449Z",
+      "updatedAt": "2026-07-06T18:40:19.449Z",
+      "timeline": [
+        {
+          "at": "2026-07-06T18:40:19.449Z",
+          "by": {
+            "email": "ta.deskops@gmail.com",
+            "role": "ADMIN"
+          },
+          "event": "created",
+          "note": "Auto-confirmed by facility policy."
+        }
+      ]
     }
   ]
 }
