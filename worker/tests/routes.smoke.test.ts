@@ -303,31 +303,65 @@ describe('GET /metrics/visit (anonymous)', () => {
 });
 
 describe('POST /reports/backup (signed-in)', () => {
-  it('writes the dated copy plus the always-latest and monthly aliases', async () => {
-    // Tiny base64 (= "hi"). Real downloads send the real PDF bytes.
+  it('writes only the dated copy for a manager (no canonical clobber)', async () => {
+    // Managers still get an audit-trail dated PDF, but must not overwrite
+    // the always-latest download link — that's reserved for full-scope
+    // committee/admin exports and the weekly cron.
     const r = await send('POST', '/reports/backup', {
       source: 'unit-test',
       snapshot: { sample: true },
       pdfB64: 'aGk=',
+      updateCanonical: true, // ignored: manager is below the required tier
     }, 'mgr@x.com');
     expect(r.status).toBe(200);
     const j = await r.json() as any;
     expect(j.ok).toBe(true);
-    expect(j.data.latestPath).toBe('backups/TSH_Report.pdf');
-    expect(j.data.monthlyPath).toMatch(/^backups\/TSH_Report_\d{4}\.pdf$/);
+    expect(j.data.latestPath).toBeUndefined();
+    expect(j.data.monthlyPath).toBeUndefined();
     const pdfWrites = ghCalls.filter((c) => c.fn === 'putBinaryB64');
     const paths = pdfWrites.map((c) => c.path);
-    // Three PDF writes: dated trail + latest + current-month snapshot.
+    expect(paths.some((p) => /^backups\/\d{4}-\d{2}-\d{2}\/\d{4}-unit-test\.pdf$/.test(p))).toBe(true);
+    expect(paths.some((p) => p === 'backups/TSH_Report.pdf')).toBe(false);
+    expect(paths.some((p) => /^backups\/TSH_Report_\d{4}\.pdf$/.test(p))).toBe(false);
+  });
+
+  it('committee with updateCanonical=true refreshes the always-latest and monthly aliases', async () => {
+    const r = await send('POST', '/reports/backup', {
+      source: 'manage',
+      snapshot: { sample: true },
+      pdfB64: 'aGk=',
+      updateCanonical: true,
+    }, 'cmt@x.com');
+    expect(r.status).toBe(200);
+    const j = await r.json() as any;
+    expect(j.data.latestPath).toBe('backups/TSH_Report.pdf');
+    expect(j.data.monthlyPath).toMatch(/^backups\/TSH_Report_\d{4}\.pdf$/);
+    const paths = ghCalls.filter((c) => c.fn === 'putBinaryB64').map((c) => c.path);
     expect(paths.some((p) => p === 'backups/TSH_Report.pdf')).toBe(true);
     expect(paths.some((p) => /^backups\/TSH_Report_\d{4}\.pdf$/.test(p))).toBe(true);
-    expect(paths.some((p) => /^backups\/\d{4}-\d{2}-\d{2}\/\d{4}-unit-test\.pdf$/.test(p))).toBe(true);
+    expect(paths.some((p) => /^backups\/\d{4}-\d{2}-\d{2}\/\d{4}-manage\.pdf$/.test(p))).toBe(true);
+  });
+
+  it('committee without updateCanonical does not touch the canonical aliases', async () => {
+    const r = await send('POST', '/reports/backup', {
+      source: 'manage',
+      snapshot: { sample: true },
+      pdfB64: 'aGk=',
+    }, 'cmt@x.com');
+    expect(r.status).toBe(200);
+    const j = await r.json() as any;
+    expect(j.data.latestPath).toBeUndefined();
+    expect(j.data.monthlyPath).toBeUndefined();
+    const paths = ghCalls.filter((c) => c.fn === 'putBinaryB64').map((c) => c.path);
+    expect(paths.some((p) => p === 'backups/TSH_Report.pdf')).toBe(false);
   });
 
   it('omits the latest/monthly aliases when no pdfB64 is supplied', async () => {
     const r = await send('POST', '/reports/backup', {
       source: 'unit-test',
       snapshot: { sample: true },
-    }, 'mgr@x.com');
+      updateCanonical: true,
+    }, 'cmt@x.com');
     expect(r.status).toBe(200);
     const j = await r.json() as any;
     expect(j.data.latestPath).toBeUndefined();

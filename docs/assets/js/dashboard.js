@@ -409,12 +409,27 @@
     document.getElementById('refreshBtn').addEventListener('click', reload);
     // Register the current filtered list as the data source for the
     // header's "Export PDF" button. Re-evaluated at click time so
-    // freshly applied filters are honoured.
+    // freshly applied filters are honoured. Exception: the canonical
+    // "full report" export must not be silently narrowed by the current
+    // tab or filter widgets, so we fetch a fresh unfiltered snapshot at
+    // click time. The server side still gates the always-latest write
+    // behind role >= COMMITTEE + updateCanonical=true.
     if (root.TSH_REPORT && typeof root.TSH_REPORT.bind === 'function') {
       root.TSH_REPORT.bind({
         title: (document.title || 'Society Help Desk').replace(/\s*·.*$/, '') + ' — Report',
         source: 'manage',
-        getItems: () => applyFilters(allIssues),
+        getItems: async () => {
+          if (!root.Api || !root.Api.get) return applyFilters(allIssues);
+          try {
+            const res = await root.Api.get('/issues');
+            const full = Array.isArray(res) ? res : (res.items || []);
+            return full;
+          } catch (_e) {
+            // Fallback: reuse whatever's already loaded rather than blocking
+            // the export. The user still gets a PDF, just narrower.
+            return applyFilters(allIssues);
+          }
+        },
       });
     }
     reload();

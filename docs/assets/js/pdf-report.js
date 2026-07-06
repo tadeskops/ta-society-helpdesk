@@ -85,7 +85,7 @@
     const title = o.title || (bound && bound.title) || 'Society Help Desk — Report';
     let items = Array.isArray(o.items) ? o.items.slice() : null;
     if (!items && bound && typeof bound.getItems === 'function') {
-      try { items = bound.getItems(); } catch (_e) { items = null; }
+      try { items = await bound.getItems(); } catch (_e) { items = null; }
     }
     if (!items) {
       // Fallback: pull /issues if signed in. Residents can't read that
@@ -560,7 +560,13 @@
       itemCount: ctx.items.length,
       items: ctx.items,
     };
-    root.Api.post('/reports/backup', { snapshot, pdfB64: b64, fileName, source: ctx.source })
+    // Only full-scope exports may ask the server to refresh the always-
+    // latest canonical PDF. The server still enforces role >= COMMITTEE
+    // so residents cannot pollute the canonical download link even by
+    // spoofing this flag. 'manage' = full unfiltered dashboard list;
+    // 'monthly' = archive window fetched from /reports/monthly.
+    const updateCanonical = ctx.source === 'manage' || ctx.source === 'monthly';
+    root.Api.post('/reports/backup', { snapshot, pdfB64: b64, fileName, source: ctx.source, updateCanonical })
       .then(() => { /* silent — backups are best-effort */ })
       .catch((e) => console.warn('backup save skipped:', e && e.message));
   }

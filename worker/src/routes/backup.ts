@@ -19,6 +19,7 @@ import { parseJson } from '../lib/validate.ts';
 import { putFile, putBinaryB64, listIssues, getFile, getJson } from '../github/client.ts';
 import { toPublicIssue, type PublicIssue } from '../lib/issue.ts';
 import { loadConfig } from '../config/loader.ts';
+import { isAtLeast } from '../auth/roles.ts';
 import { log } from '../lib/log.ts';
 
 const IST_OFFSET_MS = 330 * 60 * 1000;
@@ -44,6 +45,11 @@ interface BackupBody {
   pdfB64?: string;
   fileName?: string;
   source?: string;
+  // When true (and the caller is COMMITTEE/ADMIN) the export also refreshes
+  // the canonical `backups/TSH_Report.pdf` and current-month frozen copy.
+  // Filtered or narrow-scope exports from other roles still get the dated
+  // audit copy, but must not overwrite the always-latest download link.
+  updateCanonical?: boolean;
 }
 
 interface MonthlyArchive {
@@ -103,16 +109,21 @@ export const mountBackup = (r: Router): void => {
       pdfPath = `${base}.pdf`;
       await putBinaryB64(ctx.env, pdfPath, cleaned, `backup: ${ymd} ${hhmn} (${source}) pdf`, author);
 
-      // Always-latest copy + current-month frozen copy. The 1st of each
-      // month, archiveMonthly() snapshots the previous month's latest
-      // into TSH_Report_<MMYY>.pdf so that file represents that month's
-      // final state even after the next month's downloads start.
-      const istNow = istParts(new Date());
-      const mmyy = `${istNow.mm}${istNow.yyyy.slice(2)}`;
-      latestPath = 'backups/TSH_Report.pdf';
-      monthlyPath = `backups/TSH_Report_${mmyy}.pdf`;
-      await putBinaryB64(ctx.env, latestPath,  cleaned, `backup: latest TSH_Report.pdf (${source} @ ${ymd} ${hhmn})`, author);
-      await putBinaryB64(ctx.env, monthlyPath, cleaned, `backup: monthly TSH_Report_${mmyy}.pdf (${source} @ ${ymd} ${hhmn})`, author);
+      // Always-latest copy + current-month frozen copy are gated: only a
+      // full-scope export from COMMITTEE/ADMIN may replace them, otherwise
+      // a resident's narrow public-board PDF would silently overwrite the
+      // canonical download link. Weekly cron (scripts/weekly-report.mjs)
+      // is the other writer and commits these paths directly.
+      const canRefreshCanonical = body.updateCanonical === true
+        && isAtLeast(ctx.roles, 'COMMITTEE');
+      if (canRefreshCanonical) {
+        const istNow = istParts(new Date());
+        const mmyy = `${istNow.mm}${istNow.yyyy.slice(2)}`;
+        latestPath = 'backups/TSH_Report.pdf';
+        monthlyPath = `backups/TSH_Report_${mmyy}.pdf`;
+        await putBinaryB64(ctx.env, latestPath,  cleaned, `backup: latest TSH_Report.pdf (${source} @ ${ymd} ${hhmn})`, author);
+        await putBinaryB64(ctx.env, monthlyPath, cleaned, `backup: monthly TSH_Report_${mmyy}.pdf (${source} @ ${ymd} ${hhmn})`, author);
+      }
     }
 
     log.info(ctx.env, 'backup_saved', { jsonPath, pdfPath, latestPath, monthlyPath, source, by: author });
