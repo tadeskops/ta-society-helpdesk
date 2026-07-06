@@ -31,6 +31,7 @@ export type ProofMime = typeof PROOF_MIMES[number];
 export const TIMELINE_EVENTS = [
   'created', 'commented', 'approved', 'rejected', 'cancelled', 'edited', 'overridden',
   'payment-uploaded', 'payment-verified', 'payment-rejected',
+  'deleted',
 ] as const;
 export type TimelineEvent = typeof TIMELINE_EVENTS[number];
 

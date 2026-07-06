@@ -801,3 +801,138 @@ describe('PATCH /reservations/:id (payment gate)', () => {
     expect(j.data.reservation.status).toBe('confirmed');
   });
 });
+
+
+// ------------------------------------------------------------ DELETE /reservations/:id
+
+describe('DELETE /reservations/:id', () => {
+  const createAndCancel = async (): Promise<string> => {
+    const d = soon();
+    const c = await send('POST', '/reservations', { facilityId: 'community-hall', date: d, slotId: 'morning', purpose: 'test' }, 'resident1@x.com');
+    const id = (await c.json() as any).data.reservation.id;
+    _resetReservationCachesForTests();
+    await send('PATCH', `/reservations/${id}`, { status: 'cancelled' }, 'resident1@x.com');
+    _resetReservationCachesForTests();
+    return id;
+  };
+
+  it('lets an admin remove any reservation, including active ones', async () => {
+    const d = soon();
+    const c = await send('POST', '/reservations', { facilityId: 'community-hall', date: d, slotId: 'morning', purpose: 'test' }, 'resident1@x.com');
+    const id = (await c.json() as any).data.reservation.id;
+    _resetReservationCachesForTests();
+    const r = await send('DELETE', `/reservations/${id}`, { reason: 'duplicate' }, 'dev@x.com');
+    expect(r.status).toBe(200);
+    const j = await r.json() as any;
+    expect(j.data.deleted).toBe(true);
+    // Record should now be hidden from the queue.
+    _resetReservationCachesForTests();
+    const list = await send('GET', '/reservations?scope=all&status=requested', undefined, 'mgr@x.com');
+    const lj = await list.json() as any;
+    expect((lj.data.items || []).find((x: any) => x.id === id)).toBeUndefined();
+  });
+
+  it('lets committee remove cancelled reservations', async () => {
+    const id = await createAndCancel();
+    const r = await send('DELETE', `/reservations/${id}`, undefined, 'cmt@x.com');
+    expect(r.status).toBe(200);
+  });
+
+  it('blocks committee from deleting an active (requested) reservation', async () => {
+    const d = soon();
+    const c = await send('POST', '/reservations', { facilityId: 'community-hall', date: d, slotId: 'morning', purpose: 'test' }, 'resident1@x.com');
+    const id = (await c.json() as any).data.reservation.id;
+    _resetReservationCachesForTests();
+    const r = await send('DELETE', `/reservations/${id}`, undefined, 'cmt@x.com');
+    expect(r.status).toBe(403);
+  });
+
+  it('blocks managers entirely', async () => {
+    const id = await createAndCancel();
+    const r = await send('DELETE', `/reservations/${id}`, undefined, 'mgr@x.com');
+    expect(r.status).toBe(403);
+  });
+
+  it('blocks residents entirely', async () => {
+    const id = await createAndCancel();
+    const r = await send('DELETE', `/reservations/${id}`, undefined, 'resident1@x.com');
+    expect(r.status).toBe(403);
+  });
+
+  it('returns 404 for an unknown or already-deleted id', async () => {
+    const id = await createAndCancel();
+    const r1 = await send('DELETE', `/reservations/${id}`, undefined, 'dev@x.com');
+    expect(r1.status).toBe(200);
+    _resetReservationCachesForTests();
+    const r2 = await send('DELETE', `/reservations/${id}`, undefined, 'dev@x.com');
+    expect(r2.status).toBe(404);
+  });
+});
+
+// -------------------------------------------------- PATCH /facilities auto-priceHistory
+
+describe('PATCH /facilities auto-priceHistory', () => {
+  it('auto-appends a snapshot when paymentAmount changes', async () => {
+    const r = await send('PATCH', '/facilities/community-hall', {
+      policy: { paymentAmount: 5000 },
+    }, 'mgr@x.com');
+    expect(r.status).toBe(200);
+    _resetReservationCachesForTests();
+    const g = await send('GET', '/facilities/community-hall', undefined, 'mgr@x.com');
+    const gj = await g.json() as any;
+    const hist = gj.data.facility.policy.priceHistory || [];
+    expect(hist.length).toBe(1);
+    expect(hist[0].paymentAmount).toBe(5000);
+    expect(hist[0].source).toMatch(/auto/);
+    expect(hist[0].recordedBy).toBe('mgr@x.com');
+  });
+
+  it('auto-appends a snapshot when rateCard changes', async () => {
+    const r = await send('PATCH', '/facilities/community-hall', {
+      policy: {
+        rateCard: [{ label: 'Base', amount: 1500 }],
+      },
+    }, 'cmt@x.com');
+    expect(r.status).toBe(200);
+    _resetReservationCachesForTests();
+    const g = await send('GET', '/facilities/community-hall', undefined, 'mgr@x.com');
+    const gj = await g.json() as any;
+    const hist = gj.data.facility.policy.priceHistory || [];
+    expect(hist.length).toBe(1);
+    expect(hist[0].rateCard[0].label).toBe('Base');
+    expect(hist[0].recordedBy).toBe('cmt@x.com');
+  });
+
+  it('does not append when unrelated fields change', async () => {
+    const r = await send('PATCH', '/facilities/community-hall', {
+      policy: { minAdvanceHours: 6 },
+    }, 'mgr@x.com');
+    expect(r.status).toBe(200);
+    _resetReservationCachesForTests();
+    const g = await send('GET', '/facilities/community-hall', undefined, 'mgr@x.com');
+    const gj = await g.json() as any;
+    expect((gj.data.facility.policy.priceHistory || []).length).toBe(0);
+  });
+
+  it('preserves client-supplied priceHistory instead of auto-appending', async () => {
+    const custom = [{
+      effectiveDate: '2026-06-01',
+      paymentAmount: 1500,
+      source: 'manual entry',
+    }];
+    const r = await send('PATCH', '/facilities/community-hall', {
+      policy: {
+        paymentAmount: 5000,
+        priceHistory: custom,
+      },
+    }, 'dev@x.com');
+    expect(r.status).toBe(200);
+    _resetReservationCachesForTests();
+    const g = await send('GET', '/facilities/community-hall', undefined, 'mgr@x.com');
+    const gj = await g.json() as any;
+    const hist = gj.data.facility.policy.priceHistory || [];
+    expect(hist.length).toBe(1);
+    expect(hist[0].effectiveDate).toBe('2026-06-01');
+    expect(hist[0].source).toBe('manual entry');
+  });
+});

@@ -53,6 +53,7 @@
     'payment-uploaded':  'Payment proof uploaded',
     'payment-verified':  'Payment verified',
     'payment-rejected':  'Payment rejected',
+    'deleted':           'Removed from list',
   };
 
   const TIMELINE_ICON = {
@@ -66,6 +67,7 @@
     'payment-uploaded':  'fa-file-invoice-dollar',
     'payment-verified':  'fa-money-check-dollar',
     'payment-rejected':  'fa-triangle-exclamation',
+    'deleted':           'fa-trash',
   };
 
   const PAYMENT_STATUS_LABEL = {
@@ -289,6 +291,7 @@
     if (bar) {
       const isStaff = who && root.Flags.isAtLeast && root.Flags.isAtLeast(who.primary, 'MANAGER');
       bar.hidden = !isStaff;
+      bar.title = 'Society Manager, Committee & Admin: edit rates, rate history, rules and policy for this facility.';
       bar.onclick = () => openFacilitySettings();
     }
   }
@@ -719,9 +722,22 @@
         escape(p.chargesInfo || '') +
         '</textarea></label>' +
 
-      '<fieldset><legend>Rate card (indicative — amounts by time / duration)</legend>' +
+      '<fieldset><legend><i class="fas fa-indian-rupee-sign"></i> Rate card (indicative &mdash; amounts by time / duration)</legend>' +
+        '<p style="margin:0 0 6px;font-size:12px;color:var(--tsh-muted,#6b7280);">' +
+          'Base amount is the single figure billed to the resident. Rate rows below are shown on the booking form for context (e.g. base + overtime).' +
+        '</p>' +
+        '<label style="margin-bottom:8px;"><span>Base amount (\u20b9, billed to resident)</span>' +
+          '<input type="number" min="0" max="10000000" step="1" data-fs-amount value="' + (typeof p.paymentAmount === 'number' ? Number(p.paymentAmount) : 0) + '" />' +
+        '</label>' +
         '<div class="tsh-res-set-list" data-fs-rc></div>' +
         '<button type="button" class="tsh-res-set-add" data-fs-rc-add>+ Add rate</button>' +
+      '</fieldset>' +
+
+      '<fieldset><legend><i class="fas fa-clock-rotate-left"></i> Rate history</legend>' +
+        '<p style="margin:0 0 6px;font-size:12px;color:var(--tsh-muted,#6b7280);">' +
+          'Automatically snapshotted whenever the base amount or rate card changes. The current rate is always the last entry.' +
+        '</p>' +
+        '<div class="tsh-res-set-history" data-fs-ph></div>' +
       '</fieldset>' +
 
       '<div class="tsh-res-set-grid">' +
@@ -789,6 +805,34 @@
     (Array.isArray(f.rules) ? f.rules : []).forEach((s) => addLineRow(rulesHost, s, 'e.g. No loud music after 10 PM.'));
     if (!rulesHost.children.length) addLineRow(rulesHost, '', 'e.g. No loud music after 10 PM.');
 
+    // Rate history (read-only). Rendered from most recent to oldest.
+    const phHost = wrap.querySelector('[data-fs-ph]');
+    const phList = Array.isArray(p.priceHistory) ? p.priceHistory.slice() : [];
+    if (!phList.length) {
+      phHost.innerHTML = '<p style="margin:0;font-size:12px;color:var(--tsh-muted,#6b7280);">No history yet. The first change you save will start the log.</p>';
+    } else {
+      phList.sort((a, b) => String(b.effectiveDate || '').localeCompare(String(a.effectiveDate || '')));
+      phList.forEach((h, i) => {
+        const row = document.createElement('div');
+        row.className = 'tsh-res-set-history-row';
+        row.style.cssText = 'padding:8px 10px;border:1px solid var(--tsh-border,#e5e7eb);border-radius:6px;margin-bottom:6px;background:' + (i === 0 ? '#f0fdf4' : '#fafafa') + ';';
+        const rateSummary = Array.isArray(h.rateCard) && h.rateCard.length
+          ? h.rateCard.map((r) => escape(r.label) + (typeof r.amount === 'number' ? ' \u20b9' + r.amount : '')).join(' \u00b7 ')
+          : '';
+        row.innerHTML =
+          '<div style="font-size:13px;font-weight:600;">' +
+            (i === 0 ? '<span style="color:#16a34a;">Current \u2192 </span>' : '') +
+            'Effective ' + escape(h.effectiveDate || 'unknown') +
+            (typeof h.paymentAmount === 'number' ? ' \u00b7 \u20b9' + h.paymentAmount + ' base' : '') +
+          '</div>' +
+          (rateSummary ? '<div style="font-size:12px;color:#374151;margin-top:2px;">' + rateSummary + '</div>' : '') +
+          (h.source ? '<div style="font-size:12px;color:var(--tsh-muted,#6b7280);margin-top:2px;">Source: ' + escape(h.source) + '</div>' : '') +
+          (h.note ? '<div style="font-size:12px;color:var(--tsh-muted,#6b7280);margin-top:2px;">' + escape(h.note) + '</div>' : '') +
+          (h.recordedBy ? '<div style="font-size:11px;color:var(--tsh-muted,#6b7280);margin-top:2px;">Recorded by ' + escape(h.recordedBy) + (h.recordedAt ? ' \u00b7 ' + escape(String(h.recordedAt).slice(0, 10)) : '') + '</div>' : '');
+        phHost.appendChild(row);
+      });
+    }
+
     wrap.querySelector('[data-fs-rc-add]').addEventListener('click', () => addRateRow('', undefined, ''));
     wrap.querySelector('[data-fs-gb-add]').addEventListener('click', () => addLineRow(gbHost, '', ''));
     wrap.querySelector('[data-fs-ga-add]').addEventListener('click', () => addLineRow(gaHost, '', ''));
@@ -836,6 +880,7 @@
         closeMin:              parseHHMMLocal(wrap.querySelector('[data-fs-close]').value),
         minDurationMinutes:    Number(wrap.querySelector('[data-fs-mind]').value)   || 60,
         maxDurationMinutes:    Number(wrap.querySelector('[data-fs-maxdur]').value) || 480,
+        paymentAmount:         Math.max(0, Number(wrap.querySelector('[data-fs-amount]').value) || 0),
         chargesInfo:           wrap.querySelector('[data-fs-charges]').value.trim(),
         rateCard:              rcRows,
         usageGuidelines: {
@@ -1001,8 +1046,55 @@
       actions.appendChild(cancelBtn);
     }
 
+    // Cleanup buttons for staff. Committee/Admin can remove terminal
+    // records (cancelled/rejected) so the list stays tidy; only Admin
+    // can hard-remove anything still active.
+    const isAdmin = who && who.primary === 'ADMIN';
+    const isCommittee = who && root.Flags.isAtLeast && root.Flags.isAtLeast(who.primary, 'COMMITTEE');
+    const isTerminal = r.status === 'cancelled' || r.status === 'rejected';
+    if (isCommittee && isTerminal) {
+      const removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'tsh-btn tsh-btn-ghost tsh-btn-sm';
+      removeBtn.innerHTML = '<i class="fas fa-eraser"></i> Remove from list';
+      removeBtn.addEventListener('click', () => doDelete(r, { forceMode: false }));
+      actions.appendChild(removeBtn);
+    }
+    if (isAdmin && !isTerminal) {
+      const deleteBtn = document.createElement('button');
+      deleteBtn.type = 'button';
+      deleteBtn.className = 'tsh-btn tsh-btn-ghost tsh-btn-sm';
+      deleteBtn.style.color = '#b91c1c';
+      deleteBtn.innerHTML = '<i class="fas fa-trash"></i> Delete';
+      deleteBtn.addEventListener('click', () => doDelete(r, { forceMode: true }));
+      actions.appendChild(deleteBtn);
+    }
+
     card.appendChild(actions);
     return card;
+  }
+
+  async function doDelete(r, opts) {
+    const forceMode = !!(opts && opts.forceMode);
+    const title = forceMode ? 'Delete this reservation?' : 'Remove from list?';
+    const message = forceMode
+      ? 'Admin delete: this reservation is still ' + escape(r.status) + '. The record will be hidden from all lists and the slot freed. This is meant for spam, duplicates, or entries created by mistake. Continue?'
+      : 'This removes the record from the reservations list. It stays in the audit log. Continue?';
+    const okConfirm = await root.UI.confirmModal(title, message);
+    if (!okConfirm) return;
+    let reason = '';
+    if (forceMode) {
+      reason = window.prompt('Optional: reason for deletion (kept in audit log).', '') || '';
+    }
+    try {
+      const body = reason.trim() ? { reason: reason.trim() } : undefined;
+      await root.Api.del('/reservations/' + encodeURIComponent(r.id), body);
+      root.UI.toast(forceMode ? 'Reservation deleted.' : 'Removed from list.', { kind: 'success' });
+      refreshMine();
+      refreshManage();
+    } catch (e) {
+      root.UI.toast((e && e.message) || 'Delete failed.', { kind: 'danger' });
+    }
   }
 
   async function openReservationById(id) {

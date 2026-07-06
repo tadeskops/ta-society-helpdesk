@@ -460,6 +460,36 @@ export const mountReservations = (r: Router): void => {
     const maxD = pOut.maxDurationMinutes ?? DEFAULT_MAX_DURATION_MIN;
     if (maxD < minD) throw new BadRequest('maxDurationMinutes must be >= minDurationMinutes');
 
+    // Auto-append a priceHistory entry when the rate (paymentAmount or
+    // rateCard) actually changed AND the caller didn't hand-craft the
+    // priceHistory array. Keeps the revision log honest without asking
+    // the UI to build the entry.
+    if (!Array.isArray(pIn['priceHistory'])) {
+      const oldAmount = typeof target.policy.paymentAmount === 'number' ? target.policy.paymentAmount : undefined;
+      const newAmount = typeof pOut.paymentAmount === 'number' ? pOut.paymentAmount : undefined;
+      const oldRateCard = Array.isArray(target.policy.rateCard) ? target.policy.rateCard : [];
+      const newRateCard = Array.isArray(pOut.rateCard) ? pOut.rateCard : [];
+      const rateChanged =
+        oldAmount !== newAmount ||
+        JSON.stringify(oldRateCard) !== JSON.stringify(newRateCard);
+      if (rateChanged) {
+        const nowIso = new Date().toISOString();
+        const entry: NonNullable<FacilityPolicy['priceHistory']>[number] = {
+          effectiveDate: nowIso.slice(0, 10),
+          source: 'auto (edited via Facility settings)',
+          recordedBy: ctx.identity?.email || 'system',
+          recordedAt: nowIso,
+        };
+        if (typeof newAmount === 'number') entry.paymentAmount = newAmount;
+        if (newRateCard.length) entry.rateCard = newRateCard.map((r) => ({ ...r }));
+        if (typeof pOut.chargesInfo === 'string' && pOut.chargesInfo.trim()) {
+          entry.chargesInfo = pOut.chargesInfo;
+        }
+        const existing = Array.isArray(target.policy.priceHistory) ? target.policy.priceHistory : [];
+        pOut.priceHistory = [...existing, entry].slice(-100);
+      }
+    }
+
     target.policy = pOut;
     list[idx] = target;
 
@@ -876,6 +906,68 @@ export const mountReservations = (r: Router): void => {
       await notify(ctx, Array.from(recipients), notifEvent, title, body, linkTo(rec.id));
     }
     return ok(ctx.env, ctx.req, { reservation: rec });
+  });
+
+  // ---- Reservations: delete (soft) ------------------------------------
+  //
+  // Admin: can remove any reservation (any status). Should include a
+  // reason when the reservation was still active.
+  // Committee: can remove only reservations already in a terminal state
+  // (cancelled or rejected) so the list of past requests can be pruned.
+  // Manager and residents: not permitted — residents cancel active
+  // reservations via PATCH; managers coordinate but don't erase.
+  r.delete('/reservations/:id', async (ctx: Ctx, params) => {
+    ensureAllowed(ctx, {
+      flags: [FLAG],
+      requireIdentity: true,
+      roles: ['COMMITTEE', 'ADMIN'],
+    });
+    let body: Record<string, unknown> = {};
+    try {
+      body = await parseJson<Record<string, unknown>>(ctx.req);
+    } catch { /* body optional */ }
+    const reason = typeof body['reason'] === 'string' ? (body['reason'] as string).trim().slice(0, 500) : '';
+
+    const { items, sha } = await loadReservations(ctx);
+    const idx = items.findIndex((x) => x.id === params['id'] && !x.isDeleted);
+    if (idx === -1) throw new NotFound(`Reservation ${params['id']} not found`);
+    const rec = items[idx]!;
+    const isAdmin = ctx.roles.primary === 'ADMIN';
+    const isTerminal = rec.status === 'cancelled' || rec.status === 'rejected';
+    if (!isAdmin && !isTerminal) {
+      throw new Forbidden('Only cancelled or rejected reservations can be removed. Ask an admin to delete active ones.');
+    }
+
+    const nowIso = new Date().toISOString();
+    const wasConfirmed = rec.status === 'confirmed';
+    rec.isDeleted = true;
+    pushTimeline(rec, {
+      at: nowIso,
+      by: personFromCtx(ctx),
+      event: 'deleted',
+      note: reason || (isAdmin ? 'removed by admin' : 'removed from list'),
+    });
+    items[idx] = rec;
+    const actor = ctx.identity!.email;
+    await saveReservations(ctx, items, sha, actor, `delete ${rec.id}`);
+
+    // Best-effort calendar cleanup: only meaningful if it was confirmed.
+    if (wasConfirmed) {
+      const facilities = await loadFacilities(ctx);
+      const fac = facilities.find((f) => f.id === rec.facilityId);
+      if (fac) {
+        try { await mirrorRemove(ctx.env, ctx.config, rec, fac); } catch { /* queue handles retries */ }
+      }
+    }
+
+    await writeAudit(ctx.env, {
+      actor,
+      action: 'reservation:delete',
+      target: rec.id,
+      detail: `role=${ctx.roles.primary} status-was=${rec.status}${reason ? ' reason=' + reason.slice(0, 200) : ''}`,
+    });
+
+    return ok(ctx.env, ctx.req, { id: rec.id, deleted: true });
   });
 
   // ---- Reservations: comment ------------------------------------------
