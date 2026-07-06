@@ -105,7 +105,7 @@
       "startMin": 480,
       "endMin": 540,
       "purpose": "efrtgf",
-      "status": "requested",
+      "status": "confirmed",
       "owner": {
         "email": "ta.deskops@gmail.com",
         "flat": "B-1605"
@@ -115,7 +115,7 @@
         "role": "ADMIN"
       },
       "createdAt": "2026-07-06T19:56:26.857Z",
-      "updatedAt": "2026-07-06T20:01:17.362Z",
+      "updatedAt": "2026-07-06T20:04:36.557Z",
       "timeline": [
         {
           "at": "2026-07-06T19:56:26.857Z",
@@ -143,6 +143,14 @@
           },
           "event": "payment-verified",
           "note": "Verified from statement"
+        },
+        {
+          "at": "2026-07-06T20:04:36.557Z",
+          "by": {
+            "email": "ta.deskops@gmail.com",
+            "role": "ADMIN"
+          },
+          "event": "approved"
         }
       ],
       "payment": {
