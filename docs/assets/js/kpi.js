@@ -91,7 +91,7 @@
     wrap.className = 'tsh-state tsh-state-empty';
     wrap.innerHTML = '<i class="tsh-state-icon fas fa-circle-pause" aria-hidden="true"></i>' +
       '<p class="tsh-state-title">Dashboard disabled</p>' +
-      '<p class="tsh-state-msg">A developer can re-enable it from Settings &rarr; Feature flags (FEATURE_DAILY_KPI_DASHBOARD).</p>';
+      '<p class="tsh-state-msg">An admin can re-enable it from Settings &rarr; Feature flags (FEATURE_DAILY_KPI_DASHBOARD).</p>';
     host.appendChild(wrap);
   }
 

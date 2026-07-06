@@ -147,7 +147,7 @@
       <header class="tsh-card-head tsh-card-head-row">
         <div>
           <h1><i class="fas fa-sliders gold-accent"></i> Settings</h1>
-          <p class="tsh-sub" id="roleHint">Developer: write · Committee: read-only.</p>
+          <p class="tsh-sub" id="roleHint">Admin: write · Committee: read-only.</p>
           <p class="tsh-sub" style="font-size:.85em;opacity:.8;margin-top:.3em"><i class="fas fa-circle-info" aria-hidden="true"></i> Tip: click any parameter <em>name</em> to read what it does and its valid range. Click the tick box to toggle a feature.</p>
         </div>
         <div class="tsh-toolbar">
@@ -160,8 +160,8 @@
           <summary><h2>Access lists</h2></summary>
           <div class="tsh-grid-3">
             <div class="tsh-field">
-              <span class="tsh-label">Developers <span class="tsh-hint">(at least one)</span></span>
-              <textarea name="developers" rows="4" placeholder="one email per line"></textarea>
+              <span class="tsh-label">Admins <span class="tsh-hint">(at least one)</span></span>
+              <textarea name="admins" rows="4" placeholder="one email per line"></textarea>
             </div>
             <div class="tsh-field">
               <span class="tsh-label">Committee</span>
@@ -303,7 +303,7 @@
             Control which sections across the project users can collapse on mobile, and what their first-visit state should be.
             Each entry below is defined in
             <code>docs/assets/js/collapse-registry.js</code>
-            (developer-facing source of truth, with full descriptions). Edits saved here override the registry defaults
+            (admin-facing source of truth, with full descriptions). Edits saved here override the registry defaults
             for all users; they apply within ~60 s. A user&rsquo;s explicit tap-to-collapse choice on a device always
             wins over both registry and config.
           </p>
@@ -336,13 +336,13 @@
     try { who = await Flags.ensureAuthorized('COMMITTEE'); }
     catch (_e) { return; }
 
-    const readOnly = who.primary !== 'DEVELOPER';
+    const readOnly = who.primary !== 'ADMIN';
     document.getElementById('roleHint').textContent =
-      readOnly ? 'Committee read-only view. Ask a developer to make changes.'
-               : 'Developer write access. Changes apply within 60 s for all users.';
+      readOnly ? 'Committee read-only view. Ask an admin to make changes.'
+               : 'Admin write access. Changes apply within 60 s for all users.';
 
     const cfg = await Flags.ready();
-    const access = await Api.get('/access-lists').catch(() => ({ managers: [], committee: [], developers: [] }));
+    const access = await Api.get('/access-lists').catch(() => ({ managers: [], committee: [], admins: [] }));
 
     fill(cfg, access);
 
@@ -364,7 +364,7 @@
           const payload = collect();
           await Api.put('/config', { config: payload.config });
           // Access lists are saved separately.
-          for (const role of ['developers', 'committee', 'managers']) {
+          for (const role of ['admins', 'committee', 'managers']) {
             await Api.put(`/access-lists/${role}`, { emails: payload.access[role] });
           }
           UI.toast('Saved. Changes will reach all users within 60 s.', { kind: 'success' });
@@ -378,13 +378,13 @@
 
     function fill(cfg, access) {
       const form = document.getElementById('settingsForm');
-      form.elements['developers'].value = (access.developers || []).join('\n');
+      form.elements['admins'].value = (access.admins || []).join('\n');
       form.elements['committee'].value  = (access.committee || []).join('\n');
       form.elements['managers'].value   = (access.managers || []).join('\n');
 
       // Feature flags — generate one card per flag from the config snapshot.
       // Each card shows: name (clickable for full help) + always-visible
-      // description + tick box. New developer-facing flags appear here
+      // description + tick box. New admin-facing flags appear here
       // automatically as soon as they're added to the config defaults.
       const flagsGrid = document.getElementById('flagsGrid');
       for (const [name, val] of Object.entries(cfg.features || {})) {
@@ -439,7 +439,7 @@
 
       // ---- Collapsible sections -----------------------------------------
       // Render one card per entry in the registry. Each card shows the
-      // friendly label, the developer description, and two toggles bound
+      // friendly label, the admin description, and two toggles bound
       // to form names `collapse.<id>.collapsible` and
       // `collapse.<id>.defaultCollapsed`. Values are seeded from
       // cfg.ui.collapse[id] when present, otherwise from the registry
@@ -574,7 +574,7 @@
       else if (cfg.ui && 'collapse' in cfg.ui) delete cfg.ui.collapse;
 
       const access = {
-        developers: lines(form.elements['developers'].value),
+        admins:     lines(form.elements['admins'].value),
         committee:  lines(form.elements['committee'].value),
         managers:   lines(form.elements['managers'].value),
       };
@@ -586,7 +586,7 @@
 
     // ----- Help dictionary ---------------------------------------------------
     // Keyed by either:
-    //   - bare form name (e.g. 'developers', 'lists.towers', 'system.issuesRepo')
+    //   - bare form name (e.g. 'admins', 'lists.towers', 'system.issuesRepo')
     //   - feature flag short name (without 'features.' prefix)
     //   - tunable short name (without 'tunables.' prefix)
     // Wrapped in a function so it is hoisted alongside other declarations
@@ -594,9 +594,9 @@
     // attachHelp runs from inside fill() earlier in the IIFE).
     function HELP() { return {
       // Access lists
-      'developers': {
+      'admins': {
         summary: 'Full read/write on settings and content. At least one required.',
-        detail: 'One email per line. Developers can edit feature flags, tunables, lists, system settings, and the access lists themselves.',
+        detail: 'One email per line. Admins can edit feature flags, tunables, lists, system settings, and the access lists themselves.',
       },
       'committee': {
         summary: 'Content moderation + read-only settings view.',
@@ -779,7 +779,7 @@
       },
       'FEATURE_DAILY_COMMITTEE_VIEW': {
         summary: 'Enriched committee cards on the Directory → Management Committee tab.',
-        detail: 'When ON, entries in the contacts list that have designation / term / email / photoUrl render as richer cards with an avatar, role chip, and term badge. Entries without those fields keep the basic card. The edit modal exposes the extra fields to managers / committee / developers. When OFF, all entries render with the original basic card layout.',
+        detail: 'When ON, entries in the contacts list that have designation / term / email / photoUrl render as richer cards with an avatar, role chip, and term badge. Entries without those fields keep the basic card. The edit modal exposes the extra fields to managers / committee / admins. When OFF, all entries render with the original basic card layout.',
         default: 'true',
       },
       'FEATURE_DAILY_SHOW_DEMO_ISSUES': {
@@ -789,17 +789,17 @@
       },
       'FEATURE_DAILY_DIRECTORY': {
         summary: 'Enable the Society Directory page (vendors, community contacts, resources).',
-        detail: 'When OFF, the Directory nav link is hidden and /directory.html shows a feature-disabled gate. The /directory API endpoints return feature-disabled. Managers, Committee and Developers can edit when ON; everyone can view.',
+        detail: 'When OFF, the Directory nav link is hidden and /directory.html shows a feature-disabled gate. The /directory API endpoints return feature-disabled. Managers, Committee and Admins can edit when ON; everyone can view.',
         default: 'true',
       },
       'FEATURE_DAILY_BANNER': {
         summary: 'Rotating manager-curated banner across the top of resident-facing pages.',
-        detail: 'When ON, managers/committee/developers can edit a list of short items (info / warn / alert) from the Manage page. The home page shows the active item in a rotating strip plus the full stack in a right-rail panel. Items can have href + expiresAt; if expiresAt is left blank, the item auto-expires after DAILY_NOTICE_TTL_DAYS (default 7 days). Past-expiry items are filtered server-side and pruned from storage on next save.',
+        detail: 'When ON, managers/committee/admins can edit a list of short items (info / warn / alert) from the Manage page. The home page shows the active item in a rotating strip plus the full stack in a right-rail panel. Items can have href + expiresAt; if expiresAt is left blank, the item auto-expires after DAILY_NOTICE_TTL_DAYS (default 7 days). Past-expiry items are filtered server-side and pruned from storage on next save.',,
         default: 'true',
       },
       'FEATURE_DAILY_ANNOUNCEMENTS': {
         summary: 'Standalone announcements list section on the landing page.',
-        detail: 'Longer-form notices than the banner. Managers/committee/developers post titled items with body text + optional pinned + optional Expires from Manage. If "Expires" is left blank, the item auto-hides after DAILY_NOTICE_TTL_DAYS (default 7 days). Renders as a rotating card carousel on the home page.',
+        detail: 'Longer-form notices than the banner. Managers/committee/admins post titled items with body text + optional pinned + optional Expires from Manage. If "Expires" is left blank, the item auto-hides after DAILY_NOTICE_TTL_DAYS (default 7 days). Renders as a rotating card carousel on the home page.',
         default: 'true',
       },
       'FEATURE_DAILY_POLLS': {
@@ -823,7 +823,7 @@
         default: 'true',
       },
       'FEATURE_DAILY_USER_ROLE_BADGE': {
-        summary: 'Show the access-tier pill (Developer / Tech Committee / Society Manager / Resident) next to the signed-in email.',
+        summary: 'Show the access-tier pill (Admin / Tech Committee / Society Manager / Resident) next to the signed-in email.',
         detail: 'Reflects the user\u2019s highest mapped role. Turn OFF to display only the email.',
         default: 'true',
       },

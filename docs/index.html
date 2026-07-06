@@ -100,7 +100,7 @@
          Shows the latest few public tickets with minimum details so
          visitors can see what's happening at a glance without going to
          the full Public Board. The full dashboards remain on Manage
-         (committee/developer) and Public Board (residents). Hidden when
+         (committee/admin) and Public Board (residents). Hidden when
          the FEATURE_DAILY_PUBLIC_BOARD flag is off or the API fails. -->
     <section id="tshRecentIssues" class="tsh-recent-issues tsh-ann-panel"
              data-tsh-feature="FEATURE_DAILY_PUBLIC_BOARD"
@@ -127,7 +127,7 @@
     </div>
 
     <!-- 5. Role-aware staff strip. Revealed by Flags.whoami if the visitor
-         has Manager/Committee/Developer access. -->
+         has Manager/Committee/Admin access. -->
     <section id="tshStaff" class="tsh-staff" data-tsh-staff data-tsh-collapsible hidden aria-labelledby="tshStaffTitle">
       <h2 id="tshStaffTitle" class="tsh-section-h">Staff actions</h2>
       <div class="tsh-quick-grid tsh-quick-grid--stacked">
@@ -138,7 +138,7 @@
             <span class="tsh-quick-d">Triage, assign, resolve</span>
           </span>
         </a>
-        <a class="tsh-quick-tile tsh-quick-tile-staff" href="./settings.html" data-tsh-role-link="DEVELOPER" hidden>
+        <a class="tsh-quick-tile tsh-quick-tile-staff" href="./settings.html" data-tsh-role-link="ADMIN" hidden>
           <span class="tsh-quick-icon"><i class="fas fa-sliders"></i></span>
           <span class="tsh-quick-body">
             <span class="tsh-quick-h">Settings</span>
@@ -177,7 +177,7 @@
 
       // Rotating manager banner across the top of the landing page.
       if (window.Banner) Banner.mountStrip(document.getElementById('tshBannerStrip'));
-      // Developer-toggled announcements section.
+      // Admin-toggled announcements section.
       if (window.Announcements) Announcements.mountList(document.getElementById('tshAnnouncements'));
       // Polls (per-signed-in vote, SVG bar charts). The landing renders the
       // compact density variant — strips expiry chips, alias/flat inputs and
@@ -358,7 +358,7 @@
       // Reveal staff strip if the visitor has any elevated role.
       const who = await Flags.whoami().catch(() => null);
       const role = who && who.primary;
-      if (role && ['MANAGER', 'COMMITTEE', 'DEVELOPER'].includes(role)) {
+      if (role && ['MANAGER', 'COMMITTEE', 'ADMIN'].includes(role)) {
         const staff = document.querySelector('[data-tsh-staff]');
         if (staff) staff.hidden = false;
         document.querySelectorAll('[data-tsh-role-link]').forEach((el) => {

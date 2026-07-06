@@ -83,7 +83,7 @@ redeploy.
    history — "delete" means soft-delete (lock + tombstone) with an audit line.
 4. **Role-appropriate views.** Resident → own ticket + public board. Manager →
    triage queue. Committee → everything + redact / soft-delete / audit tools.
-   Developer → settings.
+   Admin → settings.
 5. **Free to run.** Target $0/mo at ~50 issues/month. Any paid dependency
    must be flagged and justified.
 6. **Continuity with existing data.** Must be able to import historical daily
@@ -95,14 +95,14 @@ redeploy.
 ## Users & roles
 
 Four roles. Capabilities are additive — an email on multiple lists gets the
-union. Landing-page badge precedence: `DEVELOPER > COMMITTEE > MANAGER > RESIDENT`.
+union. Landing-page badge precedence: `ADMIN > COMMITTEE > MANAGER > RESIDENT`.
 
 | Role | Identifier | Can do |
 |---|---|---|
 | **Resident** | Anonymous Google sign-in (any Gmail). Anonymous submit also allowed via feature flag. | Submit a daily issue; look up own ticket by id; read the public board (PII redacted). Cannot call any privileged action. |
 | **Society Manager** | Email in `config/managers.json` (allow-list). | Assign vendor + severity, mark in-progress, resolve, reject, reopen. Add photos. Receives auto-assigned tickets after `DAILY_AUTO_ASSIGN_HOURS`. Cannot delete, cannot edit historical fields, cannot change settings. |
 | **Technical Committee** | Email in `config/committee.json`. | Everything Manager can + edit/redact issue body, overwrite resolution notes, soft-delete (lock + tombstone), bulk archive, view audit log. Read-only on settings. |
-| **Developer / Admin** | Email in `config/developers.json`. | Everything Committee can + edit `config/site.json` (feature flags, visibility, lists), manage all three allow-lists from the settings page, edit system bindings (repo, branch, Worker URL, photo-storage strategy). |
+| **Admin** | Email in `config/admins.json` (legacy: `config/developers.json`). | Everything Committee can + edit `config/site.json` (feature flags, visibility, lists), manage all three allow-lists from the settings page, edit system bindings (repo, branch, Worker URL, photo-storage strategy). |
 
 Hard constraints:
 
@@ -111,9 +111,9 @@ Hard constraints:
   any `email` / `role` / `actor` field in the request body.
 - Allow-lists live in editable JSON files in the repo; every change is a
   commit (free audit history).
-- **One-developer-minimum guard.** It must be impossible to save an empty
-  developer list.
-- The developer list is **bootstrapped from a server secret** (`BOOTSTRAP_DEVELOPERS`)
+- **One-admin-minimum guard.** It must be impossible to save an empty
+  admin list.
+- The admin list is **bootstrapped from a server secret** (`BOOTSTRAP_ADMINS`, legacy alias `BOOTSTRAP_DEVELOPERS`)
   only when the file is missing. After the file exists, the file is canonical
   and the secret can be removed.
 
@@ -197,17 +197,17 @@ and the failure/edge cases you would handle.
 
 ### G. Settings (`settings.html`)
 
-- **Developer write. Committee read-only.** Every input `disabled` in the
+- **Admin write. Committee read-only.** Every input `disabled` in the
   read-only view; server would reject the `PUT` anyway.
 - Sections:
-  - **Access lists** — three editable email arrays (developer / committee /
-    manager). One-developer-minimum guard.
+  - **Access lists** — three editable email arrays (admin / committee /
+    manager). One-admin-minimum guard.
   - **Feature flags** — every toggle listed in "Configuration" below.
   - **Visibility** — public board: show photos / show severity / expose PDF export.
   - **Lists** — towers, categories, sub-categories (nested by category).
   - **Lifecycle** — editable list of states (`id`, `label`, `color`, `terminal`,
     `publiclyVisible`) and transitions (`from`, `to`, `action`, `minRole`,
-    `requires: []`). Developer can add a mid-workflow state (e.g.
+    `requires: []`). Admin can add a mid-workflow state (e.g.
     `waiting-parts`, `vendor-scheduled`) here without a redeploy. Validation:
     (a) the state graph must remain connected from `new` to at least one
     terminal state; (b) no orphan states; (c) `new`, `resolved`, `rejected`,
@@ -322,7 +322,7 @@ Allowed transitions with default config:
 Any transition not listed in `config.lifecycle.transitions` is rejected
 server-side with `Forbidden transition: <from> → <to>`.
 
-**Configurable states — Settings-driven, no redeploy.** A developer can add
+**Configurable states — Settings-driven, no redeploy.** A admin can add
 intermediate states (e.g. `triaging`, `waiting-parts`, `vendor-scheduled`)
 from `settings.html`. The dashboard tabs and per-row action buttons rebuild
 from the config on the next `/config` fetch. Schema:
@@ -363,7 +363,7 @@ from the config on the next `/config` fetch. Schema:
 ```
 
 Reserved ids that cannot be removed: `new`, `resolved`, `rejected`, `deleted`.
-Everything else is developer-editable. `requires` lets the UI grey out an
+Everything else is admin-editable. `requires` lets the UI grey out an
 action until the ticket has the needed fields (e.g. `Resolve` needs `notes`).
 
 `POST /issues/bulk-archive` does not change status; it sweeps `resolved` /
@@ -380,20 +380,20 @@ HTTP: 2xx ok; 401 missing/invalid JWT; 403 role denied; 4xx validation;
 | Method + Path | Auth | Roles | Purpose |
 |---|---|---|---|
 | `POST /issues` | JWT (or anonymous if flag on) | All | Create a daily issue. Server validates schema, verifies Turnstile if enabled, creates the GitHub Issue with labels. |
-| `GET /issues` | JWT | Manager, Committee, Developer | List for dashboards. Server-side filter by status/tower/category. |
+| `GET /issues` | JWT | Manager, Committee, Admin | List for dashboards. Server-side filter by status/tower/category. |
 | `GET /issues/public` | None | All | Public board read; PII scrubbed. |
 | `GET /issues/:id/public` | None | All | Confirmation-page lookup by ticket id. PII redacted. |
-| `PATCH /issues/:id` | JWT | Manager, Committee, Developer | Status transitions. Posts an audit comment on every change. |
-| `POST /issues/:id/photos` | JWT | Manager, Committee, Developer | Attach photos to an existing issue. |
-| `POST /issues/:id/redact` | JWT | Committee, Developer | Edit issue body to remove PII / fix typos. Edit + audit comment. |
-| `POST /issues/:id/delete` | JWT | Committee, Developer | Soft-delete. |
-| `POST /issues/bulk-archive` | JWT | Committee, Developer | Manual retention sweep. |
-| `POST /issues/auto-assign-sweep` | JWT (cron token) or Developer | system, Developer | Promote `new` tickets older than `DAILY_AUTO_ASSIGN_HOURS` to `assigned` per `config.lifecycle.autoTransitions`. Also exposed via a scheduled trigger (Cloudflare Cron / GitHub Action) so it runs every 15 minutes without a manual call. |
+| `PATCH /issues/:id` | JWT | Manager, Committee, Admin | Status transitions. Posts an audit comment on every change. |
+| `POST /issues/:id/photos` | JWT | Manager, Committee, Admin | Attach photos to an existing issue. |
+| `POST /issues/:id/redact` | JWT | Committee, Admin | Edit issue body to remove PII / fix typos. Edit + audit comment. |
+| `POST /issues/:id/delete` | JWT | Committee, Admin | Soft-delete. |
+| `POST /issues/bulk-archive` | JWT | Committee, Admin | Manual retention sweep. |
+| `POST /issues/auto-assign-sweep` | JWT (cron token) or Admin | system, Admin | Promote `new` tickets older than `DAILY_AUTO_ASSIGN_HOURS` to `assigned` per `config.lifecycle.autoTransitions`. Also exposed via a scheduled trigger (Cloudflare Cron / GitHub Action) so it runs every 15 minutes without a manual call. |
 | `GET /config` | None | All | Returns `site.json` (features + tunables + lists + lifecycle + system). Called by every page on load. Cached 60s. |
-| `PUT /config` | JWT | Developer | Overwrite `config/site.json`. Server commits with an audit-log line. |
-| `GET /access-lists` | JWT | Committee (read), Developer (read) | Returns all three allow-lists. |
-| `PUT /access-lists/:role` | JWT | Developer | Overwrite one allow-list. Enforces one-developer-minimum. |
-| `GET /audit` | JWT | Committee, Developer | Recent entries from `config/audit.log`. |
+| `PUT /config` | JWT | Admin | Overwrite `config/site.json`. Server commits with an audit-log line. |
+| `GET /access-lists` | JWT | Committee (read), Admin (read) | Returns all three allow-lists. |
+| `PUT /access-lists/:role` | JWT | Admin | Overwrite one allow-list. Enforces one-admin-minimum. |
+| `GET /audit` | JWT | Committee, Admin | Recent entries from `config/audit.log`. |
 | `GET /whoami` | JWT | All | `{ email, roles[] }` for the verified caller. |
 
 ---
@@ -453,7 +453,7 @@ missing or malformed the Worker returns defaults. Config values always override.
 |---|---|
 | `GITHUB_TOKEN` | Fine-scoped PAT — `issues:write`, `contents:write` on this repo only. Rotatable. Never logged, never returned. |
 | `GOOGLE_OAUTH_CLIENT_ID` | Verifies JWT `aud`. |
-| `BOOTSTRAP_DEVELOPERS` | Comma-separated emails; read **only** when `config/developers.json` is missing. Removed after bootstrap. |
+| `BOOTSTRAP_ADMINS` | Comma-separated emails; read **only** when `config/admins.json` is missing. Removed after bootstrap. Legacy alias `BOOTSTRAP_DEVELOPERS` still honored during migration. |
 | `TURNSTILE_SECRET` | Verifies the Turnstile token on `POST /issues`. Used only when `FEATURE_DAILY_TURNSTILE` is on. |
 | `TURNSTILE_SITE_KEY` | Public-safe; returned by `GET /config` so the intake page can render the widget. |
 
@@ -474,7 +474,7 @@ Nothing sensitive is ever shipped to the browser.
 - Public read endpoints scrub PII before returning.
 - Soft-delete only. Hard-delete requires a manual out-of-band action on github.com.
 - Rate-limit `POST /issues` from anonymous callers (Turnstile + IP-based).
-- No "allow all as DEVELOPER" testing bypass in production.
+- No "allow all as ADMIN" testing bypass in production.
 - No client-typed email/role login form.
 
 ---

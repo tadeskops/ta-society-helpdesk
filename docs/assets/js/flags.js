@@ -9,7 +9,7 @@
 (function (root) {
   'use strict';
 
-  const RANK = { UNKNOWN: 0, RESIDENT: 1, MANAGER: 2, COMMITTEE: 3, DEVELOPER: 4 };
+  const RANK = { UNKNOWN: 0, RESIDENT: 1, MANAGER: 2, COMMITTEE: 3, ADMIN: 4 };
 
   let cfg = null;
   let cfgPromise = null;
@@ -172,7 +172,7 @@
       '  <p class="tsh-sub">You are signed in as <strong id="tshFbEmail"></strong> ' +
       '     (role: <strong id="tshFbRole"></strong>), but this page requires ' +
       '     <strong id="tshFbNeed"></strong> access or higher.</p>' +
-      '  <p class="tsh-sub">Ask a developer to add you to the correct access list ' +
+      '  <p class="tsh-sub">Ask an admin to add you to the correct access list ' +
       '     in <em>Settings</em>, or sign in with a different account.</p>' +
       '  <div class="tsh-toolbar" style="justify-content:center;margin-top:1rem;gap:.5rem;flex-wrap:wrap;">' +
       '    <a class="tsh-btn tsh-btn-primary" id="tshFbBack"><i class="fas fa-arrow-left"></i> Back</a>' +
@@ -219,7 +219,7 @@
     main.innerHTML =
       '<section class="tsh-card" style="max-width:560px;margin:8vh auto;text-align:center;">' +
       '  <header class="tsh-card-head"><h1><i class="fas fa-circle-pause gold-accent"></i> ' + name + ' is disabled</h1></header>' +
-      '  <p class="tsh-sub">This section is currently turned off. Ask a developer to re-enable <code>' + flag + '</code> in Settings.</p>' +
+      '  <p class="tsh-sub">This section is currently turned off. Ask an admin to re-enable <code>' + flag + '</code> in Settings.</p>' +
       '  <div class="tsh-toolbar" style="justify-content:center;margin-top:1rem;">' +
       '    <a class="tsh-btn tsh-btn-ghost" href="./index.html"><i class="fas fa-house"></i> Home</a>' +
       '  </div>' +

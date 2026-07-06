@@ -1,7 +1,7 @@
 // Polls with per-signed-in voter records and SVG bar charts.
 // Routes:
 //   GET  /polls               — anon list of active polls + tally + caller's vote (if signed in)
-//   PUT  /polls               — MANAGER+/COMMITTEE+/DEVELOPER replace full poll list
+//   PUT  /polls               — MANAGER+/COMMITTEE+/ADMIN replace full poll list
 //   POST /polls/:id/vote      — signed-in only; one vote per email per poll
 //   GET  /polls/:id/votes     — MANAGER+ list voter records (email/alias/flat/timestamp)
 //
@@ -182,7 +182,7 @@ export const mountPolls = (r: Router): void => {
   r.put('/polls', async (ctx: Ctx) => {
     ensureAllowed(ctx, {
       flags: ['FEATURE_DAILY_POLLS'],
-      roles: ['MANAGER', 'COMMITTEE', 'DEVELOPER'],
+      roles: ['MANAGER', 'COMMITTEE', 'ADMIN'],
       requireIdentity: true,
     });
     const body = await parseJson<Record<string, unknown>>(ctx.req);
@@ -249,7 +249,7 @@ export const mountPolls = (r: Router): void => {
   r.get('/polls/:id/votes', async (ctx: Ctx, params: Record<string, string>) => {
     ensureAllowed(ctx, {
       flags: ['FEATURE_DAILY_POLLS'],
-      roles: ['MANAGER', 'COMMITTEE', 'DEVELOPER'],
+      roles: ['MANAGER', 'COMMITTEE', 'ADMIN'],
       requireIdentity: true,
     });
     const pollId = params['id'];

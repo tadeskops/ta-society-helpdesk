@@ -894,9 +894,9 @@
     }
 
     // Human labels for the role pill shown next to the signed-in email.
-    // Backed by Flags.RANK ordering (DEVELOPER > COMMITTEE > MANAGER > RESIDENT).
+    // Backed by Flags.RANK ordering (ADMIN > COMMITTEE > MANAGER > RESIDENT).
     const ROLE_LABELS = {
-      DEVELOPER: 'Developer',
+      ADMIN:     'Admin',
       COMMITTEE: 'Tech Committee',
       MANAGER:   'Society Manager',
       RESIDENT:  'Resident',

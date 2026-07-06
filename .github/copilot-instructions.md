@@ -176,10 +176,10 @@ reflected in `tsh_requirement.md` in the same change.
 Update it whenever a change touches any of the following:
 
 - **Roles or capabilities** — a role gains/loses an action, a new role
-  is added (resident / manager / committee / developer), the role-
+  is added (resident / manager / committee / admin), the role-
   resolution precedence changes, or the allow-list source-of-truth
   files (`config/managers.json`, `config/committee.json`,
-  `config/developers.json`) change shape.
+  `config/admins.json`, legacy alias `config/developers.json`) change shape.
 - **Worker API actions** — a new endpoint is added to the Cloudflare
   Worker (`POST /issues`, `GET /issues`, `PATCH /issues/:id`, etc.),
   an action is renamed/removed, its allow-list changes, its payload
@@ -265,7 +265,7 @@ For this project, the rule is broader than a typical "significant
 feature" gate: **every** user-visible UI affordance — every button,
 form field, panel, menu item, modal, page — must ship behind a
 `FEATURE_*` flag in `config/site.json`, enforced on both Worker and
-static page, and editable from `settings.html` (developer write,
+static page, and editable from `settings.html` (admin write,
 committee read-only). The agent must explicitly justify the chosen
 default in the PR/commit body. See `tsh_requirement.md` §14.2.
 
@@ -279,11 +279,11 @@ following is true:
 - It adds **any** new user-visible UI affordance (button, form field,
   panel, page, modal, drag-drop zone, file picker, filter pill,
   sort/search control, etc.). "User-visible" includes anonymous,
-  resident, manager, committee, and developer surfaces.
+  resident, manager, committee, and admin surfaces.
 - It writes to GitHub Issues, the daily-track config files, or the
   photo store in a code path that did not previously write there.
 - It changes a role's capabilities (resident/manager/committee/
-  developer gains a new action).
+  admin gains a new action).
 - It is opinionated enough that an operator might reasonably want to
   turn it off without a redeploy (regulatory, scope, cost, perf, or
   "we don't want this group to see it yet" reasons).
@@ -331,7 +331,7 @@ requires a Worker / Pages redeploy to fix.
      against stale renders.
 4. **Settings-page exposure (mandatory).** The flag must appear in
    `docs/settings.html` under the **Feature flags** section as a
-   labelled toggle. Developer can write; committee sees it disabled;
+   labelled toggle. Admin can write; committee sees it disabled;
    manager and resident never reach the page. The toggle takes
    effect within the 60 s `/config` cache window with **no
    redeploy**.
@@ -530,7 +530,7 @@ later step.
   matching `temp/` file** in the same turn. Stale scratch files are
   worse than no scratch files.
 - Do not put secrets, JWTs, GitHub PATs, or real resident PII in
-  `temp/`. The folder is local-only but still on the developer's
+  `temp/`. The folder is local-only but still on the admin's
   workstation; treat it as untrusted.
 
 ### 4.2 Per-turn context loading (token-efficient)

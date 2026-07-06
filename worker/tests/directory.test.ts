@@ -45,7 +45,7 @@ vi.mock('../src/config/loader.ts', async () => {
       access: {
         managers:   ['mgr@x.com'],
         committee:  ['cmt@x.com'],
-        developers: ['dev@x.com'],
+        admins: ['dev@x.com'],
       },
     })),
     invalidateCache: vi.fn(),
@@ -140,7 +140,7 @@ describe('PUT /directory — RBAC', () => {
     expect(r.status).toBe(200);
   });
 
-  it('accepts developer', async () => {
+  it('accepts admin', async () => {
     const r = await send('PUT', '/directory', body, 'dev@x.com');
     expect(r.status).toBe(200);
   });
@@ -257,7 +257,7 @@ describe('PUT /directory — multi-phone schema', () => {
 });
 
 
-describe('PUT /directory � services', () => {
+describe('PUT /directory � services', () => {
   it('round-trips a service entry with all fields and stamps an svc- id', async () => {
     const r = await send('PUT', '/directory', {
       directory: {

@@ -1,10 +1,10 @@
-// Developer-toggled announcements section.
+// Admin-toggled announcements section.
 // GET /announcements — anonymous read, gated by FEATURE_DAILY_ANNOUNCEMENTS.
-// PUT /announcements — MANAGER / COMMITTEE / DEVELOPER write the full list.
+// PUT /announcements — MANAGER / COMMITTEE / ADMIN write the full list.
 //
 // Each item: { id, title, body, pinned?, createdAt, createdBy, updatedAt }.
 // Frontend mounts a "What's new" section card on the landing page when the
-// developer enables the flag from Settings.
+// admin enables the flag from Settings.
 
 import type { Router } from '../lib/router.ts';
 import type { Ctx } from '../lib/ctx.ts';
@@ -133,7 +133,7 @@ export const mountAnnouncements = (r: Router): void => {
   r.put('/announcements', async (ctx: Ctx) => {
     ensureAllowed(ctx, {
       flags: ['FEATURE_DAILY_ANNOUNCEMENTS'],
-      roles: ['MANAGER', 'COMMITTEE', 'DEVELOPER'],
+      roles: ['MANAGER', 'COMMITTEE', 'ADMIN'],
       requireIdentity: true,
     });
     const body = await parseJson<Record<string, unknown>>(ctx.req);

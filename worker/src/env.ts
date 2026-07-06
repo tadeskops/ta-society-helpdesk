@@ -13,6 +13,8 @@ export interface Env {
 
   // Secrets (wrangler secret put)
   GITHUB_TOKEN: string;
+  BOOTSTRAP_ADMINS?: string;
+  /** Legacy alias for BOOTSTRAP_ADMINS. Read as fallback during migration. */
   BOOTSTRAP_DEVELOPERS?: string;
   TURNSTILE_SECRET?: string;
 }

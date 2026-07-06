@@ -1,4 +1,4 @@
-// GET /audit — recent audit-log entries (committee + developer).
+// GET /audit — recent audit-log entries (committee + admin).
 // Spec: tsh_requirement.md §5, §6.5.
 
 import type { Router } from '../lib/router.ts';
@@ -11,7 +11,7 @@ import { FeatureDisabled } from '../lib/errors.ts';
 
 export const mountAudit = (r: Router): void => {
   r.get('/audit', async (ctx: Ctx) => {
-    ensureAllowed(ctx, { roles: ['COMMITTEE', 'DEVELOPER'], requireIdentity: true });
+    ensureAllowed(ctx, { roles: ['COMMITTEE', 'ADMIN'], requireIdentity: true });
     // The audit log itself is always written; the UI gate is the FEATURE_DAILY_AUDIT_LOG_UI
     // flag so committee can disable the read endpoint independently.
     if (!isFeatureOn(ctx.config, 'FEATURE_DAILY_AUDIT_LOG_UI')) {

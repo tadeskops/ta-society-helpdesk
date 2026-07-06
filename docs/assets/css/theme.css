@@ -302,7 +302,7 @@ input, select, textarea {
   align-items: center;
   gap: var(--sp-2);
   font-size: var(--fs-sm);
-  /* When the header-inner runs out of horizontal room (developer sees
+  /* When the header-inner runs out of horizontal room (admin sees
      7 nav links → brand + nav + userbox won't fit on one row), the
      userbox naturally wraps to a second row. Without this auto-margin
      it lands at the left edge directly under the brand, which looks
@@ -341,6 +341,7 @@ input, select, textarea {
   color: var(--c-text);
   white-space: nowrap;
 }
+.tsh-user-role-admin,
 .tsh-user-role-developer {
   color: #1a1a1a;
   background: var(--c-primary, #d4af37);
@@ -362,6 +363,8 @@ input, select, textarea {
   background: var(--c-surface-2);
   border-color: var(--c-border-soft);
 }
+html[data-theme="light"] .tsh-user-role-admin,
+html[data-theme="medium"] .tsh-user-role-admin,
 html[data-theme="light"] .tsh-user-role-developer,
 html[data-theme="medium"] .tsh-user-role-developer {
   color: #1a1a1a;
@@ -2412,7 +2415,7 @@ a.tsh-banner-inner:focus-visible {
   .tsh-banner-editor-row { grid-template-columns: 1fr; }
 }
 
-/* ---- Bundle 6: announcements (developer-toggled) -------------------- */
+/* ---- Bundle 6: announcements (admin-toggled) -------------------- */
 .tsh-ann-list { display: block; margin: 0 0 var(--sp-3); }
 .tsh-ann-list-title {
   margin: 0 0 var(--sp-2) 0;
@@ -2734,7 +2737,7 @@ a.tsh-banner-inner:focus-visible {
 }
 
 /* ===== Desktop (>=721px) compact header — fit brand + 7-link nav +
-   3 action icons on a single row even for DEVELOPER / COMMITTEE /
+   3 action icons on a single row even for ADMIN / COMMITTEE /
    MANAGER roles. Mobile (<=720px) has its own block below that takes
    precedence; this block only tightens desktop. ====================== */
 @media (min-width: 721px) {
@@ -3672,10 +3675,10 @@ a.tsh-banner-inner:focus-visible {
 
 /* ===== Bundle 18: Show access-tier pill on mobile when signed in ===========
    `renderUser` in ui.js already paints a colored role badge
-   (.tsh-user-role.tsh-user-role-{developer|committee|manager|resident})
+   (.tsh-user-role.tsh-user-role-{admin|committee|manager|resident})
    next to the email ââ”šÂ¬” the tier displayed is `who.primary` from /whoami,
    i.e. the highest rank the signed-in user holds (RANK order:
-   DEVELOPER > COMMITTEE > MANAGER > RESIDENT). On mobile Bundle 15 hides
+   ADMIN > COMMITTEE > MANAGER > RESIDENT). On mobile Bundle 15 hides
    the whole .tsh-user-text wrapper to save space, which also clips the
    badge. Reveal the badge (and keep email hidden) so the access tier is
    always visible at a glance. */

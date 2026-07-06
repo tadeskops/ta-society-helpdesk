@@ -1,6 +1,6 @@
 // Society directory (vendors, community contacts, resources).
 // GET  /directory          — anonymous-safe; gated by FEATURE_DAILY_DIRECTORY.
-// PUT  /directory          — DEVELOPER/COMMITTEE/MANAGER may write the full
+// PUT  /directory          — ADMIN/COMMITTEE/MANAGER may write the full
 //                            directory file at once (small payload, no need
 //                            for per-row endpoints in v1).
 // PUT  /directory/categories — same roles; updates vendorCategories only.
@@ -258,7 +258,7 @@ export const mountDirectory = (r: Router): void => {
   r.put('/directory', async (ctx: Ctx) => {
     ensureAllowed(ctx, {
       flags: ['FEATURE_DAILY_DIRECTORY'],
-      roles: ['MANAGER', 'COMMITTEE', 'DEVELOPER'],
+      roles: ['MANAGER', 'COMMITTEE', 'ADMIN'],
       requireIdentity: true,
     });
     const body = await parseJson<Record<string, unknown>>(ctx.req);
@@ -313,7 +313,7 @@ export const mountDirectory = (r: Router): void => {
   r.post('/directory/photo', async (ctx: Ctx) => {
     ensureAllowed(ctx, {
       flags: ['FEATURE_DAILY_DIRECTORY'],
-      roles: ['MANAGER', 'COMMITTEE', 'DEVELOPER'],
+      roles: ['MANAGER', 'COMMITTEE', 'ADMIN'],
       requireIdentity: true,
     });
     const body = await parseJson<Record<string, unknown>>(ctx.req);

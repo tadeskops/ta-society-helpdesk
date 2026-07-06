@@ -11,7 +11,7 @@
 //                                      asterisk + popup)
 //   POST   /issues/bulk-archive        retention sweep (committee+)
 //   POST   /issues/auto-assign-sweep   promote `new` → `assigned` after
-//                                      DAILY_AUTO_ASSIGN_HOURS (developer;
+//                                      DAILY_AUTO_ASSIGN_HOURS (admin;
 //                                      also invoked from the scheduled
 //                                      cron in src/index.ts)
 
@@ -273,7 +273,7 @@ const mountList = (r: Router): void => {
   r.get('/issues', async (ctx: Ctx) => {
     ensureAllowed(ctx, {
       flags: ['FEATURE_DAILY_TRACK'],
-      roles: ['MANAGER', 'COMMITTEE', 'DEVELOPER'],
+      roles: ['MANAGER', 'COMMITTEE', 'ADMIN'],
       requireIdentity: true,
     });
     const statusFilter = ctx.url.searchParams.get('status');
@@ -360,7 +360,7 @@ const mountPatch = (r: Router): void => {
   r.patch('/issues/:id', async (ctx: Ctx, params: Record<string, string>) => {
     ensureAllowed(ctx, {
       flags: ['FEATURE_DAILY_TRACK'],
-      roles: ['MANAGER', 'COMMITTEE', 'DEVELOPER'],
+      roles: ['MANAGER', 'COMMITTEE', 'ADMIN'],
       requireIdentity: true,
     });
     const issue = await resolveIssueParam(ctx, params);
@@ -417,7 +417,7 @@ const mountPhotos = (r: Router): void => {
   r.post('/issues/:id/photos', async (ctx: Ctx, params: Record<string, string>) => {
     ensureAllowed(ctx, {
       flags: ['FEATURE_DAILY_TRACK', 'FEATURE_DAILY_PHOTO_UPLOAD'],
-      roles: ['MANAGER', 'COMMITTEE', 'DEVELOPER'],
+      roles: ['MANAGER', 'COMMITTEE', 'ADMIN'],
       requireIdentity: true,
     });
     const issue = await resolveIssueParam(ctx, params);
@@ -447,7 +447,7 @@ const mountRedact = (r: Router): void => {
   r.post('/issues/:id/redact', async (ctx: Ctx, params: Record<string, string>) => {
     ensureAllowed(ctx, {
       flags: ['FEATURE_DAILY_TRACK'],
-      roles: ['COMMITTEE', 'DEVELOPER'],
+      roles: ['COMMITTEE', 'ADMIN'],
       requireIdentity: true,
     });
     const issue = await resolveIssueParam(ctx, params);
@@ -498,7 +498,7 @@ const mountDelete = (r: Router): void => {
   r.post('/issues/:id/delete', async (ctx: Ctx, params: Record<string, string>) => {
     ensureAllowed(ctx, {
       flags: ['FEATURE_DAILY_TRACK'],
-      roles: ['MANAGER', 'COMMITTEE', 'DEVELOPER'],
+      roles: ['MANAGER', 'COMMITTEE', 'ADMIN'],
       requireIdentity: true,
     });
     const issue = await resolveIssueParam(ctx, params);
@@ -519,7 +519,7 @@ const mountBulkArchive = (r: Router): void => {
   r.post('/issues/bulk-archive', async (ctx: Ctx) => {
     ensureAllowed(ctx, {
       flags: ['FEATURE_DAILY_TRACK'],
-      roles: ['COMMITTEE', 'DEVELOPER'],
+      roles: ['COMMITTEE', 'ADMIN'],
       requireIdentity: true,
     });
     const days = tunable(ctx.config, 'DAILY_ARCHIVE_AFTER_DAYS', 90);
@@ -625,11 +625,11 @@ export const runAutoAssignSweep = async (
 
 const mountAutoAssignSweep = (r: Router): void => {
   r.post('/issues/auto-assign-sweep', async (ctx: Ctx) => {
-    // Manual trigger — developer only. The cron uses runAutoAssignSweep
+    // Manual trigger — admin only. The cron uses runAutoAssignSweep
     // directly and bypasses the router.
     ensureAllowed(ctx, {
       flags: ['FEATURE_DAILY_TRACK'],
-      roles: ['DEVELOPER'],
+      roles: ['ADMIN'],
       requireIdentity: true,
     });
     const result = await runAutoAssignSweep(ctx.env, ctx.config, ctx.access.managers);
@@ -644,14 +644,14 @@ const mountAutoAssignSweep = (r: Router): void => {
  * and assigns a `tkt:TKT-DDMMYYHHMM[-N]` label to any issue that doesn't
  * already have one. Idempotent: safe to call repeatedly.
  *
- * Developer-only. Run once after deploying the TKT id refactor to migrate
+ * Admin-only. Run once after deploying the TKT id refactor to migrate
  * pre-existing DLY-padded issues into the new id scheme.
  */
 const mountBackfill = (r: Router): void => {
   r.post('/issues/backfill-tkt-ids', async (ctx: Ctx) => {
     ensureAllowed(ctx, {
       flags: ['FEATURE_DAILY_TRACK'],
-      roles: ['DEVELOPER'],
+      roles: ['ADMIN'],
       requireIdentity: true,
     });
     const all = await listIssues(ctx.env, { state: 'all', labels: ['daily'], per_page: 100 });

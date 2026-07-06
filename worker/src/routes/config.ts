@@ -1,5 +1,5 @@
 // GET /config — anonymous-safe (PII-free by design).
-// PUT /config — developer-only; commits config/site.json + audit-log.
+// PUT /config — admin-only; commits config/site.json + audit-log.
 // Spec: tsh_requirement.md §5, §9, §14.2.
 
 import type { Router } from '../lib/router.ts';
@@ -64,9 +64,9 @@ export const mountConfig = (r: Router): void => {
     return ok(ctx.env, ctx.req, ctx.config);
   });
 
-  // ---- PUT /config (developer write) ----
+  // ---- PUT /config (admin write) ----
   r.put('/config', async (ctx: Ctx) => {
-    ensureAllowed(ctx, { roles: ['DEVELOPER'], requireIdentity: true });
+    ensureAllowed(ctx, { roles: ['ADMIN'], requireIdentity: true });
     const body = await parseJson<Record<string, unknown>>(ctx.req);
     const next = validateSiteShape(body['config'] ?? body);
     const actor = ctx.identity!.email;

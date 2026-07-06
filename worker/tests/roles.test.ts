@@ -8,7 +8,7 @@ import type { Ctx } from '../src/lib/ctx.ts';
 const access = {
   managers:   ['mgr@x.com'],
   committee:  ['cmt@x.com', 'mgr@x.com'], // committee also on managers — additive
-  developers: ['dev@x.com'],
+  admins: ['dev@x.com'],
 };
 
 describe('resolveRoles', () => {
@@ -19,7 +19,7 @@ describe('resolveRoles', () => {
     expect(r.email).toBeNull();
   });
   it('returns the highest precedence as primary', () => {
-    expect(resolveRoles(access, 'dev@x.com').primary).toBe('DEVELOPER');
+    expect(resolveRoles(access, 'dev@x.com').primary).toBe('ADMIN');
     expect(resolveRoles(access, 'cmt@x.com').primary).toBe('COMMITTEE');
     expect(resolveRoles(access, 'mgr@x.com').primary).toBe('COMMITTEE'); // additive
   });
@@ -33,7 +33,7 @@ describe('resolveRoles', () => {
     expect(dev.all).toContain('RESIDENT');
   });
   it('is case-insensitive', () => {
-    expect(resolveRoles(access, 'DEV@X.COM').primary).toBe('DEVELOPER');
+    expect(resolveRoles(access, 'DEV@X.COM').primary).toBe('ADMIN');
   });
 });
 
@@ -43,14 +43,14 @@ describe('hasAny / isAtLeast', () => {
   const anon = resolveRoles(access, null);
   const res = resolveRoles(access, 'random@x.com');
   it('hasAny matches any element of the role set', () => {
-    expect(hasAny(dev, 'DEVELOPER')).toBe(true);
+    expect(hasAny(dev, 'ADMIN')).toBe(true);
     expect(hasAny(mgr, 'COMMITTEE', 'MANAGER')).toBe(true);
-    expect(hasAny(anon, 'DEVELOPER', 'MANAGER')).toBe(false);
+    expect(hasAny(anon, 'ADMIN', 'MANAGER')).toBe(false);
     expect(hasAny(res, 'RESIDENT')).toBe(true);
   });
   it('isAtLeast walks the precedence chain', () => {
     expect(isAtLeast(dev, 'MANAGER')).toBe(true);
-    expect(isAtLeast(mgr, 'DEVELOPER')).toBe(false);
+    expect(isAtLeast(mgr, 'ADMIN')).toBe(false);
     expect(isAtLeast(anon, 'UNKNOWN')).toBe(true);
     expect(isAtLeast(anon, 'RESIDENT')).toBe(false);
     expect(isAtLeast(res, 'RESIDENT')).toBe(true);
@@ -78,7 +78,7 @@ describe('ensureAllowed', () => {
   });
   it('throws Forbidden on role mismatch', () => {
     const ctx = mkCtx('mgr@x.com', { identity: { email: 'mgr@x.com', emailVerified: true, sub: '1' } });
-    expect(() => ensureAllowed(ctx, { roles: ['DEVELOPER'], requireIdentity: true })).toThrow(Forbidden);
+    expect(() => ensureAllowed(ctx, { roles: ['ADMIN'], requireIdentity: true })).toThrow(Forbidden);
   });
   it('throws FeatureDisabled when flag is off', () => {
     const cfg = { ...DEFAULT_CONFIG, features: { ...DEFAULT_CONFIG.features, FEATURE_DAILY_TRACK: false } };
@@ -88,7 +88,7 @@ describe('ensureAllowed', () => {
   it('passes when role + flag + identity all check out', () => {
     const ctx = mkCtx('dev@x.com', { identity: { email: 'dev@x.com', emailVerified: true, sub: '1' } });
     expect(() => ensureAllowed(ctx, {
-      roles: ['DEVELOPER'], flags: ['FEATURE_DAILY_TRACK'], requireIdentity: true,
+      roles: ['ADMIN'], flags: ['FEATURE_DAILY_TRACK'], requireIdentity: true,
     })).not.toThrow();
   });
 });

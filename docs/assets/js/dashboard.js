@@ -298,7 +298,7 @@
     }
   }
 
-  // Delete: committee / developer hard-removal. Reason is OPTIONAL —
+  // Delete: committee / admin hard-removal. Reason is OPTIONAL —
   // committee oversight already covers intent; the audit log still
   // captures the actor + timestamp even if the reason is blank.
   async function doDelete(issue) {

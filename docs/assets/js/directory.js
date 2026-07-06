@@ -1,6 +1,6 @@
 // docs/assets/js/directory.js
 // Society directory — vendors, community contacts, resources.
-// Reads /directory on load, lets MANAGER/COMMITTEE/DEVELOPER edit
+// Reads /directory on load, lets MANAGER/COMMITTEE/ADMIN edit
 // inline. Save commits the whole document (PUT /directory). Filter
 // pills + search work locally on the loaded copy.
 (function (root) {
@@ -1253,7 +1253,7 @@
     const hint = $('#dirRoleHint');
     if (hint) hint.textContent = canEdit
       ? 'You can add, edit and delete entries. Don\u2019t forget to Save.'
-      : 'Read-only — sign in as Manager, Committee or Developer to edit.';
+      : 'Read-only — sign in as Manager, Committee or Admin to edit.';
 
     let raw = null;
     try { raw = await Api.get('/directory'); }

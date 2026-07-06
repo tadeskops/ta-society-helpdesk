@@ -44,7 +44,7 @@ vi.mock('../src/config/loader.ts', async () => {
       access: {
         managers:   ['mgr@x.com'],
         committee:  ['cmt@x.com'],
-        developers: ['dev@x.com'],
+        admins: ['dev@x.com'],
       },
     })),
     invalidateCache: vi.fn(),
@@ -117,7 +117,7 @@ describe('PUT /banner — RBAC', () => {
     expect(r.status).toBe(200);
   });
 
-  it('accepts developer', async () => {
+  it('accepts admin', async () => {
     const r = await send('PUT', '/banner', body, 'dev@x.com');
     expect(r.status).toBe(200);
   });

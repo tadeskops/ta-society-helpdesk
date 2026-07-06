@@ -51,7 +51,7 @@
       <!-- EMERGENCY CONTACTS -->
       <section class="tsh-dir-section" data-dir-section="emergency">
         <div class="tsh-dir-section-actions">
-          <p class="tsh-hint"><i class="fas fa-triangle-exclamation" style="color:#dc2626"></i> Society staff numbers for quick reach — tap the phone or WhatsApp icon to call/message directly. Managers / committee / developers can add or edit entries.</p>
+          <p class="tsh-hint"><i class="fas fa-triangle-exclamation" style="color:#dc2626"></i> Society staff numbers for quick reach — tap the phone or WhatsApp icon to call/message directly. Managers / committee / admins can add or edit entries.</p>
           <div class="tsh-dir-section-buttons" data-dir-edit-only hidden>
             <button type="button" class="tsh-btn tsh-btn-primary tsh-btn-sm" data-dir-add="emergency"><i class="fas fa-plus"></i>Add emergency contact</button>
           </div>
@@ -111,7 +111,7 @@
       <!-- MANAGEMENT COMMITTEE -->
       <section class="tsh-dir-section" data-dir-section="contacts" hidden>
         <div class="tsh-dir-section-actions">
-          <p class="tsh-hint">Elected management committee members for the current term &mdash; name, designation, flat and contact number. Managers / committee / developers can add or edit entries.</p>
+          <p class="tsh-hint">Elected management committee members for the current term &mdash; name, designation, flat and contact number. Managers / committee / admins can add or edit entries.</p>
           <div class="tsh-dir-section-buttons" data-dir-edit-only hidden>
             <button type="button" class="tsh-btn tsh-btn-primary tsh-btn-sm" data-dir-add="contacts"><i class="fas fa-plus"></i>Add committee member</button>
           </div>
@@ -156,7 +156,7 @@
         document.querySelector('.tsh-card').innerHTML =
           '<div class="tsh-state tsh-state-empty"><i class="tsh-state-icon fas fa-circle-pause"></i>' +
           '<p class="tsh-state-title">Directory is disabled</p>' +
-          '<p class="tsh-state-msg">A developer can re-enable it from Settings → Feature flags.</p></div>';
+          '<p class="tsh-state-msg">An admin can re-enable it from Settings → Feature flags.</p></div>';
         return;
       }
     } catch (e) {
@@ -165,7 +165,7 @@
 
     let who = { primary: 'PUBLIC' };
     try { who = await Flags.whoami(true); } catch (_e) {}
-    const canEdit = ['MANAGER', 'COMMITTEE', 'DEVELOPER'].includes(who.primary);
+    const canEdit = ['MANAGER', 'COMMITTEE', 'ADMIN'].includes(who.primary);
 
     // Directory.init is async (it fetches /directory) and binds tab click
     // handlers only after that resolves. Await it before firing the hash

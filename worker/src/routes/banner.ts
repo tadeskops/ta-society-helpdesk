@@ -1,6 +1,6 @@
 // Manager-curated rotating banner shown across resident-facing pages.
 // GET /banner — public read, gated by FEATURE_DAILY_BANNER.
-// PUT /banner — MANAGER / COMMITTEE / DEVELOPER write the full item list.
+// PUT /banner — MANAGER / COMMITTEE / ADMIN write the full item list.
 //
 // Each item: { id, text, severity?, href?, expiresAt?, createdAt, createdBy }.
 // The frontend rotates active (non-expired) items in a strip and stacks the
@@ -125,7 +125,7 @@ export const mountBanner = (r: Router): void => {
   r.put('/banner', async (ctx: Ctx) => {
     ensureAllowed(ctx, {
       flags: ['FEATURE_DAILY_BANNER'],
-      roles: ['MANAGER', 'COMMITTEE', 'DEVELOPER'],
+      roles: ['MANAGER', 'COMMITTEE', 'ADMIN'],
       requireIdentity: true,
     });
     const body = await parseJson<Record<string, unknown>>(ctx.req);

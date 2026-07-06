@@ -36,7 +36,7 @@ Everything below is scoped to the daily track. All seven open design questions f
 | **GitHub Pages** | Hosts the resident form + manager dashboard + public board + settings page as a regular website at `https://tadeskops.github.io/ta-society-helpdesk/`. |
 | **GitHub Actions** | Runs the scheduled PDF report, deploys Pages on push, deploys the Worker on push. |
 | **Cloudflare Worker** (free tier) | A small server-side helper that holds the GitHub access token. The browser talks to the Worker; the Worker talks to GitHub. The token never reaches the browser. |
-| **Google Sign-In (GIS)** | How residents, managers, committee, and developers prove their identity. Any Gmail works. The Worker verifies the Google identity token (JWT) on every request. |
+| **Google Sign-In (GIS)** | How residents, managers, committee, and admins prove their identity. Any Gmail works. The Worker verifies the Google identity token (JWT) on every request. |
 
 ### Why the GitHub-stack split
 
@@ -56,7 +56,7 @@ Everything below is scoped to the daily track. All seven open design questions f
 | Hosting | GitHub Pages (static site) + Cloudflare Worker (single endpoint surface) |
 | Storage | GitHub Issues (one issue per ticket); JSON config files in this repo (`config/*.json`) |
 | Identity | Google Sign-In (GIS); Worker-side JWT verification |
-| Authorization | Email-based allow-lists in `config/managers.json`, `config/committee.json`, `config/developers.json` |
+| Authorization | Email-based allow-lists in `config/managers.json`, `config/committee.json`, `config/admins.json` (legacy alias: `config/developers.json`) |
 | Cost | Free (GitHub free tier + Cloudflare Workers free tier) |
 | External services | None outside GitHub + Cloudflare + Google Sign-In |
 
@@ -119,18 +119,18 @@ No shared code, assets, builds, secrets, schemas, or workflows. See §0 of `.git
 ## 2. Roles
 
 Four roles. Precedence (highest wins for landing-page routing):
-`DEVELOPER > COMMITTEE > MANAGER > UNKNOWN`. Capabilities are additive — an email on multiple lists gets the union.
+`ADMIN > COMMITTEE > MANAGER > UNKNOWN`. Capabilities are additive — an email on multiple lists gets the union.
 
 | Role | How identified | Capabilities |
 |---|---|---|
 | **Resident** | Anonymous Google sign-in (any Gmail) | Submit a daily issue; read the public board (PII redacted); look up own ticket by id. **Cannot** call any privileged action. |
 | **Society Manager** | Email in `config/managers.json` | Assign vendor + severity / mark in progress / resolve / reject / reopen. Can add photos to existing issues. **Cannot delete, cannot edit historical fields, cannot change settings.** |
 | **Technical Committee** | Email in `config/committee.json` | Everything a manager can do, **plus** edit/redact issue body, overwrite resolution notes after the fact, soft-delete (lock + tombstone), bulk archive, view audit log. **Read-only** access to settings (can see what's configured, cannot change it). |
-| **Developer** | Email in `config/developers.json` | Everything committee can do, **plus** edit `config/site.json` (feature flags, visibility, lists), manage all three allow-lists from the settings page, edit system bindings (repo, branch, Worker URL, photo-storage strategy). |
+| **Admin** | Email in `config/admins.json` (legacy: `config/developers.json`) | Everything committee can do, **plus** edit `config/site.json` (feature flags, visibility, lists), manage all three allow-lists from the settings page, edit system bindings (repo, branch, Worker URL, photo-storage strategy). |
 
-> Allow-lists are runtime-editable from the settings page (developer only). Each list is a JSON file in this repo; every change is a commit, so audit history is free. There is a one-developer-minimum guard so an empty developer list is impossible.
+> Allow-lists are runtime-editable from the settings page (admin only). Each list is a JSON file in this repo; every change is a commit, so audit history is free. There is a one-admin-minimum guard so an empty admin list is impossible.
 
-> The developer list is **bootstrapped from a Cloudflare Worker secret** the first time. After that, the file in the repo is canonical.
+> The admin list is **bootstrapped from a Cloudflare Worker secret** the first time. After that, the file in the repo is canonical.
 
 ## 3. Authentication & Authorization
 
@@ -143,7 +143,7 @@ Four roles. Precedence (highest wins for landing-page routing):
 
 ### 3.2 Role resolution
 
-- Worker reads `config/managers.json`, `config/committee.json`, `config/developers.json` (cached 60 s).
+- Worker reads `config/managers.json`, `config/committee.json`, and `config/admins.json` (legacy fallback: `config/developers.json`) (cached 60 s).
 - Computes role(s) for the verified email; precedence rule above for the displayed badge; capabilities are additive for action allow-lists.
 - Anonymous (no JWT) is allowed for: `POST /issues`, `GET /issues/public`, `GET /issues/:id/public`. All other endpoints require a verified JWT, and most require a privileged role.
 
@@ -196,7 +196,7 @@ ta-society-helpdesk/
 │   ├── manager-dashboard.html         ← manager triage
 │   ├── committee-dashboard.html       ← committee superset (delete, redact, audit)
 │   ├── public-board.html              ← read-only status board
-│   ├── settings.html                  ← developer-only settings page
+│   ├── settings.html                  ← admin-only settings page
 │   ├── assets/
 │   │   ├── css/theme.css              ← visual tokens shared with handover portal
 │   │   ├── js/auth.js                 ← Google Sign-In shim
@@ -211,7 +211,7 @@ ta-society-helpdesk/
 │   ├── site.json                      ← feature flags, visibility, lists, bindings
 │   ├── managers.json                  ← email allow-list (manager)
 │   ├── committee.json                 ← email allow-list (committee)
-│   ├── developers.json                ← email allow-list (developer)
+│   ├── admins.json                    ← email allow-list (admin; legacy name: developers.json)
 │   └── audit.log                      ← append-only audit of settings changes
 ├── photos/                            ← per-ticket photo folders (when in-repo storage selected)
 │   └── DLY-<n>/                       ← uploaded at issue-create time
@@ -233,19 +233,19 @@ All write paths verify the Google JWT first, then check the role allow-list. Rea
 | Method + Path | Auth | Roles allowed | Purpose |
 |---|---|---|---|
 | `POST /issues` | JWT (Resident or higher) | All | Create a daily issue. Worker validates the schema and creates the GitHub Issue with labels. |
-| `GET /issues` | JWT | Manager, Committee, Developer | List issues for the manager/committee dashboard. Server-side filter by status/tower/category. |
+| `GET /issues` | JWT | Manager, Committee, Admin | List issues for the manager/committee dashboard. Server-side filter by status/tower/category. |
 | `GET /issues/public` | None | All (incl. anonymous) | Public board read; PII fields scrubbed. |
 | `GET /issues/:id/public` | None | All | Confirmation-page lookup by ticket id. PII redacted. |
-| `PATCH /issues/:id` | JWT | Manager, Committee, Developer | Status transitions (assign / in-progress / resolve / reject / reopen). Audit comment posted on every change. |
-| `POST /issues/:id/photos` | JWT | Manager, Committee, Developer | Attach additional photos to an existing issue. |
-| `POST /issues/:id/redact` | JWT | Committee, Developer | Edit issue body to remove PII / fix typos. Stored as an edit + audit comment. |
-| `POST /issues/:id/delete` | JWT | Committee, Developer | Soft-delete: add `deleted` label, lock issue, replace body with tombstone. Issue is hidden from all read endpoints. |
-| `POST /issues/bulk-archive` | JWT | Committee, Developer | Run retention sweep manually (sweeps `RESOLVED` / `REJECTED` issues older than retention window). |
+| `PATCH /issues/:id` | JWT | Manager, Committee, Admin | Status transitions (assign / in-progress / resolve / reject / reopen). Audit comment posted on every change. |
+| `POST /issues/:id/photos` | JWT | Manager, Committee, Admin | Attach additional photos to an existing issue. |
+| `POST /issues/:id/redact` | JWT | Committee, Admin | Edit issue body to remove PII / fix typos. Stored as an edit + audit comment. |
+| `POST /issues/:id/delete` | JWT | Committee, Admin | Soft-delete: add `deleted` label, lock issue, replace body with tombstone. Issue is hidden from all read endpoints. |
+| `POST /issues/bulk-archive` | JWT | Committee, Admin | Run retention sweep manually (sweeps `RESOLVED` / `REJECTED` issues older than retention window). |
 | `GET /config` | None | All | Returns `site.json` (feature flags, visibility, lists). Used by every page on load. PII-free by definition. |
-| `PUT /config` | JWT | Developer | Overwrite `config/site.json`. Worker commits to the repo with an audit-log line. |
-| `GET /access-lists` | JWT | Committee (read), Developer (read) | Returns the three allow-lists. |
-| `PUT /access-lists/:role` | JWT | Developer | Overwrites one allow-list. Enforces one-developer-minimum guard. |
-| `GET /audit` | JWT | Committee, Developer | Returns recent entries from `config/audit.log`. |
+| `PUT /config` | JWT | Admin | Overwrite `config/site.json`. Worker commits to the repo with an audit-log line. |
+| `GET /access-lists` | JWT | Committee (read), Admin (read) | Returns the three allow-lists. |
+| `PUT /access-lists/:role` | JWT | Admin | Overwrites one allow-list. Enforces one-admin-minimum guard. |
+| `GET /audit` | JWT | Committee, Admin | Returns recent entries from `config/audit.log`. |
 | `GET /whoami` | JWT | All | Returns `{ email, roles[] }` for the verified caller. |
 
 ### 5.1 Response envelope
@@ -366,7 +366,7 @@ All pages reuse the visual tokens, header, and footer of the handover portal so 
 
 One page per role surface. Routes never branch by role inside a single HTML; the wrong-role redirect happens in the page's `ensureAuthorized()` IIFE before any data is rendered.
 
-| Page | Anonymous | Resident (signed-in) | Manager | Committee | Developer |
+| Page | Anonymous | Resident (signed-in) | Manager | Committee | Admin |
 |---|:---:|:---:|:---:|:---:|:---:|
 | `index.html` (landing) | full | full | full | full | full |
 | `daily-report.html` (intake) | when `FEATURE_DAILY_ANONYMOUS_SUBMIT` | full | full | full | full |
@@ -381,10 +381,10 @@ Denied = redirect to `index.html` with a one-line toast. Read-only = page render
 ### UI principles (apply to every page)
 
 - **Modern minimal aesthetic.** Reuse the handover portal's design tokens (logo, colours, font stack, radius/shadow scale). No decorative imagery, no skeuomorphism, no animation beyond simple state transitions.
-- **Plain English copy.** No jargon in resident-facing surfaces. Manager/committee/developer pages may use product terms (status, severity, allow-list, audit log) only after they appear in `tsh_requirement.md`.
+- **Plain English copy.** No jargon in resident-facing surfaces. Manager/committee/admin pages may use product terms (status, severity, allow-list, audit log) only after they appear in `tsh_requirement.md`.
 - **Responsive across three breakpoints — mandatory.** See §14.1.
 - **Every interactive affordance is flag-gated.** See §14.2.
-- **Settings-page reachability.** Every flag, list, and tunable surfaced in any page's behaviour MUST be editable from `settings.html` (developer write, committee read). No CONFIG-only knobs that require a redeploy.
+- **Settings-page reachability.** Every flag, list, and tunable surfaced in any page's behaviour MUST be editable from `settings.html` (admin write, committee read). No CONFIG-only knobs that require a redeploy.
 
 ### 8.1 Landing (`docs/index.html`)
 
@@ -429,9 +429,9 @@ Read-only. PII redacted. Filter pill: `All / New / In Progress / Resolved`. Sear
 
 ### 8.7 Settings (`docs/settings.html`)
 
-Developer-only (committee can view but every input is disabled). Sections:
+Admin-only (committee can view but every input is disabled). Sections:
 
-- **Access lists** — three editable email lists (developer / committee / manager). One-developer-minimum guard.
+- **Access lists** — three editable email lists (admin / committee / manager). One-admin-minimum guard.
 - **Feature flags** — toggles for the master switch, anonymous submit, photo upload, WhatsApp share, cost field, public-board visibility of resolved/rejected.
 - **Visibility** — public board: show photos / severity / PDF export.
 - **Lists** — towers, categories, sub-categories.
@@ -487,7 +487,8 @@ Defaults are baked into the Worker (`DEFAULT_CONFIG`); when the file is missing 
 |---|---|---|
 | `GITHUB_TOKEN` | Fine-scoped PAT — `issues:write`, `contents:write` on this repo only | Rotatable in seconds via Wrangler. Never logged, never returned in any response. |
 | `GOOGLE_OAUTH_CLIENT_ID` | The web client id used by the page's GIS button | Used only for JWT `aud` verification; not a secret in the strict sense, but kept here for symmetry. |
-| `BOOTSTRAP_DEVELOPERS` | Comma-separated emails | Read **only** when `config/developers.json` is missing — bootstraps the first developer. After file exists, this is ignored. |
+| `BOOTSTRAP_ADMINS` | Comma-separated emails | Read **only** when `config/admins.json` is missing — bootstraps the first admin. After file exists, this is ignored. |
+| `BOOTSTRAP_DEVELOPERS` | Comma-separated emails | Legacy alias for `BOOTSTRAP_ADMINS`. Still honored during migration when `config/admins.json` is missing. |
 | `TURNSTILE_SECRET` | Cloudflare Turnstile secret key | Verifies the Turnstile token attached to every `POST /issues`. Used only when `FEATURE_DAILY_TURNSTILE` is on (see §17.3). |
 | `TURNSTILE_SITE_KEY` | Cloudflare Turnstile site key | Public-safe; returned by `GET /config` so the intake page can render the widget. Not a secret in the strict sense, kept here for symmetry. |
 
@@ -503,11 +504,11 @@ Defaults are baked into the Worker (`DEFAULT_CONFIG`); when the file is missing 
 
 | # | When | Action |
 |---|---|---|
-| 1 | Fresh deploy | Add Cloudflare Worker secrets (`GITHUB_TOKEN`, `GOOGLE_OAUTH_CLIENT_ID`, `BOOTSTRAP_DEVELOPERS`). |
+| 1 | Fresh deploy | Add Cloudflare Worker secrets (`GITHUB_TOKEN`, `GOOGLE_OAUTH_CLIENT_ID`, `BOOTSTRAP_ADMINS`). |
 | 2 | Fresh deploy | Push `worker/` and `docs/` to `main` — both deploy workflows fire. |
-| 3 | Fresh deploy | First developer signs in → settings page appears via the bootstrap secret → developer creates `config/developers.json` with the canonical list → bootstrap secret can be deleted. |
-| 4 | Fresh deploy | Developer creates `config/managers.json` and `config/committee.json` from the settings page. |
-| 5 | Fresh deploy | Developer reviews `config/site.json` defaults; toggles flags as appropriate. |
+| 3 | Fresh deploy | First admin signs in → settings page appears via the bootstrap secret → admin creates `config/admins.json` with the canonical list → bootstrap secret can be deleted. |
+| 4 | Fresh deploy | Admin creates `config/managers.json` and `config/committee.json` from the settings page. |
+| 5 | Fresh deploy | Admin reviews `config/site.json` defaults; toggles flags as appropriate. |
 | 6 | Fresh deploy | Update the handover portal's CONFIG sheet `DAILY_TRACK_URL` to point at this site (single edit on the handover side, no redeploy needed). |
 | 7 | Anytime | Operators triage from the manager / committee dashboards. |
 | 8 | Anytime | Run `bulk-archive` from the committee dashboard, or wait for the cron to do it. |
@@ -522,7 +523,7 @@ Defaults are baked into the Worker (`DEFAULT_CONFIG`); when the file is missing 
 - ✅ GitHub PAT lives only in Cloudflare Worker secrets; never shipped to the browser.
 - ✅ Public read endpoints scrub PII before returning.
 - ❌ No client-typed email/role login form.
-- ❌ No "allow all as DEVELOPER" testing bypass in production.
+- ❌ No "allow all as ADMIN" testing bypass in production.
 
 ## 14. Frontend rules
 
@@ -556,10 +557,10 @@ For every flag in `config/site.json`:
 1. The flag has a row in `tsh_requirement.md` §9.
 2. The page reads the flag from the cached `/config` response and hides / disables the affordance when the flag is `false`.
 3. The Worker re-checks the flag inside the action handler (defence in depth).
-4. The `settings.html` page exposes the flag as a labelled toggle in the **Feature flags** section, editable by developers, visible read-only to committee.
+4. The `settings.html` page exposes the flag as a labelled toggle in the **Feature flags** section, editable by admins, visible read-only to committee.
 5. Toggling the flag takes effect for all users within the 60 s `/config` cache window. **No redeploy.**
 
-If a developer wants to ship a feature "hidden by default", they ship it with the flag default `false` and flip it from the Settings page when ready. There is no other deployment ceremony.
+If a admin wants to ship a feature "hidden by default", they ship it with the flag default `false` and flip it from the Settings page when ready. There is no other deployment ceremony.
 
 ## 14.5 Society Directory (`directory.html` + `/directory`)
 
@@ -569,7 +570,7 @@ The Directory page is the society's shared address book — vendors (plumber / e
 |---|---|
 | Storage | `config/directory.json` on `main`. JSON shape: `{ version, vendorCategories: string[], vendors: DirEntry[], contacts: DirEntry[], resources: DirEntry[] }`. |
 | Read | `GET /directory`. Public when `FEATURE_DAILY_DIRECTORY` is on. Cached by the Worker for `DIRECTORY_CACHE_SECONDS` (default 120 s). |
-| Write | `PUT /directory`. Roles: **Manager, Committee, Developer**. Worker reassigns ids, timestamps, dedupes categories case-insensitively, and writes an `audit:directory:put` line. |
+| Write | `PUT /directory`. Roles: **Manager, Committee, Admin**. Worker reassigns ids, timestamps, dedupes categories case-insensitively, and writes an `audit:directory:put` line. |
 | Entry fields | `id`, `name` (required, ≤ 120), `category?` (≤ 60), `phones?: string[]` (canonical, see below), `phone?` (legacy mirror — read-only on the API; auto-derived from `phones[0]` on write), `address?` (≤ 240), `role?` (≤ 80), `url?` (≤ 500), `description?` / `notes?` (≤ 500), `createdAt`, `updatedAt`. |
 | Phones | Each entry may hold **up to 5 phone numbers**, each ≤ 30 chars, stored as `phones: string[]`. The Worker accepts either `phones[]` or legacy `phone`; both routes converge on `phones[]` with `phone` written as `phones[0]` for backward-compat readers. Duplicates within an entry are dropped server-side. |
 | UI | Three tabs (Vendors / Contacts / Resources). Each card renders **one row per phone** with a Call (`tel:`) button and a WhatsApp (`wa.me/91…`) deep-link button. The add/edit form uses a phone repeater with `+` / `−` buttons capped at 5. |
@@ -598,7 +599,7 @@ The Helpdesk landing surface carries a manager-curated banner used to highlight 
 | Item    | `{ id, text (≤240), severity ('info'|'warn'|'alert', default 'info'), href?, expiresAt? (ISO 8601), createdAt, createdBy }`. |
 | Limits  | Up to 20 items per save. Unknown severities coerced to `info`. Items past `expiresAt` are hidden client-side. |
 | Read    | `GET /banner`. Anonymous-safe; gated by `FEATURE_DAILY_BANNER`. Cached `BANNER_CACHE_SECONDS` (default 60 s). |
-| Write   | `PUT /banner`. Roles: **Manager, Committee, Developer**. Worker reassigns ids, stamps `createdAt`/`createdBy`, audits as `banner:put`. |
+| Write   | `PUT /banner`. Roles: **Manager, Committee, Admin**. Worker reassigns ids, stamps `createdAt`/`createdBy`, audits as `banner:put`. |
 | Editor  | Embedded in `manage.html` for MANAGER+. Items list with text, severity dropdown, optional expiry date, delete; one Save button. |
 | Flag    | `FEATURE_DAILY_BANNER` (default `true`). When off the strip and list are hidden and the worker returns 403/404 paths follow flag semantics. |
 
@@ -612,10 +613,10 @@ Long-form community announcements (e.g. "Pool reopens Friday — new rules attac
 | Item    | `{ id, title (≤160), body (≤4000), pinned?, createdAt, createdBy, updatedAt }`. |
 | Limits  | Up to 50 items per save. Empty title/body rejected (400). |
 | Read    | `GET /announcements`. Anonymous-safe; gated by `FEATURE_DAILY_ANNOUNCEMENTS`. Cached `ANNOUNCEMENTS_CACHE_SECONDS` (default 60 s). |
-| Write   | `PUT /announcements`. Roles: **Manager, Committee, Developer**. Worker stamps id/createdAt/createdBy/updatedAt, audits as `announcements:put`. |
+| Write   | `PUT /announcements`. Roles: **Manager, Committee, Admin**. Worker stamps id/createdAt/createdBy/updatedAt, audits as `announcements:put`. |
 | Editor  | Embedded in `manage.html` for MANAGER+. Per-item title input + body textarea + pin checkbox + delete; one Save button. |
 | UI      | Landing-page card lists items pinned-first then newest-first. |
-| Flag    | `FEATURE_DAILY_ANNOUNCEMENTS` — **default `false`**. Developer must explicitly enable from Settings. |
+| Flag    | `FEATURE_DAILY_ANNOUNCEMENTS` — **default `false`**. Admin must explicitly enable from Settings. |
 
 ## 14.9 Polls (`config/polls.json` + `config/poll-votes.json` + `/polls`)
 
@@ -629,12 +630,12 @@ Short opinion polls (e.g. "When should the pool reopen?") with one vote per sign
 | Vote    | `{ pollId, optionId, voterEmail, voterAlias?(≤60), voterFlat?(≤30), votedAt }`. |
 | Limits  | Up to 20 polls per save; per poll: 2–10 unique option ids; option ids unique within a poll; poll ids unique across the list. |
 | Read    | `GET /polls`. Anonymous-safe; gated by `FEATURE_DAILY_POLLS`. Cached `POLLS_CACHE_SECONDS` (default 60 s). Per-poll the response carries `open`, `totals[optionId]`, and `myVote` (the caller's chosen `optionId`, or `null`) so the UI can render bar charts + "your vote" markers without a second round-trip. |
-| Write polls   | `PUT /polls`. Roles: **Manager, Committee, Developer**. Worker stamps `id`/`createdAt`/`createdBy`, audits as `polls:put`. |
+| Write polls   | `PUT /polls`. Roles: **Manager, Committee, Admin**. Worker stamps `id`/`createdAt`/`createdBy`, audits as `polls:put`. |
 | Vote    | `POST /polls/:id/vote` with `{ optionId, voterAlias?, voterFlat? }`. **Signed-in required (any role).** One vote per `voterEmail` per poll: a re-vote upserts the existing record (count stays 1). Rejected with 400 if the poll is `closed: true`, `expiresAt` has passed, or `optionId` is unknown. Audits as `polls:vote`. |
-| Read votes   | `GET /polls/:id/votes`. Roles: **Manager, Committee, Developer**. Returns `{ pollId, count, voters: VoteRecord[] }` for the access view. |
+| Read votes   | `GET /polls/:id/votes`. Roles: **Manager, Committee, Admin**. Returns `{ pollId, count, voters: VoteRecord[] }` for the access view. |
 | Editor  | `manage.html` exposes a polls editor (add/remove polls, edit question + options, mark closed, delete) and a voters panel (per-poll list of who voted). Editor uses one Save button via `UI.busyButton`. |
 | UI      | Landing-page card renders each open poll with a horizontal SVG bar chart (one bar per option, percentage + raw count). Optional alias + flat inputs sit below the options; the chosen option button is highlighted with a tick after voting. |
-| Flag    | `FEATURE_DAILY_POLLS` — **default `false`**. Developer must explicitly enable from Settings. |
+| Flag    | `FEATURE_DAILY_POLLS` — **default `false`**. Admin must explicitly enable from Settings. |
 
 ## 15. Non-goals / out of scope
 
@@ -650,7 +651,7 @@ Short opinion polls (e.g. "When should the pool reopen?") with one vote per sign
 1. Anonymous resident with a Gmail can submit a daily issue end-to-end without creating any GitHub account.
 2. A manager email in `config/managers.json` lands on `manager-dashboard.html` after sign-in; non-manager emails are denied with a clear message.
 3. Committee email gets the manager dashboard's actions plus delete + redact + bulk-archive in the detail modal.
-4. Developer email sees the settings page; committee email sees the settings page in read-only mode; manager + resident cannot navigate to it (Worker also enforces).
+4. Admin email sees the settings page; committee email sees the settings page in read-only mode; manager + resident cannot navigate to it (Worker also enforces).
 5. `GET /issues/public` never returns `reporterName` / `reporterEmail` / `reporterFlat` / `reporterPhone`.
 6. A soft-deleted issue disappears from every read endpoint immediately; the GitHub Issue itself is locked with a tombstone body.
 7. A change made on the settings page produces a commit on `main` authored by `tadeskops`, an entry in `config/audit.log`, and is visible to all pages within 60 s without a redeploy.
@@ -674,7 +675,7 @@ All seven questions from the previous draft are answered. Where a decision diffe
 | 1 | **Public repo.** Overrides the original "private" default. | GitHub Pages on a free personal account cannot serve from a private repo; private would force a paid plan. Going public preserves the all-free constraint. PII protected by §15.1 + §17.6. |
 | 2 | **In-repo photos** under `photos/DLY-<n>/`. | Free. Simple. R2 migration documented as a Phase 10 task; trigger at ~500 MB repo size. |
 | 3 | **Sign-In + Cloudflare Turnstile** on `POST /issues`. | Free. Blocks scripted abuse. Gated by `FEATURE_DAILY_TURNSTILE` (§9) so it can be toggled off without redeploy. |
-| 4 | **`config/managers.json` in-repo.** | Free Git audit trail. Symmetric with committee + developer lists. |
-| 5 | **Developer self-service: immediate effect.** | Spec already has a one-developer-minimum guard; no deadlock risk. Revisit if developer count grows past ~3. |
+| 4 | **`config/managers.json` in-repo.** | Free Git audit trail. Symmetric with committee + admin lists. |
+| 5 | **Admin self-service: immediate effect.** | Spec already has a one-admin-minimum guard; no deadlock risk. Revisit if admin count grows past ~3. |
 | 6 | **Anonymous Gmail submit kept on.** | Lowest possible friction is the entire purpose of the daily flow. Domain allow-listing adds friction with little real benefit at this scale. |
-| 7 | **Committee view-only, including System section.** | Better audit story than hiding the System section entirely. Developer remains the only role that can write. |
+| 7 | **Committee view-only, including System section.** | Better audit story than hiding the System section entirely. Admin remains the only role that can write. |

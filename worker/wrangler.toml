@@ -3,7 +3,8 @@
 #
 # Secrets (set via `wrangler secret put <NAME>`; never commit values):
 #   GITHUB_TOKEN          fine-scoped PAT, issues:write + contents:write on this repo only
-#   BOOTSTRAP_DEVELOPERS  comma-separated emails; read only when config/developers.json is missing
+#   BOOTSTRAP_ADMINS      comma-separated emails; read only when config/admins.json is missing
+#   BOOTSTRAP_DEVELOPERS  legacy alias for BOOTSTRAP_ADMINS (still honored during migration)
 #   TURNSTILE_SECRET      Cloudflare Turnstile secret key (only when FEATURE_DAILY_TURNSTILE on)
 #
 # Public variables (vars below): may be read by the Worker; safe to commit.

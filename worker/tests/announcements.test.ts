@@ -44,7 +44,7 @@ vi.mock('../src/config/loader.ts', async () => {
       access: {
         managers:   ['mgr@x.com'],
         committee:  ['cmt@x.com'],
-        developers: ['dev@x.com'],
+        admins: ['dev@x.com'],
       },
     })),
     invalidateCache: vi.fn(),

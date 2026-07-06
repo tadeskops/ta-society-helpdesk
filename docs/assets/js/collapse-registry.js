@@ -3,7 +3,7 @@
 // Central registry of collapsible sections across the project.
 //
 // Each entry below defines one section that the user can tap to collapse /
-// expand on mobile, along with developer-friendly metadata. The Settings
+// expand on mobile, along with admin-friendly metadata. The Settings
 // page reads this registry to build its "Collapsible sections" editor, and
 // `ui.js` (SectionCollapse module) reads it to decide the SHIPPED defaults
 // when no per-tenant override is configured.
@@ -16,14 +16,14 @@
 //        - "Default collapsed"      - first-visit state (mobile only)
 //      Edits there are saved to config.ui.collapse and apply to ALL users
 //      within ~60 s of save (60 s = /config cache TTL).
-//   4. The defaults defined HERE are the ship values. Developers should
+//   4. The defaults defined HERE are the ship values. Admins should
 //      edit this file when adding new sections; tweak per-tenant behaviour
 //      via Settings.
 //
 // FIELD REFERENCE
 //   id               (string)  HTML id of the <section>. REQUIRED.
 //   label            (string)  Friendly name shown in the Settings editor.
-//   description      (string)  Short developer note explaining what the
+//   description      (string)  Short admin note explaining what the
 //                              section contains and why a different default
 //                              might make sense. Shown verbatim in the
 //                              Settings editor and exposed to authors.

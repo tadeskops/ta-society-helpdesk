@@ -12,7 +12,7 @@ export type { SiteConfig };
 export interface AccessLists {
   managers: string[];
   committee: string[];
-  developers: string[];
+  admins: string[];
 }
 
 interface Cache {
@@ -42,23 +42,27 @@ const deepMerge = <T>(base: T, override: Partial<T> | undefined): T => {
 };
 
 const loadFromGithub = async (env: Env): Promise<{ config: SiteConfig; access: AccessLists }> => {
-  const [siteRaw, mgrRaw, comRaw, devRaw] = await Promise.all([
+  const [siteRaw, mgrRaw, comRaw, adminRaw, devLegacyRaw] = await Promise.all([
     getJson<Partial<SiteConfig>>(env, 'config/site.json').catch(() => undefined),
     getJson<unknown>(env, 'config/managers.json').catch(() => []),
     getJson<unknown>(env, 'config/committee.json').catch(() => []),
+    getJson<unknown>(env, 'config/admins.json').catch(() => undefined),
     getJson<unknown>(env, 'config/developers.json').catch(() => undefined),
   ]);
 
   const config = deepMerge(DEFAULT_CONFIG, siteRaw);
 
-  const devs = devRaw === undefined
-    ? normaliseEmails((env.BOOTSTRAP_DEVELOPERS ?? '').split(',').map((s) => s.trim()).filter(Boolean))
-    : normaliseEmails(devRaw);
+  // Prefer new config/admins.json; fall back to legacy config/developers.json
+  // for one migration cycle. Bootstrap env vars fall back the same way.
+  const rawAdmins = adminRaw ?? devLegacyRaw;
+  const admins = rawAdmins === undefined
+    ? normaliseEmails((env.BOOTSTRAP_ADMINS ?? env.BOOTSTRAP_DEVELOPERS ?? '').split(',').map((s) => s.trim()).filter(Boolean))
+    : normaliseEmails(rawAdmins);
 
   const access: AccessLists = {
-    managers:   normaliseEmails(mgrRaw),
-    committee:  normaliseEmails(comRaw),
-    developers: devs,
+    managers:  normaliseEmails(mgrRaw),
+    committee: normaliseEmails(comRaw),
+    admins,
   };
 
   return { config, access };
@@ -79,7 +83,7 @@ export const loadConfig = async (env: Env): Promise<{ config: SiteConfig; access
     if (cache) return { config: cache.config, access: cache.access };
     return {
       config: DEFAULT_CONFIG,
-      access: { managers: [], committee: [], developers: [] },
+      access: { managers: [], committee: [], admins: [] },
     };
   }
 };

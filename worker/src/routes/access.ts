@@ -1,6 +1,6 @@
-// GET  /access-lists           — committee + developer (read)
-// PUT  /access-lists/:role     — developer (write); one-developer-min guard
-// Spec: tsh_requirement.md §2 (one-dev-min), §5.
+// GET  /access-lists           — committee + admin (read)
+// PUT  /access-lists/:role     — admin (write); one-admin-min guard
+// Spec: tsh_requirement.md §2 (one-admin-min), §5.
 
 import type { Router } from '../lib/router.ts';
 import type { Ctx } from '../lib/ctx.ts';
@@ -13,9 +13,9 @@ import { writeAudit } from '../lib/audit.ts';
 import { invalidateCache } from '../config/loader.ts';
 
 const PATHS: Record<string, string> = {
-  managers:   'config/managers.json',
-  committee:  'config/committee.json',
-  developers: 'config/developers.json',
+  managers:  'config/managers.json',
+  committee: 'config/committee.json',
+  admins:    'config/admins.json',
 };
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -39,27 +39,27 @@ const normaliseList = (raw: unknown): string[] => {
 export const mountAccess = (r: Router): void => {
   // ---- GET /access-lists ----
   r.get('/access-lists', (ctx: Ctx) => {
-    ensureAllowed(ctx, { roles: ['COMMITTEE', 'DEVELOPER'], requireIdentity: true });
+    ensureAllowed(ctx, { roles: ['COMMITTEE', 'ADMIN'], requireIdentity: true });
     return ok(ctx.env, ctx.req, ctx.access);
   });
 
   // ---- PUT /access-lists/:role ----
   r.put('/access-lists/:role', async (ctx: Ctx, params: Record<string, string>) => {
-    ensureAllowed(ctx, { roles: ['DEVELOPER'], requireIdentity: true });
+    ensureAllowed(ctx, { roles: ['ADMIN'], requireIdentity: true });
     const role = params['role'];
     if (!role || !(role in PATHS)) throw new BadRequest(`unknown role: ${role}`);
     const path = PATHS[role]!;
     const body = await parseJson<Record<string, unknown>>(ctx.req);
     const next = normaliseList(body['emails']);
 
-    // One-developer-minimum guard — never let the dev list go empty,
+    // One-admin-minimum guard — never let the admin list go empty,
     // and never allow the caller to remove themselves from it. The
     // second clause prevents an admin from accidentally locking
     // themselves out via the Settings UI.
-    if (role === 'developers') {
-      if (next.length === 0) throw new Conflict('Developer list cannot be empty');
+    if (role === 'admins') {
+      if (next.length === 0) throw new Conflict('Admin list cannot be empty');
       if (!next.includes(ctx.identity!.email)) {
-        throw new Conflict('You cannot remove yourself from the developer list');
+        throw new Conflict('You cannot remove yourself from the admin list');
       }
     }
 

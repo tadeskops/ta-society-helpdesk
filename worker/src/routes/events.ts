@@ -1,6 +1,6 @@
 // Upcoming events panel.
 // GET /events — anonymous read, gated by FEATURE_DAILY_EVENTS.
-// PUT /events — MANAGER / COMMITTEE / DEVELOPER write the full list.
+// PUT /events — MANAGER / COMMITTEE / ADMIN write the full list.
 //
 // Each item: { id, title, body?, eventAt, location?, href?, expiresAt?,
 //               createdAt, createdBy, updatedAt }.
@@ -150,7 +150,7 @@ export const mountEvents = (r: Router): void => {
   r.put('/events', async (ctx: Ctx) => {
     ensureAllowed(ctx, {
       flags: ['FEATURE_DAILY_EVENTS'],
-      roles: ['MANAGER', 'COMMITTEE', 'DEVELOPER'],
+      roles: ['MANAGER', 'COMMITTEE', 'ADMIN'],
       requireIdentity: true,
     });
     const body = await parseJson<Record<string, unknown>>(ctx.req);

@@ -1,4 +1,4 @@
-// Developer-toggled announcements section.
+// Admin-toggled announcements section.
 // - Announcements.mountList(host) — read-only list card. No-op if flag off.
 // - Announcements.mountEditor(host) — MANAGER+ editor. No-op if flag off.
 (function (root) {

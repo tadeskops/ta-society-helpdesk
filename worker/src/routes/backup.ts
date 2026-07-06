@@ -120,7 +120,7 @@ export const mountBackup = (r: Router): void => {
   });
 
   r.get('/reports/backups', async (ctx: Ctx) => {
-    ensureAllowed(ctx, { roles: ['COMMITTEE', 'DEVELOPER'], requireIdentity: true });
+    ensureAllowed(ctx, { roles: ['COMMITTEE', 'ADMIN'], requireIdentity: true });
     const limit = Math.min(200, Math.max(1, Number(ctx.url.searchParams.get('limit') ?? '50')));
     const entries = await listRecentBackups(ctx.env, limit);
     return ok(ctx.env, ctx.req, { entries, count: entries.length });
@@ -131,7 +131,7 @@ export const mountBackup = (r: Router): void => {
   // available; falls back to a live filter for the current (or any
   // un-archived) month.
   r.get('/reports/monthly', async (ctx: Ctx) => {
-    ensureAllowed(ctx, { roles: ['MANAGER', 'COMMITTEE', 'DEVELOPER'], requireIdentity: true });
+    ensureAllowed(ctx, { roles: ['MANAGER', 'COMMITTEE', 'ADMIN'], requireIdentity: true });
     const from = (ctx.url.searchParams.get('from') ?? '').trim();
     const to = (ctx.url.searchParams.get('to') ?? from).trim();
     if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(from)) throw new BadRequest('from must be YYYY-MM');
@@ -168,7 +168,7 @@ export const mountBackup = (r: Router): void => {
   });
 
   r.get('/reports/archive', async (ctx: Ctx) => {
-    ensureAllowed(ctx, { roles: ['MANAGER', 'COMMITTEE', 'DEVELOPER'], requireIdentity: true });
+    ensureAllowed(ctx, { roles: ['MANAGER', 'COMMITTEE', 'ADMIN'], requireIdentity: true });
     const listing = await ghDirList(ctx.env, 'archive').catch(() => [] as Array<{ name: string; size: number; download_url?: string; path: string }>);
     const entries = listing
       .filter((e) => /^\d{4}-\d{2}\.json$/.test(e.name))

@@ -45,12 +45,12 @@ do not need a GitHub account.
 | 3 | Fresh deploy | Create a fine-scoped GitHub PAT for this repo with `issues:write` + `contents:write` only. |
 | 4 | Fresh deploy | (Optional) Create a Cloudflare Turnstile widget; copy site key + secret. Skip if shipping with `FEATURE_DAILY_TURNSTILE` off. |
 | 5 | Fresh deploy | `cd worker && npm install`. Replace `GOOGLE_OAUTH_CLIENT_ID` + `TURNSTILE_SITE_KEY` in `wrangler.toml`. |
-| 6 | Fresh deploy | Set Worker secrets: `wrangler secret put GITHUB_TOKEN`; `wrangler secret put BOOTSTRAP_DEVELOPERS` (your email); `wrangler secret put TURNSTILE_SECRET` if used. |
+| 6 | Fresh deploy | Set Worker secrets: `wrangler secret put GITHUB_TOKEN`; `wrangler secret put BOOTSTRAP_ADMINS` (your email; legacy alias `BOOTSTRAP_DEVELOPERS` still honored); `wrangler secret put TURNSTILE_SECRET` if used. |
 | 7 | Fresh deploy | `cd worker && npm run deploy`. Update `config/site.json` → `system.workerUrl` + `system.turnstileSiteKey`. |
 | 8 | Fresh deploy | Push to `main`. Pages serves from `docs/`; workflows fire. |
-| 9 | Fresh deploy | First developer signs in at `https://tadeskops.github.io/ta-society-helpdesk/settings.html`. Worker bootstraps via `BOOTSTRAP_DEVELOPERS`. Add canonical `config/developers.json` from Settings → Access lists, then **remove** the `BOOTSTRAP_DEVELOPERS` secret. |
-| 10 | Fresh deploy | Developer adds manager + committee emails from Settings → Access lists. |
-| 11 | Fresh deploy | Developer reviews feature flags + system bindings on Settings. |
+| 9 | Fresh deploy | First admin signs in at `https://tadeskops.github.io/ta-society-helpdesk/settings.html`. Worker bootstraps via `BOOTSTRAP_ADMINS`. Add canonical `config/admins.json` from Settings → Access lists, then **remove** the `BOOTSTRAP_ADMINS` secret. |
+| 10 | Fresh deploy | Admin adds manager + committee emails from Settings → Access lists. |
+| 11 | Fresh deploy | Admin reviews feature flags + system bindings on Settings. |
 | 12 | Fresh deploy | On the handover repo, set `DAILY_TRACK_URL` → this site's URL. |
 | — | Anytime | Operators triage from manager / committee dashboards. |
 | — | Anytime | Bulk-archive runs on cron + on demand from committee dashboard. |
@@ -63,7 +63,7 @@ cd worker
 npm install
 # worker/.dev.vars (gitignored):
 #   GITHUB_TOKEN=...
-#   BOOTSTRAP_DEVELOPERS=you@example.com
+#   BOOTSTRAP_ADMINS=you@example.com
 #   TURNSTILE_SECRET=1x0000000000000000000000000000000AA  # Turnstile test always-pass
 npm run dev   # http://localhost:8787
 

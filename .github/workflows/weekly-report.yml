@@ -2,7 +2,7 @@
 #
 # Generates two PDFs from the GitHub Issues data:
 #   - backups/TSH_Report.pdf       (anonymised — no reporter PII)
-#   - backups/TSH_Full_Report.pdf  (full content — for committee + developer)
+#   - backups/TSH_Full_Report.pdf  (full content — for committee + admin)
 #
 # Commits both back to main on completion. The Worker's REST surface is
 # used for the data read so PII redaction lives in one place (spec §15.1).

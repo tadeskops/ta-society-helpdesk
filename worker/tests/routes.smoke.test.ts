@@ -73,7 +73,7 @@ vi.mock('../src/config/loader.ts', async () => {
       access: {
         managers:   ['mgr@x.com'],
         committee:  ['cmt@x.com'],
-        developers: ['dev@x.com'],
+        admins: ['dev@x.com'],
       },
     })),
     invalidateCache: vi.fn(),
@@ -147,10 +147,10 @@ describe('GET /whoami', () => {
     expect(j.data.primary).toBe('UNKNOWN');
     expect(j.data.email).toBeNull();
   });
-  it('DEVELOPER for dev@x.com', async () => {
+  it('ADMIN for dev@x.com', async () => {
     const r = await send('GET', '/whoami', undefined, 'dev@x.com');
     const j = await r.json() as any;
-    expect(j.data.primary).toBe('DEVELOPER');
+    expect(j.data.primary).toBe('ADMIN');
     expect(j.data.email).toBe('dev@x.com');
   });
 });
@@ -275,17 +275,17 @@ describe('GET /issues/public', () => {
 });
 
 describe('RBAC denials', () => {
-  it('PUT /config requires DEVELOPER', async () => {
+  it('PUT /config requires ADMIN', async () => {
     const cfg = { version: 1, features: { FEATURE_DAILY_TRACK: true }, tunables: {}, lists: { towers: [], categories: [], subCategories: {} }, system: {} };
     const r = await send('PUT', '/config', { config: cfg }, 'mgr@x.com');
     expect(r.status).toBe(403);
   });
-  it('PUT /access-lists/developers rejects empty list', async () => {
-    const r = await send('PUT', '/access-lists/developers', { emails: [] }, 'dev@x.com');
+  it('PUT /access-lists/admins rejects empty list', async () => {
+    const r = await send('PUT', '/access-lists/admins', { emails: [] }, 'dev@x.com');
     expect(r.status).toBe(409);
   });
-  it('PUT /access-lists/developers rejects self-removal', async () => {
-    const r = await send('PUT', '/access-lists/developers', { emails: ['other@x.com'] }, 'dev@x.com');
+  it('PUT /access-lists/admins rejects self-removal', async () => {
+    const r = await send('PUT', '/access-lists/admins', { emails: ['other@x.com'] }, 'dev@x.com');
     expect(r.status).toBe(409);
   });
 });
