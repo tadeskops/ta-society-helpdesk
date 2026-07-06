@@ -1767,6 +1767,46 @@
       actions.appendChild(rejectBtn);
     }
 
+    // Upload payment proof directly from the card — visible to the owner
+    // and to staff (ADMIN / COMMITTEE / MANAGER) so a manager can upload
+    // on the resident's behalf without drilling into the Timeline modal.
+    // Mirrors the same eligibility check used inside openDetailModal so
+    // the two entry points stay in lock-step.
+    const canUploadProof = r.payment &&
+      (isOwner || isStaff) &&
+      (r.payment.status === 'pending' || r.payment.status === 'rejected') &&
+      (r.status === 'requested' || r.status === 'under-review');
+    if (canUploadProof) {
+      const upBtn = document.createElement('button');
+      upBtn.type = 'button';
+      upBtn.className = 'tsh-btn tsh-btn-ghost tsh-btn-sm';
+      upBtn.innerHTML = '<i class="fas fa-cloud-arrow-up"></i> Upload proof';
+      upBtn.title = isStaff && !isOwner
+        ? 'Upload the payment receipt on the resident\u2019s behalf.'
+        : 'Upload your payment receipt (UPI screenshot, bank slip or PDF).';
+      upBtn.addEventListener('click', () => uploadPaymentProof(r));
+      actions.appendChild(upBtn);
+    }
+
+    // Staff also see Verify / Reject payment straight on the card once a
+    // proof has been submitted, so they don\u2019t have to open the modal
+    // just to click through the two-step payment workflow.
+    if (isStaff && r.payment && r.payment.status === 'submitted' && (r.payment.proofs || []).length > 0) {
+      const okPay = document.createElement('button');
+      okPay.type = 'button';
+      okPay.className = 'tsh-btn tsh-btn-primary tsh-btn-sm';
+      okPay.innerHTML = '<i class="fas fa-check-double"></i> Verify payment';
+      okPay.addEventListener('click', () => verifyPayment(r));
+      actions.appendChild(okPay);
+
+      const noPay = document.createElement('button');
+      noPay.type = 'button';
+      noPay.className = 'tsh-btn tsh-btn-ghost tsh-btn-sm';
+      noPay.innerHTML = '<i class="fas fa-rotate-left"></i> Reject payment';
+      noPay.addEventListener('click', () => rejectPayment(r));
+      actions.appendChild(noPay);
+    }
+
     if ((isOwner || isStaff) && (r.status === 'requested' || r.status === 'under-review' || r.status === 'confirmed')) {
       const cancelBtn = document.createElement('button');
       cancelBtn.type = 'button';
