@@ -23,15 +23,27 @@
         "paymentPayee": "Society Manager",
         "chargesInfo": "Community Hall rental (per Management Committee Resolution, Item 2 — Community Hall Rules, passed unanimously on 21 June 2026):\n\n  • ₹5,000 base rental for a booking of up to 4 hours.\n  • ₹1,500 per hour (or part thereof) for every extra hour beyond 4 hours.\n\nPayment must be made to the Society Manager before the booking is confirmed. This supersedes the earlier flat ₹1,500 charge announced on 1 June 2026; the manager-coordination process from that notice continues to apply.",
         "rateCard": [
-          { "label": "Base rental (up to 4 hours)", "amount": 5000, "note": "Payable to the Society Manager. Booking confirmed only after payment." },
-          { "label": "Overtime (per hour beyond 4 h)", "amount": 1500, "note": "Charged for every extra hour or part thereof." }
+          {
+            "label": "Base rental (up to 4 hours)",
+            "amount": 5000,
+            "note": "Payable to the Society Manager. Booking confirmed only after payment."
+          },
+          {
+            "label": "Overtime (per hour beyond 4 h)",
+            "amount": 1500,
+            "note": "Charged for every extra hour or part thereof."
+          }
         ],
         "priceHistory": [
           {
             "effectiveDate": "2026-06-01",
             "paymentAmount": 1500,
             "rateCard": [
-              { "label": "Booking & maintenance charge (per event)", "amount": 1500, "note": "Covers post-event cleaning, housekeeping and bulk garbage collection. Payable to the Society Manager." }
+              {
+                "label": "Booking & maintenance charge (per event)",
+                "amount": 1500,
+                "note": "Covers post-event cleaning, housekeeping and bulk garbage collection. Payable to the Society Manager."
+              }
             ],
             "source": "Management Committee notice, 1 June 2026",
             "note": "Flat ₹1,500 per-event charge introduced to fund post-event cleaning, housekeeping and bulk garbage collection. Superseded by the 21 June 2026 AGM resolution."
@@ -40,8 +52,16 @@
             "effectiveDate": "2026-06-21",
             "paymentAmount": 5000,
             "rateCard": [
-              { "label": "Base rental (up to 4 hours)", "amount": 5000, "note": "Payable to the Society Manager. Booking confirmed only after payment." },
-              { "label": "Overtime (per hour beyond 4 h)", "amount": 1500, "note": "Charged for every extra hour or part thereof." }
+              {
+                "label": "Base rental (up to 4 hours)",
+                "amount": 5000,
+                "note": "Payable to the Society Manager. Booking confirmed only after payment."
+              },
+              {
+                "label": "Overtime (per hour beyond 4 h)",
+                "amount": 1500,
+                "note": "Charged for every extra hour or part thereof."
+              }
             ],
             "source": "AGM / Committee Resolution, Item 2 — Community Hall Rules (21 June 2026, passed unanimously)",
             "note": "Current rate. ₹5,000 base rental for a booking of up to 4 hours; ₹1,500 per hour (or part thereof) for every extra hour beyond 4 hours. Supersedes the 1 June 2026 flat ₹1,500 charge."
@@ -83,13 +103,13 @@
       "policy": {
         "minAdvanceHours": 4,
         "maxAdvanceDays": 14,
-        "maxConcurrentPerOwner": 3,
-        "maxPerFlatPerYear": 24,
+        "maxConcurrentPerOwner": 2,
+        "maxPerFlatPerYear": 2,
         "openMin": 300,
-        "closeMin": 1320,
+        "closeMin": 1380,
         "stepMinutes": 30,
-        "minDurationMinutes": 30,
-        "maxDurationMinutes": 120,
+        "minDurationMinutes": 240,
+        "maxDurationMinutes": 480,
         "requiresApproval": false,
         "requiresPayment": false,
         "paymentAmount": 0,
