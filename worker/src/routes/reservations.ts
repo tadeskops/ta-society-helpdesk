@@ -240,6 +240,26 @@ const publicFacility = (f: Facility) => {
             ...(r.note ? { note: String(r.note) } : {}),
           }))
         : [],
+      priceHistory: Array.isArray(f.policy.priceHistory)
+        ? f.policy.priceHistory.map((h) => ({
+            effectiveDate: String(h.effectiveDate ?? ''),
+            ...(typeof h.paymentAmount === 'number' ? { paymentAmount: h.paymentAmount } : {}),
+            ...(Array.isArray(h.rateCard)
+              ? {
+                  rateCard: h.rateCard.map((r) => ({
+                    label: String(r.label ?? ''),
+                    ...(typeof r.amount === 'number' ? { amount: r.amount } : {}),
+                    ...(r.note ? { note: String(r.note) } : {}),
+                  })),
+                }
+              : {}),
+            ...(h.chargesInfo ? { chargesInfo: String(h.chargesInfo) } : {}),
+            ...(h.source ? { source: String(h.source) } : {}),
+            ...(h.recordedBy ? { recordedBy: String(h.recordedBy) } : {}),
+            ...(h.recordedAt ? { recordedAt: String(h.recordedAt) } : {}),
+            ...(h.note ? { note: String(h.note) } : {}),
+          }))
+        : [],
       usageGuidelines: {
         before: Array.isArray(f.policy.usageGuidelines?.before) ? f.policy.usageGuidelines!.before! : [],
         after:  Array.isArray(f.policy.usageGuidelines?.after)  ? f.policy.usageGuidelines!.after!  : [],
@@ -349,6 +369,67 @@ export const mountReservations = (r: Router): void => {
         })
         .filter((r): r is { label: string; amount?: number; note?: string } => r !== null)
         .slice(0, 24);
+    }
+    // Price history: full replacement, validated. Managers, committee
+    // and admins can add / edit / reorder entries via this endpoint.
+    // Empty array clears the log. Anything not an array is ignored so
+    // partial PATCHes (that don't mention priceHistory) preserve the
+    // existing log.
+    if (Array.isArray(pIn['priceHistory'])) {
+      const nowIso = new Date().toISOString();
+      pOut.priceHistory = (pIn['priceHistory'] as unknown[])
+        .map((row) => {
+          const h = (row ?? {}) as Record<string, unknown>;
+          const effectiveDate = typeof h['effectiveDate'] === 'string' ? (h['effectiveDate'] as string).trim() : '';
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(effectiveDate)) return null;
+          const out: NonNullable<FacilityPolicy['priceHistory']>[number] = { effectiveDate };
+          if (typeof h['paymentAmount'] === 'number' && Number.isFinite(h['paymentAmount'])) {
+            out.paymentAmount = Math.max(0, Math.floor(h['paymentAmount'] as number));
+          }
+          if (Array.isArray(h['rateCard'])) {
+            out.rateCard = (h['rateCard'] as unknown[])
+              .map((rr) => {
+                const r = (rr ?? {}) as Record<string, unknown>;
+                const label = typeof r['label'] === 'string' ? (r['label'] as string).trim().slice(0, 120) : '';
+                if (!label) return null;
+                const rowOut: { label: string; amount?: number; note?: string } = { label };
+                if (typeof r['amount'] === 'number' && Number.isFinite(r['amount'])) {
+                  rowOut.amount = Math.max(0, Math.floor(r['amount'] as number));
+                }
+                if (typeof r['note'] === 'string' && (r['note'] as string).trim()) {
+                  rowOut.note = (r['note'] as string).trim().slice(0, 240);
+                }
+                return rowOut;
+              })
+              .filter((r): r is { label: string; amount?: number; note?: string } => r !== null)
+              .slice(0, 24);
+          }
+          if (typeof h['chargesInfo'] === 'string' && (h['chargesInfo'] as string).trim()) {
+            out.chargesInfo = (h['chargesInfo'] as string).slice(0, 2000);
+          }
+          if (typeof h['source'] === 'string' && (h['source'] as string).trim()) {
+            out.source = (h['source'] as string).trim().slice(0, 240);
+          }
+          if (typeof h['note'] === 'string' && (h['note'] as string).trim()) {
+            out.note = (h['note'] as string).trim().slice(0, 500);
+          }
+          // recordedBy / recordedAt are set server-side when the entry
+          // arrives without them; if the client supplied values (e.g.
+          // preserving an existing entry) we keep them as-is.
+          if (typeof h['recordedBy'] === 'string' && (h['recordedBy'] as string).trim()) {
+            out.recordedBy = (h['recordedBy'] as string).trim().slice(0, 240);
+          } else {
+            out.recordedBy = ctx.identity?.email || 'system';
+          }
+          if (typeof h['recordedAt'] === 'string' && (h['recordedAt'] as string).trim()) {
+            out.recordedAt = (h['recordedAt'] as string).trim().slice(0, 40);
+          } else {
+            out.recordedAt = nowIso;
+          }
+          return out;
+        })
+        .filter((h): h is NonNullable<FacilityPolicy['priceHistory']>[number] => h !== null)
+        .slice(0, 100);
     }
     if (pIn['usageGuidelines'] && typeof pIn['usageGuidelines'] === 'object') {
       const g = pIn['usageGuidelines'] as Record<string, unknown>;

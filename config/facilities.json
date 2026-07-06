@@ -19,19 +19,32 @@
         "maxDurationMinutes": 480,
         "requiresApproval": true,
         "requiresPayment": true,
-        "paymentAmount": 1500,
+        "paymentAmount": 5000,
         "paymentPayee": "Society Manager",
-        "chargesInfo": "Community Hall bookings may attract a maintenance/cleaning fee and a refundable security deposit as decided by the committee. The manager will confirm the applicable amount before approving your request. Any damage to property is recovered from the deposit.",
+        "chargesInfo": "Community Hall rental (per Management Committee Resolution, Item 2 — Community Hall Rules, passed unanimously on 21 June 2026):\n\n  • ₹5,000 base rental for a booking of up to 4 hours.\n  • ₹1,500 per hour (or part thereof) for every extra hour beyond 4 hours.\n\nPayment must be made to the Society Manager before the booking is confirmed. This supersedes the earlier flat ₹1,500 charge announced on 1 June 2026; the manager-coordination process from that notice continues to apply.",
         "rateCard": [
+          { "label": "Base rental (up to 4 hours)", "amount": 5000, "note": "Payable to the Society Manager. Booking confirmed only after payment." },
+          { "label": "Overtime (per hour beyond 4 h)", "amount": 1500, "note": "Charged for every extra hour or part thereof." }
+        ],
+        "priceHistory": [
           {
-            "label": "Half day (up to 4 hours)",
-            "amount": 5000,
-            "note": "Cleaning fee inclusive."
+            "effectiveDate": "2026-06-01",
+            "paymentAmount": 1500,
+            "rateCard": [
+              { "label": "Booking & maintenance charge (per event)", "amount": 1500, "note": "Covers post-event cleaning, housekeeping and bulk garbage collection. Payable to the Society Manager." }
+            ],
+            "source": "Management Committee notice, 1 June 2026",
+            "note": "Flat ₹1,500 per-event charge introduced to fund post-event cleaning, housekeeping and bulk garbage collection. Superseded by the 21 June 2026 AGM resolution."
           },
           {
-            "label": "Exceeds Permitted Hours (Every 1.5 Hours)",
-            "amount": 1500,
-            "note": "Cleaning fee inclusive."
+            "effectiveDate": "2026-06-21",
+            "paymentAmount": 5000,
+            "rateCard": [
+              { "label": "Base rental (up to 4 hours)", "amount": 5000, "note": "Payable to the Society Manager. Booking confirmed only after payment." },
+              { "label": "Overtime (per hour beyond 4 h)", "amount": 1500, "note": "Charged for every extra hour or part thereof." }
+            ],
+            "source": "AGM / Committee Resolution, Item 2 — Community Hall Rules (21 June 2026, passed unanimously)",
+            "note": "Current rate. ₹5,000 base rental for a booking of up to 4 hours; ₹1,500 per hour (or part thereof) for every extra hour beyond 4 hours. Supersedes the 1 June 2026 flat ₹1,500 charge."
           }
         ],
         "usageGuidelines": {
@@ -52,10 +65,13 @@
         "blackoutDates": []
       },
       "rules": [
+        "All bookings must be coordinated through the Society Manager (Management Committee notice, 1 June 2026).",
         "Bookings must be requested at least 48 hours in advance.",
+        "Rental: ₹5,000 for up to 4 hours + ₹1,500 per extra hour (or part thereof), payable to the Society Manager before the booking is confirmed (Committee Resolution, Item 2 — Community Hall Rules).",
         "Cleanliness of the hall is the responsibility of the booking owner.",
         "No loud music after 10 PM.",
-        "Any damage to property will be recovered from the security deposit."
+        "Any damage to property will be recovered from the security deposit.",
+        "Existing reservations made via the earlier Google Form remain valid, but residents must complete the booking formalities (recording + payment) with the Society Manager."
       ]
     },
     {
@@ -78,7 +94,7 @@
         "requiresPayment": false,
         "paymentAmount": 0,
         "paymentPayee": "",
-        "chargesInfo": "Personal-use gym slot bookings are complimentary and included with your maintenance. NOTE: any functions, gatherings or events held in the Gym Area (not personal workouts) must instead be coordinated through the Society Manager and attract a ₹1,500 booking and maintenance charge per event (Management Committee notice, 1 June 2026).",
+        "chargesInfo": "Personal-use gym slot bookings are complimentary and included with your maintenance. NOTE: any functions, gatherings or events held in the Gym Area (not personal workouts) must instead be coordinated through the Society Manager. Applicable charges will be advised by the manager at the time of booking.",
         "rateCard": [],
         "usageGuidelines": {
           "before": [

@@ -142,6 +142,24 @@ export interface FacilityPolicy {
    */
   rateCard?: { label: string; amount?: number; note?: string }[];
   /**
+   * Chronological audit log of price changes for the facility. Purely
+   * informational — the CURRENT price is always `paymentAmount` +
+   * `rateCard`; this array preserves who decided what and when so
+   * managers/committee/admin can show residents the provenance of the
+   * current rate and prior rates. Newest entry conventionally last.
+   * Editable via PATCH /facilities/:id (MANAGER+ only).
+   */
+  priceHistory?: Array<{
+    effectiveDate: string;                                       // YYYY-MM-DD (date the rate took effect)
+    paymentAmount?: number;                                      // headline amount at that time
+    rateCard?: { label: string; amount?: number; note?: string }[]; // snapshot of the rate card then in force
+    chargesInfo?: string;                                        // optional snapshot of the charges paragraph
+    source?: string;                                             // e.g. "AGM Item 2 - 21 Jun 2026"
+    recordedBy?: string;                                         // email of the user who logged the entry
+    recordedAt?: string;                                         // ISO timestamp when the entry was logged
+    note?: string;                                               // free-form context (max ~500 chars)
+  }>;
+  /**
    * Basic etiquette / house-rules shown on the booking form as short
    * bullet lists — one for things to do before use and one for after.
    * Kept intentionally simple: brief single-line points, not paragraphs.

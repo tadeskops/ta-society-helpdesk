@@ -2,14 +2,25 @@
   "version": 1,
   "items": [
     {
+      "id": "hall-rental-rates-agm-item-2",
+      "title": "Community Hall — Rental Rates (Committee Resolution, Item 2)",
+      "body": "The committee reviewed the booking charges and usage policy for the Community Hall to ensure uniformity and effective utilization.\n\nResolution: It was resolved that the Community Hall shall be available for booking at a rental charge of \u20b95,000 for a duration of up to 4 hours.\n\nIn case the booked event exceeds the permitted duration, an additional charge of \u20b91,500 per hour shall be levied for every extra hour or part thereof.\n\nOutcome: Passed unanimously.\n\nThis rental schedule supersedes the earlier flat \u20b91,500 figure circulated on 1 June 2026. All other elements of that notice \u2014 manager coordination, booking-not-confirmed-till-paid, grandfathering of existing Google Form reservations \u2014 continue to apply.\n\n\u2014 Management Committee",
+      "pinned": true,
+      "expiresAt": "2027-07-06T00:00:00.000Z",
+      "createdAt": "2026-07-06T00:00:00.000Z",
+      "createdBy": "management-committee",
+      "updatedAt": "2026-07-06T00:00:00.000Z"
+    },
+    {
       "id": "gym-hall-booking-2026-06-01",
       "title": "Gym Area / Hall Booking Process Update",
-      "body": "As the Society transitions to a more structured management process, all future bookings for functions and gatherings in the Gym Area / Hall will be coordinated through the Society Manager.\n\nThe latest booking list submitted through the Google Form will be honored and existing reservations will remain valid. However, to confirm and maintain the booking, residents are requested to complete the booking formalities with the Society Manager.\n\nA booking and maintenance charge of \u20b91,500 will be applicable for each event. This amount will be utilized towards post-event cleaning, housekeeping support, and bulk garbage collection required due to the event.\n\nTo avoid scheduling conflicts and ensure proper upkeep of the facility, no booking shall be considered confirmed unless it has been recorded with the Society Manager and the applicable charges have been paid.\n\nFor bookings and assistance, please contact the Society Manager.\n\n\u2014 Management Committee",
-      "pinned": true,
+      "body": "As the Society transitions to a more structured management process, all future bookings for functions and gatherings in the Gym Area / Hall will be coordinated through the Society Manager.\n\nThe latest booking list submitted through the Google Form will be honored and existing reservations will remain valid. However, to confirm and maintain the booking, residents are requested to complete the booking formalities with the Society Manager.\n\nNOTE: The flat \u20b91,500 charge referenced in this notice has been superseded by the Committee Resolution on Community Hall Rules \u2014 see the pinned rental-rates announcement above for the current schedule.\n\nTo avoid scheduling conflicts and ensure proper upkeep of the facility, no booking shall be considered confirmed unless it has been recorded with the Society Manager and the applicable charges have been paid.\n\nFor bookings and assistance, please contact the Society Manager.\n\n\u2014 Management Committee",
+      "pinned": false,
       "expiresAt": "2027-06-01T00:00:00.000Z",
       "createdAt": "2026-06-01T00:00:00.000Z",
       "createdBy": "management-committee",
-      "updatedAt": "2026-06-01T00:00:00.000Z"
+      "updatedAt": "2026-07-06T00:00:00.000Z"
     }
   ]
 }
+
