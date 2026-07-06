@@ -8,14 +8,32 @@ import { log } from '../lib/log.ts';
 
 const API = 'https://api.github.com';
 
-const headers = (env: Env): HeadersInit => ({
-  'Authorization': `Bearer ${env.GITHUB_TOKEN}`,
+/**
+ * Override the default owner/repo/branch/token used by a call. Enables
+ * writing to a secondary repo (e.g. the private tsh-booking-receipts
+ * archive) without threading env through every call site. `token` is
+ * optional: when omitted the primary GITHUB_TOKEN is reused, which is
+ * fine as long as its scope covers the target repo.
+ */
+export interface RepoTarget {
+  owner?: string;
+  repo?: string;
+  branch?: string;
+  token?: string;
+}
+
+const headers = (env: Env, target?: RepoTarget): HeadersInit => ({
+  'Authorization': `Bearer ${target?.token || env.GITHUB_TOKEN}`,
   'Accept': 'application/vnd.github+json',
   'X-GitHub-Api-Version': '2022-11-28',
   'User-Agent': 'tsh-worker',
 });
 
-const repoPath = (env: Env): string => `${env.GH_OWNER}/${env.GH_REPO}`;
+const repoPath = (env: Env, target?: RepoTarget): string =>
+  `${target?.owner || env.GH_OWNER}/${target?.repo || env.GH_REPO}`;
+
+const branchOf = (env: Env, target?: RepoTarget): string =>
+  target?.branch || env.GH_BRANCH;
 
 export interface GithubFile {
   sha: string;
@@ -38,9 +56,9 @@ const b64decode = (s: string): string => {
   return new TextDecoder().decode(bytes);
 };
 
-export const getFile = async (env: Env, path: string): Promise<GithubFile | undefined> => {
-  const url = `${API}/repos/${repoPath(env)}/contents/${encodeURI(path)}?ref=${env.GH_BRANCH}`;
-  const res = await fetch(url, { headers: headers(env) });
+export const getFile = async (env: Env, path: string, target?: RepoTarget): Promise<GithubFile | undefined> => {
+  const url = `${API}/repos/${repoPath(env, target)}/contents/${encodeURI(path)}?ref=${branchOf(env, target)}`;
+  const res = await fetch(url, { headers: headers(env, target) });
   if (res.status === 404) return undefined;
   if (!res.ok) {
     log.error(env, 'github_get_file_failed', { path, status: res.status });
@@ -54,8 +72,8 @@ export const getFile = async (env: Env, path: string): Promise<GithubFile | unde
   };
 };
 
-export const getJson = async <T>(env: Env, path: string): Promise<T | undefined> => {
-  const f = await getFile(env, path);
+export const getJson = async <T>(env: Env, path: string, target?: RepoTarget): Promise<T | undefined> => {
+  const f = await getFile(env, path, target);
   if (!f) return undefined;
   try {
     return JSON.parse(f.content) as T;
@@ -71,9 +89,9 @@ export interface GithubBinary {
 }
 
 /** Fetch a binary file (photo, PDF, etc.) via the Contents API. */
-export const getBinaryFile = async (env: Env, path: string): Promise<GithubBinary | undefined> => {
-  const url = `${API}/repos/${repoPath(env)}/contents/${encodeURI(path)}?ref=${env.GH_BRANCH}`;
-  const res = await fetch(url, { headers: headers(env) });
+export const getBinaryFile = async (env: Env, path: string, target?: RepoTarget): Promise<GithubBinary | undefined> => {
+  const url = `${API}/repos/${repoPath(env, target)}/contents/${encodeURI(path)}?ref=${branchOf(env, target)}`;
+  const res = await fetch(url, { headers: headers(env, target) });
   if (res.status === 404) return undefined;
   if (!res.ok) {
     log.error(env, 'github_get_binary_failed', { path, status: res.status });
@@ -93,17 +111,18 @@ export const putFile = async (
   message: string,
   authorEmail: string,
   prevSha?: string,
+  target?: RepoTarget,
 ): Promise<{ sha: string }> => {
-  const url = `${API}/repos/${repoPath(env)}/contents/${encodeURI(path)}`;
+  const url = `${API}/repos/${repoPath(env, target)}/contents/${encodeURI(path)}`;
   const body: Record<string, unknown> = {
     message,
     content: b64encode(content),
-    branch: env.GH_BRANCH,
+    branch: branchOf(env, target),
     committer: { name: 'tsh-worker', email: 'tsh-worker@users.noreply.github.com' },
     author: { name: 'tsh-worker', email: authorEmail },
   };
   if (prevSha) body['sha'] = prevSha;
-  const res = await fetch(url, { method: 'PUT', headers: { ...headers(env), 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const res = await fetch(url, { method: 'PUT', headers: { ...headers(env, target), 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   if (!res.ok) {
     const text = await res.text();
     log.error(env, 'github_put_file_failed', { path, status: res.status, body: text.slice(0, 200) });
@@ -132,18 +151,19 @@ export const putBinaryB64 = async (
   contentB64: string,
   message: string,
   authorEmail: string,
+  target?: RepoTarget,
 ): Promise<{ sha: string }> => {
-  const url = `${API}/repos/${repoPath(env)}/contents/${encodeURI(path)}`;
-  const existing = await getFile(env, path);
+  const url = `${API}/repos/${repoPath(env, target)}/contents/${encodeURI(path)}`;
+  const existing = await getFile(env, path, target);
   const body: Record<string, unknown> = {
     message,
     content: contentB64,
-    branch: env.GH_BRANCH,
+    branch: branchOf(env, target),
     committer: { name: 'tsh-worker', email: 'tsh-worker@users.noreply.github.com' },
     author: { name: 'tsh-worker', email: authorEmail },
   };
   if (existing) body['sha'] = existing.sha;
-  const res = await fetch(url, { method: 'PUT', headers: { ...headers(env), 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const res = await fetch(url, { method: 'PUT', headers: { ...headers(env, target), 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   if (!res.ok) {
     const text = await res.text();
     log.error(env, 'github_put_binary_failed', { path, status: res.status, body: text.slice(0, 200) });

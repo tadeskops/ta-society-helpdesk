@@ -1737,6 +1737,20 @@
       actions.appendChild(receiptBtn);
     }
 
+    // Archived receipt (private repo). Staff-only: pulls the server-
+    // composed PDF stored in tsh-booking-receipts, RBAC-gated by the
+    // worker to MANAGER+ only. Residents don't see this — they get the
+    // on-page Receipt modal above.
+    if (isStaff && r.status === 'confirmed' && r.archive && r.archive.path) {
+      const archBtn = document.createElement('button');
+      archBtn.type = 'button';
+      archBtn.className = 'tsh-btn tsh-btn-ghost tsh-btn-sm';
+      archBtn.innerHTML = '<i class="fas fa-box-archive"></i> Archived receipt';
+      archBtn.title = 'Open the receipt archived to the private repo (' + r.archive.path + ')';
+      archBtn.addEventListener('click', () => openArchivedReceipt(r));
+      actions.appendChild(archBtn);
+    }
+
     if (staffMode && (r.status === 'requested' || r.status === 'under-review')) {
       const approveBtn = document.createElement('button');
       approveBtn.type = 'button';
@@ -2457,7 +2471,95 @@
     };
   }
 
-  async function openReceiptModal(r) {
+  // Fetches the server-composed archived receipt from the private repo
+  // via the auth-gated worker endpoint and shows it in the same
+  // preview/print/download shell as the on-page receipt. Staff-only.
+  async function openArchivedReceipt(r) {
+    if (!r || !r.archive || !r.archive.path) {
+      root.UI.toast('This booking has not been archived yet. Try re-archiving from the reservation details.', { kind: 'warn' });
+      return;
+    }
+    const tok = root.Auth && root.Auth.token ? root.Auth.token() : null;
+    if (!tok) {
+      root.UI.toast('Please sign in to view archived receipts.', { kind: 'warn' });
+      return;
+    }
+    const base = (root.Api && root.Api.base && root.Api.base()) || '';
+    let bloburl;
+    try {
+      const res = await fetch(base + '/receipts/archive/' + encodeURIComponent(r.id), {
+        method: 'GET',
+        headers: { 'Authorization': 'Bearer ' + tok, 'Accept': 'application/pdf' },
+        credentials: 'omit',
+      });
+      if (!res.ok) {
+        let msg = 'HTTP ' + res.status;
+        try { const j = await res.json(); msg = j.error || msg; } catch (_e) { /* ignore */ }
+        throw new Error(msg);
+      }
+      const blob = await res.blob();
+      bloburl = URL.createObjectURL(blob);
+    } catch (e) {
+      root.UI.toast('Could not load archived receipt: ' + (e && e.message || e), { kind: 'danger' });
+      return;
+    }
+
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'display:flex;flex-direction:column;gap:8px;';
+    const meta = document.createElement('div');
+    meta.className = 'tsh-hint';
+    meta.style.cssText = 'display:flex;gap:12px;flex-wrap:wrap;align-items:center;';
+    const stamped = r.archive.archivedAt ? new Date(r.archive.archivedAt).toLocaleString() : '';
+    meta.innerHTML =
+      '<span><i class="fas fa-box-archive"></i> <code>' + escape(r.archive.path) + '</code></span>' +
+      (stamped ? '<span>archived ' + escape(stamped) + '</span>' : '');
+    const bar = document.createElement('div');
+    bar.style.cssText = 'display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;';
+    const rebuildBtn = document.createElement('button');
+    rebuildBtn.type = 'button';
+    rebuildBtn.className = 'tsh-btn tsh-btn-ghost tsh-btn-sm';
+    rebuildBtn.innerHTML = '<i class="fas fa-rotate"></i> Re-archive';
+    rebuildBtn.title = 'Re-compose the PDF from the current booking + letterhead and overwrite the archive.';
+    const dlBtn = document.createElement('button');
+    dlBtn.type = 'button';
+    dlBtn.className = 'tsh-btn tsh-btn-primary tsh-btn-sm';
+    dlBtn.innerHTML = '<i class="fas fa-file-arrow-down"></i> Download PDF';
+    bar.append(rebuildBtn, dlBtn);
+
+    const frame = document.createElement('iframe');
+    frame.title = 'Archived receipt preview';
+    frame.style.cssText = 'width:100%;height:65vh;min-height:420px;border:1px solid var(--tsh-border,#e5e7eb);border-radius:6px;background:#f9fafb;';
+    frame.src = bloburl;
+    wrap.append(meta, bar, frame);
+
+    dlBtn.addEventListener('click', () => {
+      const a = document.createElement('a');
+      a.href = bloburl; a.download = 'receipt-archive-' + r.id + '.pdf';
+      document.body.appendChild(a); a.click(); a.remove();
+    });
+    rebuildBtn.addEventListener('click', async () => {
+      rebuildBtn.disabled = true;
+      const original = rebuildBtn.innerHTML;
+      rebuildBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Rebuilding\u2026';
+      try {
+        const res = await root.Api.post('/receipts/archive/' + encodeURIComponent(r.id) + '/rebuild');
+        if (res && res.archive) r.archive = res.archive;
+        root.UI.toast('Archive rebuilt \u2192 ' + (res && res.archive && res.archive.path || ''), { kind: 'success' });
+      } catch (e) {
+        root.UI.toast('Rebuild failed: ' + (e && e.message || e), { kind: 'danger' });
+      } finally {
+        rebuildBtn.disabled = false;
+        rebuildBtn.innerHTML = original;
+      }
+    });
+
+    root.UI.modal({
+      title: 'Archived receipt \u00b7 ' + r.id,
+      body: wrap,
+      size: 'lg',
+      actions: [{ label: 'Close', value: null }],
+    });
+  }
     let tpl;
     try { tpl = await getReceiptTemplate(false); }
     catch (_e) { tpl = null; }

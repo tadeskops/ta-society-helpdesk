@@ -200,6 +200,57 @@
           </div>
         </details>
 
+        <details class="tsh-section" id="receiptArchiveSection">
+          <summary><h2><i class="fas fa-box-archive gold-accent"></i> Booking receipt archive</h2></summary>
+          <p class="tsh-hint">
+            When a booking is confirmed the worker composes a PDF receipt and pushes it to the
+            <strong>private</strong> <code id="raRepoLabel">receipts</code> repository. Only Society Managers, Committee and Admins can view archived receipts &mdash; residents do not see them. All paths are templates; available placeholders:
+            <code>{facilityCode}</code> <code>{facilityCodeLower}</code> <code>{facilityId}</code>
+            <code>{id}</code> <code>{year}</code> <code>{month}</code> <code>{day}</code>
+            <code>{yearMonth}</code> <code>{period}</code> <code>{periodKey}</code>.
+          </p>
+          <div class="tsh-grid-2">
+            <div class="tsh-field">
+              <span class="tsh-label">enabled</span>
+              <select name="system.receiptsArchive.enabled">
+                <option value="true">Enabled &mdash; archive every confirm</option>
+                <option value="false">Disabled &mdash; skip archiving</option>
+              </select>
+              <p class="tsh-help">If disabled, on-page receipts still work; nothing is pushed to the private repo.</p>
+            </div>
+            <div class="tsh-field">
+              <span class="tsh-label">target repository <span class="tsh-hint">(from worker env)</span></span>
+              <input type="text" id="raTarget" readonly placeholder="loading&hellip;" />
+              <p class="tsh-help">Set via <code>GH_RECEIPTS_OWNER</code> / <code>GH_RECEIPTS_REPO</code> / <code>GH_RECEIPTS_BRANCH</code> in <code>wrangler.toml</code> + a PAT with contents:write on this repo.</p>
+            </div>
+            <div class="tsh-field tsh-field-wide">
+              <span class="tsh-label">perReceiptPath</span>
+              <input type="text" name="system.receiptsArchive.perReceiptPath" placeholder="{facilityCodeLower}/{id}.pdf" />
+              <p class="tsh-help">Per-booking receipt location. Example preview: <code id="raPreviewPer">&mdash;</code></p>
+            </div>
+            <div class="tsh-field">
+              <span class="tsh-label">rollup.enabled</span>
+              <select name="system.receiptsArchive.rollup.enabled">
+                <option value="true">Enabled &mdash; also write a consolidated rollup</option>
+                <option value="false">Disabled &mdash; per-receipt only</option>
+              </select>
+            </div>
+            <div class="tsh-field">
+              <span class="tsh-label">rollup.period</span>
+              <select name="system.receiptsArchive.rollup.period">
+                <option value="monthly">Monthly</option>
+                <option value="quarterly">Quarterly</option>
+                <option value="yearly">Yearly</option>
+              </select>
+            </div>
+            <div class="tsh-field tsh-field-wide">
+              <span class="tsh-label">rollup.path</span>
+              <input type="text" name="system.receiptsArchive.rollup.path" placeholder="{facilityCodeLower}/bckp/{period}/{periodKey}.pdf" />
+              <p class="tsh-help">Consolidated rollup location. Example preview: <code id="raPreviewRoll">&mdash;</code></p>
+            </div>
+          </div>
+        </details>
+
         <details class="tsh-section" data-tsh-dev-only>
           <summary><h2>System</h2></summary>
           <div class="tsh-grid-2">
@@ -434,6 +485,24 @@
       form.elements['system.backupTimes'].value       = Array.isArray(sys.backupTimes) ? sys.backupTimes.join(', ') : '';
       form.elements['system.backupRetentionDays'].value = (sys.backupRetentionDays != null) ? String(sys.backupRetentionDays) : '';
 
+      // ---- Booking receipt archive --------------------------------------
+      // Reads from cfg.system.receiptsArchive (persisted in site.json). The
+      // worker's DEFAULT_ARCHIVE_CONFIG kicks in when a field is blank.
+      const ra = (sys.receiptsArchive && typeof sys.receiptsArchive === 'object') ? sys.receiptsArchive : {};
+      const raRoll = (ra.rollup && typeof ra.rollup === 'object') ? ra.rollup : {};
+      form.elements['system.receiptsArchive.enabled'].value =
+        (ra.enabled === false ? 'false' : 'true');
+      form.elements['system.receiptsArchive.perReceiptPath'].value =
+        ra.perReceiptPath || '{facilityCodeLower}/{id}.pdf';
+      form.elements['system.receiptsArchive.rollup.enabled'].value =
+        (raRoll.enabled === false ? 'false' : 'true');
+      form.elements['system.receiptsArchive.rollup.period'].value =
+        (raRoll.period === 'quarterly' || raRoll.period === 'yearly') ? raRoll.period : 'monthly';
+      form.elements['system.receiptsArchive.rollup.path'].value =
+        raRoll.path || '{facilityCodeLower}/bckp/{period}/{periodKey}.pdf';
+      wireReceiptArchivePreview();
+      loadReceiptArchiveTarget();
+
       const ui = cfg.ui || {};
       if (ui.defaultTheme)     form.elements['ui.defaultTheme'].value     = ui.defaultTheme;
       if (ui.defaultFontScale) form.elements['ui.defaultFontScale'].value = ui.defaultFontScale;
@@ -546,6 +615,19 @@
       const _ret = form.elements['system.backupRetentionDays'].value.trim();
       cfg.system.backupRetentionDays = _ret ? Math.max(7, Math.min(3650, Number(_ret) || 90)) : 90;
 
+      // Receipt archive
+      const raPerPath = form.elements['system.receiptsArchive.perReceiptPath'].value.trim();
+      const raRollPath = form.elements['system.receiptsArchive.rollup.path'].value.trim();
+      cfg.system.receiptsArchive = {
+        enabled: form.elements['system.receiptsArchive.enabled'].value === 'true',
+        perReceiptPath: raPerPath || '{facilityCodeLower}/{id}.pdf',
+        rollup: {
+          enabled: form.elements['system.receiptsArchive.rollup.enabled'].value === 'true',
+          period: form.elements['system.receiptsArchive.rollup.period'].value,
+          path: raRollPath || '{facilityCodeLower}/bckp/{period}/{periodKey}.pdf',
+        },
+      };
+
       // UI defaults
       cfg.ui = cfg.ui || {};
       cfg.ui.defaultTheme     = form.elements['ui.defaultTheme'].value;
@@ -584,6 +666,64 @@
 
     function csv(s) { return s.split(',').map((x) => x.trim()).filter(Boolean); }
     function lines(s) { return s.split(/\r?\n/).map((x) => x.trim()).filter(Boolean); }
+
+    // ---- Booking receipt archive helpers ---------------------------------
+    // Live preview substitutes a plausible sample booking into the template
+    // so admins can see what a rendered path will look like. Runs on every
+    // input in the archive section.
+    function renderArchivePreviewTemplate(tpl) {
+      if (!tpl) return '';
+      const now = new Date();
+      const y = String(now.getFullYear());
+      const m = String(now.getMonth() + 1).padStart(2, '0');
+      const d = String(now.getDate()).padStart(2, '0');
+      const period = document.getElementsByName('system.receiptsArchive.rollup.period')[0];
+      const periodVal = period ? period.value : 'monthly';
+      let periodKey = y + '-' + m;
+      if (periodVal === 'quarterly') periodKey = y + '-Q' + Math.ceil((now.getMonth() + 1) / 3);
+      else if (periodVal === 'yearly') periodKey = y;
+      const sample = {
+        facilityCode: 'CH',
+        facilityCodeLower: 'ch',
+        facilityId: 'community-hall',
+        id: 'CH-' + y + m + d + '1200',
+        year: y, month: m, day: d,
+        yearMonth: y + '-' + m,
+        period: periodVal, periodKey,
+      };
+      return tpl.replace(/\{(\w+)\}/g, (m0, k) => sample[k] != null ? sample[k] : m0);
+    }
+    function wireReceiptArchivePreview() {
+      const perEl  = document.getElementsByName('system.receiptsArchive.perReceiptPath')[0];
+      const rollEl = document.getElementsByName('system.receiptsArchive.rollup.path')[0];
+      const perOut  = document.getElementById('raPreviewPer');
+      const rollOut = document.getElementById('raPreviewRoll');
+      const perLbl = () => { if (perOut)  perOut.textContent  = renderArchivePreviewTemplate(perEl.value  || '{facilityCodeLower}/{id}.pdf'); };
+      const rollLbl = () => { if (rollOut) rollOut.textContent = renderArchivePreviewTemplate(rollEl.value || '{facilityCodeLower}/bckp/{period}/{periodKey}.pdf'); };
+      if (perEl)  perEl.addEventListener('input', perLbl);
+      if (rollEl) rollEl.addEventListener('input', rollLbl);
+      const periodEl = document.getElementsByName('system.receiptsArchive.rollup.period')[0];
+      if (periodEl) periodEl.addEventListener('change', rollLbl);
+      perLbl(); rollLbl();
+    }
+    async function loadReceiptArchiveTarget() {
+      const el = document.getElementById('raTarget');
+      const lbl = document.getElementById('raRepoLabel');
+      if (!el) return;
+      try {
+        const cfg = await Api.get('/receipts/archive/config');
+        if (cfg && cfg.target) {
+          const s = (cfg.target.owner || '?') + '/' + (cfg.target.repo || '?') + '  @  ' + (cfg.target.branch || 'main') +
+                    (cfg.target.hasSeparateToken ? '  (dedicated token)' : '  (shared GITHUB_TOKEN)');
+          el.value = s;
+          if (lbl) lbl.textContent = (cfg.target.owner || '?') + '/' + (cfg.target.repo || '?');
+        } else {
+          el.value = 'GH_RECEIPTS_OWNER / GH_RECEIPTS_REPO not configured on the worker.';
+        }
+      } catch (e) {
+        el.value = 'Unable to load: ' + (e && e.message || e);
+      }
+    }
 
     // ----- Help dictionary ---------------------------------------------------
     // Keyed by either:

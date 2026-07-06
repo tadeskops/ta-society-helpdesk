@@ -33,6 +33,13 @@ import { tunable } from '../config/defaults.ts';
 import { emit as emitNotification } from '../lib/notify.ts';
 import { mirrorConfirm, mirrorRemove } from '../lib/google-calendar.ts';
 import {
+  resolveArchiveConfig,
+  receiptsRepoTarget,
+  loadLetterheadBytes,
+  archiveReservationReceipt,
+  archivePathFor,
+} from '../lib/receipt-archive.ts';
+import {
   RES_STATUSES, RES_ID_RE, nextResId, facilityCode, canTransition,
   isActive, istDateStr, parseIstDateMidnight,
   PROOF_MIMES, proofRepoPath, initialPaymentState, isPaymentClearedForApproval,
@@ -905,6 +912,49 @@ export const mountReservations = (r: Router): void => {
         }
       } catch { /* silent — queue handled inside mirror helpers */ }
     }
+    // Receipt archive (private repo push). Fires on confirm only.
+    // Best-effort: failures are audited but never block the transition.
+    if (to === 'confirmed' && facilityForMirror) {
+      try {
+        const siteFile = await getFile(ctx.env, 'config/site.json');
+        const siteJson = siteFile
+          ? (JSON.parse(siteFile.content) as { system?: { receiptTemplate?: { url?: string; path?: string }; receiptsArchive?: unknown } })
+          : undefined;
+        const archiveCfg = resolveArchiveConfig(siteJson);
+        if (archiveCfg.enabled && receiptsRepoTarget(ctx.env)) {
+          const letterhead = await loadLetterheadBytes(ctx.env, siteJson?.system?.receiptTemplate);
+          const result = await archiveReservationReceipt(
+            ctx.env, rec, facilityForMirror, archiveCfg, letterhead, ctx.identity!.email,
+          );
+          if (!result.skipped) {
+            rec.archive = {
+              path: result.path,
+              sha: result.sha,
+              archivedAt: new Date().toISOString(),
+            };
+            const { items: items3, sha: sha3 } = await loadReservations(ctx);
+            const k = items3.findIndex((x) => x.id === rec.id);
+            if (k !== -1) {
+              items3[k] = rec;
+              await saveReservations(ctx, items3, sha3, 'system', `receipt-archive ${rec.id}`);
+            }
+            await writeAudit(ctx.env, {
+              actor: 'system',
+              action: 'receipts:archive',
+              target: rec.id,
+              detail: `path=${result.path}`,
+            });
+          }
+        }
+      } catch (err) {
+        await writeAudit(ctx.env, {
+          actor: 'system',
+          action: 'receipts:archive-failed',
+          target: rec.id,
+          detail: err instanceof Error ? err.message.slice(0, 200) : String(err).slice(0, 200),
+        });
+      }
+    }
     // Notify the owner (and, if a resident cancels, the staff).
     const notifEvent: Parameters<typeof emitNotification>[2]['event'] =
       to === 'confirmed' ? 'reservation-approved' :
@@ -1264,6 +1314,7 @@ export const mountReservations = (r: Router): void => {
       : {};
     system['receiptTemplate'] = {
       url,
+      path,
       mime,
       bytes: byteSize,
       updatedBy: actor,
@@ -1283,6 +1334,168 @@ export const mountReservations = (r: Router): void => {
       detail: `bytes=${byteSize} mime=${mime}${note ? ' note=' + note.slice(0, 60) : ''}`,
     });
     return ok(ctx.env, ctx.req, { template: system['receiptTemplate'] });
+  });
+
+  // ---- Receipts archive (private repo) --------------------------------
+  //
+  // GET  /receipts/archive/:id           stream the archived PDF (MANAGER+)
+  // POST /receipts/archive/:id/rebuild   re-compose and re-upload (MANAGER+)
+  //
+  // The archive itself is written implicitly on the confirmed transition
+  // in PATCH /reservations/:id. These endpoints are the read + manual
+  // rebuild affordances. Residents intentionally cannot pull the
+  // archived copy — they use the on-page receipt modal.
+
+  r.get('/receipts/archive/:id', async (ctx: Ctx, params) => {
+    ensureAllowed(ctx, {
+      flags: [FLAG],
+      requireIdentity: true,
+      roles: ['MANAGER', 'COMMITTEE', 'ADMIN'],
+    });
+    const target = receiptsRepoTarget(ctx.env);
+    if (!target) throw new NotFound('Receipts archive is not configured');
+    const { items } = await loadReservations(ctx);
+    const rec = items.find((x) => x.id === params['id'] && !x.isDeleted);
+    if (!rec) throw new NotFound(`Reservation ${params['id']} not found`);
+    if (!rec.archive?.path) throw new NotFound('No archived receipt for this reservation yet');
+    const bin = await getBinaryFile(ctx.env, rec.archive.path, target);
+    if (!bin) throw new NotFound('Archived receipt file is missing from the receipts repo');
+    return new Response(bin.bytes, {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `inline; filename="receipt-${rec.id}.pdf"`,
+        'Cache-Control': 'private, max-age=0, must-revalidate',
+      },
+    });
+  });
+
+  r.post('/receipts/archive/:id/rebuild', async (ctx: Ctx, params) => {
+    ensureAllowed(ctx, {
+      flags: [FLAG],
+      requireIdentity: true,
+      roles: ['MANAGER', 'COMMITTEE', 'ADMIN'],
+    });
+    if (!receiptsRepoTarget(ctx.env)) {
+      throw new BadRequest('Receipts archive is not configured (GH_RECEIPTS_REPO unset)');
+    }
+    const { items, sha } = await loadReservations(ctx);
+    const idx = items.findIndex((x) => x.id === params['id'] && !x.isDeleted);
+    if (idx === -1) throw new NotFound(`Reservation ${params['id']} not found`);
+    const rec = items[idx]!;
+    if (rec.status !== 'confirmed') {
+      throw new BadRequest('Only confirmed reservations can be archived');
+    }
+    const facilities = await loadFacilities(ctx);
+    const facility = facilities.find((f) => f.id === rec.facilityId);
+    if (!facility) throw new NotFound(`Facility ${rec.facilityId} not found`);
+    const siteFile = await getFile(ctx.env, 'config/site.json');
+    const siteJson = siteFile
+      ? (JSON.parse(siteFile.content) as { system?: { receiptTemplate?: { url?: string; path?: string }; receiptsArchive?: unknown } })
+      : undefined;
+    const archiveCfg = resolveArchiveConfig(siteJson);
+    const letterhead = await loadLetterheadBytes(ctx.env, siteJson?.system?.receiptTemplate);
+    const result = await archiveReservationReceipt(
+      ctx.env, rec, facility, archiveCfg, letterhead, ctx.identity!.email,
+    );
+    rec.archive = {
+      path: result.path,
+      sha: result.sha,
+      archivedAt: new Date().toISOString(),
+    };
+    items[idx] = rec;
+    await saveReservations(ctx, items, sha, ctx.identity!.email, `receipt-archive-rebuild ${rec.id}`);
+    await writeAudit(ctx.env, {
+      actor: ctx.identity!.email,
+      action: 'receipts:archive-rebuild',
+      target: rec.id,
+      detail: `path=${result.path}`,
+    });
+    return ok(ctx.env, ctx.req, { archive: rec.archive });
+  });
+
+  // ---- Receipts archive config (Settings page) -----------------------
+
+  r.get('/receipts/archive/config', async (ctx: Ctx) => {
+    ensureAllowed(ctx, {
+      flags: [FLAG],
+      requireIdentity: true,
+      roles: ['MANAGER', 'COMMITTEE', 'ADMIN'],
+    });
+    const siteFile = await getFile(ctx.env, 'config/site.json');
+    const siteJson = siteFile
+      ? (JSON.parse(siteFile.content) as { system?: { receiptsArchive?: unknown } })
+      : undefined;
+    const cfg = resolveArchiveConfig(siteJson);
+    const target = receiptsRepoTarget(ctx.env);
+    return ok(ctx.env, ctx.req, {
+      config: cfg,
+      target: target ? {
+        owner: target.owner,
+        repo: target.repo,
+        branch: target.branch,
+        hasSeparateToken: !!ctx.env.GITHUB_RECEIPTS_TOKEN,
+      } : null,
+    });
+  });
+
+  r.patch('/receipts/archive/config', async (ctx: Ctx) => {
+    ensureAllowed(ctx, {
+      flags: [FLAG],
+      requireIdentity: true,
+      roles: ['MANAGER', 'COMMITTEE', 'ADMIN'],
+    });
+    const body = await parseJson<Record<string, unknown>>(ctx.req);
+    const siteFile = await getFile(ctx.env, 'config/site.json');
+    if (!siteFile) throw new BadRequest('config/site.json not found');
+    let site: Record<string, unknown>;
+    try { site = JSON.parse(siteFile.content) as Record<string, unknown>; }
+    catch { throw new BadRequest('config/site.json is not valid JSON'); }
+    const system = (site['system'] && typeof site['system'] === 'object')
+      ? site['system'] as Record<string, unknown>
+      : {};
+    const current = (system['receiptsArchive'] && typeof system['receiptsArchive'] === 'object')
+      ? system['receiptsArchive'] as Record<string, unknown>
+      : {};
+    if (typeof body['enabled'] === 'boolean') current['enabled'] = body['enabled'];
+    if (typeof body['perReceiptPath'] === 'string') {
+      const t = (body['perReceiptPath'] as string).trim();
+      if (!t) throw new BadRequest('perReceiptPath cannot be empty');
+      if (t.length > 240) throw new BadRequest('perReceiptPath too long');
+      current['perReceiptPath'] = t;
+    }
+    if (body['rollup'] && typeof body['rollup'] === 'object') {
+      const rIn = body['rollup'] as Record<string, unknown>;
+      const rOut = (current['rollup'] && typeof current['rollup'] === 'object')
+        ? current['rollup'] as Record<string, unknown>
+        : {};
+      if (typeof rIn['enabled'] === 'boolean') rOut['enabled'] = rIn['enabled'];
+      if (typeof rIn['period'] === 'string' && ['monthly', 'quarterly', 'yearly'].includes(rIn['period'] as string)) {
+        rOut['period'] = rIn['period'];
+      }
+      if (typeof rIn['path'] === 'string') {
+        const t = (rIn['path'] as string).trim();
+        if (!t) throw new BadRequest('rollup.path cannot be empty');
+        if (t.length > 240) throw new BadRequest('rollup.path too long');
+        rOut['path'] = t;
+      }
+      current['rollup'] = rOut;
+    }
+    system['receiptsArchive'] = current;
+    site['system'] = system;
+    const serialised = JSON.stringify(site, null, 2) + '\n';
+    const actor = ctx.identity!.email;
+    await putFile(
+      ctx.env, 'config/site.json', serialised,
+      `receipts: update archive config by ${actor}`,
+      actor, siteFile.sha,
+    );
+    await writeAudit(ctx.env, {
+      actor, action: 'receipts:archive-config',
+      target: 'config/site.json',
+      detail: JSON.stringify(current).slice(0, 200),
+    });
+    return ok(ctx.env, ctx.req, { config: resolveArchiveConfig({ system: { receiptsArchive: current } }) });
   });
 
 };

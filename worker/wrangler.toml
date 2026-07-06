@@ -2,10 +2,12 @@
 # Spec: tsh_requirement.md §4, §5, §10.
 #
 # Secrets (set via `wrangler secret put <NAME>`; never commit values):
-#   GITHUB_TOKEN          fine-scoped PAT, issues:write + contents:write on this repo only
-#   BOOTSTRAP_ADMINS      comma-separated emails; read only when config/admins.json is missing
-#   BOOTSTRAP_DEVELOPERS  legacy alias for BOOTSTRAP_ADMINS (still honored during migration)
-#   TURNSTILE_SECRET      Cloudflare Turnstile secret key (only when FEATURE_DAILY_TURNSTILE on)
+#   GITHUB_TOKEN            fine-scoped PAT, issues:write + contents:write on this repo only
+#   GITHUB_RECEIPTS_TOKEN   (optional) separate PAT with contents:write on the receipts repo;
+#                           if omitted, GITHUB_TOKEN is reused (its scope must then cover both)
+#   BOOTSTRAP_ADMINS        comma-separated emails; read only when config/admins.json is missing
+#   BOOTSTRAP_DEVELOPERS    legacy alias for BOOTSTRAP_ADMINS (still honored during migration)
+#   TURNSTILE_SECRET        Cloudflare Turnstile secret key (only when FEATURE_DAILY_TURNSTILE on)
 #
 # Public variables (vars below): may be read by the Worker; safe to commit.
 name = "tsh-worker"
@@ -18,6 +20,11 @@ compatibility_flags = ["nodejs_compat"]
 GH_OWNER               = "tadeskops"
 GH_REPO                = "ta-society-helpdesk"
 GH_BRANCH              = "main"
+# Booking-receipts archive (private repo). Leave GH_RECEIPTS_REPO empty
+# to disable server-side archiving.
+GH_RECEIPTS_OWNER      = "tadeskops"
+GH_RECEIPTS_REPO       = "tsh-booking-receipts"
+GH_RECEIPTS_BRANCH     = "main"
 GOOGLE_OAUTH_CLIENT_ID = "888761828993-d38vmjdjnuns2ubksvpdmkv860qeeap5.apps.googleusercontent.com"
 TURNSTILE_SITE_KEY     = "REPLACE_ME"
 LOG_LEVEL              = "info"
@@ -34,6 +41,9 @@ name = "tsh-worker-preview"
 GH_OWNER               = "tadeskops"
 GH_REPO                = "ta-society-helpdesk"
 GH_BRANCH              = "main"
+GH_RECEIPTS_OWNER      = "tadeskops"
+GH_RECEIPTS_REPO       = "tsh-booking-receipts"
+GH_RECEIPTS_BRANCH     = "main"
 GOOGLE_OAUTH_CLIENT_ID = "888761828993-d38vmjdjnuns2ubksvpdmkv860qeeap5.apps.googleusercontent.com"
 TURNSTILE_SITE_KEY     = "1x00000000000000000000AA"   # Turnstile always-pass test key
 LOG_LEVEL              = "debug"

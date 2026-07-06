@@ -74,6 +74,18 @@ export interface Reservation {
   timeline: TimelineItem[];
   payment?: PaymentState;
   calendarEventId?: string;      // Phase 3: Google Calendar event id
+  /**
+   * Set when the confirmation receipt has been archived to the private
+   * receipts repo. `path` is repo-relative (e.g. "ch/CH-0707261455.pdf")
+   * and combined with GH_RECEIPTS_OWNER / GH_RECEIPTS_REPO server-side
+   * to stream the PDF back through GET /receipts/archive/:id.
+   */
+  archive?: {
+    path: string;
+    sha: string;
+    archivedAt: string;          // ISO 8601
+    bytes?: number;
+  };
   isDeleted?: boolean;
 }
 
