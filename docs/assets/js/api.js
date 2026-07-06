@@ -53,6 +53,20 @@
     if (opts.headers) Object.assign(headers, opts.headers);
 
     let res;
+    // Bump the ambient top-progress bar (UI.NetworkProgress) around the
+    // whole request lifecycle — including the 401 retry path — so the
+    // user always sees an activity cue while the worker is being talked
+    // to. Wrapped in a try to survive ui.js not being loaded yet on
+    // early pages.
+    const progressStart = () => {
+      try { root.UI && root.UI.NetworkProgress && root.UI.NetworkProgress.push(); }
+      catch (_e) { /* ignore */ }
+    };
+    const progressEnd = () => {
+      try { root.UI && root.UI.NetworkProgress && root.UI.NetworkProgress.pop(); }
+      catch (_e) { /* ignore */ }
+    };
+    progressStart();
     try {
       res = await fetch(base() + path, {
         method,
@@ -61,12 +75,14 @@
         ...(opts.body === undefined ? {} : { body: JSON.stringify(opts.body) }),
       });
     } catch (netErr) {
+      progressEnd();
       throw new ApiError('NetworkError', 'Network unreachable', 0, netErr);
     }
 
     let json;
     try { json = await res.json(); }
     catch (_e) {
+      progressEnd();
       throw new ApiError('BadResponse', `HTTP ${res.status}: non-JSON response`, res.status);
     }
 
@@ -84,15 +100,18 @@
         if (root.Auth.token()) {
           // Invalidate any 401-poisoned caches before retry.
           invalidate('/whoami');
+          progressEnd();
           return request(method, path, Object.assign({}, opts, { __retried: true }));
         }
         // Couldn't re-auth. Make sure callers don't see stale role data.
         if (root.Flags && root.Flags.invalidate) root.Flags.invalidate();
       }
+      progressEnd();
       throw new ApiError(json.code || 'ApiError', json.error || `HTTP ${res.status}`, res.status, json);
     }
 
     if (ckey) cacheSet(ckey, json.data);
+    progressEnd();
     return json.data;
   }
 

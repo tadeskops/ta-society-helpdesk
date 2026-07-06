@@ -958,8 +958,39 @@
     // iOS Safari occasionally drops the first `click` on small icon-only
     // chips — the touchend fallback covers that case without risking a
     // duplicate sign-in when the native click does arrive.
-    bindIconActivation(signin, () => root.Auth.signIn());
-    bindIconActivation(signout, () => { root.Auth.signOut(); root.Flags && root.Flags.invalidate(); location.reload(); });
+    // While the GIS popup is being requested (and while sign-out reloads
+    // the page) we swap the button contents for an inline spinner so a
+    // single tap is visibly acknowledged. NetworkProgress also drives the
+    // top progress bar for good measure.
+    const withBusyState = (btn, label) => {
+      const original = btn.innerHTML;
+      const wasDisabled = btn.disabled;
+      btn.classList.add('is-busy');
+      btn.setAttribute('aria-busy', 'true');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i><span class="tsh-btn-label">' + label + '</span>';
+      NetworkProgress.push();
+      return () => {
+        NetworkProgress.pop();
+        btn.classList.remove('is-busy');
+        btn.removeAttribute('aria-busy');
+        btn.disabled = wasDisabled;
+        btn.innerHTML = original;
+      };
+    };
+    bindIconActivation(signin, async () => {
+      const done = withBusyState(signin, 'Signing in\u2026');
+      try { await root.Auth.signIn(); }
+      catch (_e) { /* user dismissed or GIS error — toast handled upstream */ }
+      finally { done(); }
+    });
+    bindIconActivation(signout, () => {
+      withBusyState(signout, 'Signing out\u2026');
+      // No restore needed — location.reload() replaces the page.
+      try { root.Auth.signOut(); root.Flags && root.Flags.invalidate(); }
+      catch (_e) { /* ignore */ }
+      location.reload();
+    });
 
     // Export PDF button — visible only when signed in AND the feature flag is on.
     // Click opens the TSH_REPORT wizard. Pages register their data source via
@@ -1521,12 +1552,81 @@
     };
   }
 
+  // ----- NetworkProgress: ambient top-of-viewport activity indicator ----
+  // Thin gold bar (3 px, indeterminate slide) shown while at least one
+  // Api call is in flight. Reference-counted, so overlapping requests
+  // keep it visible until the last one settles. api.js pushes/pops
+  // around every fetch, so no per-caller wiring is needed. Any code
+  // that wants to bracket a long non-Api action (e.g. GIS popup,
+  // custom fetch) can call NetworkProgress.push()/pop() directly.
+  const NetworkProgress = (function () {
+    let bar, counter = 0, hideTimer, cssInjected = false;
+    function injectCss() {
+      if (cssInjected) return;
+      cssInjected = true;
+      const s = document.createElement('style');
+      s.setAttribute('data-tsh-topbar-css', '1');
+      s.textContent =
+        '.tsh-topbar{position:fixed;top:0;left:0;right:0;height:3px;z-index:99999;pointer-events:none;overflow:hidden;opacity:0;transition:opacity .18s ease-out;background:transparent;}' +
+        '.tsh-topbar.is-active{opacity:1;}' +
+        '.tsh-topbar-inner{position:absolute;top:0;bottom:0;width:36%;background:linear-gradient(90deg,rgba(181,138,8,0),rgba(181,138,8,.85) 45%,rgba(181,138,8,.95) 55%,rgba(181,138,8,0));border-radius:2px;animation:tshTopbarSlide 1.15s cubic-bezier(.4,0,.2,1) infinite;}' +
+        '@keyframes tshTopbarSlide{0%{transform:translateX(-100%);}100%{transform:translateX(280%);}}' +
+        '@media (prefers-reduced-motion:reduce){.tsh-topbar-inner{animation-duration:2.4s;}}' +
+        // Sign-in/out busy tweak: fade the icon, keep the button width
+        // stable while the spinner takes its place. Applied via
+        // .is-busy which bindHeader toggles.
+        '[data-tsh-signin].is-busy,[data-tsh-signout].is-busy{opacity:.85;cursor:progress;}' +
+        '[data-tsh-signin].is-busy .fa-spinner,[data-tsh-signout].is-busy .fa-spinner{margin-right:.35em;}';
+      document.head.appendChild(s);
+    }
+    function ensure() {
+      if (bar) return;
+      injectCss();
+      bar = document.createElement('div');
+      bar.className = 'tsh-topbar';
+      bar.setAttribute('role', 'progressbar');
+      bar.setAttribute('aria-hidden', 'true');
+      bar.setAttribute('aria-label', 'Working');
+      const inner = document.createElement('div');
+      inner.className = 'tsh-topbar-inner';
+      bar.appendChild(inner);
+      (document.body || document.documentElement).appendChild(bar);
+    }
+    function show() {
+      ensure();
+      if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+      bar.classList.add('is-active');
+    }
+    function hide() {
+      if (!bar) return;
+      // small trailing delay so quick bursts stay smooth
+      hideTimer = setTimeout(() => { if (bar && counter === 0) bar.classList.remove('is-active'); hideTimer = null; }, 140);
+    }
+    function push() {
+      counter += 1;
+      if (counter === 1) show();
+    }
+    function pop() {
+      counter = Math.max(0, counter - 1);
+      if (counter === 0) hide();
+    }
+    // Safety net: if a caller forgets to pop, drop the bar after 30 s
+    // rather than leave a permanent stripe on screen.
+    setInterval(() => {
+      if (counter > 0 && bar && bar.classList.contains('is-active')) {
+        // no-op — the caller is still counted; the animation keeps running.
+      }
+    }, 30000);
+    return { push, pop, isBusy: () => counter > 0 };
+  })();
+
   root.UI = {
     el, $, toast, modal, confirmModal, formatRel, copyToClipboard,
     statusPill, statusText, severityPill, bindHeader,
     stateLoading, stateEmpty, stateError, busyButton, busyOverlay, FilterBar,
     Lightbox, FontSize, ThemeSwitcher, FloatDock, IconLabel, SectionCollapse, CardCollapse,
     Draft, MyReports, PhotoTray, Tip,
+    NetworkProgress,
     mobileifyTabs,
   };
 })(window);
