@@ -1,9 +1,13 @@
 <!-- TSH PDF Report partial. Loaded via Partials.mount(). Provides the
      export wizard modal + jsPDF/autotable CDN scripts. Logic lives in
-     ./assets/js/pdf-report.js which exposes window.TSH_REPORT. -->
+     ./assets/js/pdf-report.js which exposes window.TSH_REPORT. pdf-lib
+     is used by the receipt renderer in reservations.js to overlay
+     booking data onto a PDF letterhead template. -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"
         crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"
         crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
 <div class="tsh-pdf-modal" id="tshPdfModal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="tshPdfTitle">

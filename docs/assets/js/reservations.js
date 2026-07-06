@@ -2326,6 +2326,130 @@
     return doc;
   }
 
+  // Waits for the pdf-lib CDN script (loaded by the pdf-report partial)
+  // to finish parsing. Returns true when window.PDFLib is available.
+  async function waitForPdfLib(maxMs) {
+    const ready = () => !!(root.PDFLib && root.PDFLib.PDFDocument);
+    if (ready()) return true;
+    const deadline = Date.now() + (maxMs || 8000);
+    while (Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 120));
+      if (ready()) return true;
+    }
+    return false;
+  }
+
+  // Image-letterhead path (PNG / JPEG / WebP) — thin wrapper around the
+  // existing buildReceiptDoc so openReceiptModal has one uniform bundle
+  // shape regardless of template mime.
+  async function buildReceiptFromImage(r, tpl) {
+    const ready = await waitForJspdfLite(6000);
+    if (!ready) throw new Error('PDF library did not load. Please retry.');
+    const dataUrl = await fetchAsDataUrl(tpl.url);
+    const doc = buildReceiptDoc(r, dataUrl, tpl.mime || 'image/jpeg');
+    return {
+      bloburl: doc.output('bloburl'),
+      download: (name) => doc.save(name),
+      doc,
+    };
+  }
+
+  // PDF-letterhead path — pdf-lib opens the uploaded PDF as the base
+  // document (preserving vector text / logos exactly) and stamps the
+  // booking fields onto the first page below the letterhead band. We
+  // assume the letterhead occupies roughly the top 45 mm of A4, which
+  // matches the reservation for the image-based header. If the letter-
+  // head bleeds further down, the values will overlap it — that's a
+  // conscious choice: users can crop the PDF before upload, and society
+  // letterheads in practice only fill the top strip.
+  async function buildReceiptFromPdfLetterhead(r, url) {
+    const ok = await waitForPdfLib(8000);
+    if (!ok) throw new Error('PDF-Lib did not load. Please retry.');
+    const res = await fetch(url, { mode: 'cors', credentials: 'omit' });
+    if (!res.ok) throw new Error('template fetch ' + res.status);
+    const bytes = await res.arrayBuffer();
+
+    const { PDFDocument, StandardFonts, rgb } = root.PDFLib;
+    const pdfDoc = await PDFDocument.load(bytes);
+    let page = pdfDoc.getPages()[0];
+    if (!page) throw new Error('template PDF has no pages');
+
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const bold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    const { width: pageW, height: pageH } = page.getSize();
+
+    // ---- layout constants (points) -------------------------------
+    const MM = (mm) => mm * 2.83464567;
+    const headerBandPt = MM(45);     // same top band the image path reserves
+    const marginX = MM(20);
+    const labelX = marginX;
+    const valueX = marginX + MM(40);
+    const valueMaxW = pageW - valueX - marginX;
+    const lineH = 14;                // pts between rows
+    const titleY = pageH - headerBandPt - MM(12);
+    let y = titleY - MM(12);
+
+    // ---- title ---------------------------------------------------
+    const title = 'BOOKING RECEIPT';
+    const tw = bold.widthOfTextAtSize(title, 16);
+    page.drawText(title, { x: (pageW - tw) / 2, y: titleY, size: 16, font: bold, color: rgb(0, 0, 0) });
+
+    // ---- rows ----------------------------------------------------
+    // Simple word-wrap fallback for long values.
+    const wrap = (text, size, maxW) => {
+      const words = String(text || '\u2014').split(/\s+/);
+      const lines = [];
+      let cur = '';
+      for (const w of words) {
+        const trial = cur ? cur + ' ' + w : w;
+        if (font.widthOfTextAtSize(trial, size) <= maxW) cur = trial;
+        else { if (cur) lines.push(cur); cur = w; }
+      }
+      if (cur) lines.push(cur);
+      return lines.length ? lines : ['\u2014'];
+    };
+
+    receiptFieldRows(r).forEach((row) => {
+      if (y < MM(35)) {
+        // Add a fresh page if we run off the letterhead's page.
+        page = pdfDoc.addPage([pageW, pageH]);
+        y = pageH - MM(20);
+      }
+      page.drawText(String(row.k) + ':', { x: labelX, y, size: 11, font: bold, color: rgb(0, 0, 0) });
+      const lines = wrap(row.v, 11, valueMaxW);
+      lines.forEach((ln, i) => {
+        page.drawText(ln, { x: valueX, y: y - i * lineH, size: 11, font, color: rgb(0.13, 0.13, 0.13) });
+      });
+      y -= lineH * lines.length + 2;
+    });
+
+    // ---- footer --------------------------------------------------
+    const footY = MM(18);
+    page.drawLine({
+      start: { x: marginX, y: footY + MM(6) }, end: { x: pageW - marginX, y: footY + MM(6) },
+      thickness: 0.5, color: rgb(0.86, 0.86, 0.86),
+    });
+    const stamp = 'Printed ' + new Date().toLocaleString();
+    page.drawText(stamp, { x: marginX, y: footY, size: 9, font, color: rgb(0.35, 0.35, 0.35) });
+    const me = (who && (who.email || who.name)) || '';
+    if (me) page.drawText('by ' + me, { x: marginX, y: footY - 10, size: 9, font, color: rgb(0.35, 0.35, 0.35) });
+    const note = 'This is a system-generated receipt. Retain a copy for your records.';
+    const nw = font.widthOfTextAtSize(note, 9);
+    page.drawText(note, { x: (pageW - nw) / 2, y: footY - 20, size: 9, font, color: rgb(0.35, 0.35, 0.35) });
+
+    const outBytes = await pdfDoc.save();
+    const blob = new Blob([outBytes], { type: 'application/pdf' });
+    const bloburl = URL.createObjectURL(blob);
+    return {
+      bloburl,
+      download: (name) => {
+        const a = document.createElement('a');
+        a.href = bloburl; a.download = name || ('receipt-' + r.id + '.pdf');
+        document.body.appendChild(a); a.click(); a.remove();
+      },
+    };
+  }
+
   async function openReceiptModal(r) {
     let tpl;
     try { tpl = await getReceiptTemplate(false); }
@@ -2334,24 +2458,20 @@
       root.UI.toast('No receipt template uploaded yet. A Society Manager, Committee member or Admin can upload one from the Reservations page (Receipt template button).', { kind: 'warn' });
       return;
     }
-    if (tpl.mime === 'application/pdf') {
-      root.UI.toast('PDF letterheads aren\u2019t supported yet on this page. Please upload a PNG or JPEG image as the receipt template.', { kind: 'warn' });
-      return;
-    }
-    const ready = await waitForJspdfLite(6000);
-    if (!ready) { root.UI.toast('PDF library did not load. Please retry.', { kind: 'danger' }); return; }
 
-    let templateDataUrl;
-    try { templateDataUrl = await fetchAsDataUrl(tpl.url); }
-    catch (e) {
-      root.UI.toast('Could not load template: ' + (e && e.message || e), { kind: 'danger' });
-      return;
-    }
-
-    let doc, bloburl;
+    // Two rendering back-ends depending on the template mime:
+    //   image/*         -> jsPDF adds the image as a top-band header.
+    //   application/pdf -> pdf-lib loads the letterhead as the base
+    //                      document and overlays the booking fields on
+    //                      the first page (keeps the letterhead pixel-
+    //                      perfect, no rasterisation).
+    // Both back-ends expose the same { bloburl, download(name), doc }
+    // shape so the preview iframe + print/download buttons don't care.
+    let bundle;
     try {
-      doc = buildReceiptDoc(r, templateDataUrl, tpl.mime || 'image/jpeg');
-      bloburl = doc.output('bloburl');
+      bundle = tpl.mime === 'application/pdf'
+        ? await buildReceiptFromPdfLetterhead(r, tpl.url)
+        : await buildReceiptFromImage(r, tpl);
     } catch (e) {
       root.UI.toast('Receipt build failed: ' + (e && e.message || e), { kind: 'danger' });
       return;
@@ -2374,7 +2494,7 @@
     const frame = document.createElement('iframe');
     frame.title = 'Receipt preview';
     frame.style.cssText = 'width:100%;height:65vh;min-height:420px;border:1px solid var(--tsh-border,#e5e7eb);border-radius:6px;background:#f9fafb;';
-    frame.src = bloburl;
+    frame.src = bundle.bloburl;
     wrap.append(bar, frame);
 
     printBtn.addEventListener('click', () => {
@@ -2383,14 +2503,14 @@
           frame.contentWindow.focus();
           frame.contentWindow.print();
         } else {
-          window.open(bloburl, '_blank');
+          window.open(bundle.bloburl, '_blank');
         }
       } catch (e) {
         root.UI.toast('Print blocked: ' + (e && e.message || e), { kind: 'warn' });
       }
     });
     dlBtn.addEventListener('click', () => {
-      try { doc.save('receipt-' + r.id + '.pdf'); }
+      try { bundle.download('receipt-' + r.id + '.pdf'); }
       catch (e) { root.UI.toast('Download failed: ' + (e && e.message || e), { kind: 'danger' }); }
     });
 
@@ -2410,8 +2530,8 @@
     wrap.style.cssText = 'display:flex;flex-direction:column;gap:10px;';
     wrap.innerHTML =
       '<p class="tsh-hint" style="margin:0;">' +
-        'Upload the letterhead image that appears at the top of every printed booking receipt. ' +
-        'PNG or JPEG (up to ~5&nbsp;MB) works best. The current template applies immediately to all confirmed bookings.' +
+        'Upload the letterhead that appears at the top of every printed booking receipt. ' +
+        'PNG, JPEG, WebP or PDF (up to ~5&nbsp;MB). PDF letterheads keep their vector text / logos crisp; images are simplest. The new template applies immediately to all confirmed bookings.' +
       '</p>' +
       '<div data-tpl-current style="min-height:80px;padding:8px;border:1px dashed var(--tsh-border,#e5e7eb);border-radius:6px;background:#fafafa;">' +
         '<span class="tsh-hint">Loading current template\u2026</span>' +
