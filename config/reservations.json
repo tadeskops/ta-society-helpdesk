@@ -1,81 +1,83 @@
-{
-  "version": 1,
-  "items": [
-    {
-      "id": "RES-0607262023",
-      "facilityId": "community-hall",
-      "facilityLabel": "Community Hall",
-      "date": "2026-07-09",
-      "startMin": 570,
-      "endMin": 810,
-      "purpose": "Bday",
-      "status": "cancelled",
-      "owner": {
-        "email": "ta.deskops@gmail.com",
-        "flat": "A-1601"
-      },
-      "createdBy": {
-        "email": "ta.deskops@gmail.com",
-        "role": "ADMIN"
-      },
-      "createdAt": "2026-07-06T14:53:38.282Z",
-      "updatedAt": "2026-07-06T14:54:53.743Z",
-      "timeline": [
-        {
-          "at": "2026-07-06T14:53:38.282Z",
-          "by": {
-            "email": "ta.deskops@gmail.com",
-            "role": "ADMIN"
-          },
-          "event": "created",
-          "note": "Awaiting manager review."
-        },
-        {
-          "at": "2026-07-06T14:54:53.743Z",
-          "by": {
-            "email": "ta.deskops@gmail.com",
-            "role": "ADMIN"
-          },
-          "event": "cancelled"
-        }
-      ],
-      "payment": {
-        "status": "pending",
-        "proofs": [],
-        "amount": 5000,
-        "payee": "Society Manager"
-      }
-    },
-    {
-      "id": "RES-0707260010",
-      "facilityId": "gym-area",
-      "facilityLabel": "Gym Area",
-      "date": "2026-07-09",
-      "startMin": 480,
-      "endMin": 720,
-      "purpose": "234",
-      "status": "confirmed",
-      "owner": {
-        "email": "ta.deskops@gmail.com",
-        "flat": "23456"
-      },
-      "createdBy": {
-        "email": "ta.deskops@gmail.com",
-        "role": "ADMIN"
-      },
-      "createdAt": "2026-07-06T18:40:19.449Z",
-      "updatedAt": "2026-07-06T18:40:19.449Z",
-      "timeline": [
-        {
-          "at": "2026-07-06T18:40:19.449Z",
-          "by": {
-            "email": "ta.deskops@gmail.com",
-            "role": "ADMIN"
-          },
-          "event": "created",
-          "note": "Auto-confirmed by facility policy."
-        }
-      ]
-    }
-  ]
+﻿{
+    "version":  1,
+    "items":  [
+                  {
+                      "id":  "CH-0607262023",
+                      "facilityId":  "community-hall",
+                      "facilityLabel":  "Community Hall",
+                      "date":  "2026-07-09",
+                      "startMin":  570,
+                      "endMin":  810,
+                      "purpose":  "Bday",
+                      "status":  "cancelled",
+                      "owner":  {
+                                    "email":  "ta.deskops@gmail.com",
+                                    "flat":  "A-1601"
+                                },
+                      "createdBy":  {
+                                        "email":  "ta.deskops@gmail.com",
+                                        "role":  "ADMIN"
+                                    },
+                      "createdAt":  "2026-07-06T14:53:38.282Z",
+                      "updatedAt":  "2026-07-06T14:54:53.743Z",
+                      "timeline":  [
+                                       {
+                                           "at":  "2026-07-06T14:53:38.282Z",
+                                           "by":  {
+                                                      "email":  "ta.deskops@gmail.com",
+                                                      "role":  "ADMIN"
+                                                  },
+                                           "event":  "created",
+                                           "note":  "Awaiting manager review."
+                                       },
+                                       {
+                                           "at":  "2026-07-06T14:54:53.743Z",
+                                           "by":  {
+                                                      "email":  "ta.deskops@gmail.com",
+                                                      "role":  "ADMIN"
+                                                  },
+                                           "event":  "cancelled"
+                                       }
+                                   ],
+                      "payment":  {
+                                      "status":  "pending",
+                                      "proofs":  [
+
+                                                 ],
+                                      "amount":  5000,
+                                      "payee":  "Society Manager"
+                                  }
+                  },
+                  {
+                      "id":  "GA-0707260010",
+                      "facilityId":  "gym-area",
+                      "facilityLabel":  "Gym Area",
+                      "date":  "2026-07-09",
+                      "startMin":  480,
+                      "endMin":  720,
+                      "purpose":  "234",
+                      "status":  "confirmed",
+                      "owner":  {
+                                    "email":  "ta.deskops@gmail.com",
+                                    "flat":  "23456"
+                                },
+                      "createdBy":  {
+                                        "email":  "ta.deskops@gmail.com",
+                                        "role":  "ADMIN"
+                                    },
+                      "createdAt":  "2026-07-06T18:40:19.449Z",
+                      "updatedAt":  "2026-07-06T18:40:19.449Z",
+                      "timeline":  [
+                                       {
+                                           "at":  "2026-07-06T18:40:19.449Z",
+                                           "by":  {
+                                                      "email":  "ta.deskops@gmail.com",
+                                                      "role":  "ADMIN"
+                                                  },
+                                           "event":  "created",
+                                           "note":  "Auto-confirmed by facility policy."
+                                       }
+                                   ]
+                  }
+              ]
 }

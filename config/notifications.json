@@ -1,17 +1,17 @@
-{
+﻿{
   "version": 1,
   "items": [
     {
       "id": "NTF-mr9cbiog-1",
       "recipient": "ta.deskops@gmail.com",
       "event": "reservation-created",
-      "title": "New reservation · Community Hall",
-      "body": "2026-07-09 · 09:30–13:30 · A-1601 · Bday",
+      "title": "New reservation Â· Community Hall",
+      "body": "2026-07-09 Â· 09:30â€“13:30 Â· A-1601 Â· Bday",
       "createdAt": "2026-07-06T14:53:41.584Z",
       "channels": [
         "in-app"
       ],
-      "link": "reservations.html?open=RES-0607262023",
+      "link": "reservations.html?open=CH-0607262023",
       "actor": "ta.deskops@gmail.com",
       "readAt": "2026-07-06T14:54:08.736Z"
     },
@@ -19,195 +19,195 @@
       "id": "NTF-mr9cbiog-2",
       "recipient": "chironjeetb7@gmail.com",
       "event": "reservation-created",
-      "title": "New reservation · Community Hall",
-      "body": "2026-07-09 · 09:30–13:30 · A-1601 · Bday",
+      "title": "New reservation Â· Community Hall",
+      "body": "2026-07-09 Â· 09:30â€“13:30 Â· A-1601 Â· Bday",
       "createdAt": "2026-07-06T14:53:41.584Z",
       "channels": [
         "in-app"
       ],
-      "link": "reservations.html?open=RES-0607262023",
+      "link": "reservations.html?open=CH-0607262023",
       "actor": "ta.deskops@gmail.com"
     },
     {
       "id": "NTF-mr9cbiog-3",
       "recipient": "sagarthakare@gmail.com",
       "event": "reservation-created",
-      "title": "New reservation · Community Hall",
-      "body": "2026-07-09 · 09:30–13:30 · A-1601 · Bday",
+      "title": "New reservation Â· Community Hall",
+      "body": "2026-07-09 Â· 09:30â€“13:30 Â· A-1601 Â· Bday",
       "createdAt": "2026-07-06T14:53:41.584Z",
       "channels": [
         "in-app"
       ],
-      "link": "reservations.html?open=RES-0607262023",
+      "link": "reservations.html?open=CH-0607262023",
       "actor": "ta.deskops@gmail.com"
     },
     {
       "id": "NTF-mr9cbiog-4",
       "recipient": "dhiman.parekh89@gmail.com",
       "event": "reservation-created",
-      "title": "New reservation · Community Hall",
-      "body": "2026-07-09 · 09:30–13:30 · A-1601 · Bday",
+      "title": "New reservation Â· Community Hall",
+      "body": "2026-07-09 Â· 09:30â€“13:30 Â· A-1601 Â· Bday",
       "createdAt": "2026-07-06T14:53:41.584Z",
       "channels": [
         "in-app"
       ],
-      "link": "reservations.html?open=RES-0607262023",
+      "link": "reservations.html?open=CH-0607262023",
       "actor": "ta.deskops@gmail.com"
     },
     {
       "id": "NTF-mr9cbiog-5",
       "recipient": "jayantr55@gmail.com",
       "event": "reservation-created",
-      "title": "New reservation · Community Hall",
-      "body": "2026-07-09 · 09:30–13:30 · A-1601 · Bday",
+      "title": "New reservation Â· Community Hall",
+      "body": "2026-07-09 Â· 09:30â€“13:30 Â· A-1601 Â· Bday",
       "createdAt": "2026-07-06T14:53:41.584Z",
       "channels": [
         "in-app"
       ],
-      "link": "reservations.html?open=RES-0607262023",
+      "link": "reservations.html?open=CH-0607262023",
       "actor": "ta.deskops@gmail.com"
     },
     {
       "id": "NTF-mr9cbiog-6",
       "recipient": "tanujdang02@gmail.com",
       "event": "reservation-created",
-      "title": "New reservation · Community Hall",
-      "body": "2026-07-09 · 09:30–13:30 · A-1601 · Bday",
+      "title": "New reservation Â· Community Hall",
+      "body": "2026-07-09 Â· 09:30â€“13:30 Â· A-1601 Â· Bday",
       "createdAt": "2026-07-06T14:53:41.584Z",
       "channels": [
         "in-app"
       ],
-      "link": "reservations.html?open=RES-0607262023",
+      "link": "reservations.html?open=CH-0607262023",
       "actor": "ta.deskops@gmail.com"
     },
     {
       "id": "NTF-mr9cbiog-7",
       "recipient": "sharmaanushka2802@gmail.com",
       "event": "reservation-created",
-      "title": "New reservation · Community Hall",
-      "body": "2026-07-09 · 09:30–13:30 · A-1601 · Bday",
+      "title": "New reservation Â· Community Hall",
+      "body": "2026-07-09 Â· 09:30â€“13:30 Â· A-1601 Â· Bday",
       "createdAt": "2026-07-06T14:53:41.584Z",
       "channels": [
         "in-app"
       ],
-      "link": "reservations.html?open=RES-0607262023",
+      "link": "reservations.html?open=CH-0607262023",
       "actor": "ta.deskops@gmail.com"
     },
     {
       "id": "NTF-mr9cbiog-8",
       "recipient": "theaddressaundh@gmail.com",
       "event": "reservation-created",
-      "title": "New reservation · Community Hall",
-      "body": "2026-07-09 · 09:30–13:30 · A-1601 · Bday",
+      "title": "New reservation Â· Community Hall",
+      "body": "2026-07-09 Â· 09:30â€“13:30 Â· A-1601 Â· Bday",
       "createdAt": "2026-07-06T14:53:41.584Z",
       "channels": [
         "in-app"
       ],
-      "link": "reservations.html?open=RES-0607262023",
+      "link": "reservations.html?open=CH-0607262023",
       "actor": "ta.deskops@gmail.com"
     },
     {
       "id": "NTF-mr9cd4lx-9",
       "recipient": "chironjeetb7@gmail.com",
       "event": "reservation-cancelled",
-      "title": "Reservation cancelled · Community Hall",
-      "body": "2026-07-09 · 09:30–13:30",
+      "title": "Reservation cancelled Â· Community Hall",
+      "body": "2026-07-09 Â· 09:30â€“13:30",
       "createdAt": "2026-07-06T14:54:56.661Z",
       "channels": [
         "in-app"
       ],
-      "link": "reservations.html?open=RES-0607262023",
+      "link": "reservations.html?open=CH-0607262023",
       "actor": "ta.deskops@gmail.com"
     },
     {
       "id": "NTF-mr9cd4lx-a",
       "recipient": "sagarthakare@gmail.com",
       "event": "reservation-cancelled",
-      "title": "Reservation cancelled · Community Hall",
-      "body": "2026-07-09 · 09:30–13:30",
+      "title": "Reservation cancelled Â· Community Hall",
+      "body": "2026-07-09 Â· 09:30â€“13:30",
       "createdAt": "2026-07-06T14:54:56.661Z",
       "channels": [
         "in-app"
       ],
-      "link": "reservations.html?open=RES-0607262023",
+      "link": "reservations.html?open=CH-0607262023",
       "actor": "ta.deskops@gmail.com"
     },
     {
       "id": "NTF-mr9cd4lx-b",
       "recipient": "dhiman.parekh89@gmail.com",
       "event": "reservation-cancelled",
-      "title": "Reservation cancelled · Community Hall",
-      "body": "2026-07-09 · 09:30–13:30",
+      "title": "Reservation cancelled Â· Community Hall",
+      "body": "2026-07-09 Â· 09:30â€“13:30",
       "createdAt": "2026-07-06T14:54:56.661Z",
       "channels": [
         "in-app"
       ],
-      "link": "reservations.html?open=RES-0607262023",
+      "link": "reservations.html?open=CH-0607262023",
       "actor": "ta.deskops@gmail.com"
     },
     {
       "id": "NTF-mr9cd4lx-c",
       "recipient": "jayantr55@gmail.com",
       "event": "reservation-cancelled",
-      "title": "Reservation cancelled · Community Hall",
-      "body": "2026-07-09 · 09:30–13:30",
+      "title": "Reservation cancelled Â· Community Hall",
+      "body": "2026-07-09 Â· 09:30â€“13:30",
       "createdAt": "2026-07-06T14:54:56.661Z",
       "channels": [
         "in-app"
       ],
-      "link": "reservations.html?open=RES-0607262023",
+      "link": "reservations.html?open=CH-0607262023",
       "actor": "ta.deskops@gmail.com"
     },
     {
       "id": "NTF-mr9cd4lx-d",
       "recipient": "tanujdang02@gmail.com",
       "event": "reservation-cancelled",
-      "title": "Reservation cancelled · Community Hall",
-      "body": "2026-07-09 · 09:30–13:30",
+      "title": "Reservation cancelled Â· Community Hall",
+      "body": "2026-07-09 Â· 09:30â€“13:30",
       "createdAt": "2026-07-06T14:54:56.661Z",
       "channels": [
         "in-app"
       ],
-      "link": "reservations.html?open=RES-0607262023",
+      "link": "reservations.html?open=CH-0607262023",
       "actor": "ta.deskops@gmail.com"
     },
     {
       "id": "NTF-mr9cd4lx-e",
       "recipient": "sharmaanushka2802@gmail.com",
       "event": "reservation-cancelled",
-      "title": "Reservation cancelled · Community Hall",
-      "body": "2026-07-09 · 09:30–13:30",
+      "title": "Reservation cancelled Â· Community Hall",
+      "body": "2026-07-09 Â· 09:30â€“13:30",
       "createdAt": "2026-07-06T14:54:56.661Z",
       "channels": [
         "in-app"
       ],
-      "link": "reservations.html?open=RES-0607262023",
+      "link": "reservations.html?open=CH-0607262023",
       "actor": "ta.deskops@gmail.com"
     },
     {
       "id": "NTF-mr9cd4lx-f",
       "recipient": "theaddressaundh@gmail.com",
       "event": "reservation-cancelled",
-      "title": "Reservation cancelled · Community Hall",
-      "body": "2026-07-09 · 09:30–13:30",
+      "title": "Reservation cancelled Â· Community Hall",
+      "body": "2026-07-09 Â· 09:30â€“13:30",
       "createdAt": "2026-07-06T14:54:56.661Z",
       "channels": [
         "in-app"
       ],
-      "link": "reservations.html?open=RES-0607262023",
+      "link": "reservations.html?open=CH-0607262023",
       "actor": "ta.deskops@gmail.com"
     },
     {
       "id": "NTF-mr9kf12f-1",
       "recipient": "ta.deskops@gmail.com",
       "event": "reservation-created",
-      "title": "New reservation · Gym Area",
-      "body": "2026-07-09 · 08:00–12:00 · 23456 · 234",
+      "title": "New reservation Â· Gym Area",
+      "body": "2026-07-09 Â· 08:00â€“12:00 Â· 23456 Â· 234",
       "createdAt": "2026-07-06T18:40:22.311Z",
       "channels": [
         "in-app"
       ],
-      "link": "reservations.html?open=RES-0707260010",
+      "link": "reservations.html?open=GA-0707260010",
       "actor": "ta.deskops@gmail.com",
       "readAt": "2026-07-06T18:41:10.139Z"
     },
@@ -215,91 +215,91 @@
       "id": "NTF-mr9kf12f-2",
       "recipient": "chironjeetb7@gmail.com",
       "event": "reservation-created",
-      "title": "New reservation · Gym Area",
-      "body": "2026-07-09 · 08:00–12:00 · 23456 · 234",
+      "title": "New reservation Â· Gym Area",
+      "body": "2026-07-09 Â· 08:00â€“12:00 Â· 23456 Â· 234",
       "createdAt": "2026-07-06T18:40:22.311Z",
       "channels": [
         "in-app"
       ],
-      "link": "reservations.html?open=RES-0707260010",
+      "link": "reservations.html?open=GA-0707260010",
       "actor": "ta.deskops@gmail.com"
     },
     {
       "id": "NTF-mr9kf12f-3",
       "recipient": "sagarthakare@gmail.com",
       "event": "reservation-created",
-      "title": "New reservation · Gym Area",
-      "body": "2026-07-09 · 08:00–12:00 · 23456 · 234",
+      "title": "New reservation Â· Gym Area",
+      "body": "2026-07-09 Â· 08:00â€“12:00 Â· 23456 Â· 234",
       "createdAt": "2026-07-06T18:40:22.311Z",
       "channels": [
         "in-app"
       ],
-      "link": "reservations.html?open=RES-0707260010",
+      "link": "reservations.html?open=GA-0707260010",
       "actor": "ta.deskops@gmail.com"
     },
     {
       "id": "NTF-mr9kf12f-4",
       "recipient": "dhiman.parekh89@gmail.com",
       "event": "reservation-created",
-      "title": "New reservation · Gym Area",
-      "body": "2026-07-09 · 08:00–12:00 · 23456 · 234",
+      "title": "New reservation Â· Gym Area",
+      "body": "2026-07-09 Â· 08:00â€“12:00 Â· 23456 Â· 234",
       "createdAt": "2026-07-06T18:40:22.311Z",
       "channels": [
         "in-app"
       ],
-      "link": "reservations.html?open=RES-0707260010",
+      "link": "reservations.html?open=GA-0707260010",
       "actor": "ta.deskops@gmail.com"
     },
     {
       "id": "NTF-mr9kf12f-5",
       "recipient": "jayantr55@gmail.com",
       "event": "reservation-created",
-      "title": "New reservation · Gym Area",
-      "body": "2026-07-09 · 08:00–12:00 · 23456 · 234",
+      "title": "New reservation Â· Gym Area",
+      "body": "2026-07-09 Â· 08:00â€“12:00 Â· 23456 Â· 234",
       "createdAt": "2026-07-06T18:40:22.311Z",
       "channels": [
         "in-app"
       ],
-      "link": "reservations.html?open=RES-0707260010",
+      "link": "reservations.html?open=GA-0707260010",
       "actor": "ta.deskops@gmail.com"
     },
     {
       "id": "NTF-mr9kf12f-6",
       "recipient": "tanujdang02@gmail.com",
       "event": "reservation-created",
-      "title": "New reservation · Gym Area",
-      "body": "2026-07-09 · 08:00–12:00 · 23456 · 234",
+      "title": "New reservation Â· Gym Area",
+      "body": "2026-07-09 Â· 08:00â€“12:00 Â· 23456 Â· 234",
       "createdAt": "2026-07-06T18:40:22.311Z",
       "channels": [
         "in-app"
       ],
-      "link": "reservations.html?open=RES-0707260010",
+      "link": "reservations.html?open=GA-0707260010",
       "actor": "ta.deskops@gmail.com"
     },
     {
       "id": "NTF-mr9kf12f-7",
       "recipient": "sharmaanushka2802@gmail.com",
       "event": "reservation-created",
-      "title": "New reservation · Gym Area",
-      "body": "2026-07-09 · 08:00–12:00 · 23456 · 234",
+      "title": "New reservation Â· Gym Area",
+      "body": "2026-07-09 Â· 08:00â€“12:00 Â· 23456 Â· 234",
       "createdAt": "2026-07-06T18:40:22.311Z",
       "channels": [
         "in-app"
       ],
-      "link": "reservations.html?open=RES-0707260010",
+      "link": "reservations.html?open=GA-0707260010",
       "actor": "ta.deskops@gmail.com"
     },
     {
       "id": "NTF-mr9kf12f-8",
       "recipient": "theaddressaundh@gmail.com",
       "event": "reservation-created",
-      "title": "New reservation · Gym Area",
-      "body": "2026-07-09 · 08:00–12:00 · 23456 · 234",
+      "title": "New reservation Â· Gym Area",
+      "body": "2026-07-09 Â· 08:00â€“12:00 Â· 23456 Â· 234",
       "createdAt": "2026-07-06T18:40:22.311Z",
       "channels": [
         "in-app"
       ],
-      "link": "reservations.html?open=RES-0707260010",
+      "link": "reservations.html?open=GA-0707260010",
       "actor": "ta.deskops@gmail.com"
     }
   ]
