@@ -1409,8 +1409,18 @@
     { key: 'status',      label: 'Status',       width: 22, on: true,               read: (r) => r.status },
   ];
 
-  function bindPdfReport() {
+  async function bindPdfReport() {
     if (!root.TSH_REPORT || typeof root.TSH_REPORT.bind !== 'function') return;
+    // Configurable, default enabled: FEATURE_BOOKINGS_REPORT ships true in
+    // config/site.json. Admins can flip it to false to hide the report
+    // wiring (the header Export icon then also hides on this page because
+    // ui.js only reveals it when TSH_REPORT is bound and the role passes).
+    if (root.Flags && root.Flags.ready) {
+      try { await root.Flags.ready(); } catch (_e) { /* still bind on config failure */ }
+    }
+    if (root.Flags && root.Flags.on && root.Flags.on('FEATURE_BOOKINGS_REPORT') === false) {
+      return;
+    }
     const isStaff = who && root.Flags && root.Flags.isAtLeast
                     && root.Flags.isAtLeast(who.primary, 'MANAGER');
     root.TSH_REPORT.bind({

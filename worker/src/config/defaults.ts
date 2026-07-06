@@ -84,6 +84,7 @@ export const DEFAULT_CONFIG: SiteConfig = {
     FEATURE_DAILY_VISITOR_COUNTER:        true,
     FEATURE_DAILY_USER_ROLE_BADGE:        true,
     FEATURE_DAILY_EXPORT_PDF:             true,
+    FEATURE_BOOKINGS_REPORT:              true,
     FEATURE_TSH_RESERVATIONS:             true,
     FEATURE_TSH_NOTIFICATIONS:            true,
     FEATURE_TSH_RESERVATIONS_CALENDAR:    false,
