@@ -192,19 +192,25 @@
       query = e.target.value; render();
     });
 
-    // Header "Export PDF" — hand the current filtered list at click time.
+    // Header "Export PDF" — always export the FULL public-board dataset,
+    // ignoring the page's current status / search / "my reports" filters.
+    // The wizard's job is "give me a report of the public board", not
+    // "give me a report of what I happen to be looking at right now".
+    // We re-fetch /issues/public at click time so the export reflects the
+    // freshest state, and fall back to the page-loaded `all` array on API
+    // error so the export still succeeds.
     if (window.TSH_REPORT && typeof window.TSH_REPORT.bind === 'function') {
       window.TSH_REPORT.bind({
         title: 'Public Board — Report',
         source: 'public-board',
-        getItems: () => {
-          const q = query.trim().toUpperCase();
-          return all.filter((i) => {
-            if (myActive && !mySet.has(String(i.id || '').toUpperCase())) return false;
-            if (filter !== 'all' && i.status !== filter) return false;
-            if (q && !(i.id || '').toUpperCase().includes(q)) return false;
-            return true;
-          });
+        getItems: async () => {
+          try {
+            const res = await Api.get('/issues/public');
+            const fresh = Array.isArray(res) ? res : (res.items || []);
+            return Array.isArray(fresh) ? fresh : [];
+          } catch (_e) {
+            return all.slice();
+          }
         },
       });
     }

@@ -519,6 +519,8 @@ Both pages are flag-gated by `FEATURE_DAILY_KPI_DASHBOARD`. Data comes from `GET
 
 Read-only. PII redacted. Filter pill: `All / New / In Progress / Resolved`. Search by ticket id. Anonymous-allowed.
 
+**PDF export invariant.** The "Export PDF" action on this page always covers the **full** public dataset (a fresh `GET /issues/public` at click time), regardless of the on-page status / search / "my reports" filters. Rationale: the filename says "Public Board — Report", so users expect a report of the whole board, not a snapshot of whatever narrowing happens to be active at the moment. If we later want a "filtered view" export, it should be an opt-in toggle in the wizard, not the default. Same principle applies to the manage-page export (§8.4).
+
 ### 8.7 Settings (`docs/settings.html`)
 
 Admin-only (committee can view but every input is disabled). Sections:
