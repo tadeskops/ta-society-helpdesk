@@ -1060,11 +1060,21 @@
       const signedIn = !!(root.Auth && root.Auth.token && root.Auth.token());
       if (exportBtn) {
         const featureOk = !root.Flags || !root.Flags.on || root.Flags.on('FEATURE_DAILY_EXPORT_PDF') !== false;
-        // Show whenever signed in + feature on. Pages without a bound
-        // data source fall back to /issues; if the role can't read that
-        // endpoint the wizard surfaces a toast on click, which is a
-        // better trade-off than hiding the icon on most pages.
-        exportBtn.hidden = !(signedIn && featureOk);
+        // Role gate: only Society Manager, Committee and Admin should see
+        // the Export icon. Residents historically saw the button, clicked
+        // it, and then hit a "no data available" dead-end because /issues
+        // rejects non-staff. The Bookings report added to reservations.js
+        // is also manager-authored. Whoami is cached so this is cheap; if
+        // the check hasn't resolved yet we default to hidden (safer than
+        // a flash-of-visible for residents).
+        if (!(signedIn && featureOk) || !root.Flags || !root.Flags.whoami || !root.Flags.isAtLeast) {
+          exportBtn.hidden = true;
+        } else {
+          exportBtn.hidden = true; // hide until whoami resolves
+          root.Flags.whoami().then((w) => {
+            exportBtn.hidden = !root.Flags.isAtLeast(w && w.primary, 'MANAGER');
+          }).catch(() => { exportBtn.hidden = true; });
+        }
       }
       if (downloadLatest) {
         refreshDownloadHref();

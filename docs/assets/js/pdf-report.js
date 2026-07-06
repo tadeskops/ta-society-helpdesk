@@ -73,6 +73,16 @@
 
   function bind(spec) {
     bound = Object.assign({ title: 'Society Help Desk — Report', source: 'page' }, spec || {});
+    // Optional columns override lets pages ship a report shape that doesn't
+    // match the default issue schema (e.g. reservations.js binds Bookings
+    // columns — Booking ID / Facility / Slot / Owner / Booked on / Paid on
+    // / Completed on / Status). When absent we fall back to COLUMNS.
+    // Also: sources that aren't issues (bound.source !== 'page' AND columns
+    // is set) suppress the /reports/monthly archive block, since that
+    // endpoint only serves issue tickets.
+    if (Array.isArray(spec && spec.columns)) {
+      bound.columns = spec.columns.map((c) => Object.assign({}, c));
+    }
     // Let chrome (e.g. header Export icon) know a data source has been
     // registered so it can reveal an action that would otherwise be inert.
     try { document.dispatchEvent(new CustomEvent('tsh:pdf-bound')); } catch (_e) { /* IE-only */ }
@@ -128,12 +138,22 @@
     const m = document.getElementById('tshPdfModal');
     if (!m) { toast('PDF wizard partial not loaded on this page.', 'warn'); return; }
     document.getElementById('tshPdfReportTitle').value = ctx.title;
-    cols = COLUMNS.map((c) => Object.assign({}, c));
+    const src = (bound && Array.isArray(bound.columns) && bound.columns.length) ? bound.columns : COLUMNS;
+    cols = src.map((c) => Object.assign({}, c));
     renderCols();
     monthlyActive = false;
     originalGetItems = ctx.items;
     renderSummary(ctx);
-    setupMonthlyBlock(ctx);
+    // Monthly-archive controls target the /reports/monthly issues endpoint;
+    // hide them for pages that bound their own columns (bookings, etc.) so
+    // managers don't accidentally overwrite a bookings report with issue
+    // data pulled from the archive.
+    const monthlyBlock = document.getElementById('tshPdfMonthlyBlock');
+    if (monthlyBlock && bound && Array.isArray(bound.columns) && bound.columns.length) {
+      monthlyBlock.hidden = true;
+    } else {
+      setupMonthlyBlock(ctx);
+    }
 
     const closers = m.querySelectorAll('[data-tsh-pdf-close]');
     closers.forEach((b) => b.addEventListener('click', close, { once: true }));

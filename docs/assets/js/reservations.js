@@ -156,6 +156,8 @@
     // Preload the resident list so the tab count is accurate on first visit.
     refreshMine();
     if (isStaff) refreshManage();
+
+    bindPdfReport();
   }
 
   // -------------------------------------------------------- tabs
@@ -1321,6 +1323,123 @@
     return String(s == null ? '' : s)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  // -------------------------------------------------------- PDF report
+
+  // Formats an ISO timestamp as "dd Mon yy" (matches the shortDate helper
+  // used by pdf-report.js for the Issues report).
+  function shortIso(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return `${String(d.getDate()).padStart(2, '0')} ${MON[d.getMonth()]} ${String(d.getFullYear()).slice(-2)}`;
+  }
+
+  function shortYmd(ymd) {
+    if (!ymd || !/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return ymd || '';
+    const [y, m, d] = ymd.split('-').map(Number);
+    const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return `${String(d).padStart(2, '0')} ${MON[m - 1]} ${String(y).slice(-2)}`;
+  }
+
+  function minsToHHMM(m) {
+    if (typeof m !== 'number' || !Number.isFinite(m)) return '';
+    const h = Math.floor(m / 60);
+    const mm = m % 60;
+    return `${String(h).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+  }
+
+  // Shape a raw reservation record into the flat row expected by the
+  // pdf-report.js column readers below. Kept side-effect-free so it can be
+  // called from getItems() without touching module-level caches.
+  function toReportRow(r) {
+    const startHH = minsToHHMM(r.startMin);
+    const endHH   = minsToHHMM(r.endMin);
+    const timeStr = (startHH && endHH) ? `${startHH}\u2013${endHH}` : (r.slotLabel || '');
+    const pay = r.payment || null;
+    // "Completed" is derived: a confirmed booking whose slot end time
+    // has already elapsed (IST). The domain has no explicit completed
+    // status so this is the honest signal we can print.
+    let completedOn = '';
+    if (r.status === 'confirmed' && r.date && typeof r.endMin === 'number') {
+      try {
+        // Slot end in IST as an epoch. Compare against now.
+        const [Y, M, D] = r.date.split('-').map(Number);
+        const endIstMs = Date.UTC(Y, M - 1, D, 0, 0, 0)
+                       + r.endMin * 60 * 1000
+                       - (5.5 * 60 * 60 * 1000); // convert IST -> UTC
+        if (Date.now() >= endIstMs) completedOn = shortYmd(r.date);
+      } catch (_e) { /* leave blank */ }
+    }
+    const flat = (r.owner && r.owner.flat) || '';
+    const name = (r.owner && r.owner.name) || '';
+    const ownerLine = flat && name ? `${flat} \u00b7 ${name}` : (flat || name || '');
+    return {
+      id:            r.id || '',
+      facility:      r.facilityLabel || r.facilityId || '',
+      slotDate:      shortYmd(r.date),
+      slotTime:      timeStr,
+      owner:         ownerLine,
+      purpose:       (r.purpose || '').trim(),
+      bookedOn:      shortIso(r.createdAt),
+      paidOn:        pay && pay.verifiedAt ? shortIso(pay.verifiedAt) : '',
+      amount:        pay && typeof pay.amount === 'number' ? String(pay.amount) : '',
+      completedOn:   completedOn,
+      status:        (RESIDENT_STATUS_LABEL[r.status] || r.status || '').toString(),
+    };
+  }
+
+  // Column schema for the Bookings PDF. Follows the same shape as
+  // pdf-report.js#COLUMNS (key/label/width/on/always/read) so the wizard
+  // can render it without any bookings-specific code inside pdf-report.js.
+  // Widths tuned so 'auto' orientation picks landscape (total > 200mm).
+  const BOOKING_COLUMNS = [
+    { key: 'id',          label: 'Booking ID',   width: 32, on: true, always: true, read: (r) => r.id },
+    { key: 'facility',    label: 'Facility',     width: 32, on: true,               read: (r) => r.facility },
+    { key: 'slotDate',    label: 'Slot date',    width: 22, on: true,               read: (r) => r.slotDate },
+    { key: 'slotTime',    label: 'Slot time',    width: 22, on: true,               read: (r) => r.slotTime },
+    { key: 'owner',       label: 'Owner',        width: 36, on: true,               read: (r) => r.owner },
+    { key: 'purpose',     label: 'Purpose',      width: 40, on: true,               read: (r) => r.purpose },
+    { key: 'bookedOn',    label: 'Booked on',    width: 22, on: true,               read: (r) => r.bookedOn },
+    { key: 'paidOn',      label: 'Paid on',      width: 22, on: true,               read: (r) => r.paidOn },
+    { key: 'amount',      label: 'Amount (INR)', width: 20, on: true,               read: (r) => r.amount },
+    { key: 'completedOn', label: 'Completed on', width: 22, on: true,               read: (r) => r.completedOn },
+    { key: 'status',      label: 'Status',       width: 22, on: true,               read: (r) => r.status },
+  ];
+
+  function bindPdfReport() {
+    if (!root.TSH_REPORT || typeof root.TSH_REPORT.bind !== 'function') return;
+    const isStaff = who && root.Flags && root.Flags.isAtLeast
+                    && root.Flags.isAtLeast(who.primary, 'MANAGER');
+    root.TSH_REPORT.bind({
+      title: isStaff
+        ? 'Society Bookings \u2014 Facility Reservations Report'
+        : 'My Bookings \u2014 Facility Reservations',
+      source: 'reservations',
+      columns: BOOKING_COLUMNS,
+      // Staff pull scope=all across every status so the printed record
+      // matches society-manager expectations (past + present + future).
+      // Residents only ever see their own bookings, which is what
+      // /reservations?scope=mine returns.
+      getItems: async () => {
+        if (!root.Api || !root.Api.get) return [];
+        const path = isStaff
+          ? '/reservations?scope=all&status=all'
+          : '/reservations?scope=mine';
+        try {
+          const res = await root.Api.get(path);
+          const rows = Array.isArray(res && res.items) ? res.items : [];
+          return rows
+            .filter((r) => r && !r.isDeleted)
+            .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
+            .map(toReportRow);
+        } catch (_e) {
+          return [];
+        }
+      },
+    });
   }
 
   root.Reservations = { init };
