@@ -279,8 +279,19 @@
     "fullReportUrl": "",
     "reportBackupFreq": "3x-daily",
     "backupEnabled": true,
-    "backupTimes": ["08:00", "14:00", "20:00"],
-    "backupRetentionDays": 90
+    "backupTimes": [
+      "08:00",
+      "14:00",
+      "20:00"
+    ],
+    "backupRetentionDays": 90,
+    "receiptTemplate": {
+      "url": "https://raw.githubusercontent.com/tadeskops/ta-society-helpdesk/main/photos/receipts/template-0a4c072925b3c73d.pdf",
+      "mime": "application/pdf",
+      "bytes": 239593,
+      "updatedBy": "ta.deskops@gmail.com",
+      "updatedAt": "2026-07-06T18:45:30.752Z"
+    }
   },
   "ui": {
     "defaultTheme": "light",
