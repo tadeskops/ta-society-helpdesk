@@ -2560,6 +2560,8 @@
       actions: [{ label: 'Close', value: null }],
     });
   }
+
+  async function openReceiptModal(r) {
     let tpl;
     try { tpl = await getReceiptTemplate(false); }
     catch (_e) { tpl = null; }
