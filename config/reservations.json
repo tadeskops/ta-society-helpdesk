@@ -1,4 +1,42 @@
 {
   "version": 1,
-  "items": []
+  "items": [
+    {
+      "id": "RES-0607262023",
+      "facilityId": "community-hall",
+      "facilityLabel": "Community Hall",
+      "date": "2026-07-09",
+      "startMin": 570,
+      "endMin": 810,
+      "purpose": "Bday",
+      "status": "requested",
+      "owner": {
+        "email": "ta.deskops@gmail.com",
+        "flat": "A-1601"
+      },
+      "createdBy": {
+        "email": "ta.deskops@gmail.com",
+        "role": "ADMIN"
+      },
+      "createdAt": "2026-07-06T14:53:38.282Z",
+      "updatedAt": "2026-07-06T14:53:38.282Z",
+      "timeline": [
+        {
+          "at": "2026-07-06T14:53:38.282Z",
+          "by": {
+            "email": "ta.deskops@gmail.com",
+            "role": "ADMIN"
+          },
+          "event": "created",
+          "note": "Awaiting manager review."
+        }
+      ],
+      "payment": {
+        "status": "pending",
+        "proofs": [],
+        "amount": 5000,
+        "payee": "Society Manager"
+      }
+    }
+  ]
 }
