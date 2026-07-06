@@ -411,37 +411,6 @@ html[data-theme="medium"] .tsh-user-role-manager {
   text-align: left;
   background: rgba(0, 0, 0, 0.25);
 }
-/* Footer quick-links row. Sits at the top of the footer as a full-width
-   strip on every page, then the three-zone meta row wraps below. Keeps
-   the header uncluttered by hosting Reservations + other flag-gated
-   shortcuts here. */
-.tsh-footer-nav {
-  flex-basis: 100%;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--sp-2) var(--sp-3);
-  padding-bottom: var(--sp-2);
-  margin-bottom: var(--sp-2);
-  border-bottom: 1px dashed var(--c-border);
-}
-.tsh-footer-nav a {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--c-text-muted);
-  text-decoration: none;
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-weight: 500;
-  transition: background 160ms ease, color 160ms ease;
-}
-.tsh-footer-nav a:hover,
-.tsh-footer-nav a:focus-visible {
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--c-primary);
-}
-.tsh-footer-nav a i { font-size: 0.95em; }
 .tsh-footer-meta {
   text-align: right;
   white-space: normal;
@@ -498,8 +467,6 @@ html[data-theme="medium"] .tsh-user-role-manager {
   .tsh-footer-ig i { font-size: 1.15rem; }
   .tsh-footer-meta { font-size: 0.7rem; }
   .tsh-footer-center { font-size: 0.7rem; flex-basis: 100%; }
-  .tsh-footer-nav { gap: 2px var(--sp-2); padding-bottom: var(--sp-2); margin-bottom: var(--sp-2); }
-  .tsh-footer-nav a { padding: 3px 6px; font-size: 0.78rem; }
 }
 .tsh-visitors {
   display: inline-flex;
