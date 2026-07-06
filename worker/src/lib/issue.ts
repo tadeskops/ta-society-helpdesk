@@ -327,17 +327,26 @@ export const auditComment = (from: Status, to: Status, actor: string, notes?: st
 };
 
 // ---- Lifecycle table (§7) -------------------------------------------------
+//
+// Default flow (minimized): new → assigned → in-progress → resolved
+// (plus rejected + deleted sinks). A scheduled sweep auto-transitions
+// `new` → `assigned` after DAILY_AUTO_ASSIGN_HOURS (default 4h) — see
+// routes/issues.ts → runAutoAssignSweep. The `triaging` status is retained
+// as an outgoing-only state so any pre-existing ticket that was manually
+// moved into `triaging` in the past still has a forward path; new tickets
+// no longer enter that state.
 
 type Edge = { from: Status; to: Status };
 const ALLOWED_EDGES: Edge[] = [
-  { from: 'new',         to: 'triaging' },
   { from: 'new',         to: 'assigned' },
   { from: 'new',         to: 'rejected' },
-  { from: 'triaging',    to: 'assigned' },
-  { from: 'triaging',    to: 'rejected' },
+  { from: 'triaging',    to: 'assigned' },   // legacy tickets only
+  { from: 'triaging',    to: 'rejected' },   // legacy tickets only
   { from: 'assigned',    to: 'in-progress' },
   { from: 'assigned',    to: 'resolved' },
+  { from: 'assigned',    to: 'rejected' },
   { from: 'in-progress', to: 'resolved' },
+  { from: 'in-progress', to: 'rejected' },
   { from: 'resolved',    to: 'in-progress' },
   { from: 'rejected',    to: 'new' },
 ];

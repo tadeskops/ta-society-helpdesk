@@ -32,7 +32,7 @@ Everything below is scoped to the daily track. All seven open design questions f
 
 | Tool / Service | What it does (plain words) |
 |---|---|
-| **GitHub Issues** (this repo) | The database — every reported daily issue is one GitHub Issue. Status is encoded as labels (`new`, `triaging`, `assigned`, `in-progress`, `resolved`, `rejected`, `deleted`). |
+| **GitHub Issues** (this repo) | The database — every reported daily issue is one GitHub Issue. Status is encoded as labels. The minimized default lifecycle uses `new`, `assigned`, `in-progress`, `resolved`, `rejected`, `deleted`; the legacy `triaging` label is retained only as an outgoing source so tickets created before the Reviewing step was retired can still move forward. |
 | **GitHub Pages** | Hosts the resident form + manager dashboard + public board + settings page as a regular website at `https://tadeskops.github.io/ta-society-helpdesk/`. |
 | **GitHub Actions** | Runs the scheduled PDF report, deploys Pages on push, deploys the Worker on push. |
 | **Cloudflare Worker** (free tier) | A small server-side helper that holds the GitHub access token. The browser talks to the Worker; the Worker talks to GitHub. The token never reaches the browser. |
@@ -124,7 +124,7 @@ Four roles. Precedence (highest wins for landing-page routing):
 | Role | How identified | Capabilities |
 |---|---|---|
 | **Resident** | Anonymous Google sign-in (any Gmail) | Submit a daily issue; read the public board (PII redacted); look up own ticket by id. **Cannot** call any privileged action. |
-| **Society Manager** | Email in `config/managers.json` | Acknowledge / triage / assign vendor + severity / mark in progress / resolve / reject / reopen. Can add photos to existing issues. **Cannot delete, cannot edit historical fields, cannot change settings.** |
+| **Society Manager** | Email in `config/managers.json` | Assign vendor + severity / mark in progress / resolve / reject / reopen. Can add photos to existing issues. **Cannot delete, cannot edit historical fields, cannot change settings.** |
 | **Technical Committee** | Email in `config/committee.json` | Everything a manager can do, **plus** edit/redact issue body, overwrite resolution notes after the fact, soft-delete (lock + tombstone), bulk archive, view audit log. **Read-only** access to settings (can see what's configured, cannot change it). |
 | **Developer** | Email in `config/developers.json` | Everything committee can do, **plus** edit `config/site.json` (feature flags, visibility, lists), manage all three allow-lists from the settings page, edit system bindings (repo, branch, Worker URL, photo-storage strategy). |
 
@@ -303,7 +303,7 @@ One GitHub Issue per ticket. The Worker is the only writer.
 
 | Family | Values | Notes |
 |---|---|---|
-| Status | `new`, `triaging`, `assigned`, `in-progress`, `resolved`, `rejected`, `deleted` | Exactly one applied at any time. |
+| Status | `new`, `assigned`, `in-progress`, `resolved`, `rejected`, `deleted` (+ legacy `triaging`) | Exactly one applied at any time. `triaging` is not entered by new tickets — it is preserved only so pre-migration tickets stay routable. |
 | Tower | `tower:T1`, `tower:T2`, … | One. |
 | Category | `cat:lift`, `cat:water`, `cat:lights`, `cat:cleaning`, `cat:security`, … | One; matches `config/site.json` category list. |
 | Severity | `sev:critical`, `sev:high`, `sev:medium`, `sev:low` | Set on assign. |
@@ -337,16 +337,19 @@ The issue is preserved on GitHub (so the audit trail survives); only its visibil
 
 ## 7. Lifecycle (allowed transitions)
 
+The default flow is deliberately minimized: `new → assigned → in-progress → resolved` with `rejected` reachable from every live state. A ticket that has been sitting in `new` for `DAILY_AUTO_ASSIGN_HOURS` (default `4`) is auto-promoted to `assigned` by the hourly cron so nothing stalls in the inbox. Legacy `triaging` tickets are still moveable forward, but no new ticket ever enters that state.
+
 | From | To | Action | Roles |
 |---|---|---|---|
-| `new` | `triaging` | acknowledge | Manager+ |
-| `new` | `assigned` | assign vendor + severity | Manager+ |
+| `new` | `assigned` | assign (manual or auto after `DAILY_AUTO_ASSIGN_HOURS`) | Manager+ / system |
 | `new` | `rejected` | reject (spam / duplicate) | Manager+ |
-| `triaging` | `assigned` | assign | Manager+ |
-| `triaging` | `rejected` | reject | Manager+ |
+| `triaging` | `assigned` | assign (legacy tickets only) | Manager+ |
+| `triaging` | `rejected` | reject (legacy tickets only) | Manager+ |
 | `assigned` | `in-progress` | mark in progress | Manager+ |
 | `assigned` | `resolved` | resolve directly | Manager+ |
+| `assigned` | `rejected` | reject (found not actionable) | Manager+ |
 | `in-progress` | `resolved` | resolve | Manager+ |
+| `in-progress` | `rejected` | reject (found not actionable) | Manager+ |
 | `resolved` | `in-progress` | reopen | Manager+ |
 | `rejected` | `new` | reopen | Manager+ |
 | any → `deleted` | soft-delete | Committee+ |
@@ -414,7 +417,7 @@ Tracking ID, copy button, share-via-WhatsApp deep link (`wa.me/?text=…`), "Wha
 
 ### 8.4 Manager dashboard (`docs/manager-dashboard.html`)
 
-Modeled visually on the handover committee dashboard. Tabs: `New` · `Triaging` · `Assigned` · `In Progress` · `Resolved (today)` · `Rejected` · `All`. Row actions: Acknowledge · Assign · Mark in progress · Resolve · Reject. Quick filters: tower / category / severity / age. Rows older than `DAILY_AUTO_ACK_HOURS` in status `new` are flagged red.
+Modeled visually on the handover committee dashboard. Tabs: `New` · `Assigned` · `In Progress` · `Resolved (today)` · `Rejected` · `All`. Row actions: Assign · Mark in progress · Resolve · Reject. Quick filters: tower / category / severity / age. Rows older than `DAILY_AUTO_ASSIGN_HOURS` in status `new` are flagged red — they will be auto-promoted to `assigned` on the next cron tick if no manager acts first.
 
 ### 8.5 Committee dashboard (`docs/committee-dashboard.html`)
 
@@ -456,7 +459,7 @@ Save → `PUT /config` (and/or `PUT /access-lists/:role`) → Worker commits the
     "FEATURE_DAILY_TURNSTILE":        true
   },
   "tunables": {
-    "DAILY_AUTO_ACK_HOURS":    24,
+    "DAILY_AUTO_ASSIGN_HOURS": 4,
     "DAILY_ARCHIVE_AFTER_DAYS": 90,
     "DAILY_PHOTO_MAX_PER_ISSUE": 6,
     "DAILY_PHOTO_MAX_BYTES":    5242880

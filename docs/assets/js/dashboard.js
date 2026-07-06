@@ -5,14 +5,22 @@
 (function (root) {
   'use strict';
 
+  // Minimized default lifecycle (see APP_BRIEF_PROMPT.md §7).
+  // `triaging` is retained only as an outgoing source so legacy tickets
+  // that were created before the Reviewing step was retired can still be
+  // moved forward. New tickets never enter `triaging`.
+  //
+  // Wire values match the Worker Status enum exactly (hyphen, not
+  // underscore) — the client sends these strings back on PATCH
+  // /issues/:id and the worker rejects anything not in STATUSES.
   const Edges = {
-    new:         ['triaging', 'assigned', 'rejected'],
-    triaging:    ['assigned', 'in_progress', 'rejected'],
-    assigned:    ['in_progress', 'resolved', 'rejected'],
-    in_progress: ['resolved', 'rejected'],
-    resolved:    ['reopened'],
-    rejected:    ['reopened'],
-    reopened:    ['triaging', 'assigned', 'in_progress'],
+    new:           ['assigned', 'rejected'],
+    triaging:      ['assigned', 'rejected'],
+    assigned:      ['in-progress', 'resolved', 'rejected'],
+    'in-progress': ['resolved', 'rejected'],
+    resolved:      ['reopened'],
+    rejected:      ['reopened'],
+    reopened:      ['assigned', 'in-progress'],
   };
 
   // role-keyed flags drive what the detail modal exposes. The Worker is
@@ -63,7 +71,7 @@
     const filtered = applyFilters(allIssues);
     empty.hidden = filtered.length !== 0;
 
-    const overdueHrs = (root.Flags && root.Flags.tunable && root.Flags.tunable('DAILY_AUTO_ACK_HOURS', 24)) || 24;
+    const overdueHrs = (root.Flags && root.Flags.tunable && root.Flags.tunable('DAILY_AUTO_ASSIGN_HOURS', 4)) || 4;
     const overdueMs = overdueHrs * 3600 * 1000;
     const now = Date.now();
 
@@ -204,7 +212,7 @@
   }
 
   function labelFor(s) {
-    return ({ triaging: 'Start review', assigned: 'Assign', in_progress: 'In progress', resolved: 'Resolve', rejected: 'Reject', reopened: 'Reopen' }[s]) || s;
+    return ({ triaging: 'Start review', assigned: 'Assign', 'in-progress': 'In progress', resolved: 'Resolve', rejected: 'Reject', reopened: 'Reopen' }[s]) || s;
   }
 
   function detailMeta(issue) {

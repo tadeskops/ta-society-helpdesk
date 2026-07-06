@@ -15,12 +15,14 @@
   const REFRESH_MS = 60_000;
 
   // Status groupings used by the operational tiles. Matches the worker
-  // STATUS labels exactly.
+  // STATUS labels exactly. `triaging` was retired from the default
+  // lifecycle (APP_BRIEF_PROMPT.md §7) so no tile is rendered for it —
+  // legacy tickets still in `triaging` roll up under the "New" count via
+  // the /issues list filter for operators who want to see them.
   const STATUS_TILES = [
     { key: 'new',          label: 'New',           icon: 'fa-circle-exclamation', href: './manage.html?status=new' },
-    { key: 'triaging',     label: 'Reviewing',     icon: 'fa-magnifying-glass',    href: './manage.html?status=triaging' },
     { key: 'assigned',     label: 'Assigned',       icon: 'fa-user-check',         href: './manage.html?status=assigned' },
-    { key: 'in_progress',  label: 'In progress',    icon: 'fa-screwdriver-wrench', href: './manage.html?status=in_progress' },
+    { key: 'in-progress',  label: 'In progress',    icon: 'fa-screwdriver-wrench', href: './manage.html?status=in-progress' },
     { key: 'resolved',     label: 'Resolved (7d)',  icon: 'fa-check-double',       href: './manage.html?status=resolved', windowDays: 7 },
     { key: 'rejected',     label: 'Rejected (7d)',  icon: 'fa-ban',                href: './manage.html?status=rejected', windowDays: 7 },
   ];

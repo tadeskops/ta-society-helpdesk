@@ -42,9 +42,8 @@
 
       <nav class="tsh-tabs" role="tablist" aria-label="Status">
         <button type="button" role="tab" aria-selected="true"  data-status="new"         class="tsh-tab tsh-tab-active">New</button>
-        <button type="button" role="tab" aria-selected="false" data-status="triaging"    class="tsh-tab">Reviewing</button>
         <button type="button" role="tab" aria-selected="false" data-status="assigned"    class="tsh-tab">Assigned</button>
-        <button type="button" role="tab" aria-selected="false" data-status="in_progress" class="tsh-tab">In progress</button>
+        <button type="button" role="tab" aria-selected="false" data-status="in-progress" class="tsh-tab">In progress</button>
         <button type="button" role="tab" aria-selected="false" data-status="resolved"    class="tsh-tab">Resolved</button>
         <button type="button" role="tab" aria-selected="false" data-status="rejected"    class="tsh-tab">Rejected</button>
         <button type="button" role="tab" aria-selected="false" data-status=""            class="tsh-tab">All</button>
@@ -272,9 +271,12 @@
         title: 'Status',
         html:
           '<p>Workflow stage. Tabs above filter by status:</p>' +
-          '<p><strong>New</strong> &rarr; <strong>Reviewing</strong> &rarr; ' +
-          '<strong>Assigned</strong> &rarr; <strong>In progress</strong> &rarr; ' +
-          '<strong>Resolved</strong> (or <strong>Rejected</strong>).</p>' +
+          '<p><strong>New</strong> &rarr; <strong>Assigned</strong> &rarr; ' +
+          '<strong>In progress</strong> &rarr; <strong>Resolved</strong> ' +
+          '(or <strong>Rejected</strong>).</p>' +
+          '<p>Tickets left in <strong>New</strong> for more than the ' +
+          'configured window (<code>DAILY_AUTO_ASSIGN_HOURS</code>, default 4h) ' +
+          'are auto-promoted to <strong>Assigned</strong> so nothing stalls.</p>' +
           '<p>Use row actions to move a ticket through these states.</p>',
       },
       age: {

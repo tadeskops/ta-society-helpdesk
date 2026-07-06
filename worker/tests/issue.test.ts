@@ -55,16 +55,17 @@ describe('statusOf / severityOf / setStatus / setPrefixed', () => {
   });
 });
 
-describe('isAllowedTransition (§7 lifecycle table)', () => {
+describe('isAllowedTransition (§7 lifecycle table — minimized default)', () => {
   it.each([
-    ['new', 'triaging'],
     ['new', 'assigned'],
     ['new', 'rejected'],
-    ['triaging', 'assigned'],
-    ['triaging', 'rejected'],
+    ['triaging', 'assigned'],   // legacy tickets only
+    ['triaging', 'rejected'],   // legacy tickets only
     ['assigned', 'in-progress'],
     ['assigned', 'resolved'],
+    ['assigned', 'rejected'],
     ['in-progress', 'resolved'],
+    ['in-progress', 'rejected'],
     ['resolved', 'in-progress'],
     ['rejected', 'new'],
   ] as const)('allows %s -> %s', (from, to) => {
@@ -72,6 +73,7 @@ describe('isAllowedTransition (§7 lifecycle table)', () => {
   });
 
   it.each([
+    ['new', 'triaging'],        // Reviewing step retired from the default flow
     ['new', 'in-progress'],
     ['new', 'resolved'],
     ['triaging', 'in-progress'],

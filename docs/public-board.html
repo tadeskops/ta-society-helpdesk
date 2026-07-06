@@ -66,12 +66,14 @@
     try { Flags.ensureFeature('FEATURE_DAILY_PUBLIC_BOARD', 'Public board'); }
     catch (_e) { return; }
 
-    // Hide flag-gated status options.
+    // Hide flag-gated status options. `triaging` is intentionally omitted —
+    // it was retired from the default lifecycle in the minimize pass;
+    // legacy tickets still in that state fall under the "New" bucket for
+    // resident purposes.
     const statusOptions = [
-      { value: 'new',         label: 'New' },
-      { value: 'triaging',    label: 'Reviewing' },
-      { value: 'assigned',    label: 'Assigned' },
-      { value: 'in_progress', label: 'In progress' },
+      { value: 'new',          label: 'New' },
+      { value: 'assigned',     label: 'Assigned' },
+      { value: 'in-progress',  label: 'In progress' },
     ];
     if (Flags.raw && Flags.on('FEATURE_DAILY_PUBLIC_RESOLVED')) statusOptions.push({ value: 'resolved', label: 'Resolved' });
     if (Flags.raw && Flags.on('FEATURE_DAILY_PUBLIC_REJECTED')) statusOptions.push({ value: 'rejected', label: 'Rejected' });

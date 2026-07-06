@@ -774,7 +774,7 @@
       },
       'FEATURE_DAILY_KPI_DASHBOARD': {
         summary: 'KPI counter dashboard for managers and committee.',
-        detail: 'Renders /manager-dashboard.html as a live tile grid (Open, New, Reviewing, Assigned, In Progress, Resolved 7d, Rejected 7d + severity breakdown). Auto-refreshes every 60 s. /committee-dashboard.html redirects here. Each tile links into the operational queue with the matching status filter.',
+        detail: 'Renders /manager-dashboard.html as a live tile grid (Open, New, Assigned, In Progress, Resolved 7d, Rejected 7d + severity breakdown). Auto-refreshes every 60 s. /committee-dashboard.html redirects here. Each tile links into the operational queue with the matching status filter.',
         default: 'true',
       },
       'FEATURE_DAILY_COMMITTEE_VIEW': {
@@ -829,10 +829,11 @@
       },
 
       // Tunables (short name, used by tunables.<NAME>)
-      'DAILY_AUTO_ACK_HOURS': {
-        summary: 'Hours before an unattended new issue is auto-acknowledged.',
+      'DAILY_AUTO_ASSIGN_HOURS': {
+        summary: 'Hours before a new issue with no manager action is auto-assigned to the Society Manager rota.',
+        detail: 'Sweep runs hourly. Lower = tickets promoted faster; higher = more grace for managers. Legacy config files still using DAILY_AUTO_ACK_HOURS are honoured transparently.',
         range: '1 \u2013 168 hours (1 week)',
-        default: '24',
+        default: '4',
       },
       'DAILY_ARCHIVE_AFTER_DAYS': {
         summary: 'Days after which resolved / rejected issues auto-archive.',

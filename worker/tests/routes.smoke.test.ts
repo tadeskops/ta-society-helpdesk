@@ -210,6 +210,32 @@ describe('lifecycle PATCH', () => {
     expect(comment.body).toContain('**Status change**');
     expect(comment.body).toContain('new → assigned');
   });
+
+  it('accepts the hyphenated wire value on PATCH to `in-progress` (regression: no underscore alias)', async () => {
+    // The frontend must send `in-progress` (hyphen); a stale `in_progress`
+    // (underscore) is rejected by the validator. This test protects the
+    // full new -> assigned -> in-progress chain from silently regressing
+    // to a broken tab in the dashboard.
+    await send('POST', '/issues', {
+      tower: 'A', category: 'Water', subCategory: 'Leak',
+      location: 'Pump', description: 'wire compat guard',
+    });
+    const step1 = await send('PATCH', '/issues/DLY-00001',
+      { to: 'assigned', severity: 'medium' }, 'mgr@x.com');
+    expect(step1.status).toBe(200);
+    const step2 = await send('PATCH', '/issues/DLY-00001',
+      { to: 'in-progress' }, 'mgr@x.com');
+    expect(step2.status).toBe(200);
+    const j2 = await step2.json() as any;
+    expect(j2.data.from).toBe('assigned');
+    expect(j2.data.to).toBe('in-progress');
+
+    // And the underscore variant must be rejected so we notice quickly if
+    // anyone re-introduces the mismatch.
+    const bad = await send('PATCH', '/issues/DLY-00001',
+      { to: 'in_progress' }, 'mgr@x.com');
+    expect(bad.status).toBe(400);
+  });
 });
 
 describe('soft-delete (manager+)', () => {
@@ -308,6 +334,101 @@ describe('POST /reports/backup (signed-in)', () => {
     expect(j.data.monthlyPath).toBeUndefined();
     const pdfWrites = ghCalls.filter((c) => c.fn === 'putBinaryB64');
     expect(pdfWrites.length).toBe(0);
+  });
+});
+
+describe('auto-assign sweep', () => {
+  // The sweep is what enforces the "minimize the steps" requirement — a
+  // ticket sitting in `new` for more than DAILY_AUTO_ASSIGN_HOURS (4 by
+  // default) is auto-promoted to `assigned` so it never stalls.
+
+  it('promotes `new` tickets older than the cutoff and posts an audit comment', async () => {
+    const { runAutoAssignSweep, AUTO_ASSIGN_ACTOR } = await import('../src/routes/issues.ts');
+    const { DEFAULT_CONFIG } = await import('../src/config/defaults.ts');
+
+    // Create a fresh ticket, then rewind its created_at so the sweep sees
+    // it as stale (5h old vs the 4h default cutoff).
+    await send('POST', '/issues', {
+      tower: 'A', category: 'Water', subCategory: 'Leak',
+      location: 'Pump', description: 'leak needing manager attention',
+    });
+    const created = Object.values(issuesByNum)[0] as any;
+    const now = Date.now();
+    created.created_at = new Date(now - 5 * 3_600_000).toISOString();
+
+    // Clear the calls made by the create flow so we only inspect what the
+    // sweep itself does to the ticket.
+    ghCalls.length = 0;
+
+    const cfg = { ...DEFAULT_CONFIG };
+    const result = await runAutoAssignSweep(
+      env as any, cfg, ['mgr@x.com'], now,
+    );
+
+    expect(result.swept.length).toBe(1);
+    expect(result.cutoffHours).toBe(4);
+    expect(result.swept[0]!.id).toMatch(/^(?:DLY|TKT)-\d+$/);
+
+    // Status label flipped from `new` to `assigned`.
+    const updated = ghCalls.find((c) => c.fn === 'updateIssue');
+    expect(updated).toBeDefined();
+    expect(updated!.patch.labels).toContain('assigned');
+    expect(updated!.patch.labels).not.toContain('new');
+
+    // Audit comment attributed to system@auto-assign.
+    const comment = ghCalls.find((c) => c.fn === 'commentOnIssue');
+    expect(comment).toBeDefined();
+    expect(comment!.body).toContain(AUTO_ASSIGN_ACTOR);
+    expect(comment!.body).toContain('new → assigned');
+    expect(comment!.body).toContain('auto-assigned after 4h');
+    expect(comment!.body).toContain('mgr@x.com');
+  });
+
+  it('leaves fresh `new` tickets alone', async () => {
+    const { runAutoAssignSweep } = await import('../src/routes/issues.ts');
+    const { DEFAULT_CONFIG } = await import('../src/config/defaults.ts');
+
+    await send('POST', '/issues', {
+      tower: 'A', category: 'Water', subCategory: 'Leak',
+      location: 'Pump', description: 'just filed, still within grace',
+    });
+    // Clear the create-flow calls so the assertion is scoped to the sweep.
+    ghCalls.length = 0;
+    // No rewind — the ticket was created moments ago, well under 4h.
+    const result = await runAutoAssignSweep(
+      env as any, { ...DEFAULT_CONFIG }, ['mgr@x.com'], Date.now(),
+    );
+
+    expect(result.swept.length).toBe(0);
+    expect(result.skipped).toBeGreaterThanOrEqual(1);
+    expect(ghCalls.some((c) => c.fn === 'updateIssue')).toBe(false);
+    expect(ghCalls.some((c) => c.fn === 'commentOnIssue')).toBe(false);
+  });
+
+  it('honours the DAILY_AUTO_ACK_HOURS legacy alias when the new key is absent', async () => {
+    const { runAutoAssignSweep } = await import('../src/routes/issues.ts');
+    const { DEFAULT_CONFIG } = await import('../src/config/defaults.ts');
+
+    await send('POST', '/issues', {
+      tower: 'A', category: 'Water', subCategory: 'Leak',
+      location: 'Pump', description: 'legacy alias respected',
+    });
+    const created = Object.values(issuesByNum)[0] as any;
+    const now = Date.now();
+    // 25h old — beyond both the new default (4h) and the legacy 24h.
+    created.created_at = new Date(now - 25 * 3_600_000).toISOString();
+
+    // Simulate a not-yet-migrated site.json that still has the old key.
+    const cfg: any = {
+      ...DEFAULT_CONFIG,
+      tunables: { ...DEFAULT_CONFIG.tunables },
+    };
+    delete cfg.tunables.DAILY_AUTO_ASSIGN_HOURS;
+    cfg.tunables.DAILY_AUTO_ACK_HOURS = 12;
+
+    const result = await runAutoAssignSweep(env as any, cfg, ['mgr@x.com'], now);
+    expect(result.cutoffHours).toBe(12);
+    expect(result.swept.length).toBe(1);
   });
 });
 

@@ -83,7 +83,11 @@ export const DEFAULT_CONFIG: SiteConfig = {
     FEATURE_DAILY_EXPORT_PDF:             true,
   },
   tunables: {
-    DAILY_AUTO_ACK_HOURS:       24,
+    // Auto-assign sweep: a `new` ticket older than this many hours is
+    // promoted to `assigned` on the next scheduled tick. Default 4h.
+    // (Legacy alias `DAILY_AUTO_ACK_HOURS` is still read by `tunable()` for
+    // back-compat with existing config/site.json — see loader.ts.)
+    DAILY_AUTO_ASSIGN_HOURS:    4,
     DAILY_ARCHIVE_AFTER_DAYS:   90,
     DAILY_PHOTO_MAX_PER_ISSUE:  6,
     DAILY_PHOTO_MAX_BYTES:      5242880,
@@ -177,7 +181,21 @@ export const DEFAULT_CONFIG: SiteConfig = {
 export const isFeatureOn = (cfg: SiteConfig, key: string): boolean =>
   cfg.features[key] === true;
 
+// Back-compat aliases. Old config/site.json files may still carry a
+// deprecated key; we transparently read the alias when the new key is
+// missing. Add new pairs here rather than sprinkling fallbacks around
+// the codebase.
+const TUNABLE_ALIASES: Record<string, string> = {
+  DAILY_AUTO_ASSIGN_HOURS: 'DAILY_AUTO_ACK_HOURS',
+};
+
 export const tunable = (cfg: SiteConfig, key: string, fallback: number): number => {
   const v = cfg.tunables[key];
-  return typeof v === 'number' ? v : fallback;
+  if (typeof v === 'number') return v;
+  const alias = TUNABLE_ALIASES[key];
+  if (alias) {
+    const av = cfg.tunables[alias];
+    if (typeof av === 'number') return av;
+  }
+  return fallback;
 };

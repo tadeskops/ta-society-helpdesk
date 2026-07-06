@@ -12,6 +12,7 @@ import { resolveRoles } from './auth/roles.ts';
 import { loadConfig } from './config/loader.ts';
 import { buildRouter } from './routes/index.ts';
 import { scheduledBackup, archiveMonthly } from './routes/backup.ts';
+import { runAutoAssignSweep } from './routes/issues.ts';
 
 const router = buildRouter();
 
@@ -74,6 +75,19 @@ export default {
           log.info(env, 'cron_archive_result', archived);
         } catch (e) {
           log.error(env, 'cron_archive_failed', { err: String((e as Error).stack ?? e) });
+        }
+        try {
+          // Auto-assign sweep: promote `new` tickets older than
+          // DAILY_AUTO_ASSIGN_HOURS (default 4h) to `assigned`.
+          const { config, access } = await loadConfig(env);
+          const result = await runAutoAssignSweep(env, config, access.managers, event.scheduledTime);
+          log.info(env, 'cron_auto_assign_result', {
+            sweptCount: result.swept.length,
+            cutoffHours: result.cutoffHours,
+            managers: result.managers.length,
+          });
+        } catch (e) {
+          log.error(env, 'cron_auto_assign_failed', { err: String((e as Error).stack ?? e) });
         }
       })(),
     );

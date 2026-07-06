@@ -56,7 +56,7 @@ const HEADERS = {
 const SEED_MARKER = '<!-- TSH_SEED_DEMO -->';
 const SEED_LABEL  = 'seed:demo';
 const SYSTEM_LABEL = 'daily';
-const STATUSES = ['new','triaging','assigned','in-progress','resolved','rejected','deleted'];
+const STATUSES = ['new','assigned','in-progress','resolved','rejected','deleted'];
 
 // ---- Helpers mirroring worker/src/lib/issue.ts -----------------------------
 
@@ -121,7 +121,7 @@ const SAMPLES = [
     description: 'Ramp lights to P2 not working since last night. Safety concern for vehicles.',
     reporterName: 'Priya Sharma',    reporterFlat: 'A-0405', reporterPhone: '+91 91234 56789' },
 
-  { tower: 'C', location: 'Flat C-307 bathroom', category: 'Plumbing',       subCategory: 'Leak',               severity: 'medium',   status: 'triaging',
+  { tower: 'C', location: 'Flat C-307 bathroom', category: 'Plumbing',       subCategory: 'Leak',               severity: 'medium',   status: 'assigned',
     description: 'Ceiling leak in master bathroom. Water dripping from light fixture; suspect leak from C-407 above.',
     reporterName: 'Suresh Iyer',     reporterFlat: 'C-0307', reporterPhone: '+91 98112 23344' },
 
@@ -134,7 +134,7 @@ const SAMPLES = [
     description: 'Pedestrian gate latch broken; gate swings open on its own. Temporary chain fitted.',
     reporterName: 'Watchman (Day)',  reporterFlat: '',       reporterPhone: '+91 90000 11111' },
 
-  { tower: 'Common Area', location: 'Garden – east lawn', category: 'Garden', subCategory: 'Tree fall risk',    severity: 'high',     status: 'triaging',
+  { tower: 'Common Area', location: 'Garden – east lawn', category: 'Garden', subCategory: 'Tree fall risk',    severity: 'high',     status: 'assigned',
     description: 'Large branch on the gulmohar tree has cracked and is hanging over the children\u2019s play area.',
     reporterName: 'Vikram Rao',      reporterFlat: 'A-0207', reporterPhone: '+91 93210 88776' },
 

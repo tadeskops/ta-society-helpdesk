@@ -1,18 +1,24 @@
 // All write paths against GitHub Issues. Spec: tsh_requirement.md §5, §6, §7.
 //
 // Endpoints in this file:
-//   POST   /issues                  create (JWT + Turnstile)
-//   GET    /issues                  manager+/list (filterable)
-//   PATCH  /issues/:id              status transition (manager+)
-//   POST   /issues/:id/photos       attach photos (manager+)
-//   POST   /issues/:id/redact       edit body (committee+)
-//   POST   /issues/:id/delete       soft-delete (manager+; manager must
-//                                   record a reason — UI enforces the
-//                                   asterisk + popup)
-//   POST   /issues/bulk-archive     retention sweep (committee+)
+//   POST   /issues                     create (JWT + Turnstile)
+//   GET    /issues                     manager+/list (filterable)
+//   PATCH  /issues/:id                 status transition (manager+)
+//   POST   /issues/:id/photos          attach photos (manager+)
+//   POST   /issues/:id/redact          edit body (committee+)
+//   POST   /issues/:id/delete          soft-delete (manager+; manager must
+//                                      record a reason — UI enforces the
+//                                      asterisk + popup)
+//   POST   /issues/bulk-archive        retention sweep (committee+)
+//   POST   /issues/auto-assign-sweep   promote `new` → `assigned` after
+//                                      DAILY_AUTO_ASSIGN_HOURS (developer;
+//                                      also invoked from the scheduled
+//                                      cron in src/index.ts)
 
 import type { Router } from '../lib/router.ts';
 import type { Ctx } from '../lib/ctx.ts';
+import type { Env } from '../env.ts';
+import type { SiteConfig } from '../config/defaults.ts';
 import { ok } from '../lib/envelope.ts';
 import { ensureAllowed } from '../middleware/rbac.ts';
 import { BadRequest, NotFound, Forbidden, FeatureDisabled, Unauthorized } from '../lib/errors.ts';
@@ -534,6 +540,103 @@ const mountBulkArchive = (r: Router): void => {
   });
 };
 
+// ---- POST /issues/auto-assign-sweep --------------------------------------
+//
+// Promotes every `new` ticket older than `DAILY_AUTO_ASSIGN_HOURS` (default 4h)
+// to `assigned`. This is the "no manager touched it in time" fallback so
+// tickets never rot in `new`. Managers can still assign manually at any
+// point before the sweep fires.
+//
+// - No specific vendor/severity is set — the manager still fills those in
+//   from the dashboard on first touch (severity defaults to unset so it
+//   renders as `—`; the row shows a "auto-assigned, needs vendor" badge).
+// - An audit comment is posted with actor `system@auto-assign` and the list
+//   of manager emails from `config/managers.json` so operators know who is
+//   collectively responsible.
+// - Idempotent: re-running is safe. The transition guard blocks anything
+//   that has already moved off `new`.
+
+/** Actor recorded on all auto-assign audit trail entries. */
+export const AUTO_ASSIGN_ACTOR = 'system@auto-assign';
+
+export interface AutoAssignResult {
+  swept: { id: string; number: number; ageHours: number }[];
+  skipped: number;
+  cutoffHours: number;
+  managers: string[];
+  ranAt: string;
+}
+
+/** Read the auto-assign cutoff, honouring the `DAILY_AUTO_ACK_HOURS` legacy alias. */
+const cutoffHoursOf = (cfg: SiteConfig): number =>
+  tunable(cfg, 'DAILY_AUTO_ASSIGN_HOURS', 4);
+
+/**
+ * Core sweep. Exported so the scheduled cron in `src/index.ts` can invoke it
+ * without going through the HTTP router.
+ */
+export const runAutoAssignSweep = async (
+  env: Env,
+  cfg: SiteConfig,
+  managers: string[],
+  now: number = Date.now(),
+): Promise<AutoAssignResult> => {
+  const cutoffHours = cutoffHoursOf(cfg);
+  const cutoffMs = cutoffHours * 3_600_000;
+  const ranAt = new Date(now).toISOString();
+
+  // Only `new` daily issues are candidates; anything already moved is ignored.
+  const candidates = await listIssues(env, {
+    state: 'open',
+    labels: ['daily', 'new'],
+    per_page: 100,
+  });
+
+  const swept: { id: string; number: number; ageHours: number }[] = [];
+  let skipped = 0;
+
+  const mgrList = managers.length
+    ? managers.join(', ')
+    : '(no managers configured)';
+
+  for (const issue of candidates) {
+    if (isDeleted(issue)) { skipped++; continue; }
+    const from = statusOf(issue.labels);
+    if (from !== 'new') { skipped++; continue; }
+    const ageMs = now - new Date(issue.created_at).getTime();
+    if (ageMs < cutoffMs) { skipped++; continue; }
+
+    const labels = setStatus(issue.labels, 'assigned');
+    await updateIssue(env, issue.number, { labels });
+    await commentOnIssue(env, issue.number, auditComment(
+      'new', 'assigned', AUTO_ASSIGN_ACTOR,
+      `auto-assigned after ${cutoffHours}h (DAILY_AUTO_ASSIGN_HOURS). Managers on rota: ${mgrList}. First manager to open the ticket should set vendor + severity.`,
+    ));
+
+    swept.push({
+      id: displayIdOf(issue),
+      number: issue.number,
+      ageHours: Math.round((ageMs / 3_600_000) * 10) / 10,
+    });
+  }
+
+  return { swept, skipped, cutoffHours, managers, ranAt };
+};
+
+const mountAutoAssignSweep = (r: Router): void => {
+  r.post('/issues/auto-assign-sweep', async (ctx: Ctx) => {
+    // Manual trigger — developer only. The cron uses runAutoAssignSweep
+    // directly and bypasses the router.
+    ensureAllowed(ctx, {
+      flags: ['FEATURE_DAILY_TRACK'],
+      roles: ['DEVELOPER'],
+      requireIdentity: true,
+    });
+    const result = await runAutoAssignSweep(ctx.env, ctx.config, ctx.access.managers);
+    return ok(ctx.env, ctx.req, result);
+  });
+};
+
 // ---- POST /issues/backfill-tkt-ids (one-shot migration) ------------------
 
 /**
@@ -601,6 +704,7 @@ export const mountIssues = (r: Router): void => {
   mountRedact(r);
   mountDelete(r);
   mountBulkArchive(r);
+  mountAutoAssignSweep(r);
   mountBackfill(r);
 };
 
