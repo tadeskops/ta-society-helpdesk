@@ -19,7 +19,7 @@
         "role": "ADMIN"
       },
       "createdAt": "2026-07-06T14:53:38.282Z",
-      "updatedAt": "2026-07-06T14:54:53.743Z",
+      "updatedAt": "2026-07-06T19:55:02.600Z",
       "timeline": [
         {
           "at": "2026-07-06T14:53:38.282Z",
@@ -37,6 +37,15 @@
             "role": "ADMIN"
           },
           "event": "cancelled"
+        },
+        {
+          "at": "2026-07-06T19:55:02.600Z",
+          "by": {
+            "email": "ta.deskops@gmail.com",
+            "role": "ADMIN"
+          },
+          "event": "deleted",
+          "note": "removed by admin"
         }
       ],
       "payment": {
@@ -44,7 +53,8 @@
         "proofs": [],
         "amount": 5000,
         "payee": "Society Manager"
-      }
+      },
+      "isDeleted": true
     },
     {
       "id": "GA-0707260010",
