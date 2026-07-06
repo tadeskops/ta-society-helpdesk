@@ -2348,6 +2348,20 @@
     const { jsPDF } = root.jspdf;
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     const pageW = 210, pageH = 297;
+    // jsPDF also ships with WinAnsi-only core fonts, so we run every user-
+    // sourced string through the same substitution table used on the pdf-
+    // lib path (\u20B9 \u2192 "Rs. ", curly quotes \u2192 straight, etc.).
+    // Anything still outside Latin-1 (Devanagari, CJK, emoji) becomes '?'.
+    const winAnsi = (s) => {
+      if (s == null) return '';
+      return String(s)
+        .replace(/\u20B9/g, 'Rs. ')
+        .replace(/[\u2010-\u2015]/g, '-')
+        .replace(/[\u2018\u2019]/g, "'")
+        .replace(/[\u201C\u201D]/g, '"')
+        .replace(/\u2026/g, '...')
+        .replace(/[^\x00-\xFF]/g, '?');
+    };
     // Template header \u2014 image only in v1 (PDF composition needs pdf-lib).
     // Fit within the top 45mm of the page keeping the source aspect ratio.
     const headerH = 45;
@@ -2368,9 +2382,9 @@
     doc.setFont('helvetica', 'normal'); doc.setFontSize(11);
     let y = 5 + headerH + 24;
     receiptFieldRows(r).forEach((row) => {
-      doc.setFont('helvetica', 'bold');   doc.text(String(row.k) + ':', 20, y);
+      doc.setFont('helvetica', 'bold');   doc.text(winAnsi(String(row.k) + ':'), 20, y);
       doc.setFont('helvetica', 'normal');
-      const wrapped = doc.splitTextToSize(String(row.v || '\u2014'), 120);
+      const wrapped = doc.splitTextToSize(winAnsi(String(row.v || '\u2014')), 120);
       doc.text(wrapped, 60, y);
       y += 7 * (Array.isArray(wrapped) ? wrapped.length : 1) + 1;
       if (y > pageH - 40) { doc.addPage(); y = 20; }
@@ -2380,7 +2394,7 @@
     doc.setFontSize(9); doc.setTextColor(90);
     doc.text('Printed ' + new Date().toLocaleString(), 20, pageH - 22);
     const me = (who && (who.email || who.name)) || '';
-    if (me) doc.text('by ' + me, 20, pageH - 17);
+    if (me) doc.text(winAnsi('by ' + me), 20, pageH - 17);
     doc.text('This is a system-generated receipt. Retain a copy for your records.',
       pageW / 2, pageH - 12, { align: 'center' });
     doc.setTextColor(0);
@@ -2439,6 +2453,23 @@
     const bold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
     const { width: pageW, height: pageH } = page.getSize();
 
+    // Standard PDF fonts only speak WinAnsi (Windows-1252). Anything outside
+    // that page — the rupee sign \u20B9, Devanagari, CJK, emoji — throws at
+    // draw time. Map the common India-specific characters to safe equivalents
+    // and drop the rest with '?' so a stray unicode char in a name or purpose
+    // field never breaks the receipt build.
+    const winAnsi = (s) => {
+      if (s == null) return '';
+      return String(s)
+        .replace(/\u20B9/g, 'Rs. ')      // ₹ → Rs.
+        .replace(/[\u2010-\u2015]/g, '-') // dashes → hyphen (safety net)
+        .replace(/[\u2018\u2019]/g, "'")  // curly single → straight
+        .replace(/[\u201C\u201D]/g, '"')  // curly double → straight
+        .replace(/\u2026/g, '...')        // ellipsis
+        .replace(/[^\x00-\xFF]/g, '?');   // anything still outside Latin-1 → ?
+    };
+    const draw = (p, text, opts) => p.drawText(winAnsi(text), opts);
+
     // ---- layout constants (points) -------------------------------
     const MM = (mm) => mm * 2.83464567;
     const headerBandPt = MM(45);     // same top band the image path reserves
@@ -2453,12 +2484,14 @@
     // ---- title ---------------------------------------------------
     const title = 'BOOKING RECEIPT';
     const tw = bold.widthOfTextAtSize(title, 16);
-    page.drawText(title, { x: (pageW - tw) / 2, y: titleY, size: 16, font: bold, color: rgb(0, 0, 0) });
+    draw(page, title, { x: (pageW - tw) / 2, y: titleY, size: 16, font: bold, color: rgb(0, 0, 0) });
 
     // ---- rows ----------------------------------------------------
-    // Simple word-wrap fallback for long values.
+    // Simple word-wrap fallback for long values. Sanitises first so width
+    // math and the eventual draw both agree on the exact glyph string.
     const wrap = (text, size, maxW) => {
-      const words = String(text || '\u2014').split(/\s+/);
+      const safe = winAnsi(text || '\u2014');
+      const words = safe.split(/\s+/);
       const lines = [];
       let cur = '';
       for (const w of words) {
@@ -2467,7 +2500,7 @@
         else { if (cur) lines.push(cur); cur = w; }
       }
       if (cur) lines.push(cur);
-      return lines.length ? lines : ['\u2014'];
+      return lines.length ? lines : ['-'];
     };
 
     receiptFieldRows(r).forEach((row) => {
@@ -2476,9 +2509,10 @@
         page = pdfDoc.addPage([pageW, pageH]);
         y = pageH - MM(20);
       }
-      page.drawText(String(row.k) + ':', { x: labelX, y, size: 11, font: bold, color: rgb(0, 0, 0) });
+      draw(page, String(row.k) + ':', { x: labelX, y, size: 11, font: bold, color: rgb(0, 0, 0) });
       const lines = wrap(row.v, 11, valueMaxW);
       lines.forEach((ln, i) => {
+        // wrap() already returns winAnsi-safe strings, so pass through drawText directly.
         page.drawText(ln, { x: valueX, y: y - i * lineH, size: 11, font, color: rgb(0.13, 0.13, 0.13) });
       });
       y -= lineH * lines.length + 2;
@@ -2491,12 +2525,12 @@
       thickness: 0.5, color: rgb(0.86, 0.86, 0.86),
     });
     const stamp = 'Printed ' + new Date().toLocaleString();
-    page.drawText(stamp, { x: marginX, y: footY, size: 9, font, color: rgb(0.35, 0.35, 0.35) });
+    draw(page, stamp, { x: marginX, y: footY, size: 9, font, color: rgb(0.35, 0.35, 0.35) });
     const me = (who && (who.email || who.name)) || '';
-    if (me) page.drawText('by ' + me, { x: marginX, y: footY - 10, size: 9, font, color: rgb(0.35, 0.35, 0.35) });
+    if (me) draw(page, 'by ' + me, { x: marginX, y: footY - 10, size: 9, font, color: rgb(0.35, 0.35, 0.35) });
     const note = 'This is a system-generated receipt. Retain a copy for your records.';
     const nw = font.widthOfTextAtSize(note, 9);
-    page.drawText(note, { x: (pageW - nw) / 2, y: footY - 20, size: 9, font, color: rgb(0.35, 0.35, 0.35) });
+    draw(page, note, { x: (pageW - nw) / 2, y: footY - 20, size: 9, font, color: rgb(0.35, 0.35, 0.35) });
 
     const outBytes = await pdfDoc.save();
     const blob = new Blob([outBytes], { type: 'application/pdf' });
