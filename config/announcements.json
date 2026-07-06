@@ -1,4 +1,15 @@
 {
   "version": 1,
-  "items": []
+  "items": [
+    {
+      "id": "gym-hall-booking-2026-06-01",
+      "title": "Gym Area / Hall Booking Process Update",
+      "body": "As the Society transitions to a more structured management process, all future bookings for functions and gatherings in the Gym Area / Hall will be coordinated through the Society Manager.\n\nThe latest booking list submitted through the Google Form will be honored and existing reservations will remain valid. However, to confirm and maintain the booking, residents are requested to complete the booking formalities with the Society Manager.\n\nA booking and maintenance charge of \u20b91,500 will be applicable for each event. This amount will be utilized towards post-event cleaning, housekeeping support, and bulk garbage collection required due to the event.\n\nTo avoid scheduling conflicts and ensure proper upkeep of the facility, no booking shall be considered confirmed unless it has been recorded with the Society Manager and the applicable charges have been paid.\n\nFor bookings and assistance, please contact the Society Manager.\n\n\u2014 Management Committee",
+      "pinned": true,
+      "expiresAt": "2027-06-01T00:00:00.000Z",
+      "createdAt": "2026-06-01T00:00:00.000Z",
+      "createdBy": "management-committee",
+      "updatedAt": "2026-06-01T00:00:00.000Z"
+    }
+  ]
 }

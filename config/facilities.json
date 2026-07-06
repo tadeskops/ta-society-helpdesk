@@ -18,14 +18,12 @@
         "minDurationMinutes": 60,
         "maxDurationMinutes": 480,
         "requiresApproval": true,
-        "requiresPayment": false,
-        "paymentAmount": 0,
-        "paymentPayee": "",
-        "chargesInfo": "Community Hall bookings may attract a maintenance/cleaning fee and a refundable security deposit as decided by the committee. The manager will confirm the applicable amount before approving your request. Any damage to property is recovered from the deposit.",
+        "requiresPayment": true,
+        "paymentAmount": 1500,
+        "paymentPayee": "Society Manager",
+        "chargesInfo": "A flat booking and maintenance charge of ₹1,500 per event is applicable (per Management Committee notice dated 1 June 2026). The amount is utilised for post-event cleaning, housekeeping support and bulk garbage collection. Payment must be made to the Society Manager — no booking is considered confirmed until the manager has recorded it and the charge has been paid.",
         "rateCard": [
-          { "label": "Half day (up to 4 hours)", "amount": 1500, "note": "Cleaning fee inclusive." },
-          { "label": "Full day (up to 8 hours)", "amount": 2500, "note": "Cleaning fee inclusive." },
-          { "label": "Refundable security deposit", "amount": 2000, "note": "Refunded after manager inspection." }
+          { "label": "Booking & maintenance charge (per event)", "amount": 1500, "note": "Covers post-event cleaning, housekeeping and bulk garbage collection. Payable to the Society Manager." }
         ],
         "usageGuidelines": {
           "before": [
@@ -45,10 +43,12 @@
         "blackoutDates": []
       },
       "rules": [
+        "All bookings must be coordinated through the Society Manager (Management Committee notice, 1 June 2026).",
         "Bookings must be requested at least 48 hours in advance.",
+        "A booking & maintenance charge of ₹1,500 per event must be paid to the Society Manager before the booking is confirmed.",
         "Cleanliness of the hall is the responsibility of the booking owner.",
         "No loud music after 10 PM.",
-        "Any damage to property will be recovered from the security deposit."
+        "Existing reservations made via the earlier Google Form remain valid, but residents must complete the booking formalities (recording + payment) with the Society Manager."
       ]
     },
     {
@@ -71,7 +71,7 @@
         "requiresPayment": false,
         "paymentAmount": 0,
         "paymentPayee": "",
-        "chargesInfo": "Gym use is included with your maintenance. Private slot bookings are complimentary but limited to keep equipment available for everyone.",
+        "chargesInfo": "Personal-use gym slot bookings are complimentary and included with your maintenance. NOTE: any functions, gatherings or events held in the Gym Area (not personal workouts) must instead be coordinated through the Society Manager and attract a ₹1,500 booking and maintenance charge per event (Management Committee notice, 1 June 2026).",
         "rateCard": [],
         "usageGuidelines": {
           "before": [
