@@ -17,4 +17,10 @@ export interface Env {
   /** Legacy alias for BOOTSTRAP_ADMINS. Read as fallback during migration. */
   BOOTSTRAP_DEVELOPERS?: string;
   TURNSTILE_SECRET?: string;
+
+  // Phase 3 (Google Calendar mirror) — all optional. Missing = mirror
+  // silently queues operations and no external call is made.
+  GOOGLE_CAL_CLIENT_ID?: string;
+  GOOGLE_CAL_CLIENT_SECRET?: string;
+  GOOGLE_CAL_REFRESH_TOKEN?: string;
 }

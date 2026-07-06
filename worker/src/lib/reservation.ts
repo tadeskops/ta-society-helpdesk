@@ -64,6 +64,7 @@ export interface Reservation {
   updatedAt: string;             // ISO 8601
   timeline: TimelineItem[];
   payment?: PaymentState;
+  calendarEventId?: string;      // Phase 3: Google Calendar event id
   isDeleted?: boolean;
 }
 
@@ -114,6 +115,7 @@ export interface Facility {
   slots: FacilitySlot[];
   policy: FacilityPolicy;
   rules?: string[];
+  calendarId?: string;   // Phase 3: Google Calendar id (e.g. xxx@group.calendar.google.com)
 }
 
 // ------------------------------------------------------------- ID scheme

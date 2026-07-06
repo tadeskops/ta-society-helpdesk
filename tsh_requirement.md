@@ -591,7 +591,11 @@ The file below is a **complete inventory** of every flag and tunable the Worker 
     "FEATURE_DAILY_FLOATING_PALETTE":      true,
     "FEATURE_DAILY_VISITOR_COUNTER":       false,
     "FEATURE_DAILY_USER_ROLE_BADGE":       true,
-    "FEATURE_DAILY_SHOW_DEMO_ISSUES":      false   // dev-only: include seed:demo issues in lists
+    "FEATURE_DAILY_SHOW_DEMO_ISSUES":      false,  // dev-only: include seed:demo issues in lists
+    // Reservation engine + related features
+    "FEATURE_TSH_RESERVATIONS":            true,   // §18
+    "FEATURE_TSH_NOTIFICATIONS":           true,   // §19
+    "FEATURE_TSH_RESERVATIONS_CALENDAR":   false   // §20 — off until admin sets GOOGLE_CAL_* secrets
   },
   "tunables": {
     "DAILY_AUTO_ASSIGN_HOURS":    4,          // cron auto-promotes `new` after this many hours
@@ -619,7 +623,9 @@ The file below is a **complete inventory** of every flag and tunable the Worker 
     "RESERVATION_MAX_PROOFS":      5,          // per reservation
     "NOTIFICATIONS_CACHE_SECONDS": 30,
     "NOTIFICATIONS_MAX_ITEMS":     2000,
-    "NOTIFICATIONS_PER_USER_CAP":  200
+    "NOTIFICATIONS_PER_USER_CAP":  200,
+    "CALENDAR_RETRY_MAX":           5,
+    "CALENDAR_QUEUE_CACHE_SECONDS": 60
   },
   "lists": {
     "towers":       ["A", "B", "C", "Common Area"],
@@ -924,7 +930,7 @@ See §8.8. Three tabs: **Book / My reservations / Manage** (staff-only). Mobile-
 
 - **Phase 1 (shipped):** engine, Community Hall, resident + staff flows, timeline, availability grid, universal search. In-app status only — no email/WhatsApp/Calendar. No payments.
 - **Phase 2 (shipped):** payment-proof uploads (image + PDF) reusing the same in-repo binary pipeline as issue photos, but downloads are served through the **auth-gated worker route** `GET /reservations/:id/payment-proof/:idx` — never via a public `raw.githubusercontent` URL — because payment screenshots contain PII. Adds `payment` sub-object on each reservation and three timeline events (`payment-uploaded`, `payment-verified`, `payment-rejected`). Confirming a booking on a paid facility is gated on `payment.status === 'verified'`. See §18.6.
-- **Phase 3:** Google Calendar mirror. Application DB stays the source of truth. Worker-side OAuth, refresh-token in KV, event lifecycle create/update/delete, retry queue, admin-only sync status. Configurable from Settings.
+- **Phase 3 (shipped):** Google Calendar mirror — see §20. Flag `FEATURE_TSH_RESERVATIONS_CALENDAR` (default **off**). Fires on `→ confirmed` (create event) and `→ cancelled` / `→ rejected` (delete event). Best-effort with retry queue and ADMIN-only status + drain endpoints. App DB stays the source of truth.
 - **Phase 4 (shipped):** notification subsystem — see §19. In-app inbox first (header bell + polling); email/WhatsApp adapters slot in later without touching call sites. Reservation events (create / approve / reject / cancel / comment / payment-uploaded / payment-verified / payment-rejected) all wired.
 - **Later:** additional facilities (Guest Room, Sports Court, Pool, EV Charger, Parking) — pure config edits to `config/facilities.json`.
 
@@ -1058,4 +1064,75 @@ Header partial (`docs/partials/header.html`) exposes a bell button + red badge (
 | `NOTIFICATIONS_CACHE_SECONDS` | `30` | In-memory cache TTL for the notifications file. |
 | `NOTIFICATIONS_MAX_ITEMS`     | `2000` | Global cap; oldest read items are dropped first. |
 | `NOTIFICATIONS_PER_USER_CAP`  | `200` | Per-recipient cap; same trim policy. |
+
+
+
+## 20. Google Calendar mirror (Phase 3)
+
+Optional external mirror for confirmed reservations. Behind `FEATURE_TSH_RESERVATIONS_CALENDAR` — **default OFF** so a fresh install never talks to Google until an admin enables it.
+
+### 20.1 Design
+
+- The application DB (`config/reservations.json`) is the **source of truth**. Google Calendar is a mirror.
+- Every external call is best-effort. Failures never break the reservation transition; they are pushed to a retry queue and can be drained later.
+- No secrets in code. OAuth uses a **refresh token stored as a worker secret** (`GOOGLE_CAL_REFRESH_TOKEN`). Missing creds ⇒ silent queue.
+
+### 20.2 Data
+
+- Reservation gains an optional `calendarEventId?: string` set once the event has been created (Phase 3).
+- Facility gains an optional `calendarId?: string` (e.g. `abc@group.calendar.google.com`). When absent, the facility is not mirrored.
+- New file `config/calendar-queue.json` — bounded to 500 items:
+
+```json
+{
+  "version": 1,
+  "items": [
+    {
+      "op":              "create" | "update" | "delete",
+      "resId":           "RES-...",
+      "calendarId":      "xxx@group.calendar.google.com",
+      "calendarEventId": "gcal-event-id",   // for update/delete
+      "payload":         { /* opaque event body used on drain for create/update */ },
+      "attempts":        0,
+      "lastError":       "gcal create 500: ...",
+      "at":              "2026-07-01T10:15:23.001Z"
+    }
+  ]
+}
+```
+
+### 20.3 Wiring
+
+Called from `PATCH /reservations/:id`:
+
+| Status transition | Mirror action |
+|---|---|
+| `→ confirmed`                 | `mirrorConfirm(env, cfg, rec, facility)` — creates a Google Calendar event; on success the event id is written back to the reservation record. |
+| `→ cancelled` or `→ rejected` | `mirrorRemove(env, cfg, rec, facility)` — deletes the mirrored event (no-op if `calendarEventId` was never set). |
+
+Failures are caught: the parent transition **always** succeeds even if Google returns 500 or the network is down.
+
+### 20.4 Admin endpoints
+
+| Method | Path | Roles | Notes |
+|---|---|---|---|
+| GET  | `/admin/calendar-status` | ADMIN | `{ enabled, haveCreds, queueDepth, lastErrors[] }` — last 5 errored items. |
+| POST | `/admin/calendar-retry`  | ADMIN | Drains the queue one-shot. Returns `{ attempted, ok, failed, dropped }`. Items exceeding `CALENDAR_RETRY_MAX` attempts (default **5**) are dropped. |
+
+### 20.5 Worker secrets (§10 update)
+
+All optional. Missing = mirror silently queues instead of calling Google.
+
+| Secret | Purpose |
+|---|---|
+| `GOOGLE_CAL_CLIENT_ID`     | OAuth client id (Google Cloud Console). |
+| `GOOGLE_CAL_CLIENT_SECRET` | OAuth client secret. |
+| `GOOGLE_CAL_REFRESH_TOKEN` | Long-lived refresh token; workers exchange it for a short-lived access token. |
+
+### 20.6 Tunables
+
+| Key | Default | Purpose |
+|---|---|---|
+| `CALENDAR_RETRY_MAX`          | `5`  | Per-item attempt cap. Beyond this a queued op is dropped by `drain`. |
+| `CALENDAR_QUEUE_CACHE_SECONDS`| `60` | In-memory cache TTL for the queue file. |
 

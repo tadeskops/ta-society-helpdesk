@@ -31,6 +31,7 @@ import { writeAudit } from '../lib/audit.ts';
 import { isAtLeast } from '../auth/roles.ts';
 import { tunable } from '../config/defaults.ts';
 import { emit as emitNotification } from '../lib/notify.ts';
+import { mirrorConfirm, mirrorRemove } from '../lib/google-calendar.ts';
 import {
   RES_STATUSES, RES_ID_RE, nextResId, canTransition, buildSlotIndex,
   isActive, istDateStr, parseIstDateMidnight, slotStartMs,
@@ -471,10 +472,13 @@ export const mountReservations = (r: Router): void => {
 
     // Payment gate: cannot confirm a reservation on a paid facility until
     // the payment proof has been verified (see §18.6).
-    if (to === 'confirmed') {
+    let facilityForMirror: import('../lib/reservation.ts').Facility | undefined;
+    if (to === 'confirmed' || to === 'cancelled' || to === 'rejected') {
       const facilities = await loadFacilities(ctx);
-      const facility = facilities.find((f) => f.id === rec.facilityId);
-      if (facility && !isPaymentClearedForApproval(rec, facility)) {
+      facilityForMirror = facilities.find((f) => f.id === rec.facilityId);
+    }
+    if (to === 'confirmed') {
+      if (facilityForMirror && !isPaymentClearedForApproval(rec, facilityForMirror)) {
         throw new BadRequest('Cannot confirm: payment has not been verified yet');
       }
     }
@@ -510,6 +514,28 @@ export const mountReservations = (r: Router): void => {
       target: rec.id,
       detail: note ? `note=${note}` : '',
     });
+    // Google Calendar mirror (Phase 3). Best-effort; failures are queued
+    // and never break the transition. Only fires when the feature flag is
+    // on AND the facility declares a `calendarId`.
+    if (facilityForMirror) {
+      try {
+        if (to === 'confirmed') {
+          const evId = await mirrorConfirm(ctx.env, ctx.config, rec, facilityForMirror);
+          if (evId) {
+            rec.calendarEventId = evId;
+            // Persist the event id so a later cancel can find + delete it.
+            const { items: items2, sha: sha2 } = await loadReservations(ctx);
+            const j = items2.findIndex((x) => x.id === rec.id);
+            if (j !== -1) {
+              items2[j] = rec;
+              await saveReservations(ctx, items2, sha2, 'system', `calendar-event-id ${rec.id}`);
+            }
+          }
+        } else if (to === 'cancelled' || to === 'rejected') {
+          await mirrorRemove(ctx.env, ctx.config, rec, facilityForMirror);
+        }
+      } catch { /* silent — queue handled inside mirror helpers */ }
+    }
     // Notify the owner (and, if a resident cancels, the staff).
     const notifEvent: Parameters<typeof emitNotification>[2]['event'] =
       to === 'confirmed' ? 'reservation-approved' :
