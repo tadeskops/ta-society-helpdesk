@@ -10,9 +10,9 @@
       "policy": {
         "minAdvanceHours": 48,
         "maxAdvanceDays": 30,
-        "maxConcurrentPerOwner": 3,
+        "maxConcurrentPerOwner": 2,
         "maxPerFlatPerYear": 2,
-        "openMin": 360,
+        "openMin": 420,
         "closeMin": 1380,
         "stepMinutes": 30,
         "minDurationMinutes": 60,
@@ -21,9 +21,18 @@
         "requiresPayment": true,
         "paymentAmount": 1500,
         "paymentPayee": "Society Manager",
-        "chargesInfo": "A flat booking and maintenance charge of ₹1,500 per event is applicable (per Management Committee notice dated 1 June 2026). The amount is utilised for post-event cleaning, housekeeping support and bulk garbage collection. Payment must be made to the Society Manager — no booking is considered confirmed until the manager has recorded it and the charge has been paid.",
+        "chargesInfo": "Community Hall bookings may attract a maintenance/cleaning fee and a refundable security deposit as decided by the committee. The manager will confirm the applicable amount before approving your request. Any damage to property is recovered from the deposit.",
         "rateCard": [
-          { "label": "Booking & maintenance charge (per event)", "amount": 1500, "note": "Covers post-event cleaning, housekeeping and bulk garbage collection. Payable to the Society Manager." }
+          {
+            "label": "Half day (up to 4 hours)",
+            "amount": 5000,
+            "note": "Cleaning fee inclusive."
+          },
+          {
+            "label": "Exceeds Permitted Hours (Every 1.5 Hours)",
+            "amount": 1500,
+            "note": "Cleaning fee inclusive."
+          }
         ],
         "usageGuidelines": {
           "before": [
@@ -43,12 +52,10 @@
         "blackoutDates": []
       },
       "rules": [
-        "All bookings must be coordinated through the Society Manager (Management Committee notice, 1 June 2026).",
         "Bookings must be requested at least 48 hours in advance.",
-        "A booking & maintenance charge of ₹1,500 per event must be paid to the Society Manager before the booking is confirmed.",
         "Cleanliness of the hall is the responsibility of the booking owner.",
         "No loud music after 10 PM.",
-        "Existing reservations made via the earlier Google Form remain valid, but residents must complete the booking formalities (recording + payment) with the Society Manager."
+        "Any damage to property will be recovered from the security deposit."
       ]
     },
     {
