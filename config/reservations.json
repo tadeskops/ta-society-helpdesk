@@ -115,7 +115,7 @@
         "role": "ADMIN"
       },
       "createdAt": "2026-07-06T19:56:26.857Z",
-      "updatedAt": "2026-07-06T19:56:26.857Z",
+      "updatedAt": "2026-07-06T20:00:55.785Z",
       "timeline": [
         {
           "at": "2026-07-06T19:56:26.857Z",
@@ -125,11 +125,29 @@
           },
           "event": "created",
           "note": "Awaiting manager review."
+        },
+        {
+          "at": "2026-07-06T20:00:55.785Z",
+          "by": {
+            "email": "ta.deskops@gmail.com",
+            "role": "ADMIN"
+          },
+          "event": "payment-uploaded",
+          "note": "receipt-RES-0707260010.pdf (235 KB)"
         }
       ],
       "payment": {
-        "status": "pending",
-        "proofs": [],
+        "status": "submitted",
+        "proofs": [
+          {
+            "path": "payments/CH-0707260126/01.pdf",
+            "name": "receipt-RES-0707260010.pdf",
+            "mime": "application/pdf",
+            "size": 241090,
+            "uploadedAt": "2026-07-06T20:00:55.785Z",
+            "uploadedBy": "ta.deskops@gmail.com"
+          }
+        ],
         "amount": 5000,
         "payee": "Society Manager"
       }
