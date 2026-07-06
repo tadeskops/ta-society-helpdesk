@@ -616,7 +616,10 @@ The file below is a **complete inventory** of every flag and tunable the Worker 
     "DAILY_NOTICE_TTL_DAYS":      7,
     "RESERVATIONS_CACHE_SECONDS": 60,
     "RESERVATION_PROOF_MAX_BYTES": 5242880,   // 5 MB per payment proof
-    "RESERVATION_MAX_PROOFS":      5           // per reservation
+    "RESERVATION_MAX_PROOFS":      5,          // per reservation
+    "NOTIFICATIONS_CACHE_SECONDS": 30,
+    "NOTIFICATIONS_MAX_ITEMS":     2000,
+    "NOTIFICATIONS_PER_USER_CAP":  200
   },
   "lists": {
     "towers":       ["A", "B", "C", "Common Area"],
@@ -922,7 +925,7 @@ See §8.8. Three tabs: **Book / My reservations / Manage** (staff-only). Mobile-
 - **Phase 1 (shipped):** engine, Community Hall, resident + staff flows, timeline, availability grid, universal search. In-app status only — no email/WhatsApp/Calendar. No payments.
 - **Phase 2 (shipped):** payment-proof uploads (image + PDF) reusing the same in-repo binary pipeline as issue photos, but downloads are served through the **auth-gated worker route** `GET /reservations/:id/payment-proof/:idx` — never via a public `raw.githubusercontent` URL — because payment screenshots contain PII. Adds `payment` sub-object on each reservation and three timeline events (`payment-uploaded`, `payment-verified`, `payment-rejected`). Confirming a booking on a paid facility is gated on `payment.status === 'verified'`. See §18.6.
 - **Phase 3:** Google Calendar mirror. Application DB stays the source of truth. Worker-side OAuth, refresh-token in KV, event lifecycle create/update/delete, retry queue, admin-only sync status. Configurable from Settings.
-- **Phase 4:** notification subsystem (in-app inbox first, then email/WhatsApp adapters). Retrofit both issue events and reservation events onto the same rails.
+- **Phase 4 (shipped):** notification subsystem — see §19. In-app inbox first (header bell + polling); email/WhatsApp adapters slot in later without touching call sites. Reservation events (create / approve / reject / cancel / comment / payment-uploaded / payment-verified / payment-rejected) all wired.
 - **Later:** additional facilities (Guest Room, Sports Court, Pool, EV Charger, Parking) — pure config edits to `config/facilities.json`.
 
 ### 18.5 Backups & retention
@@ -957,4 +960,102 @@ Facilities that set `policy.requiresPayment: true` acquire a `payment` sub-objec
 **Storage layout:** `payments/RES-DDMMYYHHMM/NN.ext` — one folder per reservation, one file per proof, extension derived from mime (jpg/png/webp/pdf). All writes go through `putBinaryB64` (same helper used by issue photos). Repo is public but the folder is not linked from anywhere and every download requires an authenticated worker call.
 
 **Tunables (`config/site.json` → `tunables`):** `RESERVATION_PROOF_MAX_BYTES` (default `5_242_880`), `RESERVATION_MAX_PROOFS` (default `5`).
+
+
+
+## 19. Notifications (in-app; extensible to email / WhatsApp)
+
+Lightweight, worker-owned notification framework used first by the Reservation Engine (§18) and reusable by any future TSH feature. Behind `FEATURE_TSH_NOTIFICATIONS` (default **on**).
+
+### 19.1 Storage
+
+Single file `config/notifications.json`, mirroring the reservations file shape:
+
+```json
+{
+  "version": 1,
+  "items": [
+    {
+      "id":        "NTF-<epoch36>-<counter36>",
+      "recipient": "resident@x.com",
+      "event":     "reservation-approved",
+      "title":     "Reservation confirmed · Community Hall",
+      "body":      "2026-07-14 · Morning",
+      "link":      "reservations.html?open=RES-...",
+      "createdAt": "2026-07-01T10:15:23.001Z",
+      "readAt":    null,
+      "actor":     "mgr@x.com",
+      "channels":  ["in-app"]
+    }
+  ]
+}
+```
+
+- Global cap `NOTIFICATIONS_MAX_ITEMS` (default **2000**) — oldest read items are dropped first, then oldest overall.
+- Per-user cap `NOTIFICATIONS_PER_USER_CAP` (default **200**) — same policy, applied per recipient.
+- Cache TTL `NOTIFICATIONS_CACHE_SECONDS` (default **30 s**).
+- Ordering: server sorts newest first on read.
+
+### 19.2 Emitter (`worker/src/lib/notify.ts`)
+
+Public API used by feature modules:
+
+```ts
+emit(env, cfg, { recipients: string[], event, title, body, link?, actor?, channels? })
+listFor(env, cfg, email, { unreadOnly?, limit? })
+countUnreadFor(env, cfg, email)
+markOneRead(env, cfg, id, email, actor)
+markAllRead(env, cfg, email, actor)
+```
+
+- `emit` is a **no-op** when `FEATURE_TSH_NOTIFICATIONS` is off — feature modules never guard their call sites.
+- Recipients are deduplicated + lowercased. `@`-less entries are dropped.
+- `channels` defaults to `["in-app"]`. Reserved for `email` / `whatsapp` in a later phase; other transports are ignored today.
+- Emitter failures are swallowed by the caller (`try { emit(...) } catch {}`) so notifications never break the parent operation.
+
+### 19.3 API
+
+All routes: JWT-required, gated by `FEATURE_TSH_NOTIFICATIONS`.
+
+| Method | Path | Roles | Notes |
+|---|---|---|---|
+| GET  | `/notifications?unread=true&limit=N` | any signed-in | Returns `{items, count, unread}` for the caller only. `limit` 1..500, default 100. |
+| GET  | `/notifications/count`               | any signed-in | Returns `{unread}` — unread count for the caller. |
+| PATCH| `/notifications/:id/read`            | recipient      | 404 if the notification isn't theirs. Sets `readAt`. |
+| POST | `/notifications/mark-all-read`       | any signed-in | Returns `{updated}` count touched. |
+
+### 19.4 Reservation events wired (Phase 4)
+
+| Reservation action | Recipients | Event |
+|---|---|---|
+| Create | staff (managers + committee + admins) + owner (if creator ≠ owner) | `reservation-created` |
+| Approve → `confirmed` | owner | `reservation-approved` |
+| Reject → `rejected` | owner | `reservation-rejected` |
+| Cancel by owner | staff | `reservation-cancelled` |
+| Cancel by staff | owner | `reservation-cancelled` |
+| Comment by resident | staff | `reservation-commented` |
+| Comment by staff    | owner | `reservation-commented` |
+| Payment uploaded | staff | `payment-uploaded` |
+| Payment verified | owner | `payment-verified` |
+| Payment rejected | owner | `payment-rejected` |
+
+Additional event names are reserved and safe to emit today: `issue-created`, `issue-assigned`, `issue-resolved`, `system`.
+
+### 19.5 UI
+
+Header partial (`docs/partials/header.html`) exposes a bell button + red badge (`[data-tsh-notify-bell]`, `[data-tsh-notify-count]`). Client module `docs/assets/js/notify.js`:
+
+- Auto-boots on `DOMContentLoaded`; retries until the header partial mounts.
+- Hooks `Auth.onChange`: bell is hidden when signed-out; on sign-in it polls `/notifications/count` every **60 s**.
+- Click opens a dropdown listing the newest 20 items; clicking an item marks it read and follows its `link` (if present).
+- "Mark all read" button clears the badge in one call.
+- CSS is injected on first mount — no separate stylesheet import needed.
+
+### 19.6 Tunables (defaults in `worker/src/config/defaults.ts`)
+
+| Key | Default | Purpose |
+|---|---|---|
+| `NOTIFICATIONS_CACHE_SECONDS` | `30` | In-memory cache TTL for the notifications file. |
+| `NOTIFICATIONS_MAX_ITEMS`     | `2000` | Global cap; oldest read items are dropped first. |
+| `NOTIFICATIONS_PER_USER_CAP`  | `200` | Per-recipient cap; same trim policy. |
 

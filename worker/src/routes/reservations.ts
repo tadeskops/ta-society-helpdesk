@@ -30,6 +30,7 @@ import { getFile, putFile, putBinaryB64, getBinaryFile } from '../github/client.
 import { writeAudit } from '../lib/audit.ts';
 import { isAtLeast } from '../auth/roles.ts';
 import { tunable } from '../config/defaults.ts';
+import { emit as emitNotification } from '../lib/notify.ts';
 import {
   RES_STATUSES, RES_ID_RE, nextResId, canTransition, buildSlotIndex,
   isActive, istDateStr, parseIstDateMidnight, slotStartMs,
@@ -145,6 +146,42 @@ const pushTimeline = (r: Reservation, item: TimelineItem): void => {
   r.timeline.push(item);
   if (r.timeline.length > MAX_TIMELINE) r.timeline.splice(0, r.timeline.length - MAX_TIMELINE);
   r.updatedAt = item.at;
+};
+
+// ---- Notifications helper -------------------------------------------
+
+const staffEmails = (ctx: Ctx): string[] => {
+  const s = new Set<string>();
+  for (const e of ctx.access.managers)  s.add(e);
+  for (const e of ctx.access.committee) s.add(e);
+  for (const e of ctx.access.admins)    s.add(e);
+  return Array.from(s);
+};
+
+const linkTo = (id: string): string => `reservations.html?open=${encodeURIComponent(id)}`;
+
+const notify = async (
+  ctx: Ctx,
+  recipients: string[],
+  event: Parameters<typeof emitNotification>[2]['event'],
+  title: string,
+  body: string,
+  link?: string,
+): Promise<void> => {
+  try {
+    const input: Parameters<typeof emitNotification>[2] = {
+      recipients,
+      event,
+      title,
+      body,
+      actor: ctx.identity?.email || 'system',
+    };
+    if (link) input.link = link;
+    await emitNotification(ctx.env, ctx.config, input);
+  } catch {
+    // Notifications are best-effort. Never fail the parent op because
+    // the inbox file is temporarily unreachable.
+  }
 };
 
 // -------------------------------------------------------------- serialise
@@ -386,6 +423,16 @@ export const mountReservations = (r: Router): void => {
       target: id,
       detail: `facility=${facility.id} date=${date} slot=${slot.id} owner=${ownerEmail}`,
     });
+    // Notifications: tell the owner (if the creator is not the owner) and
+    // all staff so the manage queue lights up in real time.
+    const notifyRecipients = new Set<string>();
+    if (ownerEmail !== meEmail) notifyRecipients.add(ownerEmail);
+    for (const s of staffEmails(ctx)) notifyRecipients.add(s);
+    if (notifyRecipients.size) {
+      const title = `New reservation · ${facility.name}`;
+      const body = `${date} · ${slot.label} · ${owner.flat ? owner.flat + ' · ' : ''}${purpose.slice(0, 100)}`;
+      await notify(ctx, Array.from(notifyRecipients), 'reservation-created', title, body, linkTo(id));
+    }
     return ok(ctx.env, ctx.req, { reservation: rec }, 201);
   });
 
@@ -463,6 +510,23 @@ export const mountReservations = (r: Router): void => {
       target: rec.id,
       detail: note ? `note=${note}` : '',
     });
+    // Notify the owner (and, if a resident cancels, the staff).
+    const notifEvent: Parameters<typeof emitNotification>[2]['event'] =
+      to === 'confirmed' ? 'reservation-approved' :
+      to === 'rejected'  ? 'reservation-rejected' :
+      to === 'cancelled' ? 'reservation-cancelled' :
+      'reservation-created';
+    const recipients = new Set<string>();
+    recipients.add(rec.owner.email);
+    if (to === 'cancelled' && isOwner) {
+      for (const s of staffEmails(ctx)) recipients.add(s);
+    }
+    recipients.delete(meEmail);   // no self-notify
+    if (recipients.size) {
+      const title = `Reservation ${to} · ${rec.facilityLabel}`;
+      const body = `${rec.date} · ${rec.slotLabel}${note ? ' · ' + note.slice(0, 100) : ''}`;
+      await notify(ctx, Array.from(recipients), notifEvent, title, body, linkTo(rec.id));
+    }
     return ok(ctx.env, ctx.req, { reservation: rec });
   });
 
@@ -486,6 +550,21 @@ export const mountReservations = (r: Router): void => {
     pushTimeline(rec, { at: nowIso, by: personFromCtx(ctx), event: 'commented', note });
     items[idx] = rec;
     await saveReservations(ctx, items, sha, ctx.identity!.email, `comment ${rec.id}`);
+    // Notify the other party. If a resident commented, ping staff; if
+    // staff commented, ping the owner.
+    const recipients = new Set<string>();
+    if (isOwner) {
+      for (const s of staffEmails(ctx)) recipients.add(s);
+    } else {
+      recipients.add(rec.owner.email);
+    }
+    recipients.delete(meEmail);
+    if (recipients.size) {
+      await notify(
+        ctx, Array.from(recipients), 'reservation-commented',
+        `Note on ${rec.id}`, note.slice(0, 140), linkTo(rec.id),
+      );
+    }
     return ok(ctx.env, ctx.req, { reservation: rec });
   });
 
@@ -570,6 +649,16 @@ export const mountReservations = (r: Router): void => {
       target: rec.id,
       detail: `path=${path} bytes=${byteSize} txnRef=${txnRef ?? ''}`,
     });
+    // Notify staff so someone can verify quickly.
+    const staff = staffEmails(ctx).filter((e) => e.toLowerCase() !== ctx.identity!.email.toLowerCase());
+    if (staff.length) {
+      await notify(
+        ctx, staff, 'payment-uploaded',
+        `Payment proof · ${rec.id}`,
+        `${rec.facilityLabel} · ${rec.date} · ${Math.round(byteSize / 1024)} KB`,
+        linkTo(rec.id),
+      );
+    }
     return ok(ctx.env, ctx.req, { reservation: rec }, 201);
   });
 
@@ -644,6 +733,16 @@ export const mountReservations = (r: Router): void => {
       target: rec.id,
       detail: note ? `note=${note}` : '',
     });
+    // Tell the owner about the verification outcome.
+    if (status === 'verified' || status === 'rejected') {
+      const notifEvent = status === 'verified' ? 'payment-verified' : 'payment-rejected';
+      await notify(
+        ctx, [rec.owner.email], notifEvent,
+        `Payment ${status} · ${rec.id}`,
+        `${rec.facilityLabel} · ${rec.date}${note ? ' · ' + note.slice(0, 100) : ''}`,
+        linkTo(rec.id),
+      );
+    }
     return ok(ctx.env, ctx.req, { reservation: rec });
   });
 

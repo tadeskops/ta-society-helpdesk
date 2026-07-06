@@ -1,8 +1,8 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Directory · TSH</title>
+  <title>Directory Â· TSH</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#1a1f2e" />
   <meta name="description" content="Vendors, community contacts and resources for The Address residents." />
@@ -36,7 +36,7 @@
 
       <div class="tsh-dir-search-row">
         <div class="tsh-search">
-          <input type="search" id="dirSearch" placeholder="Search name, phone, category, notes…" autocomplete="off" />
+          <input type="search" id="dirSearch" placeholder="Search name, phone, category, notesâ€¦" autocomplete="off" />
         </div>
       </div>
 
@@ -51,7 +51,7 @@
       <!-- EMERGENCY CONTACTS -->
       <section class="tsh-dir-section" data-dir-section="emergency">
         <div class="tsh-dir-section-actions">
-          <p class="tsh-hint"><i class="fas fa-triangle-exclamation" style="color:#dc2626"></i> Society staff numbers for quick reach — tap the phone or WhatsApp icon to call/message directly. Managers / committee / admins can add or edit entries.</p>
+          <p class="tsh-hint"><i class="fas fa-triangle-exclamation" style="color:#dc2626"></i> Society staff numbers for quick reach â€” tap the phone or WhatsApp icon to call/message directly. Managers / committee / admins can add or edit entries.</p>
           <div class="tsh-dir-section-buttons" data-dir-edit-only hidden>
             <button type="button" class="tsh-btn tsh-btn-primary tsh-btn-sm" data-dir-add="emergency"><i class="fas fa-plus"></i>Add emergency contact</button>
           </div>
@@ -87,7 +87,7 @@
       <!-- SERVICES (with desktop sidebar) -->
       <section class="tsh-dir-section tsh-dir-section-services" data-dir-section="services" hidden>
         <div class="tsh-dir-section-actions">
-          <p class="tsh-hint">Trusted service providers — House Help, Cook, Driver, Pest Control and more. Cards marked with a <i class="fas fa-shield-halved" style="color:#16a34a"></i> badge are verified by the society manager.</p>
+          <p class="tsh-hint">Trusted service providers â€” House Help, Cook, Driver, Pest Control and more. Cards marked with a <i class="fas fa-shield-halved" style="color:#16a34a"></i> badge are verified by the society manager.</p>
           <div class="tsh-dir-section-buttons" data-dir-edit-only hidden>
             <button type="button" class="tsh-btn tsh-btn-ghost tsh-btn-sm" id="dirManageServiceCategoriesBtn"><i class="fas fa-tags"></i>Manage sub-categories</button>
             <button type="button" class="tsh-btn tsh-btn-primary tsh-btn-sm" data-dir-add="services"><i class="fas fa-plus"></i>Add service</button>
@@ -141,6 +141,7 @@
   <script src="./assets/js/flags.js?v=13"></script>
   <script src="./assets/js/collapse-registry.js?v=1"></script>
   <script src="./assets/js/ui.js?v=50"></script>
+  <script src="./assets/js/notify.js?v=1"></script>
   <script src="./assets/js/pdf-report.js?v=8"></script>
   <script src="./assets/js/visitors.js?v=2"></script>
   <script src="./assets/js/directory.js?v=13"></script>
@@ -156,11 +157,11 @@
         document.querySelector('.tsh-card').innerHTML =
           '<div class="tsh-state tsh-state-empty"><i class="tsh-state-icon fas fa-circle-pause"></i>' +
           '<p class="tsh-state-title">Directory is disabled</p>' +
-          '<p class="tsh-state-msg">An admin can re-enable it from Settings → Feature flags.</p></div>';
+          '<p class="tsh-state-msg">An admin can re-enable it from Settings â†’ Feature flags.</p></div>';
         return;
       }
     } catch (e) {
-      UI.toast("Couldn't load site config — directory may be unavailable.", { kind: 'warn' });
+      UI.toast("Couldn't load site config â€” directory may be unavailable.", { kind: 'warn' });
     }
 
     let who = { primary: 'PUBLIC' };

@@ -82,6 +82,8 @@ export const DEFAULT_CONFIG: SiteConfig = {
     FEATURE_DAILY_USER_ROLE_BADGE:        true,
     FEATURE_DAILY_EXPORT_PDF:             true,
     FEATURE_TSH_RESERVATIONS:             true,
+    FEATURE_TSH_NOTIFICATIONS:            true,
+    FEATURE_TSH_RESERVATIONS_CALENDAR:    false,
   },
   tunables: {
     // Auto-assign sweep: a `new` ticket older than this many hours is
@@ -111,6 +113,11 @@ export const DEFAULT_CONFIG: SiteConfig = {
     RESERVATIONS_CACHE_SECONDS: 60,
     RESERVATION_PROOF_MAX_BYTES: 5_242_880,   // 5 MB per file
     RESERVATION_MAX_PROOFS:      5,           // per reservation
+    NOTIFICATIONS_CACHE_SECONDS: 30,
+    NOTIFICATIONS_MAX_ITEMS:     2000,
+    NOTIFICATIONS_PER_USER_CAP:  200,
+    CALENDAR_RETRY_MAX:          5,
+    CALENDAR_QUEUE_CACHE_SECONDS: 60,
   },
   lists: {
     towers:     ['A', 'B', 'C', 'Common Area'],
