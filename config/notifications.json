@@ -105,6 +105,97 @@
       ],
       "link": "reservations.html?open=RES-0607262023",
       "actor": "ta.deskops@gmail.com"
+    },
+    {
+      "id": "NTF-mr9cd4lx-9",
+      "recipient": "chironjeetb7@gmail.com",
+      "event": "reservation-cancelled",
+      "title": "Reservation cancelled · Community Hall",
+      "body": "2026-07-09 · 09:30–13:30",
+      "createdAt": "2026-07-06T14:54:56.661Z",
+      "channels": [
+        "in-app"
+      ],
+      "link": "reservations.html?open=RES-0607262023",
+      "actor": "ta.deskops@gmail.com"
+    },
+    {
+      "id": "NTF-mr9cd4lx-a",
+      "recipient": "sagarthakare@gmail.com",
+      "event": "reservation-cancelled",
+      "title": "Reservation cancelled · Community Hall",
+      "body": "2026-07-09 · 09:30–13:30",
+      "createdAt": "2026-07-06T14:54:56.661Z",
+      "channels": [
+        "in-app"
+      ],
+      "link": "reservations.html?open=RES-0607262023",
+      "actor": "ta.deskops@gmail.com"
+    },
+    {
+      "id": "NTF-mr9cd4lx-b",
+      "recipient": "dhiman.parekh89@gmail.com",
+      "event": "reservation-cancelled",
+      "title": "Reservation cancelled · Community Hall",
+      "body": "2026-07-09 · 09:30–13:30",
+      "createdAt": "2026-07-06T14:54:56.661Z",
+      "channels": [
+        "in-app"
+      ],
+      "link": "reservations.html?open=RES-0607262023",
+      "actor": "ta.deskops@gmail.com"
+    },
+    {
+      "id": "NTF-mr9cd4lx-c",
+      "recipient": "jayantr55@gmail.com",
+      "event": "reservation-cancelled",
+      "title": "Reservation cancelled · Community Hall",
+      "body": "2026-07-09 · 09:30–13:30",
+      "createdAt": "2026-07-06T14:54:56.661Z",
+      "channels": [
+        "in-app"
+      ],
+      "link": "reservations.html?open=RES-0607262023",
+      "actor": "ta.deskops@gmail.com"
+    },
+    {
+      "id": "NTF-mr9cd4lx-d",
+      "recipient": "tanujdang02@gmail.com",
+      "event": "reservation-cancelled",
+      "title": "Reservation cancelled · Community Hall",
+      "body": "2026-07-09 · 09:30–13:30",
+      "createdAt": "2026-07-06T14:54:56.661Z",
+      "channels": [
+        "in-app"
+      ],
+      "link": "reservations.html?open=RES-0607262023",
+      "actor": "ta.deskops@gmail.com"
+    },
+    {
+      "id": "NTF-mr9cd4lx-e",
+      "recipient": "sharmaanushka2802@gmail.com",
+      "event": "reservation-cancelled",
+      "title": "Reservation cancelled · Community Hall",
+      "body": "2026-07-09 · 09:30–13:30",
+      "createdAt": "2026-07-06T14:54:56.661Z",
+      "channels": [
+        "in-app"
+      ],
+      "link": "reservations.html?open=RES-0607262023",
+      "actor": "ta.deskops@gmail.com"
+    },
+    {
+      "id": "NTF-mr9cd4lx-f",
+      "recipient": "theaddressaundh@gmail.com",
+      "event": "reservation-cancelled",
+      "title": "Reservation cancelled · Community Hall",
+      "body": "2026-07-09 · 09:30–13:30",
+      "createdAt": "2026-07-06T14:54:56.661Z",
+      "channels": [
+        "in-app"
+      ],
+      "link": "reservations.html?open=RES-0607262023",
+      "actor": "ta.deskops@gmail.com"
     }
   ]
 }
