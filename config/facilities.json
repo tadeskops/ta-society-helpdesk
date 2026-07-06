@@ -4,6 +4,7 @@
     {
       "id": "community-hall",
       "name": "Community Hall",
+      "code": "CH",
       "description": "Main community hall for events, functions, and gatherings (recreational use).",
       "enabled": true,
       "capacity": 100,
@@ -97,6 +98,7 @@
     {
       "id": "gym-area",
       "name": "Gym Area",
+      "code": "GA",
       "description": "Society gym for private slot bookings (personal training, group session).",
       "enabled": true,
       "capacity": 8,

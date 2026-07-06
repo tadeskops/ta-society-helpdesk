@@ -269,7 +269,7 @@ describe('POST /reservations', () => {
     }, 'resident1@x.com');
     expect(r.status).toBe(201);
     const j = await r.json() as any;
-    expect(j.data.reservation.id).toMatch(/^RES-\d{10}(?:-\d+)?$/);
+    expect(j.data.reservation.id).toMatch(/^[A-Z]{2,6}-\d{10}(?:-\d+)?$/);
     expect(j.data.reservation.status).toBe('requested');
     expect(j.data.reservation.owner.email).toBe('resident1@x.com');
     expect(j.data.reservation.timeline).toHaveLength(1);

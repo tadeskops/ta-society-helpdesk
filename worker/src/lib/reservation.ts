@@ -51,7 +51,7 @@ export interface TimelineItem {
 }
 
 export interface Reservation {
-  id: string;                    // RES-DDMMYYHHMM[-N] (IST minute)
+  id: string;                    // <PREFIX>-DDMMYYHHMM[-N] (IST minute) — PREFIX is per facility (CH, GA, …); legacy records use RES-
   facilityId: string;
   facilityLabel: string;
   date: string;                  // YYYY-MM-DD, IST
@@ -175,6 +175,15 @@ export interface Facility {
   description?: string;
   enabled: boolean;
   capacity?: number;
+  /**
+   * Short 2–4 letter uppercase code used as the reservation-id prefix
+   * (e.g. "CH" for Community Hall, "GA" for Gym Area). If omitted, one
+   * is derived from `id` by taking the first letter of each hyphen /
+   * whitespace segment (see facilityCode()). Optional so existing
+   * configs keep working; new facilities should set it explicitly for
+   * stable, human-readable receipt IDs.
+   */
+  code?: string;
   /** Legacy: fixed slot presets. Optional for time-range facilities. */
   slots?: FacilitySlot[];
   policy: FacilityPolicy;
@@ -184,10 +193,14 @@ export interface Facility {
 
 // ------------------------------------------------------------- ID scheme
 
-// Reservation IDs follow the same "DDMMYYHHMM + optional -N" scheme as
-// helpdesk tickets (TKT-*), just with a RES- prefix. IST minute-anchored
-// so IDs sort naturally by creation time when displayed as text.
-export const RES_ID_RE = /^RES-\d{10}(?:-\d+)?$/;
+// Reservation IDs follow "PREFIX-DDMMYYHHMM[-N]" (IST minute-anchored).
+// PREFIX is per-facility (see facilityCode()) — e.g. CH-0707261455 for
+// Community Hall. Legacy bookings created before the facility-typed
+// scheme used the generic "RES-" prefix; those IDs remain valid and
+// this regex accepts both shapes so lookups on old records don't break.
+export const RES_ID_RE = /^[A-Z]{2,6}-\d{10}(?:-\d+)?$/;
+/** Legacy generic prefix; kept only for tests / diagnostics. */
+export const LEGACY_RES_PREFIX = 'RES';
 
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 
@@ -204,13 +217,45 @@ const istParts = (ms: number) => {
 
 const p2 = (n: number): string => String(n).padStart(2, '0');
 
-export const formatResIdBase = (ms: number): string => {
-  const { d, m, y, h, mi } = istParts(ms);
-  return `RES-${p2(d)}${p2(m)}${p2(y)}${p2(h)}${p2(mi)}`;
+/**
+ * Derive a stable 2–4 letter uppercase code from a facility. Uses the
+ * explicit `code` if the config sets one; otherwise takes the first
+ * letter of each hyphen / whitespace segment of the id (community-hall
+ * → CH, gym-area → GA, guest-room-a → GRA). Falls back to the first
+ * two letters of the id if the split yields nothing usable.
+ */
+export const facilityCode = (f: Pick<Facility, 'id' | 'code'>): string => {
+  const explicit = (f.code || '').trim().toUpperCase();
+  if (/^[A-Z]{2,6}$/.test(explicit)) return explicit;
+  const parts = String(f.id || '').split(/[-_\s]+/).filter(Boolean);
+  const derived = parts.map((p) => p.charAt(0)).join('').toUpperCase();
+  if (/^[A-Z]{2,6}$/.test(derived)) return derived;
+  const raw = String(f.id || 'X').replace(/[^A-Za-z]/g, '').toUpperCase();
+  return (raw.slice(0, 2) || 'XX').padEnd(2, 'X');
 };
 
-export const nextResId = (existing: ReadonlySet<string>, now: number = Date.now()): string => {
-  const base = formatResIdBase(now);
+export const formatResIdBase = (prefix: string, ms: number): string => {
+  const { d, m, y, h, mi } = istParts(ms);
+  return `${prefix}-${p2(d)}${p2(m)}${p2(y)}${p2(h)}${p2(mi)}`;
+};
+
+export const nextResId = (
+  existing: ReadonlySet<string>,
+  prefixOrNow?: string | number,
+  now?: number,
+): string => {
+  // Back-compat: nextResId(existing) and nextResId(existing, now) still
+  // work, falling back to the legacy "RES-" prefix. New call sites use
+  // nextResId(existing, facilityCode(f), Date.now()).
+  let prefix = LEGACY_RES_PREFIX;
+  let ts = Date.now();
+  if (typeof prefixOrNow === 'string') {
+    prefix = prefixOrNow.trim().toUpperCase() || LEGACY_RES_PREFIX;
+    if (typeof now === 'number') ts = now;
+  } else if (typeof prefixOrNow === 'number') {
+    ts = prefixOrNow;
+  }
+  const base = formatResIdBase(prefix, ts);
   if (!existing.has(base)) return base;
   for (let n = 2; n < 500; n++) {
     const cand = `${base}-${n}`;

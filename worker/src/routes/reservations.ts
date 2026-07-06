@@ -33,7 +33,7 @@ import { tunable } from '../config/defaults.ts';
 import { emit as emitNotification } from '../lib/notify.ts';
 import { mirrorConfirm, mirrorRemove } from '../lib/google-calendar.ts';
 import {
-  RES_STATUSES, RES_ID_RE, nextResId, canTransition,
+  RES_STATUSES, RES_ID_RE, nextResId, facilityCode, canTransition,
   isActive, istDateStr, parseIstDateMidnight,
   PROOF_MIMES, proofRepoPath, initialPaymentState, isPaymentClearedForApproval,
   DEFAULT_MAX_PER_FLAT_PER_YEAR, normalizeFlat, istYearFromDate,
@@ -213,6 +213,8 @@ const publicFacility = (f: Facility) => {
   return {
     id: f.id,
     name: f.name,
+    /** Short uppercase code used as the reservation-id prefix (CH, GA, …). */
+    code: facilityCode(f),
     description: f.description ?? '',
     enabled: !!f.enabled,
     capacity: f.capacity ?? 0,
@@ -320,6 +322,15 @@ export const mountReservations = (r: Router): void => {
     if (typeof body['enabled'] === 'boolean') target.enabled = body['enabled'] as boolean;
     if (typeof body['capacity'] === 'number' && Number.isFinite(body['capacity'])) {
       target.capacity = Math.max(0, Math.floor(body['capacity'] as number));
+    }
+    if (typeof body['code'] === 'string') {
+      // Facility code drives the reservation-id prefix (CH-…, GA-…).
+      // 2–6 uppercase letters only; empty string clears the override so
+      // facilityCode() falls back to deriving from id.
+      const c = (body['code'] as string).trim().toUpperCase();
+      if (c === '') delete target.code;
+      else if (/^[A-Z]{2,6}$/.test(c)) target.code = c;
+      else throw new BadRequest('code must be 2–6 uppercase letters');
     }
     if (Array.isArray(body['rules'])) {
       target.rules = (body['rules'] as unknown[])
@@ -734,7 +745,7 @@ export const mountReservations = (r: Router): void => {
 
     // Allocate ID and record.
     const existing = new Set<string>(items.map((r) => r.id));
-    const id = nextResId(existing, now);
+    const id = nextResId(existing, facilityCode(facility), now);
 
     const owner: Person = {
       email: ownerEmail,
