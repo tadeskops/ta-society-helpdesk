@@ -4,12 +4,12 @@
     {
       "id": "community-hall",
       "name": "Community Hall",
-      "description": "Main community hall for events, functions, and gatherings.",
+      "description": "Main community hall for events, functions, and gatherings (recreational use).",
       "enabled": true,
       "capacity": 100,
       "policy": {
-        "minAdvanceHours": 24,
-        "maxAdvanceDays": 90,
+        "minAdvanceHours": 48,
+        "maxAdvanceDays": 30,
         "maxConcurrentPerOwner": 3,
         "maxPerFlatPerYear": 2,
         "openMin": 360,
@@ -22,13 +22,75 @@
         "paymentAmount": 0,
         "paymentPayee": "",
         "chargesInfo": "Community Hall bookings may attract a maintenance/cleaning fee and a refundable security deposit as decided by the committee. The manager will confirm the applicable amount before approving your request. Any damage to property is recovered from the deposit.",
+        "rateCard": [
+          { "label": "Half day (up to 4 hours)", "amount": 1500, "note": "Cleaning fee inclusive." },
+          { "label": "Full day (up to 8 hours)", "amount": 2500, "note": "Cleaning fee inclusive." },
+          { "label": "Refundable security deposit", "amount": 2000, "note": "Refunded after manager inspection." }
+        ],
+        "usageGuidelines": {
+          "before": [
+            "Confirm the booking is approved before decorating or setting up.",
+            "Bring your own decor, cutlery and serving equipment.",
+            "Check the space and report any pre-existing damage to the manager.",
+            "Keep music volume moderate; no loud music after 10 PM."
+          ],
+          "after": [
+            "Clear all decorations, food and personal items.",
+            "Sweep the floor and wipe down tables and chairs.",
+            "Segregate wet and dry waste; drop it at the designated bin.",
+            "Switch off fans, lights and AC before leaving.",
+            "Return chairs and tables to their original positions."
+          ]
+        },
         "blackoutDates": []
       },
       "rules": [
-        "Bookings must be requested at least 24 hours in advance.",
+        "Bookings must be requested at least 48 hours in advance.",
         "Cleanliness of the hall is the responsibility of the booking owner.",
         "No loud music after 10 PM.",
         "Any damage to property will be recovered from the security deposit."
+      ]
+    },
+    {
+      "id": "gym-area",
+      "name": "Gym Area",
+      "description": "Society gym for private slot bookings (personal training, group session).",
+      "enabled": true,
+      "capacity": 8,
+      "policy": {
+        "minAdvanceHours": 4,
+        "maxAdvanceDays": 14,
+        "maxConcurrentPerOwner": 3,
+        "maxPerFlatPerYear": 24,
+        "openMin": 300,
+        "closeMin": 1320,
+        "stepMinutes": 30,
+        "minDurationMinutes": 30,
+        "maxDurationMinutes": 120,
+        "requiresApproval": false,
+        "requiresPayment": false,
+        "paymentAmount": 0,
+        "paymentPayee": "",
+        "chargesInfo": "Gym use is included with your maintenance. Private slot bookings are complimentary but limited to keep equipment available for everyone.",
+        "rateCard": [],
+        "usageGuidelines": {
+          "before": [
+            "Wear indoor training shoes only.",
+            "Bring your own towel and water bottle.",
+            "Check equipment for damage; report issues to the manager before use."
+          ],
+          "after": [
+            "Wipe down every machine and mat you used.",
+            "Rack all weights to their correct spots.",
+            "Turn off the AC, fans and TV before leaving."
+          ]
+        },
+        "blackoutDates": []
+      },
+      "rules": [
+        "Minor residents (below 16) must be accompanied by an adult.",
+        "No outside trainers without prior written approval from the committee.",
+        "Personal music must be played through headphones."
       ]
     }
   ]

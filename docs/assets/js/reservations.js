@@ -228,43 +228,87 @@
     return (r && r.slotLabel) || '';
   }
 
+  // Rate-card + usage-guidelines are read-only in the booking modal; the
+  // admin/committee/manager Settings modal below is the only writer.
+  function renderRateCard(rateCard) {
+    const rows = Array.isArray(rateCard) ? rateCard.filter((r) => r && r.label) : [];
+    if (!rows.length) return '';
+    const body = rows.map((r) => {
+      const amt = (typeof r.amount === 'number') ? '₹' + Number(r.amount).toLocaleString('en-IN') : '—';
+      const note = r.note ? '<div style="font-size:11px;opacity:.75;">' + escape(r.note) + '</div>' : '';
+      return '<tr><td>' + escape(r.label) + note + '</td><td class="tsh-res-rc-amount">' + amt + '</td></tr>';
+    }).join('');
+    return (
+      '<div class="tsh-res-ratecard">' +
+        '<div style="font-weight:600;margin-bottom:4px;font-size:12px;"><i class="fas fa-indian-rupee-sign"></i> Rate card <span style="font-weight:400;opacity:.65;">(indicative — manager confirms final amount)</span></div>' +
+        '<table><tbody>' + body + '</tbody></table>' +
+      '</div>'
+    );
+  }
+
+  function renderGuidelines(g) {
+    if (!g) return '';
+    const before = Array.isArray(g.before) ? g.before.filter(Boolean) : [];
+    const after  = Array.isArray(g.after)  ? g.after.filter(Boolean)  : [];
+    if (!before.length && !after.length) return '';
+    const block = (title, icon, items) => items.length
+      ? '<div class="tsh-res-guide"><h5>' + icon + ' ' + escape(title) + '</h5><ul>' +
+        items.map((s) => '<li>' + escape(s) + '</li>').join('') + '</ul></div>'
+      : '';
+    return (
+      block('Before you use the facility', '<i class="fas fa-clipboard-check"></i>', before) +
+      block('After you finish', '<i class="fas fa-broom"></i>', after)
+    );
+  }
+
   // -------------------------------------------------------- facilities
 
   function renderFacilityPicker() {
-    const host = $('#resFacilityList');
-    host.innerHTML = '';
+    const sel  = $('#resFacilitySelect');
+    const bar  = $('#resFacilitySettings');
+    const blurb = $('#resFacilityBlurb');
+    if (!sel) return;
+    sel.innerHTML = '';
     if (!facilities.length) {
-      host.innerHTML = '<p class="tsh-empty">No facilities are configured yet. Contact the site admin.</p>';
+      sel.innerHTML = '<option value="">— No facilities configured —</option>';
+      sel.disabled = true;
+      if (blurb) blurb.textContent = '';
       $('#resBookBody').hidden = true;
       return;
     }
+    sel.disabled = false;
     facilities.forEach((f) => {
-      const card = document.createElement('button');
-      card.type = 'button';
-      card.className = 'tsh-res-fac';
-      card.setAttribute('data-fac', f.id);
-      const capMsg = f.capacity ? ` · up to ${f.capacity} people` : '';
-      const payMsg = f.policy && f.policy.requiresPayment ? ` · ₹${f.policy.paymentAmount} deposit` : '';
-      card.innerHTML =
-        '<span class="tsh-res-fac-name">' + escape(f.name) + '</span>' +
-        (f.description ? '<span class="tsh-res-fac-desc">' + escape(f.description) + '</span>' : '') +
-        '<span class="tsh-res-fac-meta">' +
-          '<i class="far fa-clock"></i> ' + escape(facilityHoursLabel(f)) + ' · ' +
-          'up to ' + (f.policy && f.policy.maxAdvanceDays || 0) + 'd ahead' +
-          capMsg + payMsg +
-        '</span>';
-      card.addEventListener('click', () => selectFacility(f.id));
-      host.appendChild(card);
+      const opt = document.createElement('option');
+      opt.value = f.id;
+      opt.textContent = f.name + (f.capacity ? ` · up to ${f.capacity} people` : '');
+      sel.appendChild(opt);
     });
+    sel.onchange = () => selectFacility(sel.value);
+    if (bar) {
+      const isStaff = who && root.Flags.isAtLeast && root.Flags.isAtLeast(who.primary, 'MANAGER');
+      bar.hidden = !isStaff;
+      bar.onclick = () => openFacilitySettings();
+    }
   }
 
   function selectFacility(id) {
     selectedFacility = facilities.find((f) => f.id === id) || null;
-    $$('#resFacilityList .tsh-res-fac').forEach((el) => {
-      el.classList.toggle('tsh-res-fac-active', el.getAttribute('data-fac') === id);
-    });
+    const sel = $('#resFacilitySelect');
+    if (sel && sel.value !== id && selectedFacility) sel.value = selectedFacility.id;
     if (!selectedFacility) return;
     $('#resBookBody').hidden = false;
+    // Blurb: description + hours + advance-booking window.
+    const blurb = $('#resFacilityBlurb');
+    if (blurb) {
+      const p = selectedFacility.policy || {};
+      const bits = [];
+      if (selectedFacility.description) bits.push(escape(selectedFacility.description));
+      bits.push('<i class="far fa-clock"></i> ' + escape(facilityHoursLabel(selectedFacility)));
+      bits.push('<i class="fas fa-calendar-plus"></i> book up to ' + (p.maxAdvanceDays || 0) + 'd ahead');
+      bits.push('<i class="fas fa-hourglass-half"></i> min ' + (p.minAdvanceHours || 0) + 'h notice');
+      if (selectedFacility.capacity) bits.push('<i class="fas fa-users"></i> up to ' + selectedFacility.capacity + ' people');
+      blurb.innerHTML = bits.join(' &nbsp;·&nbsp; ');
+    }
     renderFacilityRules();
     // Initialise calendar to Today (Monday of this week).
     if (!calAnchor) calAnchor = mondayOf(istToday());
@@ -577,6 +621,8 @@
       (chargesInfo ?
         '<p class="tsh-hint" style="background:rgba(59,130,246,0.08);border-left:3px solid #3b82f6;padding:8px 10px;border-radius:4px;margin-top:8px;">' +
         '<i class="fas fa-receipt"></i> <strong>Charges:</strong> ' + escape(chargesInfo) + '</p>' : '') +
+      renderRateCard(policy.rateCard) +
+      renderGuidelines(policy.usageGuidelines) +
       (policy.requiresPayment ?
         '<p class="tsh-hint"><i class="fas fa-info-circle"></i> This facility requires a deposit of ₹' + policy.paymentAmount +
         (policy.paymentPayee ? ' to ' + escape(policy.paymentPayee) : '') +
@@ -631,6 +677,183 @@
       refreshManage();
     } catch (e) {
       root.UI.toast(e && e.message || 'Booking failed', { kind: 'danger' });
+    }
+  }
+
+  // -------------------------------------------------------- facility settings (MANAGER+)
+
+  function openFacilitySettings() {
+    if (!selectedFacility) return;
+    const isStaff = who && root.Flags.isAtLeast && root.Flags.isAtLeast(who.primary, 'MANAGER');
+    if (!isStaff) return;
+    const f = selectedFacility;
+    const p = f.policy || {};
+
+    const wrap = document.createElement('div');
+    wrap.className = 'tsh-res-set';
+    wrap.innerHTML =
+      '<p style="font-size:12px;color:var(--tsh-muted,#6b7280);margin:0 0 4px;">' +
+        'Editing <strong>' + escape(f.name) + '</strong>. Changes are saved to <code>config/facilities.json</code> and take effect immediately for new bookings.' +
+      '</p>' +
+
+      '<div class="tsh-res-set-grid">' +
+        '<label><span>Min advance notice (hours)</span><input type="number" min="0" max="720" step="1" data-fs-minh value="' + Number(p.minAdvanceHours || 0) + '" /></label>' +
+        '<label><span>Max advance window (days)</span><input type="number" min="1" max="365" step="1" data-fs-maxd value="' + Number(p.maxAdvanceDays || 30) + '" /></label>' +
+        '<label><span>Max active bookings per resident</span><input type="number" min="1" max="20" step="1" data-fs-conc value="' + Number(p.maxConcurrentPerOwner || 3) + '" /></label>' +
+        '<label><span>Max bookings per flat per year</span><input type="number" min="1" max="52" step="1" data-fs-year value="' + Number(p.maxPerFlatPerYear || 2) + '" /></label>' +
+      '</div>' +
+
+      '<fieldset><legend>Open hours (24-hour)</legend>' +
+        '<div class="tsh-res-set-grid">' +
+          '<label><span>Opens at</span><input type="time" data-fs-open value="' + formatHHMM(Number(p.openMin || 0)) + '" step="' + Number(p.stepMinutes || 30) * 60 + '" /></label>' +
+          '<label><span>Closes at</span><input type="time" data-fs-close value="' + formatHHMM(Number(p.closeMin || 0)) + '" step="' + Number(p.stepMinutes || 30) * 60 + '" /></label>' +
+          '<label><span>Min booking length (minutes)</span><input type="number" min="15" max="1440" step="15" data-fs-mind value="' + Number(p.minDurationMinutes || 60) + '" /></label>' +
+          '<label><span>Max booking length (minutes)</span><input type="number" min="15" max="1440" step="15" data-fs-maxdur value="' + Number(p.maxDurationMinutes || 480) + '" /></label>' +
+        '</div>' +
+      '</fieldset>' +
+
+      '<label><span>Charges description (shown on booking form)</span>' +
+        '<textarea data-fs-charges maxlength="2000" placeholder="Free-text description of fees, deposit, cleaning charges, refund policy.">' +
+        escape(p.chargesInfo || '') +
+        '</textarea></label>' +
+
+      '<fieldset><legend>Rate card (indicative — amounts by time / duration)</legend>' +
+        '<div class="tsh-res-set-list" data-fs-rc></div>' +
+        '<button type="button" class="tsh-res-set-add" data-fs-rc-add>+ Add rate</button>' +
+      '</fieldset>' +
+
+      '<div class="tsh-res-set-grid">' +
+        '<fieldset><legend><i class="fas fa-clipboard-check"></i> Etiquette before use</legend>' +
+          '<div class="tsh-res-set-list" data-fs-gb></div>' +
+          '<button type="button" class="tsh-res-set-add" data-fs-gb-add>+ Add guideline</button>' +
+        '</fieldset>' +
+        '<fieldset><legend><i class="fas fa-broom"></i> Etiquette after use</legend>' +
+          '<div class="tsh-res-set-list" data-fs-ga></div>' +
+          '<button type="button" class="tsh-res-set-add" data-fs-ga-add>+ Add guideline</button>' +
+        '</fieldset>' +
+      '</div>' +
+
+      '<label><span>House rules (shown above the calendar)</span>' +
+        '<div class="tsh-res-set-list" data-fs-rules></div>' +
+        '<button type="button" class="tsh-res-set-add" data-fs-rules-add>+ Add rule</button>' +
+      '</label>';
+
+    // ---- populate dynamic lists ----
+    const rcHost   = wrap.querySelector('[data-fs-rc]');
+    const gbHost   = wrap.querySelector('[data-fs-gb]');
+    const gaHost   = wrap.querySelector('[data-fs-ga]');
+    const rulesHost = wrap.querySelector('[data-fs-rules]');
+
+    const addRateRow = (label, amount, note) => {
+      const row = document.createElement('div');
+      row.className = 'tsh-res-set-row';
+      row.innerHTML =
+        '<input type="text" data-rc-label maxlength="120" placeholder="e.g. Morning (06:00–12:00)" />' +
+        '<input type="number" data-rc-amt min="0" step="1" placeholder="Amount (₹)" />' +
+        '<button type="button" class="tsh-res-set-del" title="Remove"><i class="fas fa-trash"></i></button>';
+      row.querySelector('[data-rc-label]').value = label || '';
+      if (typeof amount === 'number') row.querySelector('[data-rc-amt]').value = String(amount);
+      // Second row for optional note.
+      const noteInput = document.createElement('input');
+      noteInput.type = 'text';
+      noteInput.setAttribute('data-rc-note', '');
+      noteInput.maxLength = 240;
+      noteInput.placeholder = 'Optional note (fine print)';
+      noteInput.value = note || '';
+      noteInput.style.gridColumn = '1 / -1';
+      row.appendChild(noteInput);
+      row.querySelector('.tsh-res-set-del').addEventListener('click', () => row.remove());
+      rcHost.appendChild(row);
+    };
+    const addLineRow = (host, value, placeholder) => {
+      const row = document.createElement('div');
+      row.className = 'tsh-res-set-row-simple';
+      row.innerHTML =
+        '<input type="text" maxlength="240" />' +
+        '<button type="button" class="tsh-res-set-del" title="Remove"><i class="fas fa-trash"></i></button>';
+      const inp = row.querySelector('input');
+      inp.value = value || '';
+      inp.placeholder = placeholder || '';
+      row.querySelector('.tsh-res-set-del').addEventListener('click', () => row.remove());
+      host.appendChild(row);
+    };
+
+    (Array.isArray(p.rateCard) ? p.rateCard : []).forEach((r) => addRateRow(r.label, r.amount, r.note));
+    if (!p.rateCard || !p.rateCard.length) addRateRow('', undefined, '');
+    (p.usageGuidelines && Array.isArray(p.usageGuidelines.before) ? p.usageGuidelines.before : []).forEach((s) => addLineRow(gbHost, s, 'e.g. Confirm the booking is approved before decorating.'));
+    if (!gbHost.children.length) addLineRow(gbHost, '', 'e.g. Confirm the booking is approved before decorating.');
+    (p.usageGuidelines && Array.isArray(p.usageGuidelines.after) ? p.usageGuidelines.after : []).forEach((s) => addLineRow(gaHost, s, 'e.g. Sweep the floor and wipe down surfaces.'));
+    if (!gaHost.children.length) addLineRow(gaHost, '', 'e.g. Sweep the floor and wipe down surfaces.');
+    (Array.isArray(f.rules) ? f.rules : []).forEach((s) => addLineRow(rulesHost, s, 'e.g. No loud music after 10 PM.'));
+    if (!rulesHost.children.length) addLineRow(rulesHost, '', 'e.g. No loud music after 10 PM.');
+
+    wrap.querySelector('[data-fs-rc-add]').addEventListener('click', () => addRateRow('', undefined, ''));
+    wrap.querySelector('[data-fs-gb-add]').addEventListener('click', () => addLineRow(gbHost, '', ''));
+    wrap.querySelector('[data-fs-ga-add]').addEventListener('click', () => addLineRow(gaHost, '', ''));
+    wrap.querySelector('[data-fs-rules-add]').addEventListener('click', () => addLineRow(rulesHost, '', ''));
+
+    root.UI.modal({
+      title: 'Facility settings · ' + f.name,
+      body: wrap,
+      size: 'lg',
+      actions: [
+        { label: 'Cancel', value: null },
+        { label: 'Save', value: 'save', primary: true },
+      ],
+    }).then((choice) => {
+      if (choice !== 'save') return;
+      saveFacilitySettings(f.id, wrap);
+    });
+  }
+
+  function parseHHMMLocal(s) { const [h, m] = String(s || '').split(':').map(Number); return (h || 0) * 60 + (m || 0); }
+
+  async function saveFacilitySettings(id, wrap) {
+    const rcRows = Array.from(wrap.querySelectorAll('[data-fs-rc] .tsh-res-set-row')).map((row) => {
+      const label = row.querySelector('[data-rc-label]').value.trim();
+      const amtRaw = row.querySelector('[data-rc-amt]').value;
+      const note = row.querySelector('[data-rc-note]').value.trim();
+      const out = { label };
+      if (amtRaw !== '' && !Number.isNaN(Number(amtRaw))) out.amount = Number(amtRaw);
+      if (note) out.note = note;
+      return label ? out : null;
+    }).filter(Boolean);
+
+    const readList = (host) => Array.from(host.querySelectorAll('input'))
+      .map((i) => i.value.trim())
+      .filter(Boolean);
+
+    const body = {
+      rules: readList(wrap.querySelector('[data-fs-rules]')),
+      policy: {
+        minAdvanceHours:       Number(wrap.querySelector('[data-fs-minh]').value)   || 0,
+        maxAdvanceDays:        Number(wrap.querySelector('[data-fs-maxd]').value)   || 30,
+        maxConcurrentPerOwner: Number(wrap.querySelector('[data-fs-conc]').value)   || 3,
+        maxPerFlatPerYear:     Number(wrap.querySelector('[data-fs-year]').value)   || 2,
+        openMin:               parseHHMMLocal(wrap.querySelector('[data-fs-open]').value),
+        closeMin:              parseHHMMLocal(wrap.querySelector('[data-fs-close]').value),
+        minDurationMinutes:    Number(wrap.querySelector('[data-fs-mind]').value)   || 60,
+        maxDurationMinutes:    Number(wrap.querySelector('[data-fs-maxdur]').value) || 480,
+        chargesInfo:           wrap.querySelector('[data-fs-charges]').value.trim(),
+        rateCard:              rcRows,
+        usageGuidelines: {
+          before: readList(wrap.querySelector('[data-fs-gb]')),
+          after:  readList(wrap.querySelector('[data-fs-ga]')),
+        },
+      },
+    };
+    try {
+      const res = await root.Api.patch('/facilities/' + encodeURIComponent(id), body);
+      // Replace in our local list so the modal, blurb and modal-side rate card refresh.
+      const idx = facilities.findIndex((f) => f.id === id);
+      if (idx !== -1 && res && res.facility) facilities[idx] = res.facility;
+      renderFacilityPicker();
+      const sel = $('#resFacilitySelect');
+      if (sel) sel.value = id;
+      selectFacility(id);
+      root.UI.toast('Facility settings saved.', { kind: 'success' });
+    } catch (e) {
+      root.UI.toast(e && e.message || 'Save failed.', { kind: 'danger' });
     }
   }
 

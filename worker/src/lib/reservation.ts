@@ -134,6 +134,19 @@ export interface FacilityPolicy {
    * this facility. Leave empty to hide the block.
    */
   chargesInfo?: string;
+  /**
+   * Optional rate card shown alongside `chargesInfo` on the booking form.
+   * Purely informational — the server does NOT enforce these amounts;
+   * managers still confirm the final amount at approval time. Typical
+   * shape: `[{ label: "Morning (06:00–12:00)", amount: 1000 }, ...]`.
+   */
+  rateCard?: { label: string; amount?: number; note?: string }[];
+  /**
+   * Basic etiquette / house-rules shown on the booking form as short
+   * bullet lists — one for things to do before use and one for after.
+   * Kept intentionally simple: brief single-line points, not paragraphs.
+   */
+  usageGuidelines?: { before?: string[]; after?: string[] };
   blackoutDates?: string[];   // YYYY-MM-DD
 }
 

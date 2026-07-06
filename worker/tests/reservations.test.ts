@@ -197,6 +197,53 @@ describe('GET /facilities', () => {
   });
 });
 
+describe('PATCH /facilities/:id', () => {
+  it('rejects residents (MANAGER+ only)', async () => {
+    const r = await send('PATCH', '/facilities/community-hall', {
+      policy: { minAdvanceHours: 48 },
+    }, 'resident1@x.com');
+    expect(r.status).toBe(403);
+  });
+  it('allows a manager to update charges, rate card and guidelines', async () => {
+    const r = await send('PATCH', '/facilities/community-hall', {
+      policy: {
+        minAdvanceHours: 48,
+        maxAdvanceDays: 30,
+        chargesInfo: 'Deposit ₹2000 refundable after inspection.',
+        rateCard: [
+          { label: 'Half day', amount: 1500 },
+          { label: 'Full day', amount: 2500, note: 'Cleaning included.' },
+        ],
+        usageGuidelines: {
+          before: ['Check the space for damage.', 'Bring your own decor.'],
+          after:  ['Sweep the floor.', 'Segregate waste.'],
+        },
+      },
+    }, 'mgr@x.com');
+    expect(r.status).toBe(200);
+    const j = await r.json() as any;
+    expect(j.data.facility.policy.minAdvanceHours).toBe(48);
+    expect(j.data.facility.policy.maxAdvanceDays).toBe(30);
+    expect(j.data.facility.policy.rateCard).toHaveLength(2);
+    expect(j.data.facility.policy.rateCard[1].note).toContain('Cleaning');
+    expect(j.data.facility.policy.usageGuidelines.before).toHaveLength(2);
+    expect(j.data.facility.policy.usageGuidelines.after).toHaveLength(2);
+    // Re-fetch from GET to confirm persistence through the cache invalidation.
+    const g = await send('GET', '/facilities/community-hall', undefined, 'resident1@x.com');
+    const gj = await g.json() as any;
+    expect(gj.data.facility.policy.chargesInfo).toContain('Deposit');
+    expect(gj.data.facility.policy.usageGuidelines.before[0]).toBe('Check the space for damage.');
+  });
+  it('rejects closeMin <= openMin', async () => {
+    const r = await send('PATCH', '/facilities/community-hall', {
+      policy: { openMin: 720, closeMin: 600 },
+    }, 'mgr@x.com');
+    expect(r.status).toBe(400);
+    const j = await r.json() as any;
+    expect(String(j.error || j.message || '')).toMatch(/closeMin/i);
+  });
+});
+
 describe('GET /facilities/:id/availability', () => {
   it('returns an empty busy list when no bookings exist', async () => {
     const d = soon();

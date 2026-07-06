@@ -82,6 +82,46 @@
       .tsh-res-grid-day { padding: 6px 2px; font-size: 12px; }
     }
 
+    /* Facility bar (dropdown + settings). Replaces the old tile-picker. */
+    .tsh-res-fac-bar { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
+    .tsh-res-fac-select-wrap { display: flex; flex-direction: column; gap: 4px; min-width: 240px; flex: 1 1 280px; }
+    .tsh-res-fac-select { padding: 10px 12px; border-radius: 8px; border: 1px solid var(--tsh-border, #d1d5db); background: var(--tsh-card, #fff); font-size: 15px; }
+
+    /* Rate card + usage guidelines rendered inside the booking modal. */
+    .tsh-res-ratecard { margin: 8px 0 4px; padding: 8px 10px; border-radius: 8px; background: #f9fafb; border: 1px solid var(--tsh-border, #e5e7eb); font-size: 12px; }
+    .tsh-res-ratecard table { width: 100%; border-collapse: collapse; }
+    .tsh-res-ratecard th, .tsh-res-ratecard td { padding: 4px 6px; text-align: left; border-bottom: 1px dashed var(--tsh-border, #e5e7eb); }
+    .tsh-res-ratecard th { font-weight: 600; opacity: .75; }
+    .tsh-res-ratecard tr:last-child th, .tsh-res-ratecard tr:last-child td { border-bottom: 0; }
+    .tsh-res-ratecard .tsh-res-rc-amount { text-align: right; white-space: nowrap; font-weight: 600; }
+    .tsh-res-guide { margin: 6px 0; padding: 8px 10px 8px 12px; border-radius: 8px; background: #f0f9ff; border-left: 3px solid #38bdf8; font-size: 12px; }
+    .tsh-res-guide h5 { margin: 0 0 4px; font-size: 12px; font-weight: 600; color: #0369a1; }
+    .tsh-res-guide ul { margin: 0 0 4px 18px; padding: 0; }
+    .tsh-res-guide li { line-height: 1.4; }
+    .tsh-res-guide + .tsh-res-guide { margin-top: 6px; }
+
+    /* Settings-modal helpers */
+    .tsh-res-set { display: flex; flex-direction: column; gap: 10px; font-size: 13px; }
+    .tsh-res-set label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+    .tsh-res-set label > span { font-weight: 500; }
+    .tsh-res-set input, .tsh-res-set textarea, .tsh-res-set select {
+      padding: 7px 10px; border-radius: 6px; border: 1px solid var(--tsh-border, #d1d5db); background: var(--tsh-card, #fff); font: inherit; width: 100%;
+    }
+    .tsh-res-set textarea { min-height: 80px; resize: vertical; }
+    .tsh-res-set-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .tsh-res-set-list { display: flex; flex-direction: column; gap: 6px; }
+    .tsh-res-set-list .tsh-res-set-row { display: grid; grid-template-columns: 2fr 1fr auto; gap: 6px; align-items: center; }
+    .tsh-res-set-list .tsh-res-set-row-simple { display: grid; grid-template-columns: 1fr auto; gap: 6px; align-items: center; }
+    .tsh-res-set-list .tsh-res-set-del { background: transparent; border: 0; color: #dc2626; cursor: pointer; padding: 4px; }
+    .tsh-res-set-add { align-self: flex-start; background: transparent; border: 1px dashed var(--tsh-border, #d1d5db); border-radius: 6px; padding: 6px 10px; font-size: 12px; cursor: pointer; }
+    .tsh-res-set-add:hover { border-color: var(--tsh-primary, #2563eb); color: var(--tsh-primary, #2563eb); }
+    .tsh-res-set fieldset { border: 1px solid var(--tsh-border, #e5e7eb); border-radius: 8px; padding: 8px 10px; }
+    .tsh-res-set legend { font-size: 12px; font-weight: 600; padding: 0 4px; color: var(--tsh-muted, #6b7280); }
+    @media (max-width: 640px) {
+      .tsh-res-set-grid { grid-template-columns: 1fr; }
+      .tsh-res-set-list .tsh-res-set-row { grid-template-columns: 1fr; }
+    }
+
     /* ===== Google Calendar-style week/day view ============================
        Grid-based: a time gutter on the left + N day columns. Busy blocks
        are absolutely positioned inside each day column using top/height
@@ -228,7 +268,16 @@
 
       <!-- BOOK TAB -->
       <section class="tsh-tab-panel" data-res-panel="book">
-        <div class="tsh-res-picker" id="resFacilityList"></div>
+        <div class="tsh-res-fac-bar">
+          <label class="tsh-res-fac-select-wrap">
+            <span class="tsh-form-label"><i class="fas fa-building-columns"></i> Facility</span>
+            <select id="resFacilitySelect" class="tsh-res-fac-select"></select>
+          </label>
+          <button type="button" class="tsh-btn tsh-btn-ghost tsh-btn-sm" id="resFacilitySettings" hidden data-res-staff-only>
+            <i class="fas fa-sliders"></i> Settings
+          </button>
+        </div>
+        <p id="resFacilityBlurb" class="tsh-hint" style="margin:2px 0 10px"></p>
 
         <div id="resBookBody" hidden>
           <div class="tsh-cal-toolbar">
@@ -288,7 +337,7 @@
   <script src="./assets/js/flags.js?v=13"></script>
   <script src="./assets/js/ui.js?v=50"></script>
   <script src="./assets/js/notify.js?v=1"></script>
-  <script src="./assets/js/reservations.js?v=3"></script>
+  <script src="./assets/js/reservations.js?v=4"></script>
   <script>
   (async () => {
     await Partials.mount();

@@ -39,7 +39,8 @@ import {
   DEFAULT_MAX_PER_FLAT_PER_YEAR, normalizeFlat, istYearFromDate,
   countFlatBookingsForYear,
   parseHHMM, formatHHMM, findOverlap, ensureTimeRange, effectiveHours,
-  type Reservation, type Facility, type Person,
+  DEFAULT_OPEN_MIN, DEFAULT_CLOSE_MIN, DEFAULT_MIN_DURATION_MIN, DEFAULT_MAX_DURATION_MIN,
+  type Reservation, type Facility, type FacilityPolicy, type Person,
   type TimelineItem, type ProofFile, type ProofMime,
 } from '../lib/reservation.ts';
 
@@ -56,6 +57,7 @@ let facCache: Cache<{ version: number; facilities: Facility[] }> | undefined;
 let resCache: Cache<{ version: number; items: Reservation[] }> | undefined;
 
 const invalidateReservations = (): void => { resCache = undefined; };
+const invalidateFacilities   = (): void => { facCache = undefined; };
 
 export const _resetReservationCachesForTests = (): void => {
   facCache = undefined;
@@ -129,6 +131,22 @@ const saveReservations = async (
   const body = JSON.stringify({ version: 1, items }, null, 2) + '\n';
   await putFile(ctx.env, RES_PATH, body, `reservations: ${reason} by ${actor}`, actor, sha);
   invalidateReservations();
+};
+
+// Persist config/facilities.json. Reads the current sha lazily to avoid
+// stomping a concurrent admin edit — GitHub returns 409 on stale sha and
+// the caller surfaces that as a 409 to the client.
+const saveFacilities = async (
+  ctx: Ctx,
+  facilities: Facility[],
+  actor: string,
+  reason: string,
+): Promise<void> => {
+  // Fetch fresh sha (cache may be stale).
+  const f = await getFile(ctx.env, FAC_PATH);
+  const body = JSON.stringify({ version: 1, facilities }, null, 2) + '\n';
+  await putFile(ctx.env, FAC_PATH, body, `facilities: ${reason} by ${actor}`, actor, f?.sha);
+  invalidateFacilities();
 };
 
 // -------------------------------------------------------- person helpers
@@ -215,6 +233,17 @@ const publicFacility = (f: Facility) => {
       paymentAmount: f.policy.paymentAmount ?? 0,
       paymentPayee: f.policy.paymentPayee ?? '',
       chargesInfo: f.policy.chargesInfo ?? '',
+      rateCard: Array.isArray(f.policy.rateCard)
+        ? f.policy.rateCard.map((r) => ({
+            label: String(r.label ?? ''),
+            ...(typeof r.amount === 'number' ? { amount: r.amount } : {}),
+            ...(r.note ? { note: String(r.note) } : {}),
+          }))
+        : [],
+      usageGuidelines: {
+        before: Array.isArray(f.policy.usageGuidelines?.before) ? f.policy.usageGuidelines!.before! : [],
+        after:  Array.isArray(f.policy.usageGuidelines?.after)  ? f.policy.usageGuidelines!.after!  : [],
+      },
       blackoutDates: Array.isArray(f.policy.blackoutDates) ? f.policy.blackoutDates : [],
     },
     rules: Array.isArray(f.rules) ? f.rules : [],
@@ -240,6 +269,128 @@ export const mountReservations = (r: Router): void => {
     const f = list.find((x) => x.id === params['id']);
     if (!f) throw new NotFound(`Facility ${params['id']} not found`);
     return ok(ctx.env, ctx.req, { facility: publicFacility(f) });
+  });
+
+  // Editable settings (descriptive + policy). Restricted to MANAGER+ so
+  // that society managers, committee members and admins can maintain the
+  // charges paragraph, rate card, usage guidelines and advance-booking
+  // windows without a code deploy. Facility id, legacy `slots` array and
+  // Calendar linkage are intentionally NOT editable here.
+  r.patch('/facilities/:id', async (ctx: Ctx, params) => {
+    ensureAllowed(ctx, {
+      flags: [FLAG],
+      requireIdentity: true,
+      roles: ['MANAGER', 'COMMITTEE', 'ADMIN'],
+    });
+    const list = await loadFacilities(ctx);
+    const idx = list.findIndex((x) => x.id === params['id']);
+    if (idx === -1) throw new NotFound(`Facility ${params['id']} not found`);
+    const target = list[idx]!;
+    const body = await parseJson<Record<string, unknown>>(ctx.req);
+
+    // ---- top-level (name/description/enabled/capacity/rules) ----
+    if (typeof body['name'] === 'string') {
+      const n = (body['name'] as string).trim();
+      if (n.length < 2 || n.length > 80) throw new BadRequest('name must be 2..80 chars');
+      target.name = n;
+    }
+    if (typeof body['description'] === 'string') {
+      target.description = (body['description'] as string).slice(0, 800);
+    }
+    if (typeof body['enabled'] === 'boolean') target.enabled = body['enabled'] as boolean;
+    if (typeof body['capacity'] === 'number' && Number.isFinite(body['capacity'])) {
+      target.capacity = Math.max(0, Math.floor(body['capacity'] as number));
+    }
+    if (Array.isArray(body['rules'])) {
+      target.rules = (body['rules'] as unknown[])
+        .map((r) => (typeof r === 'string' ? r.trim() : ''))
+        .filter((s) => s.length > 0 && s.length <= 240)
+        .slice(0, 30);
+    }
+
+    // ---- policy ----
+    const pIn = (body['policy'] ?? {}) as Record<string, unknown>;
+    const pOut = { ...target.policy };
+    const setNum = (k: keyof FacilityPolicy, lo: number, hi: number): void => {
+      const v = pIn[k as string];
+      if (typeof v === 'number' && Number.isFinite(v)) {
+        const n = Math.max(lo, Math.min(hi, Math.floor(v)));
+        (pOut as Record<string, unknown>)[k as string] = n;
+      }
+    };
+    setNum('minAdvanceHours',       0, 24 * 30);
+    setNum('maxAdvanceDays',        1, 365);
+    setNum('maxConcurrentPerOwner', 1, 20);
+    setNum('maxPerFlatPerYear',     1, 52);
+    setNum('openMin',               0, 24 * 60);
+    setNum('closeMin',              0, 24 * 60);
+    setNum('stepMinutes',           5, 240);
+    setNum('minDurationMinutes',    5, 24 * 60);
+    setNum('maxDurationMinutes',    5, 24 * 60);
+    setNum('paymentAmount',         0, 10_000_000);
+    if (typeof pIn['requiresApproval'] === 'boolean') pOut.requiresApproval = pIn['requiresApproval'] as boolean;
+    if (typeof pIn['requiresPayment']  === 'boolean') pOut.requiresPayment  = pIn['requiresPayment']  as boolean;
+    if (typeof pIn['paymentPayee']     === 'string')  pOut.paymentPayee     = (pIn['paymentPayee'] as string).slice(0, 120);
+    if (typeof pIn['chargesInfo']      === 'string')  pOut.chargesInfo      = (pIn['chargesInfo']  as string).slice(0, 2000);
+    if (Array.isArray(pIn['rateCard'])) {
+      pOut.rateCard = (pIn['rateCard'] as unknown[])
+        .map((row) => {
+          const r = (row ?? {}) as Record<string, unknown>;
+          const label = typeof r['label'] === 'string' ? (r['label'] as string).trim().slice(0, 120) : '';
+          if (!label) return null;
+          const out: { label: string; amount?: number; note?: string } = { label };
+          if (typeof r['amount'] === 'number' && Number.isFinite(r['amount'])) {
+            out.amount = Math.max(0, Math.floor(r['amount'] as number));
+          }
+          if (typeof r['note'] === 'string' && (r['note'] as string).trim()) {
+            out.note = (r['note'] as string).trim().slice(0, 240);
+          }
+          return out;
+        })
+        .filter((r): r is { label: string; amount?: number; note?: string } => r !== null)
+        .slice(0, 24);
+    }
+    if (pIn['usageGuidelines'] && typeof pIn['usageGuidelines'] === 'object') {
+      const g = pIn['usageGuidelines'] as Record<string, unknown>;
+      const cleanList = (arr: unknown): string[] =>
+        Array.isArray(arr)
+          ? (arr as unknown[])
+              .map((s) => (typeof s === 'string' ? s.trim() : ''))
+              .filter((s) => s.length > 0 && s.length <= 240)
+              .slice(0, 20)
+          : [];
+      pOut.usageGuidelines = {
+        before: cleanList(g['before']),
+        after:  cleanList(g['after']),
+      };
+    }
+    if (Array.isArray(pIn['blackoutDates'])) {
+      pOut.blackoutDates = (pIn['blackoutDates'] as unknown[])
+        .map((s) => (typeof s === 'string' ? s.trim() : ''))
+        .filter((s) => /^\d{4}-\d{2}-\d{2}$/.test(s))
+        .slice(0, 200);
+    }
+
+    // Cross-field validation: closeMin > openMin, maxDuration >= minDuration.
+    const openM  = pOut.openMin  ?? DEFAULT_OPEN_MIN;
+    const closeM = pOut.closeMin ?? DEFAULT_CLOSE_MIN;
+    if (closeM <= openM) throw new BadRequest('closeMin must be greater than openMin');
+    const minD = pOut.minDurationMinutes ?? DEFAULT_MIN_DURATION_MIN;
+    const maxD = pOut.maxDurationMinutes ?? DEFAULT_MAX_DURATION_MIN;
+    if (maxD < minD) throw new BadRequest('maxDurationMinutes must be >= minDurationMinutes');
+
+    target.policy = pOut;
+    list[idx] = target;
+
+    const actor = ctx.identity?.email || 'system';
+    await saveFacilities(ctx, list, actor, `${target.id} updated`);
+    await writeAudit(ctx.env, {
+      actor,
+      action: 'facility:update',
+      target: target.id,
+      detail: `role=${ctx.roles.primary}`,
+    });
+    return ok(ctx.env, ctx.req, { facility: publicFacility(target) });
   });
 
   r.get('/facilities/:id/availability', async (ctx: Ctx, params) => {

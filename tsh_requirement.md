@@ -853,7 +853,7 @@ Generic booking engine. Behind `FEATURE_TSH_RESERVATIONS`. First facility: **Com
 
 Two files under `config/`:
 
-- **`config/facilities.json`** — admin-managed. Facility definitions.
+- **`config/facilities.json`** — settings-managed (MANAGER+ can now edit via `PATCH /facilities/:id`; admins can still edit the file directly for structural changes). Facility definitions.
   ```json
   {
     "version": 1,
@@ -870,18 +870,31 @@ Two files under `config/`:
           "stepMinutes": 30,            // booking-time grid resolution
           "minDurationMinutes": 60,     // shortest allowed booking
           "maxDurationMinutes": 480,    // longest allowed booking (8h)
-          "minAdvanceHours": 24,
-          "maxAdvanceDays": 90,
+          "minAdvanceHours": 48,        // recreational facility → 48h notice
+          "maxAdvanceDays": 30,         // configurable rolling window; 30d for now
           "maxConcurrentPerOwner": 3,
           "maxPerFlatPerYear": 2,
           "requiresApproval": true,
           "requiresPayment": false,
           "paymentAmount": 0,
           "paymentPayee": "",
-          "chargesInfo": "Free-text paragraph shown on the booking form describing fees, deposit, cleaning charges, refund policy, etc. Leave empty to hide.",
+          "chargesInfo": "Free-text paragraph shown on the booking form (fees, deposit, refund policy). Leave empty to hide.",
+          "rateCard": [
+            { "label": "Half day (up to 4 hours)", "amount": 1500, "note": "Cleaning fee inclusive." },
+            { "label": "Full day (up to 8 hours)", "amount": 2500 }
+          ],
+          "usageGuidelines": {
+            "before": ["Confirm the booking is approved before decorating.", "Bring your own decor and cutlery."],
+            "after":  ["Sweep the floor and wipe surfaces.", "Segregate waste; switch off fans, lights and AC."]
+          },
           "blackoutDates": []
         },
         "rules": ["…"]
+      },
+      {
+        "id": "gym-area",
+        "name": "Gym Area",
+        "…": "shorter 4h advance window, 30-min step, no approval required"
       }
     ]
   }
@@ -918,7 +931,8 @@ All routes: JWT-required, gated by `FEATURE_TSH_RESERVATIONS`.
 | Method | Path | Roles | Notes |
 |---|---|---|---|
 | GET | `/facilities` | RESIDENT+ | Enabled facilities only. |
-| GET | `/facilities/:id` | RESIDENT+ | Includes policy + rules. |
+| GET | `/facilities/:id` | RESIDENT+ | Includes policy + rules + rate card + usage guidelines. |
+| PATCH | `/facilities/:id` | MANAGER+ | Update the descriptive + policy fields in-place. Editable: `name`, `description`, `enabled`, `capacity`, `rules[]`, and every `policy.*` field except structural time-range bounds are cross-validated (`closeMin > openMin`, `maxDurationMinutes >= minDurationMinutes`). Writes `config/facilities.json` through the same GitHub Contents pipeline; audit entry `action=facility:update`. |
 | GET | `/facilities/:id/availability?from=&to=` | RESIDENT+ | Response shape: `{ open: { openMin, closeMin, stepMinutes, minDurationMinutes, maxDurationMinutes }, days: [{ date, blackout, busy: [{ startMin, endMin, status: 'held'|'confirmed', reservationId }] }] }`. Busy list is sorted by `startMin`. Range ≤ 120 days. |
 | POST | `/reservations` | RESIDENT+ | Body: `facilityId, date, purpose, ownerFlat` (all required — flat is normalized case/space-insensitive and used for the annual quota) **plus** either `startTime` + `endTime` (`HH:MM`, canonical) **or** legacy `slotId`. Optional: `ownerPhone, ownerEmail, ownerName`. `ownerEmail ≠ me` requires MANAGER+. Server enforces `openMin/closeMin` bounds, `stepMinutes` alignment, `min/maxDurationMinutes`, overlap against existing active bookings, `minAdvanceHours`, `maxAdvanceDays`, `maxConcurrentPerOwner`, `maxPerFlatPerYear` (default **2** — active bookings per flat per IST calendar year, cancelled/rejected records do not count), and blackout dates. Auto-confirms if `requiresApproval=false`. |
 | GET | `/reservations?scope=&status=&facilityId=&q=` | RESIDENT+ | Residents are always scoped to their own; MANAGER+ can request `scope=all`. |
@@ -930,7 +944,13 @@ All routes: JWT-required, gated by `FEATURE_TSH_RESERVATIONS`.
 
 See §8.8. Three tabs: **Book / My reservations / Manage** (staff-only). Mobile-first cards, inline approve/reject, one universal search on the manage queue.
 
-The Book tab is a **Google-Calendar-style time-range picker** — no fixed morning/afternoon/evening columns. A toolbar exposes **Prev / Today / Next** navigation plus a **Week / Day / Month** view switcher (Month view arrives in Stage 2). Each day column is a 30-minute grid; busy blocks are absolutely positioned by `startMin`/`endMin` with colour by status (`held` = amber, `confirmed` = red, `blackout` = hatched). Clicking any free 30-minute row opens the booking modal pre-filled with that start time and a 1-hour default duration; the resident can adjust start-time and choose a duration from a policy-compliant dropdown (60 min → `maxDurationMinutes`, stepped by `stepMinutes`). The end-time is shown live below the row. Screens ≤ 480 px auto-collapse the week grid into single-day view for readability.
+The Book tab starts with a single **facility dropdown** (Community Hall, Gym Area, …) sourced from `config/facilities.json` — swapping facilities re-loads the calendar and shows a one-line blurb (hours, advance-booking window, capacity). MANAGER+ users get a **Settings** button next to the dropdown that opens a modal to edit the facility's `chargesInfo`, `rateCard[]`, `usageGuidelines.{before,after}[]`, `rules[]`, advance-booking window, hours and duration limits. The modal persists via `PATCH /facilities/:id`.
+
+Below the picker is a **Google-Calendar-style time-range picker** — no fixed morning/afternoon/evening columns. A toolbar exposes **Prev / Today / Next** navigation plus a **Week / Day / Month** view switcher (Month view arrives in Stage 2). Each day column is a 30-minute grid; busy blocks are absolutely positioned by `startMin`/`endMin` with colour by status (`held` = amber, `confirmed` = red, `blackout` = hatched). Clicking any free 30-minute row opens the booking modal pre-filled with that start time and a 1-hour default duration; the resident can adjust start-time and choose a duration from a policy-compliant dropdown (60 min → `maxDurationMinutes`, stepped by `stepMinutes`). The end-time is shown live below the row.
+
+The booking modal shows, in order: facility (read-only), date, start + duration, purpose, flat, phone, `chargesInfo`, `rateCard` (indicative amounts by time / duration block — the manager still confirms the final amount at approval time), and two brief bullet lists — **Before you use the facility** and **After you finish** — sourced from `policy.usageGuidelines`.
+
+Screens ≤ 480 px auto-collapse the week grid into single-day view for readability.
 
 ### 18.4 Phasing
 
@@ -939,7 +959,8 @@ The Book tab is a **Google-Calendar-style time-range picker** — no fixed morni
 - **Phase 3 (shipped):** Google Calendar mirror — see §20. Flag `FEATURE_TSH_RESERVATIONS_CALENDAR` (default **off**). Fires on `→ confirmed` (create event) and `→ cancelled` / `→ rejected` (delete event). Best-effort with retry queue and ADMIN-only status + drain endpoints. App DB stays the source of truth.
 - **Phase 4 (shipped):** notification subsystem — see §19. In-app inbox first (header bell + polling); email/WhatsApp adapters slot in later without touching call sites. Reservation events (create / approve / reject / cancel / comment / payment-uploaded / payment-verified / payment-rejected) all wired.
 - **Phase 5 — Time-range engine + Week view (shipped, Stage 1 of the UX cut-over):** Fixed 3-slot bookings replaced by free-form `startMin`/`endMin` time ranges. Facilities configure `openMin`, `closeMin`, `stepMinutes`, `minDurationMinutes`, `maxDurationMinutes` in policy. Conflicts are detected by interval overlap (not slot equality); back-to-back bookings that touch endpoints are allowed. The frontend Book tab is a Google-Calendar-style Week / Day view with click-to-book. Legacy `slotId` requests still accepted for backward compatibility (server backfills `startMin`/`endMin` from the slot label or the facility's `slots[]`). **Stage 2 (Month view)** and **Stage 3 (Year overview + agenda polish)** are pending.
-- **Later:** additional facilities (Guest Room, Sports Court, Pool, EV Charger, Parking) — pure config edits to `config/facilities.json`.
+- **Phase 5b — Facility polish (shipped):** Community Hall now defaults to `minAdvanceHours=48` (recreational-use notice) and `maxAdvanceDays=30` (rolling 30-day window). Facilities added a **`rateCard[]`** (indicative amount-by-time-block list) and **`usageGuidelines.{before,after}[]`** (short etiquette bullets) to the policy, both rendered inline in the booking modal. The Book tab switched from a facility-tile picker to a **facility dropdown**, with a second seed facility **Gym Area** (30-min slots, 4h notice, no approval required). MANAGER+ users edit the descriptive fields, rate card, guidelines and advance-booking window via a new `PATCH /facilities/:id` route + in-page Settings modal — no code deploy required.
+- **Later:** additional facilities (Guest Room, Sports Court, Pool, EV Charger, Parking) — pure config edits to `config/facilities.json` (or the Settings modal).
 
 ### 18.5 Backups & retention
 
