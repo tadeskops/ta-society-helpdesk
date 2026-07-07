@@ -2471,16 +2471,22 @@
     });
   }
 
-  // Cached "confirmed" stamp overlay. Fetched once per page load and reused
-  // for every receipt build so we don't hit the network on each print.
-  // Returns { dataUrl, bytes } or null if the asset is unavailable (never
-  // throws — the stamp is a best-effort visual, absence must not break the
-  // receipt build).
-  let _stampCache = null;
-  async function loadStampAsset() {
-    if (_stampCache !== undefined && _stampCache !== null) return _stampCache;
+  // Cached "confirmed" stamp overlay per language. Fetched once per
+  // language per page load and reused for every receipt build so we don't
+  // hit the network on each print. Returns { dataUrl, bytes } or null if
+  // the asset is unavailable (never throws — the stamp is a best-effort
+  // visual, absence must not break the receipt build).
+  const STAMP_URLS = {
+    en: './assets/images/TaStampBlueOverlay.png',
+    hi: './assets/images/TaStampBlueOverlay-hi.png',
+    mr: './assets/images/TaStampBlueOverlay-mr.png',
+  };
+  const _stampCache = { en: undefined, hi: undefined, mr: undefined };
+  async function loadStampAsset(lang) {
+    const key = STAMP_URLS[lang] ? lang : 'en';
+    if (_stampCache[key] !== undefined) return _stampCache[key];
     try {
-      const res = await fetch('./assets/images/TaStampBlueOverlay.png', {
+      const res = await fetch(STAMP_URLS[key], {
         mode: 'cors', credentials: 'omit',
       });
       if (!res.ok) throw new Error('stamp fetch ' + res.status);
@@ -2494,11 +2500,11 @@
         rd.onerror = () => reject(rd.error || new Error('read failed'));
         rd.readAsDataURL(blob);
       });
-      _stampCache = { bytes, dataUrl };
+      _stampCache[key] = { bytes, dataUrl };
     } catch (_e) {
-      _stampCache = null;
+      _stampCache[key] = null;
     }
-    return _stampCache;
+    return _stampCache[key];
   }
 
   function receiptFieldRows(r) {
@@ -2604,13 +2610,13 @@
   // Image-letterhead path (PNG / JPEG / WebP) — thin wrapper around the
   // existing buildReceiptDoc so openReceiptModal has one uniform bundle
   // shape regardless of template mime.
-  async function buildReceiptFromImage(r, tpl) {
+  async function buildReceiptFromImage(r, tpl, lang) {
     const ready = await waitForJspdfLite(6000);
     if (!ready) throw new Error('PDF library did not load. Please retry.');
     const dataUrl = await fetchAsDataUrl(tpl.url);
     // Load the confirmed-stamp overlay in parallel; loadStampAsset is
     // best-effort and returns null on failure so the receipt still builds.
-    const stampAsset = await loadStampAsset();
+    const stampAsset = await loadStampAsset(lang);
     const doc = buildReceiptDoc(r, dataUrl, tpl.mime || 'image/jpeg', stampAsset && stampAsset.dataUrl);
     return {
       bloburl: doc.output('bloburl'),
@@ -2627,7 +2633,7 @@
   // head bleeds further down, the values will overlap it — that's a
   // conscious choice: users can crop the PDF before upload, and society
   // letterheads in practice only fill the top strip.
-  async function buildReceiptFromPdfLetterhead(r, url) {
+  async function buildReceiptFromPdfLetterhead(r, url, lang) {
     const ok = await waitForPdfLib(8000);
     if (!ok) throw new Error('PDF-Lib did not load. Please retry.');
     const res = await fetch(url, { mode: 'cors', credentials: 'omit' });
@@ -2729,7 +2735,7 @@
     // giving the rubber-stamp look over any text underneath.
     if (r.status === 'confirmed') {
       try {
-        const stampAsset = await loadStampAsset();
+        const stampAsset = await loadStampAsset(lang);
         if (stampAsset && stampAsset.bytes) {
           const stampImg = await pdfDoc.embedPng(stampAsset.bytes);
           const stampW = MM(45);
@@ -2863,11 +2869,20 @@
     //                      perfect, no rasterisation).
     // Both back-ends expose the same { bloburl, download(name), doc }
     // shape so the preview iframe + print/download buttons don't care.
+    //
+    // Language: swaps the confirmed-stamp overlay to the localised seal
+    // (English P.O. / Hindi + Marathi डाकघर). Standard PDF fonts can't
+    // render Devanagari so the body labels stay Latin; the seal is what
+    // carries the language identity on the receipt.
+    const LANG_LABEL = { en: 'English', hi: 'Hindi', mr: 'Marathi' };
+    let lang = 'en';
     let bundle;
+    const buildBundle = async () =>
+      tpl.mime === 'application/pdf'
+        ? await buildReceiptFromPdfLetterhead(r, tpl.url, lang)
+        : await buildReceiptFromImage(r, tpl, lang);
     try {
-      bundle = tpl.mime === 'application/pdf'
-        ? await buildReceiptFromPdfLetterhead(r, tpl.url)
-        : await buildReceiptFromImage(r, tpl);
+      bundle = await buildBundle();
     } catch (e) {
       root.UI.toast('Receipt build failed: ' + (e && e.message || e), { kind: 'danger' });
       return;
@@ -2876,7 +2891,29 @@
     const wrap = document.createElement('div');
     wrap.style.cssText = 'display:flex;flex-direction:column;gap:8px;';
     const bar = document.createElement('div');
-    bar.style.cssText = 'display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;';
+    bar.style.cssText = 'display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;align-items:center;';
+
+    // Language picker (only visible when a confirmed booking has a stamp
+    // to swap; the seal is only drawn on confirmed receipts). For pending
+    // or rejected receipts the picker would have no visible effect.
+    let langSel = null;
+    if (r.status === 'confirmed') {
+      const langWrap = document.createElement('label');
+      langWrap.style.cssText = 'display:inline-flex;align-items:center;gap:6px;margin-right:auto;font-size:.9em;color:var(--tsh-muted,#4b5563);';
+      langWrap.innerHTML = '<i class="fas fa-language" aria-hidden="true"></i><span>Seal language:</span>';
+      langSel = document.createElement('select');
+      langSel.className = 'tsh-select tsh-select-sm';
+      langSel.style.cssText = 'padding:3px 6px;border-radius:4px;border:1px solid var(--tsh-border,#d1d5db);background:#fff;';
+      for (const k of ['en', 'hi', 'mr']) {
+        const opt = document.createElement('option');
+        opt.value = k; opt.textContent = LANG_LABEL[k];
+        langSel.appendChild(opt);
+      }
+      langSel.value = lang;
+      langWrap.appendChild(langSel);
+      bar.appendChild(langWrap);
+    }
+
     const printBtn = document.createElement('button');
     printBtn.type = 'button';
     printBtn.className = 'tsh-btn tsh-btn-ghost tsh-btn-sm';
@@ -2893,6 +2930,33 @@
     frame.src = bundle.bloburl;
     wrap.append(bar, frame);
 
+    // Rebuild + swap the iframe when the user picks a different language.
+    // Revokes the previous blob URL so we don't leak memory across swaps.
+    if (langSel) {
+      langSel.addEventListener('change', async () => {
+        const next = langSel.value;
+        if (next === lang) return;
+        const prevBloburl = bundle.bloburl;
+        langSel.disabled = true;
+        const origLabel = dlBtn.innerHTML;
+        dlBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Rebuilding\u2026';
+        dlBtn.disabled = true; printBtn.disabled = true;
+        try {
+          lang = next;
+          bundle = await buildBundle();
+          frame.src = bundle.bloburl;
+          try { URL.revokeObjectURL(prevBloburl); } catch (_e) { /* ignore */ }
+        } catch (e) {
+          root.UI.toast('Rebuild failed: ' + (e && e.message || e), { kind: 'danger' });
+          lang = langSel.value = 'en';  // fall back to the always-present English seal
+        } finally {
+          langSel.disabled = false;
+          dlBtn.disabled = false; printBtn.disabled = false;
+          dlBtn.innerHTML = origLabel;
+        }
+      });
+    }
+
     printBtn.addEventListener('click', () => {
       try {
         if (frame.contentWindow) {
@@ -2906,7 +2970,8 @@
       }
     });
     dlBtn.addEventListener('click', () => {
-      try { bundle.download('receipt-' + r.id + '.pdf'); }
+      const suffix = (lang && lang !== 'en') ? '-' + lang : '';
+      try { bundle.download('receipt-' + r.id + suffix + '.pdf'); }
       catch (e) { root.UI.toast('Download failed: ' + (e && e.message || e), { kind: 'danger' }); }
     });
 
