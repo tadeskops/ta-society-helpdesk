@@ -363,6 +363,16 @@
     .tsh-res-wiz-tc label { display: flex; gap: 8px; align-items: flex-start; cursor: pointer; }
     .tsh-res-wiz-tc input { margin-top: 2px; }
 
+    /* Inline field validation used across the wizard (Step 3) and the
+       Calendar "Request Reservation" modal. Invalid state is signalled
+       by a red border on the input and a small red message beneath it;
+       the required-asterisk uses the same red so the eye connects the
+       label, the input and the error text. */
+    .tsh-req { color: #dc2626; font-weight: 700; margin-left: 2px; }
+    .tsh-field-err { display: block; margin-top: 4px; font-size: 12px; color: #dc2626; min-height: 0; }
+    .tsh-field-err:empty { display: none; }
+    .tsh-input-invalid { border-color: #dc2626 !important; box-shadow: 0 0 0 2px rgba(220,38,38,0.12) !important; }
+
     @media (max-width: 900px) {
       .tsh-res-wiz { grid-template-columns: 1fr; }
       .tsh-res-wiz-picker { grid-template-columns: 1fr; }
@@ -508,7 +518,7 @@
   <script src="./assets/js/ui.js?v=52"></script>
   <script src="./assets/js/notify.js?v=1"></script>
   <script src="./assets/js/pdf-report.js?v=9"></script>
-  <script src="./assets/js/reservations.js?v=18"></script>
+  <script src="./assets/js/reservations.js?v=19"></script>
   <script>
   (async () => {
     await Partials.mount();

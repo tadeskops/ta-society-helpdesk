@@ -131,6 +131,22 @@ export interface FacilityPolicy {
   minDurationMinutes?: number;  // default 60
   maxDurationMinutes?: number;  // default 480 (8h)
   /**
+   * Default duration (minutes) pre-filled in the wizard / calendar
+   * booking modal. Committee-configurable — for the Community Hall the
+   * committee resolution allocates 4 hours (240 min) as the "included"
+   * booking slot. Falls back to `minDurationMinutes` when unset.
+   */
+  defaultDurationMinutes?: number;
+  /**
+   * Number of hours covered by the flat `paymentAmount`. Extra hours
+   * beyond this are charged at `overtimeHourlyAmount` per hour (or part
+   * thereof). When unset the base amount covers the full booking and no
+   * overtime is added.
+   */
+  baseIncludedHours?: number;
+  /** Flat charge per extra hour (or part thereof) beyond `baseIncludedHours`. */
+  overtimeHourlyAmount?: number;
+  /**
    * Maximum active bookings a single flat may hold within one IST
    * calendar year, counted across all statuses that block a slot
    * (requested / under-review / confirmed). Cancelled and rejected

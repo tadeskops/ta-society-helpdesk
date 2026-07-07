@@ -730,9 +730,11 @@
     const p = policy || {};
     const minD = Number.isFinite(p.minDurationMinutes) ? p.minDurationMinutes : 60;
     const maxD = Number.isFinite(p.maxDurationMinutes) ? p.maxDurationMinutes : 8 * 60;
-    // Aim for the smaller of "60 minutes" and "as much time as remains".
+    // Committee-configured default (e.g. 4 h for the Community Hall).
+    // Falls back to the minimum booking length when unset.
+    const prefer = Number.isFinite(p.defaultDurationMinutes) ? p.defaultDurationMinutes : minD;
     const remaining = Math.max(0, closeMin - startMin);
-    return Math.max(minD, Math.min(60, remaining, maxD));
+    return Math.max(minD, Math.min(prefer, remaining, maxD));
   }
 
   // -------------------------------------------------------- book modal
@@ -791,22 +793,27 @@
         '<p class="tsh-hint" style="background:rgba(59,130,246,0.08);border-left:3px solid #3b82f6;padding:8px 10px;border-radius:4px;margin-top:8px;">' +
         '<i class="fas fa-receipt"></i> <strong>Charges:</strong> ' + escape(chargesInfo) + '</p>' : '') +
       renderRateCard(policy.rateCard) +
+      // Live-updating price panel shared with the wizard so residents
+      // see the same committee-maintained base + overtime breakdown in
+      // both flows. Refreshed by updateEnd() below whenever the user
+      // changes the start time or duration.
+      '<div data-book-price>' + renderPriceSummary(policy, date, endMin - startMin) + '</div>' +
       renderGuidelines(policy.usageGuidelines) +
       (policy.requiresPayment ?
-        '<p class="tsh-hint"><i class="fas fa-info-circle"></i> This facility requires a deposit of ₹' + policy.paymentAmount +
-        (policy.paymentPayee ? ' to ' + escape(policy.paymentPayee) : '') +
-        '. You will be asked to upload payment proof after the booking is created.</p>' : '');
+        '<p class="tsh-hint"><i class="fas fa-info-circle"></i> Payment proof is uploaded after the booking is created; the manager confirms the final amount at approval.</p>' : '');
 
-    // Live-update the "End time" label as user edits start/duration.
+    // Live-update the "End time" label and price panel as user edits start/duration.
     const startEl    = wrap.querySelector('[data-book-start]');
     const durEl      = wrap.querySelector('[data-book-duration]');
     const endLabelEl = wrap.querySelector('[data-book-end-label]');
+    const priceEl    = wrap.querySelector('[data-book-price]');
     const parseHM = (s) => { const [h, m] = String(s || '').split(':').map(Number); return (h || 0) * 60 + (m || 0); };
     const updateEnd = () => {
       const s = parseHM(startEl.value);
       const d = Number(durEl.value) || minD;
       const e = Math.min(closeMin, s + d);
       endLabelEl.textContent = formatHHMM(e);
+      if (priceEl) priceEl.innerHTML = renderPriceSummary(policy, date, e - s);
     };
     startEl.addEventListener('change', updateEnd);
     durEl.addEventListener('change', updateEnd);
@@ -1054,8 +1061,24 @@
   function wizComputePrice(policy, date, durationMin) {
     const lines = [];
     const hours = (durationMin || 0) / 60;
-    const base = Number(policy.paymentAmount || 0);
-    if (base > 0) lines.push({ label: `Base rental (${hours.toFixed(1).replace(/\.0$/, '')}h)`, amount: base });
+    const base  = Number(policy.paymentAmount || 0);
+    const baseHours = Number(policy.baseIncludedHours || 0);
+    const overtime  = Number(policy.overtimeHourlyAmount || 0);
+    if (base > 0) {
+      const baseLabel = baseHours > 0
+        ? `Base rental (up to ${baseHours}h)`
+        : `Base rental (${hours.toFixed(1).replace(/\.0$/, '')}h)`;
+      lines.push({ label: baseLabel, amount: base });
+    }
+    // Charge every extra hour (or part thereof) beyond the included
+    // base window at the committee-configured overtime rate.
+    if (baseHours > 0 && overtime > 0 && hours > baseHours) {
+      const extraHrs = Math.ceil(hours - baseHours);
+      lines.push({
+        label: `Overtime (${extraHrs}h beyond ${baseHours}h × ₹${overtime.toLocaleString('en-IN')})`,
+        amount: extraHrs * overtime,
+      });
+    }
     if (date) {
       const dow = dayOfWeekUTC(date);
       if (dow === 0 || dow === 6) {
@@ -1067,6 +1090,29 @@
     if (dep && typeof dep.amount === 'number') lines.push({ label: String(dep.label), amount: Number(dep.amount) });
     const total = lines.reduce((s, l) => s + Number(l.amount || 0), 0);
     return { lines, total };
+  }
+
+  // Shared committee-rate summary used by both the calendar-mode
+  // "Request Reservation" modal and the wizard's live summary rail so
+  // residents see the same base + overtime + total in every flow. The
+  // markup uses the .tsh-res-wiz-price styles from reservations.html.
+  function renderPriceSummary(policy, date, durationMin, opts) {
+    const hasTiming = !!(date && Number(durationMin));
+    if (!hasTiming) {
+      return '<div class="tsh-res-wiz-price"><div class="row" style="justify-content:center;color:#6b7280;font-style:italic;">' +
+        escape((opts && opts.placeholder) || 'Pick a date and time to see the estimate') +
+      '</div></div>';
+    }
+    const price = wizComputePrice(policy, date, durationMin);
+    if (price.total === 0) {
+      return '<div class="tsh-res-wiz-price"><div class="row free"><span><i class="fas fa-gift"></i> No charge for this facility</span><span>Free</span></div></div>';
+    }
+    const payee = policy.paymentPayee ? '<div class="row" style="justify-content:center;font-size:11px;color:#6b7280;font-style:italic;margin-top:6px;">Payable to ' + escape(policy.paymentPayee) + '</div>' : '';
+    return '<div class="tsh-res-wiz-price">' +
+      price.lines.map((l) => '<div class="row"><span>' + escape(l.label) + '</span><span>' + inr(l.amount) + '</span></div>').join('') +
+      '<div class="row total"><span>Estimated total</span><span>' + inr(price.total) + '</span></div>' +
+      payee +
+    '</div>';
   }
 
   async function renderWizStepDateTime(host) {
@@ -1133,10 +1179,11 @@
     const stepMin = Number(p.stepMinutes || 30);
     const durMin = Number(p.minDurationMinutes || 60);
     const durMax = Number(p.maxDurationMinutes || 480);
+    const durDefault = Number(p.defaultDurationMinutes || durMin);
     if (wiz.startMin != null) {
       const roomLeft = Number(p.closeMin || 22 * 60) - wiz.startMin;
       const cap = Math.min(durMax, roomLeft - (roomLeft % stepMin));
-      if (!wiz.durationMin || wiz.durationMin > cap) wiz.durationMin = Math.min(cap, Math.max(durMin, wiz.durationMin || durMin));
+      if (!wiz.durationMin || wiz.durationMin > cap) wiz.durationMin = Math.min(cap, Math.max(durMin, wiz.durationMin || durDefault));
     }
     const durLabel = (d) => {
       const h = Math.floor(d / 60), mm = d % 60;
@@ -1195,7 +1242,11 @@
     host.querySelectorAll('[data-wiz-hour]').forEach((el) => el.addEventListener('click', () => {
       if (el.hasAttribute('disabled')) return;
       wiz.startMin = Number(el.getAttribute('data-wiz-hour'));
-      wiz.durationMin = wiz.durationMin || Number(p.minDurationMinutes || 60);
+      // Prefer the committee-configured default duration (e.g. 4 h for
+      // the Community Hall). Falls back to the policy minimum so smaller
+      // rooms without a `defaultDurationMinutes` keep the old behaviour.
+      const prefer = Number(p.defaultDurationMinutes || p.minDurationMinutes || 60);
+      wiz.durationMin = wiz.durationMin || prefer;
       const roomLeft = Number(p.closeMin || 22 * 60) - wiz.startMin;
       if (wiz.durationMin > roomLeft) wiz.durationMin = roomLeft - (roomLeft % stepMin);
       renderWizard();
@@ -1232,25 +1283,63 @@
   }
 
   // -------- Step 3: Details --------
+
+  // Lightweight field validators used by both the wizard's Step 3 and
+  // the calendar-mode "Request Reservation" modal so residents get the
+  // same red-asterisk / inline-error UX in both flows.
+  const PHONE_RE = /^[+\d][\d\s().+-]{6,24}$/;
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  function validatePurpose(v) {
+    const t = (v || '').trim();
+    if (!t) return 'Purpose is required.';
+    if (t.length < 3) return 'Please describe the purpose (min 3 characters).';
+    return '';
+  }
+  function validateFlat(v) {
+    const t = (v || '').trim();
+    if (!t) return 'Flat number is required.';
+    if (t.length > 40) return 'Flat number is too long.';
+    return '';
+  }
+  function validatePhoneOpt(v) {
+    const t = (v || '').trim();
+    if (!t) return '';
+    if (!PHONE_RE.test(t)) return 'Enter a valid phone number (digits, spaces, + - allowed).';
+    return '';
+  }
+  function validateEmailOpt(v) {
+    const t = (v || '').trim();
+    if (!t) return '';
+    if (!EMAIL_RE.test(t)) return 'Enter a valid email address.';
+    return '';
+  }
+
   function renderWizStepDetails(host) {
     const f = selectedFacility, p = f.policy || {};
     const isStaff = who && root.Flags.isAtLeast && root.Flags.isAtLeast(who.primary, 'MANAGER');
+    // Errors object is scoped to the current render — we recompute on
+    // input/blur so residents see the message clear as they type.
+    const errs = { purpose: '', flat: '', phone: '', owner: '' };
     host.innerHTML =
       '<div class="tsh-res-wiz-step">' +
         '<h2><i class="fas fa-user-pen"></i> Booking details</h2>' +
-        '<p class="sub">Purpose helps the managing committee approve faster. Flat number enforces the ' + Number(p.maxPerFlatPerYear || 2) + '/year booking limit.</p>' +
+        '<p class="sub">Purpose helps the managing committee approve faster. Flat number enforces the ' + Number(p.maxPerFlatPerYear || 2) + '/year booking limit. Fields marked <span class="tsh-req">*</span> are required.</p>' +
         '<div style="display:grid;grid-template-columns:1fr;gap:12px;">' +
-          '<label><span class="tsh-form-label">Purpose <span style="color:#dc2626">*</span></span>' +
-            '<input type="text" data-wiz-purpose maxlength="400" placeholder="e.g., 8th birthday party for A-101" value="' + escape(wiz.purpose) + '" required /></label>' +
+          '<label><span class="tsh-form-label">Purpose <span class="tsh-req">*</span></span>' +
+            '<input type="text" data-wiz-purpose maxlength="400" placeholder="e.g., 8th birthday party for A-101" value="' + escape(wiz.purpose) + '" required aria-required="true" />' +
+            '<span class="tsh-field-err" data-err="purpose"></span></label>' +
           '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">' +
-            '<label><span class="tsh-form-label">Flat number <span style="color:#dc2626">*</span></span>' +
-              '<input type="text" data-wiz-flat maxlength="40" placeholder="A-101" value="' + escape(wiz.flat) + '" required /></label>' +
-            '<label><span class="tsh-form-label">Phone (optional)</span>' +
-              '<input type="tel" data-wiz-phone maxlength="40" placeholder="+91-9x-xxx-xxxx" value="' + escape(wiz.phone) + '" /></label>' +
+            '<label><span class="tsh-form-label">Flat number <span class="tsh-req">*</span></span>' +
+              '<input type="text" data-wiz-flat maxlength="40" placeholder="A-101" value="' + escape(wiz.flat) + '" required aria-required="true" />' +
+              '<span class="tsh-field-err" data-err="flat"></span></label>' +
+            '<label><span class="tsh-form-label">Phone <span class="tsh-req">*</span></span>' +
+              '<input type="tel" data-wiz-phone maxlength="40" placeholder="+91-9x-xxx-xxxx" value="' + escape(wiz.phone) + '" required aria-required="true" />' +
+              '<span class="tsh-field-err" data-err="phone"></span></label>' +
           '</div>' +
           (isStaff ?
             '<label><span class="tsh-form-label">Book on behalf of (email)</span>' +
-              '<input type="email" data-wiz-owner maxlength="120" placeholder="Leave blank to book for yourself" value="' + escape(wiz.ownerEmail) + '" /></label>'
+              '<input type="email" data-wiz-owner maxlength="120" placeholder="Leave blank to book for yourself" value="' + escape(wiz.ownerEmail) + '" />' +
+              '<span class="tsh-field-err" data-err="owner"></span></label>'
           : '') +
         '</div>' +
         renderRateCard(p.rateCard) +
@@ -1261,15 +1350,65 @@
         '<button type="button" class="tsh-btn tsh-btn-ghost" data-wiz-back><i class="fas fa-arrow-left"></i> Back</button>' +
         '<button type="button" class="tsh-btn tsh-btn-primary" data-wiz-next>Review &amp; submit <i class="fas fa-arrow-right"></i></button>' +
       '</div>';
-    host.querySelector('[data-wiz-purpose]').addEventListener('input', (e) => { wiz.purpose = e.target.value; renderWizSummary(); renderWizStepper(); });
-    host.querySelector('[data-wiz-flat]').addEventListener('input', (e) => { wiz.flat = e.target.value; renderWizSummary(); });
-    host.querySelector('[data-wiz-phone]').addEventListener('input', (e) => { wiz.phone = e.target.value; });
+
+    const purpEl = host.querySelector('[data-wiz-purpose]');
+    const flatEl = host.querySelector('[data-wiz-flat]');
+    const phoneEl = host.querySelector('[data-wiz-phone]');
     const ownEl = host.querySelector('[data-wiz-owner]');
-    if (ownEl) ownEl.addEventListener('input', (e) => { wiz.ownerEmail = e.target.value; });
+    const purpErr = host.querySelector('[data-err="purpose"]');
+    const flatErr = host.querySelector('[data-err="flat"]');
+    const phoneErr = host.querySelector('[data-err="phone"]');
+    const ownErr = ownEl ? host.querySelector('[data-err="owner"]') : null;
+
+    // Paint the error message + invalid-input border for one field.
+    const paint = (input, errSpan, msg) => {
+      if (msg) input.classList.add('tsh-input-invalid'); else input.classList.remove('tsh-input-invalid');
+      if (errSpan) errSpan.textContent = msg;
+    };
+
+    purpEl.addEventListener('input', (e) => {
+      wiz.purpose = e.target.value;
+      errs.purpose = validatePurpose(wiz.purpose);
+      paint(purpEl, purpErr, errs.purpose);
+      renderWizSummary(); renderWizStepper();
+    });
+    flatEl.addEventListener('input', (e) => {
+      wiz.flat = e.target.value;
+      errs.flat = validateFlat(wiz.flat);
+      paint(flatEl, flatErr, errs.flat);
+      renderWizSummary();
+    });
+    phoneEl.addEventListener('input', (e) => {
+      wiz.phone = e.target.value;
+      // Phone is now required for the booking (residents may need to be
+      // reached about approval / access). Same validator on blur below.
+      errs.phone = !(wiz.phone || '').trim() ? 'Phone number is required.' : validatePhoneOpt(wiz.phone);
+      paint(phoneEl, phoneErr, errs.phone);
+    });
+    if (ownEl) {
+      ownEl.addEventListener('input', (e) => {
+        wiz.ownerEmail = e.target.value;
+        errs.owner = validateEmailOpt(wiz.ownerEmail);
+        paint(ownEl, ownErr, errs.owner);
+      });
+    }
+
     host.querySelector('[data-wiz-back]').addEventListener('click', () => { wiz.step = 2; renderWizard(); });
     host.querySelector('[data-wiz-next]').addEventListener('click', () => {
-      if ((wiz.purpose || '').trim().length < 3) { root.UI.toast('Please describe the purpose (min 3 characters).', { kind: 'warn' }); return; }
-      if (!(wiz.flat || '').trim()) { root.UI.toast('Flat number is required to enforce the yearly booking limit.', { kind: 'warn' }); return; }
+      errs.purpose = validatePurpose(wiz.purpose);
+      errs.flat    = validateFlat(wiz.flat);
+      errs.phone   = !(wiz.phone || '').trim() ? 'Phone number is required.' : validatePhoneOpt(wiz.phone);
+      errs.owner   = ownEl ? validateEmailOpt(wiz.ownerEmail) : '';
+      paint(purpEl, purpErr, errs.purpose);
+      paint(flatEl, flatErr, errs.flat);
+      paint(phoneEl, phoneErr, errs.phone);
+      if (ownEl) paint(ownEl, ownErr, errs.owner);
+      const firstBad = errs.purpose ? purpEl : errs.flat ? flatEl : errs.phone ? phoneEl : (errs.owner && ownEl ? ownEl : null);
+      if (firstBad) {
+        firstBad.focus();
+        root.UI.toast('Please fix the highlighted fields.', { kind: 'warn' });
+        return;
+      }
       wiz.step = 4; renderWizard();
     });
     setTimeout(() => { const el = host.querySelector('[data-wiz-purpose]'); if (el && !wiz.purpose) el.focus(); }, 60);
@@ -1357,16 +1496,10 @@
     const host = $('#resWizSummary');
     if (!host || !selectedFacility) return;
     const f = selectedFacility, p = f.policy || {};
-    const hasTiming = !!(wiz.date && wiz.startMin != null && wiz.durationMin);
-    const price = hasTiming ? wizComputePrice(p, wiz.date, wiz.durationMin) : { lines: [], total: 0 };
-    const priceBlock = !hasTiming
-      ? '<div class="tsh-res-wiz-price"><div class="row" style="justify-content:center;color:#6b7280;font-style:italic;">Pick a date and time to see the estimate</div></div>'
-      : (price.total === 0
-          ? '<div class="tsh-res-wiz-price"><div class="row free"><span><i class="fas fa-gift"></i> No charge for this facility</span><span>Free</span></div></div>'
-          : '<div class="tsh-res-wiz-price">' +
-              price.lines.map((l) => '<div class="row"><span>' + escape(l.label) + '</span><span>' + inr(l.amount) + '</span></div>').join('') +
-              '<div class="row total"><span>Estimated total</span><span>' + inr(price.total) + '</span></div>' +
-            '</div>');
+    // Shared price-summary helper — identical breakdown as the calendar
+    // modal so both flows source their rate from the same committee-
+    // maintained policy fields.
+    const priceBlock = renderPriceSummary(p, wiz.date, wiz.durationMin);
     host.innerHTML =
       '<h3><i class="fas fa-clipboard-list"></i> Your booking</h3>' +
       '<div class="kv">' +
@@ -1420,7 +1553,11 @@
           '<label><span>Closes at</span><input type="time" data-fs-close value="' + formatHHMM(Number(p.closeMin || 0)) + '" step="' + Number(p.stepMinutes || 30) * 60 + '" /></label>' +
           '<label><span>Min booking length (minutes)</span><input type="number" min="15" max="1440" step="15" data-fs-mind value="' + Number(p.minDurationMinutes || 60) + '" /></label>' +
           '<label><span>Max booking length (minutes)</span><input type="number" min="15" max="1440" step="15" data-fs-maxdur value="' + Number(p.maxDurationMinutes || 480) + '" /></label>' +
+          '<label><span>Default booking length (minutes)</span><input type="number" min="15" max="1440" step="15" data-fs-defdur value="' + Number(p.defaultDurationMinutes || p.minDurationMinutes || 60) + '" /></label>' +
         '</div>' +
+        '<p style="margin:6px 0 0;font-size:12px;color:var(--tsh-muted,#6b7280);">' +
+          'Default length pre-fills the wizard/calendar duration slider (e.g. 240 min = 4 h).' +
+        '</p>' +
       '</fieldset>' +
 
       '<label><span>Charges description (shown on booking form)</span>' +
@@ -1435,6 +1572,13 @@
         '<label style="margin-bottom:8px;"><span>Base amount (\u20b9, billed to resident)</span>' +
           '<input type="number" min="0" max="10000000" step="1" data-fs-amount value="' + (typeof p.paymentAmount === 'number' ? Number(p.paymentAmount) : 0) + '" />' +
         '</label>' +
+        '<div class="tsh-res-set-grid">' +
+          '<label><span>Base covers up to (hours)</span><input type="number" min="0" max="24" step="1" data-fs-basehrs value="' + Number(p.baseIncludedHours || 0) + '" /></label>' +
+          '<label><span>Overtime per extra hour (\u20b9)</span><input type="number" min="0" max="10000000" step="1" data-fs-otamt value="' + Number(p.overtimeHourlyAmount || 0) + '" /></label>' +
+        '</div>' +
+        '<p style="margin:4px 0 8px;font-size:12px;color:var(--tsh-muted,#6b7280);">' +
+          'When both are set, bookings longer than the covered hours are charged the flat overtime rate for every extra hour (or part thereof). Committee resolution: Community Hall = \u20b95,000 for 4 h + \u20b91,500 per extra hour.' +
+        '</p>' +
         '<div class="tsh-res-set-list" data-fs-rc></div>' +
         '<button type="button" class="tsh-res-set-add" data-fs-rc-add>+ Add rate</button>' +
       '</fieldset>' +
@@ -1586,6 +1730,9 @@
         closeMin:              parseHHMMLocal(wrap.querySelector('[data-fs-close]').value),
         minDurationMinutes:    Number(wrap.querySelector('[data-fs-mind]').value)   || 60,
         maxDurationMinutes:    Number(wrap.querySelector('[data-fs-maxdur]').value) || 480,
+        defaultDurationMinutes: Math.max(0, Number(wrap.querySelector('[data-fs-defdur]').value) || 0),
+        baseIncludedHours:     Math.max(0, Number(wrap.querySelector('[data-fs-basehrs]').value) || 0),
+        overtimeHourlyAmount:  Math.max(0, Number(wrap.querySelector('[data-fs-otamt]').value) || 0),
         paymentAmount:         Math.max(0, Number(wrap.querySelector('[data-fs-amount]').value) || 0),
         chargesInfo:           wrap.querySelector('[data-fs-charges]').value.trim(),
         rateCard:              rcRows,

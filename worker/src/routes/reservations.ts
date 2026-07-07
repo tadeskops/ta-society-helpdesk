@@ -365,6 +365,9 @@ export const mountReservations = (r: Router): void => {
     setNum('stepMinutes',           5, 240);
     setNum('minDurationMinutes',    5, 24 * 60);
     setNum('maxDurationMinutes',    5, 24 * 60);
+    setNum('defaultDurationMinutes', 5, 24 * 60);
+    setNum('baseIncludedHours',     0, 24);
+    setNum('overtimeHourlyAmount',  0, 10_000_000);
     setNum('paymentAmount',         0, 10_000_000);
     if (typeof pIn['requiresApproval'] === 'boolean') pOut.requiresApproval = pIn['requiresApproval'] as boolean;
     if (typeof pIn['requiresPayment']  === 'boolean') pOut.requiresPayment  = pIn['requiresPayment']  as boolean;
