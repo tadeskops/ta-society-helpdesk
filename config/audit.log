@@ -62,3 +62,4 @@
 {"at":"2026-07-06T20:01:18.273Z","actor":"ta.deskops@gmail.com","action":"reservations:payment-verified","target":"CH-0707260126","detail":"note=Verified from statement"}
 {"at":"2026-07-06T20:04:37.464Z","actor":"ta.deskops@gmail.com","action":"reservations:approved","target":"CH-0707260126","detail":""}
 {"at":"2026-07-06T20:04:40.154Z","actor":"system","action":"receipts:archive-failed","target":"CH-0707260126","detail":"WinAnsi cannot encode \"₹\" (0x20b9)"}
+{"at":"2026-07-07T05:14:58.838Z","actor":"ta.deskops@gmail.com","action":"reservations:create","target":"CH-0707261044","detail":"facility=community-hall date=2026-07-17 time=08:00-13:00 owner=ta.deskops@gmail.com"}
