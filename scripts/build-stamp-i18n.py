@@ -102,12 +102,14 @@ def build_svg(lang: str) -> str:
     logo_x = (SIZE - logo_size) / 2
     logo_y = (SIZE - logo_size) / 2 - 30
 
-    # Stars at 9 o'clock and 3 o'clock, sitting exactly on the top-text arc
-    # (horizontal centre-line, radius = r_top_text). They fill the small gap
-    # between the ends of the top text and the ends of the bottom text.
-    star_left = (SIZE / 2 - r_top_text, SIZE / 2)
-    star_right = (SIZE / 2 + r_top_text, SIZE / 2)
-    star_path = star_polygon_points(0, 0, r_out=18, r_in=8)
+    # Stars at 9 o'clock and 3 o'clock, sitting on the horizontal centre-line
+    # midway between the top-text arc (r=r_top_text) and the bottom-text arc
+    # (r=r_bot_text). This drops them into the visual gap between the two
+    # curved phrases so they read as separators rather than overlapping either.
+    r_star = (r_top_text + r_bot_text) / 2
+    star_left = (SIZE / 2 - r_star, SIZE / 2)
+    star_right = (SIZE / 2 + r_star, SIZE / 2)
+    star_path = star_polygon_points(0, 0, r_out=24, r_in=10)
 
     # PIN caption sits just below the mandala logo, in gold.
     pin_y = logo_y + logo_size + 34
