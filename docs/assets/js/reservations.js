@@ -36,8 +36,8 @@
 
   // Wizard-mode state (Book tab). `bookMode` toggles between the calendar
   // and the 4-step guided wizard (Facility → Date & Time → Details → Review).
-  // Residents default to 'wizard'; staff default to 'calendar' since the
-  // drag-book UX + on-behalf-of workflow is faster there.
+  // The Guided Wizard is now the default for every role; staff can still
+  // flip to Calendar via the mode toggle for drag-to-book / on-behalf-of.
   let bookMode = 'wizard';
   let wiz = { step: 1, date: null, startMin: null, durationMin: null, purpose: '', flat: '', phone: '', ownerEmail: '', tc: false, heatmapMonth: null, heatmap: null, submitting: false };
 
@@ -148,8 +148,10 @@
     const isStaff = who && root.Flags.isAtLeast && root.Flags.isAtLeast(who.primary, 'MANAGER');
     $$('[data-res-staff-only]').forEach((el) => { el.hidden = !isStaff; });
 
-    // Staff default to Calendar mode; residents to the guided Wizard.
-    bookMode = isStaff ? 'calendar' : 'wizard';
+    // Guided Wizard is the default for everyone (residents + staff).
+    // Staff can still flip to Calendar via the mode toggle when they
+    // need the drag-book / on-behalf-of workflow.
+    bookMode = 'wizard';
     wireBookMode();
 
     wireTabs();

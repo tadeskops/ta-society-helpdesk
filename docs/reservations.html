@@ -430,9 +430,9 @@
 
       <!-- BOOK TAB -->
       <section class="tsh-tab-panel" data-res-panel="book">
-        <!-- Book-mode strip: Wizard (default for residents) vs Calendar.
-             Wired in reservations.js:setBookMode(). Staff default to Calendar
-             because on-behalf-of + drag-book is faster in that view. -->
+        <!-- Book-mode strip: Guided Wizard (default for every role) vs
+             Calendar. Wired in reservations.js:setBookMode(). Staff can
+             flip to Calendar when they need drag-book / on-behalf-of. -->
         <div class="tsh-res-mode" role="tablist" aria-label="Book mode">
           <button type="button" class="on" data-book-mode="wizard"><i class="fas fa-magic-wand-sparkles"></i> Guided wizard</button>
           <button type="button"           data-book-mode="calendar"><i class="fas fa-table-cells-large"></i> Calendar</button>
@@ -526,7 +526,7 @@
   <script src="./assets/js/ui.js?v=53"></script>
   <script src="./assets/js/notify.js?v=1"></script>
   <script src="./assets/js/pdf-report.js?v=9"></script>
-  <script src="./assets/js/reservations.js?v=24"></script>
+  <script src="./assets/js/reservations.js?v=25"></script>
   <script>
   (async () => {
     await Partials.mount();
