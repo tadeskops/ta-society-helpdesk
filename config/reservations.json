@@ -267,7 +267,7 @@
         "role": "RESIDENT"
       },
       "createdAt": "2026-07-07T08:02:36.649Z",
-      "updatedAt": "2026-07-07T08:02:36.649Z",
+      "updatedAt": "2026-07-07T08:03:41.581Z",
       "timeline": [
         {
           "at": "2026-07-07T08:02:36.649Z",
@@ -277,11 +277,29 @@
           },
           "event": "created",
           "note": "Awaiting manager review."
+        },
+        {
+          "at": "2026-07-07T08:03:41.581Z",
+          "by": {
+            "email": "ta.deskops@gmail.com",
+            "role": "ADMIN"
+          },
+          "event": "payment-uploaded",
+          "note": "LetterHeader.png (107 KB)"
         }
       ],
       "payment": {
-        "status": "pending",
-        "proofs": [],
+        "status": "submitted",
+        "proofs": [
+          {
+            "path": "ch/proofs/CH-0707261332-01.png",
+            "name": "LetterHeader.png",
+            "mime": "image/png",
+            "size": 109245,
+            "uploadedAt": "2026-07-07T08:03:41.581Z",
+            "uploadedBy": "ta.deskops@gmail.com"
+          }
+        ],
         "amount": 5000,
         "payee": "Society Manager"
       }
