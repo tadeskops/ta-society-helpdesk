@@ -180,7 +180,7 @@
       "startMin": 480,
       "endMin": 780,
       "purpose": "Test Run",
-      "status": "requested",
+      "status": "confirmed",
       "owner": {
         "email": "ta.deskops@gmail.com",
         "flat": "C-1605",
@@ -191,7 +191,7 @@
         "role": "ADMIN"
       },
       "createdAt": "2026-07-07T05:14:57.637Z",
-      "updatedAt": "2026-07-07T05:30:50.241Z",
+      "updatedAt": "2026-07-07T05:30:57.516Z",
       "timeline": [
         {
           "at": "2026-07-07T05:14:57.637Z",
@@ -219,6 +219,14 @@
           },
           "event": "payment-verified",
           "note": "Verified from statement"
+        },
+        {
+          "at": "2026-07-07T05:30:57.516Z",
+          "by": {
+            "email": "ta.deskops@gmail.com",
+            "role": "ADMIN"
+          },
+          "event": "approved"
         }
       ],
       "payment": {
