@@ -256,7 +256,7 @@
       "startMin": 540,
       "endMin": 780,
       "purpose": "ertyuuiop",
-      "status": "requested",
+      "status": "confirmed",
       "owner": {
         "email": "vibhumaitreya@gmail.com",
         "flat": "C-1706",
@@ -267,7 +267,7 @@
         "role": "RESIDENT"
       },
       "createdAt": "2026-07-07T08:02:36.649Z",
-      "updatedAt": "2026-07-07T08:03:59.043Z",
+      "updatedAt": "2026-07-07T08:04:07.383Z",
       "timeline": [
         {
           "at": "2026-07-07T08:02:36.649Z",
@@ -304,6 +304,14 @@
           },
           "event": "payment-verified",
           "note": "Verified from statement"
+        },
+        {
+          "at": "2026-07-07T08:04:07.383Z",
+          "by": {
+            "email": "ta.deskops@gmail.com",
+            "role": "ADMIN"
+          },
+          "event": "approved"
         }
       ],
       "payment": {
