@@ -57,8 +57,6 @@ export const DEFAULT_ARCHIVE_CONFIG: ReceiptsArchiveConfig = {
  */
 const PLACEHOLDERS_RE = /\{([a-zA-Z]+)\}/g;
 
-const p2 = (n: number): string => String(n).padStart(2, '0');
-
 export const renderPathTemplate = (
   tpl: string,
   vars: Record<string, string>,
@@ -107,8 +105,8 @@ interface SiteJson {
  * callers pass it through so we don't re-fetch).
  */
 export const resolveArchiveConfig = (siteJson: SiteJson | undefined): ReceiptsArchiveConfig => {
-  const raw = siteJson?.system?.receiptsArchive ?? {};
-  const rawRollup = raw.rollup ?? {};
+  const raw: Partial<ReceiptsArchiveConfig> = siteJson?.system?.receiptsArchive ?? {};
+  const rawRollup: Partial<NonNullable<ReceiptsArchiveConfig['rollup']>> = raw.rollup ?? {};
   return {
     enabled: raw.enabled !== false,
     perReceiptPath: typeof raw.perReceiptPath === 'string' && raw.perReceiptPath.trim()
@@ -452,7 +450,9 @@ async function loadStampOverlay(): Promise<Uint8Array | null> {
     const buf = await res.arrayBuffer();
     _stampCache = new Uint8Array(buf);
   } catch (e) {
-    log('warn', { at: 'receipt-archive.loadStampOverlay', err: (e as Error).message });
+    // No env in scope here — fall back to console.warn. Cloudflare
+    // still surfaces it in `wrangler tail`.
+    console.warn(JSON.stringify({ at: 'receipt-archive.loadStampOverlay', err: (e as Error).message }));
     _stampCache = null;
   }
   return _stampCache;

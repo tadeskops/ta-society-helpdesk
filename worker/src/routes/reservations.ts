@@ -37,7 +37,7 @@ import {
   receiptsRepoTarget,
   loadLetterheadBytes,
   archiveReservationReceipt,
-  archivePathFor,
+  type ReceiptsArchiveConfig,
 } from '../lib/receipt-archive.ts';
 import {
   RES_STATUSES, RES_ID_RE, nextResId, facilityCode, canTransition,
@@ -921,7 +921,7 @@ export const mountReservations = (r: Router): void => {
       try {
         const siteFile = await getFile(ctx.env, 'config/site.json');
         const siteJson = siteFile
-          ? (JSON.parse(siteFile.content) as { system?: { receiptTemplate?: { url?: string; path?: string }; receiptsArchive?: unknown } })
+          ? (JSON.parse(siteFile.content) as { system?: { receiptTemplate?: { url?: string; path?: string }; receiptsArchive?: Partial<ReceiptsArchiveConfig> } })
           : undefined;
         const archiveCfg = resolveArchiveConfig(siteJson);
         if (archiveCfg.enabled && receiptsRepoTarget(ctx.env)) {
@@ -1493,7 +1493,7 @@ export const mountReservations = (r: Router): void => {
     if (!facility) throw new NotFound(`Facility ${rec.facilityId} not found`);
     const siteFile = await getFile(ctx.env, 'config/site.json');
     const siteJson = siteFile
-      ? (JSON.parse(siteFile.content) as { system?: { receiptTemplate?: { url?: string; path?: string }; receiptsArchive?: unknown } })
+      ? (JSON.parse(siteFile.content) as { system?: { receiptTemplate?: { url?: string; path?: string }; receiptsArchive?: Partial<ReceiptsArchiveConfig> } })
       : undefined;
     const archiveCfg = resolveArchiveConfig(siteJson);
     const letterhead = await loadLetterheadBytes(ctx.env, siteJson?.system?.receiptTemplate);
@@ -1526,7 +1526,7 @@ export const mountReservations = (r: Router): void => {
     });
     const siteFile = await getFile(ctx.env, 'config/site.json');
     const siteJson = siteFile
-      ? (JSON.parse(siteFile.content) as { system?: { receiptsArchive?: unknown } })
+      ? (JSON.parse(siteFile.content) as { system?: { receiptsArchive?: Partial<ReceiptsArchiveConfig> } })
       : undefined;
     const cfg = resolveArchiveConfig(siteJson);
     const target = receiptsRepoTarget(ctx.env);
