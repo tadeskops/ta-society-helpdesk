@@ -70,3 +70,4 @@
 {"at":"2026-07-07T08:02:37.502Z","actor":"vibhumaitreya@gmail.com","action":"reservations:create","target":"CH-0707261332","detail":"facility=community-hall date=2026-07-18 time=09:00-13:00 owner=vibhumaitreya@gmail.com"}
 {"at":"2026-07-07T08:03:42.480Z","actor":"ta.deskops@gmail.com","action":"reservations:payment-uploaded","target":"CH-0707261332","detail":"path=ch/proofs/CH-0707261332-01.png bytes=109245 txnRef="}
 {"at":"2026-07-07T08:03:59.979Z","actor":"ta.deskops@gmail.com","action":"reservations:payment-verified","target":"CH-0707261332","detail":"note=Verified from statement"}
+{"at":"2026-07-07T08:04:08.356Z","actor":"ta.deskops@gmail.com","action":"reservations:approved","target":"CH-0707261332","detail":""}
