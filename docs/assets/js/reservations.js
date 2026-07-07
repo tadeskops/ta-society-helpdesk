@@ -2946,19 +2946,19 @@
       font-family: 'Noto Sans Devanagari', 'Merriweather', 'Inter', sans-serif;
     }
     .tsh-rcpt * { box-sizing: border-box; }
-    .tsh-rcpt .society-hdr { padding: 6px 18px 5px; text-align: center; color: #193e8a; border-bottom: 1px solid rgba(25,62,138,0.15); }
-    .tsh-rcpt .society-hdr h1 { font-family: 'Merriweather', serif; font-size: 11px; font-weight: 700; margin: 0; letter-spacing: 0.03em; line-height: 1.2; }
-    .tsh-rcpt[data-lang="hi"] .society-hdr h1, .tsh-rcpt[data-lang="mr"] .society-hdr h1 { font-family: 'Noto Sans Devanagari', serif; font-size: 12px; }
-    .tsh-rcpt .society-hdr h2 { font-family: 'Merriweather', serif; font-size: 9px; font-weight: 400; margin: 1px 0 3px; color: #1e40af; font-style: italic; }
+    .tsh-rcpt .society-hdr { padding: 8px 22px 6px; text-align: center; color: #193e8a; border-bottom: 1px solid rgba(25,62,138,0.15); }
+    .tsh-rcpt .society-hdr h1 { font-family: 'Merriweather', serif; font-size: 15px; font-weight: 700; margin: 0; letter-spacing: 0.03em; line-height: 1.2; }
+    .tsh-rcpt[data-lang="hi"] .society-hdr h1, .tsh-rcpt[data-lang="mr"] .society-hdr h1 { font-family: 'Noto Sans Devanagari', serif; font-size: 16px; }
+    .tsh-rcpt .society-hdr h2 { font-family: 'Merriweather', serif; font-size: 12px; font-weight: 400; margin: 2px 0 4px; color: #1e40af; font-style: italic; }
     .tsh-rcpt[data-lang="hi"] .society-hdr h2, .tsh-rcpt[data-lang="mr"] .society-hdr h2 { font-family: 'Noto Sans Devanagari', serif; }
-    .tsh-rcpt .society-hdr .addr { font-size: 8px; color: #475569; line-height: 1.25; margin: 0; }
-    .tsh-rcpt .society-hdr .reg  { font-size: 7.5px; color: #475569; margin: 2px 0 0; font-weight: 500; }
-    .tsh-rcpt .status-badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 700; letter-spacing: 0.06em; background: #dcfce7; color: #166534; border: 1px solid #86efac; }
-    .tsh-rcpt .print-footer { display: flex; justify-content: space-between; padding: 4px 16px; background: #f8fafc; font-family: 'Roboto Mono', monospace; font-size: 8px; color: #94a3b8; border-top: 1px solid #e2e8f0; }
+    .tsh-rcpt .society-hdr .addr { font-size: 11px; color: #475569; line-height: 1.3; margin: 0; }
+    .tsh-rcpt .society-hdr .reg  { font-size: 10.5px; color: #475569; margin: 3px 0 0; font-weight: 500; }
+    .tsh-rcpt .status-badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+    .tsh-rcpt .print-footer { display: flex; justify-content: space-between; padding: 5px 18px; background: #f8fafc; font-family: 'Roboto Mono', monospace; font-size: 10px; color: #94a3b8; border-top: 1px solid #e2e8f0; }
 
     /* -- Theme A: Cheque Classic ------------------------------------ */
     .tsh-rcpt.theme-a .body {
-      position: relative; padding: 10px 16px 12px;
+      position: relative; padding: 14px 22px 16px;
       background: repeating-linear-gradient(45deg, rgba(37,99,235,0.05) 0 1px, transparent 1px 14px),
                   repeating-linear-gradient(-45deg, rgba(37,99,235,0.05) 0 1px, transparent 1px 14px),
                   linear-gradient(180deg, #f0f6ff 0%, #ffffff 100%);
@@ -2967,42 +2967,41 @@
     .tsh-rcpt.theme-a .body::before, .tsh-rcpt.theme-a .body::after { content: ''; position: absolute; width: 26px; height: 26px; border: 2px solid #193e8a; }
     .tsh-rcpt.theme-a .body::before { top: 6px; left: 6px; border-right: none; border-bottom: none; }
     .tsh-rcpt.theme-a .body::after  { top: 6px; right: 6px; border-left: none; border-bottom: none; }
-    .tsh-rcpt.theme-a .cheque-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+    .tsh-rcpt.theme-a .cheque-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
     .tsh-rcpt.theme-a .brand { display: flex; align-items: center; gap: 8px; }
-    .tsh-rcpt.theme-a .logo-dot { width: 30px; height: 30px; border-radius: 50%; background: #193e8a; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-family: 'Playfair Display', serif; font-weight: 700; font-size: 15px; box-shadow: 0 2px 6px rgba(25,62,138,0.35); }
-    .tsh-rcpt.theme-a .brand-txt b { display: block; font-family: 'Merriweather', serif; color: #193e8a; font-size: 11px; font-weight: 700; }
-    .tsh-rcpt.theme-a .brand-txt span { color: #64748b; font-size: 8.5px; letter-spacing: 0.05em; text-transform: uppercase; }
+    .tsh-rcpt.theme-a .brand-txt b { display: block; font-family: 'Merriweather', serif; color: #193e8a; font-size: 15px; font-weight: 700; }
+    .tsh-rcpt.theme-a .brand-txt span { color: #64748b; font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; }
     .tsh-rcpt.theme-a .rec-no { text-align: right; font-family: 'Roboto Mono', monospace; }
-    .tsh-rcpt.theme-a .rec-no .lbl { color: #64748b; font-size: 7.5px; letter-spacing: 0.15em; text-transform: uppercase; }
-    .tsh-rcpt.theme-a .rec-no .val { color: #193e8a; font-weight: 700; font-size: 12px; }
-    .tsh-rcpt.theme-a .rec-no .date { display: block; margin-top: 3px; background: #fff; border: 1px solid #193e8a; padding: 2px 6px; font-size: 9.5px; color: #1e40af; }
-    .tsh-rcpt.theme-a .pay-line { display: grid; grid-template-columns: 110px 1fr; gap: 8px; align-items: end; margin-bottom: 4px; }
-    .tsh-rcpt.theme-a .pay-line .lbl { font-family: 'Merriweather', serif; font-size: 9px; color: #64748b; text-transform: uppercase; letter-spacing: 0.08em; }
-    .tsh-rcpt.theme-a .pay-line .val { font-family: 'Cormorant Garamond', serif; font-size: 14px; color: #0f172a; font-weight: 600; border-bottom: 1.5px solid #193e8a; padding-bottom: 1px; }
-    .tsh-rcpt.theme-a .amount-row { display: grid; grid-template-columns: 1fr 150px; gap: 10px; margin: 6px 0; }
-    .tsh-rcpt.theme-a .amount-row .desc { background: #fff; border: 1px dashed #193e8a; padding: 5px 9px; font-size: 9.5px; color: #0f172a; border-radius: 3px; line-height: 1.35; }
+    .tsh-rcpt.theme-a .rec-no .lbl { color: #64748b; font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; }
+    .tsh-rcpt.theme-a .rec-no .val { color: #193e8a; font-weight: 700; font-size: 16px; }
+    .tsh-rcpt.theme-a .rec-no .date { display: block; margin-top: 4px; background: #fff; border: 1px solid #193e8a; padding: 3px 8px; font-size: 12px; color: #1e40af; }
+    .tsh-rcpt.theme-a .pay-line { display: grid; grid-template-columns: 150px 1fr; gap: 10px; align-items: end; margin-bottom: 6px; }
+    .tsh-rcpt.theme-a .pay-line .lbl { font-family: 'Merriweather', serif; font-size: 12px; color: #64748b; text-transform: uppercase; letter-spacing: 0.08em; }
+    .tsh-rcpt.theme-a .pay-line .val { font-family: 'Cormorant Garamond', serif; font-size: 18px; color: #0f172a; font-weight: 600; border-bottom: 1.5px solid #193e8a; padding-bottom: 2px; }
+    .tsh-rcpt.theme-a .amount-row { display: grid; grid-template-columns: 1fr 190px; gap: 12px; margin: 8px 0; }
+    .tsh-rcpt.theme-a .amount-row .desc { background: #fff; border: 1px dashed #193e8a; padding: 7px 11px; font-size: 12.5px; color: #0f172a; border-radius: 3px; line-height: 1.35; }
     .tsh-rcpt.theme-a .amount-row .desc b { color: #193e8a; }
-    .tsh-rcpt.theme-a .amount-row .amt-box { background: #fff; border: 2px solid #193e8a; border-radius: 4px; padding: 5px 10px; text-align: right; }
-    .tsh-rcpt.theme-a .amount-row .amt-box .lbl { display: block; font-size: 7.5px; color: #64748b; letter-spacing: 0.15em; text-transform: uppercase; }
-    .tsh-rcpt.theme-a .amount-row .amt-box .val { font-family: 'Playfair Display', serif; font-weight: 700; font-size: 18px; color: #193e8a; line-height: 1.1; }
-    .tsh-rcpt.theme-a .details-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px 18px; margin: 4px 0; font-size: 9px; }
-    .tsh-rcpt.theme-a .details-grid .row { display: flex; justify-content: space-between; border-bottom: 1px dotted #cbd5e1; padding: 1.5px 0; }
+    .tsh-rcpt.theme-a .amount-row .amt-box { background: #fff; border: 2px solid #193e8a; border-radius: 4px; padding: 7px 12px; text-align: right; }
+    .tsh-rcpt.theme-a .amount-row .amt-box .lbl { display: block; font-size: 10px; color: #64748b; letter-spacing: 0.15em; text-transform: uppercase; }
+    .tsh-rcpt.theme-a .amount-row .amt-box .val { font-family: 'Playfair Display', serif; font-weight: 700; font-size: 24px; color: #193e8a; line-height: 1.1; }
+    .tsh-rcpt.theme-a .details-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 2px 24px; margin: 6px 0; font-size: 12.5px; }
+    .tsh-rcpt.theme-a .details-grid .row { display: flex; justify-content: space-between; border-bottom: 1px dotted #cbd5e1; padding: 2.5px 0; }
     .tsh-rcpt.theme-a .details-grid .row .k { color: #64748b; font-weight: 500; }
     .tsh-rcpt.theme-a .details-grid .row .v { color: #0f172a; font-weight: 600; text-align: right; }
-    .tsh-rcpt.theme-a .footer-strip { display: flex; justify-content: space-between; align-items: end; margin-top: 6px; }
-    .tsh-rcpt.theme-a .memo { flex: 1; padding-right: 16px; }
-    .tsh-rcpt.theme-a .memo .lbl { font-size: 8px; color: #64748b; text-transform: uppercase; letter-spacing: 0.1em; }
-    .tsh-rcpt.theme-a .memo .val { border-bottom: 1px solid #193e8a; padding: 3px 0 2px; font-family: 'Cormorant Garamond', serif; font-size: 11px; }
-    .tsh-rcpt.theme-a .sign { text-align: center; min-width: 130px; }
-    .tsh-rcpt.theme-a .sign .line { border-top: 1.5px solid #193e8a; margin-bottom: 2px; height: 22px; }
-    .tsh-rcpt.theme-a .sign .cap  { font-size: 8.5px; color: #64748b; letter-spacing: 0.1em; text-transform: uppercase; }
-    .tsh-rcpt.theme-a .stamp { position: absolute; right: 44px; bottom: 44px; width: 88px; opacity: 0.85; transform: rotate(-8deg); pointer-events: none; }
-    .tsh-rcpt.theme-a .micro { position: absolute; left: 16px; bottom: 4px; font-family: 'Roboto Mono', monospace; font-size: 8px; color: #94a3b8; letter-spacing: 0.15em; }
+    .tsh-rcpt.theme-a .footer-strip { display: flex; justify-content: space-between; align-items: end; margin-top: 10px; }
+    .tsh-rcpt.theme-a .memo { flex: 1; padding-right: 20px; }
+    .tsh-rcpt.theme-a .memo .lbl { font-size: 10.5px; color: #64748b; text-transform: uppercase; letter-spacing: 0.1em; }
+    .tsh-rcpt.theme-a .memo .val { border-bottom: 1px solid #193e8a; padding: 4px 0 3px; font-family: 'Cormorant Garamond', serif; font-size: 14px; }
+    .tsh-rcpt.theme-a .sign { text-align: center; min-width: 150px; }
+    .tsh-rcpt.theme-a .sign .line { border-top: 1.5px solid #193e8a; margin-bottom: 3px; height: 26px; }
+    .tsh-rcpt.theme-a .sign .cap  { font-size: 11px; color: #64748b; letter-spacing: 0.1em; text-transform: uppercase; }
+    .tsh-rcpt.theme-a .stamp { position: absolute; right: 44px; bottom: 44px; width: 108px; opacity: 0.85; transform: rotate(-8deg); pointer-events: none; }
+    .tsh-rcpt.theme-a .micro { position: absolute; left: 16px; bottom: 4px; font-family: 'Roboto Mono', monospace; font-size: 9.5px; color: #94a3b8; letter-spacing: 0.15em; }
 
     /* -- Theme B: Certificate Brand --------------------------------- */
     .tsh-rcpt.theme-b .society-hdr { border-bottom: 2px solid #193e8a; }
     .tsh-rcpt.theme-b .body {
-      position: relative; padding: 10px 16px 12px;
+      position: relative; padding: 14px 22px 16px;
       background: repeating-linear-gradient(35deg, rgba(25,62,138,0.05) 0 1.5px, transparent 1.5px 16px),
                   radial-gradient(circle at 50% 0%, rgba(25,62,138,0.08) 0%, transparent 55%), #f8faff;
       border-top: 4px double #193e8a; border-bottom: 4px double #193e8a; min-height: 118mm;
@@ -3012,29 +3011,42 @@
     .tsh-rcpt.theme-b .corner.tl { top: 3px; left: 3px; } .tsh-rcpt.theme-b .corner.tr { top: 3px; right: 3px; }
     .tsh-rcpt.theme-b .corner.bl { bottom: 3px; left: 3px; } .tsh-rcpt.theme-b .corner.br { bottom: 3px; right: 3px; }
     .tsh-rcpt.theme-b .corner::after { content: ''; position: absolute; inset: 5px; border: 1.5px solid #c8a45e; border-radius: 50%; }
-    .tsh-rcpt.theme-b .cert-title { text-align: center; margin: 4px 0 6px; position: relative; z-index: 1; }
-    .tsh-rcpt.theme-b .cert-title .caps { font-family: 'Playfair Display', serif; font-size: 14px; color: #193e8a; letter-spacing: 0.22em; text-transform: uppercase; font-weight: 700; }
-    .tsh-rcpt.theme-b[data-lang="hi"] .cert-title .caps, .tsh-rcpt.theme-b[data-lang="mr"] .cert-title .caps { font-family: 'Noto Sans Devanagari', serif; letter-spacing: 0.05em; }
-    .tsh-rcpt.theme-b .cert-title .caps::before, .tsh-rcpt.theme-b .cert-title .caps::after { content: '\u2766'; margin: 0 8px; color: #c8a45e; font-size: 11px; vertical-align: middle; }
-    .tsh-rcpt.theme-b .cert-title .sub { font-family: 'Cormorant Garamond', serif; font-size: 10.5px; color: #1e40af; font-style: italic; margin-top: 2px; }
-    .tsh-rcpt.theme-b .cert-body { max-width: 640px; margin: 0 auto 6px; position: relative; z-index: 1; font-family: 'Cormorant Garamond', serif; font-size: 11.5px; color: #0f172a; line-height: 1.5; text-align: center; }
-    .tsh-rcpt.theme-b[data-lang="hi"] .cert-body, .tsh-rcpt.theme-b[data-lang="mr"] .cert-body { font-family: 'Noto Sans Devanagari', serif; font-size: 11px; }
+    .tsh-rcpt.theme-b .cert-title { text-align: center; margin: 6px 0 10px; position: relative; z-index: 1; }
+    .tsh-rcpt.theme-b .cert-title .caps { font-family: 'Playfair Display', serif; font-size: 20px; color: #193e8a; letter-spacing: 0.22em; text-transform: uppercase; font-weight: 700; }
+    .tsh-rcpt.theme-b[data-lang="hi"] .cert-title .caps, .tsh-rcpt.theme-b[data-lang="mr"] .cert-title .caps { font-family: 'Noto Sans Devanagari', serif; letter-spacing: 0.05em; font-size: 20px; }
+    .tsh-rcpt.theme-b .cert-title .caps::before, .tsh-rcpt.theme-b .cert-title .caps::after { content: '\u2766'; margin: 0 10px; color: #c8a45e; font-size: 16px; vertical-align: middle; }
+    .tsh-rcpt.theme-b .cert-title .sub { font-family: 'Cormorant Garamond', serif; font-size: 13.5px; color: #1e40af; font-style: italic; margin-top: 3px; }
+    .tsh-rcpt.theme-b .cert-body { max-width: 640px; margin: 0 auto 8px; position: relative; z-index: 1; font-family: 'Cormorant Garamond', serif; font-size: 15px; color: #0f172a; line-height: 1.55; text-align: center; }
+    .tsh-rcpt.theme-b[data-lang="hi"] .cert-body, .tsh-rcpt.theme-b[data-lang="mr"] .cert-body { font-family: 'Noto Sans Devanagari', serif; font-size: 14.5px; line-height: 1.65; }
     .tsh-rcpt.theme-b .cert-body .who,
-    .tsh-rcpt.theme-b .cert-body .what { display: inline-block; padding: 0 4px 1px; border-bottom: 1.5px dashed #193e8a; color: #193e8a; font-weight: 700; font-size: 12.5px; }
+    .tsh-rcpt.theme-b .cert-body .what { display: inline-block; padding: 0 5px 2px; border-bottom: 1.5px dashed #193e8a; color: #193e8a; font-weight: 700; font-size: 16px; }
     .tsh-rcpt.theme-b .cert-body .what { color: #1e40af; }
-    .tsh-rcpt.theme-b .cert-table { max-width: 560px; margin: 4px auto; position: relative; z-index: 1; background: #fff; border: 1px solid #193e8a; border-radius: 5px; padding: 4px 12px; box-shadow: 0 0 0 2px #fff, 0 0 0 3px #c8a45e; }
-    .tsh-rcpt.theme-b .cert-table .row { display: grid; grid-template-columns: 110px 1fr; gap: 6px; padding: 1.5px 0; font-size: 9.5px; border-bottom: 1px dotted rgba(25,62,138,0.25); }
+    .tsh-rcpt.theme-b .cert-table { max-width: 620px; margin: 6px auto; position: relative; z-index: 1; background: #fff; border: 1px solid #193e8a; border-radius: 5px; padding: 6px 16px; box-shadow: 0 0 0 2px #fff, 0 0 0 3px #c8a45e; }
+    .tsh-rcpt.theme-b .cert-table .row { display: grid; grid-template-columns: 140px 1fr; gap: 8px; padding: 3px 0; font-size: 12.5px; border-bottom: 1px dotted rgba(25,62,138,0.25); }
     .tsh-rcpt.theme-b .cert-table .row:last-child { border-bottom: none; }
-    .tsh-rcpt.theme-b .cert-table .row .k { color: #193e8a; font-weight: 600; text-transform: uppercase; font-size: 8.5px; letter-spacing: 0.08em; }
-    .tsh-rcpt.theme-b[data-lang="hi"] .cert-table .row .k, .tsh-rcpt.theme-b[data-lang="mr"] .cert-table .row .k { text-transform: none; letter-spacing: 0.02em; font-size: 9.5px; }
+    .tsh-rcpt.theme-b .cert-table .row .k { color: #193e8a; font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: 0.08em; }
+    .tsh-rcpt.theme-b[data-lang="hi"] .cert-table .row .k, .tsh-rcpt.theme-b[data-lang="mr"] .cert-table .row .k { text-transform: none; letter-spacing: 0.02em; font-size: 12.5px; }
     .tsh-rcpt.theme-b .cert-table .row .v { color: #0f172a; font-weight: 500; }
     .tsh-rcpt.theme-b .cert-table .row .v.amt { color: #193e8a; font-weight: 700; }
-    .tsh-rcpt.theme-b .footer-b { display: flex; justify-content: space-between; align-items: end; max-width: 560px; margin: 4px auto 2px; position: relative; z-index: 1; }
-    .tsh-rcpt.theme-b .footer-b .sign { text-align: center; min-width: 130px; }
-    .tsh-rcpt.theme-b .footer-b .sign .line { border-top: 1.5px solid #193e8a; height: 18px; margin-bottom: 2px; }
-    .tsh-rcpt.theme-b .footer-b .sign .cap  { font-family: 'Cormorant Garamond', serif; font-style: italic; color: #1e40af; font-size: 10px; }
+    .tsh-rcpt.theme-b .footer-b { display: flex; justify-content: space-between; align-items: end; max-width: 620px; margin: 8px auto 4px; position: relative; z-index: 1; }
+    .tsh-rcpt.theme-b .footer-b .sign { text-align: center; min-width: 160px; }
+    .tsh-rcpt.theme-b .footer-b .sign .line { border-top: 1.5px solid #193e8a; height: 22px; margin-bottom: 3px; }
+    .tsh-rcpt.theme-b .footer-b .sign .cap  { font-family: 'Cormorant Garamond', serif; font-style: italic; color: #1e40af; font-size: 13px; }
     .tsh-rcpt.theme-b[data-lang="hi"] .footer-b .sign .cap, .tsh-rcpt.theme-b[data-lang="mr"] .footer-b .sign .cap { font-family: 'Noto Sans Devanagari', serif; font-style: normal; }
-    .tsh-rcpt.theme-b .stamp { position: absolute; right: 22px; bottom: 28px; width: 92px; opacity: 0.9; transform: rotate(6deg); pointer-events: none; z-index: 1; }
+    .tsh-rcpt.theme-b .stamp { position: absolute; right: 22px; bottom: 28px; width: 110px; opacity: 0.9; transform: rotate(6deg); pointer-events: none; z-index: 1; }
+
+    /* -- Default (letterhead + translated body) --------------------- */
+    .tsh-rcpt.theme-default { width: 210mm; height: 297mm; }
+    .tsh-rcpt.theme-default .lh-band { width: 100%; height: 45mm; object-fit: contain; background: #fff; display: block; }
+    .tsh-rcpt.theme-default .title { text-align: center; font-family: 'Merriweather', serif; font-size: 22px; font-weight: 700; margin: 14px 0 10px; letter-spacing: 0.08em; color: #0f172a; }
+    .tsh-rcpt.theme-default[data-lang="hi"] .title, .tsh-rcpt.theme-default[data-lang="mr"] .title { font-family: 'Noto Sans Devanagari', serif; letter-spacing: 0.02em; }
+    .tsh-rcpt.theme-default .rows { padding: 0 24mm; font-size: 15px; line-height: 1.7; color: #1f2937; }
+    .tsh-rcpt.theme-default .rows .row { display: grid; grid-template-columns: 55mm 1fr; gap: 8px; padding: 4px 0; border-bottom: 1px dotted #e5e7eb; }
+    .tsh-rcpt.theme-default .rows .row .k { font-weight: 700; color: #0f172a; }
+    .tsh-rcpt.theme-default .rows .row .v { color: #1f2937; }
+    .tsh-rcpt.theme-default .foot { position: absolute; left: 0; right: 0; bottom: 18mm; text-align: center; font-size: 12px; color: #64748b; padding: 0 20mm; }
+    .tsh-rcpt.theme-default .foot hr { border: none; border-top: 1px solid #e5e7eb; margin: 0 0 6px; }
+    .tsh-rcpt.theme-default .stamp { position: absolute; right: 22mm; bottom: 40mm; width: 55mm; opacity: 0.85; pointer-events: none; }
   `;
 
   function ensureThemeStyles() {
@@ -3103,7 +3115,6 @@
 
   function themeAHtml(r, T, lang, stampSrc, values) {
     const v = values;
-    const brandDot = (v.facility || 'A').charAt(0).toUpperCase();
     const chargesLine = escHtml(v.facility + ' \u00b7 ' + v.dateShort + ' \u00b7 ' + v.timeLbl + (v.durLbl ? ' (' + v.durLbl + ')' : ''));
     return (
       '<div class="tsh-rcpt theme-a" data-lang="' + lang + '">' +
@@ -3116,7 +3127,6 @@
         '<div class="body">' +
           '<div class="cheque-head">' +
             '<div class="brand">' +
-              '<span class="logo-dot">' + escHtml(brandDot) + '</span>' +
               '<div class="brand-txt"><b>' + escHtml(T.brandTitle) + '</b><span>' + escHtml(T.brandSub) + '</span></div>' +
             '</div>' +
             '<div class="rec-no">' +
@@ -3227,7 +3237,6 @@
     const html = theme === 'certificate-brand'
       ? themeBHtml(r, T, lang, stampSrc, values)
       : themeAHtml(r, T, lang, stampSrc, values);
-
     // Render off-screen so the visible layout isn't touched.
     const stage = document.createElement('div');
     stage.className = 'tsh-rcpt-stage';
@@ -3257,6 +3266,95 @@
       const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a5' });
       const pageW = 210, pageH = 148;
       doc.addImage(imgData, 'JPEG', 0, 0, pageW, pageH);
+      const blob = doc.output('blob');
+      const bloburl = URL.createObjectURL(blob);
+      return {
+        bloburl,
+        download: (name) => {
+          const a = document.createElement('a');
+          a.href = bloburl; a.download = name || ('receipt-' + r.id + '.pdf');
+          document.body.appendChild(a); a.click(); a.remove();
+        },
+        doc,
+      };
+    } finally {
+      try { stage.remove(); } catch (_e) { /* ignore */ }
+    }
+  }
+
+  // Default theme renderer for Hindi + Marathi. The legacy default path
+  // uses jsPDF/pdf-lib core fonts which are WinAnsi-only (no Devanagari).
+  // For hi/mr we fall back to an HTML stage rendered via html2canvas so
+  // the body labels + values print in the requested script. The
+  // letterhead image is drawn as the top band, matching the English
+  // layout. PDF-mime letterheads still bypass this path (see caller).
+  async function buildReceiptDefaultI18n(r, tpl, lang) {
+    if (!(await waitForHtml2Canvas(6000))) throw new Error('html2canvas failed to load');
+    if (!(root.jspdf && root.jspdf.jsPDF)) throw new Error('jsPDF not loaded');
+    ensureThemeStyles();
+
+    const T = RECEIPT_TEXTS[lang] || RECEIPT_TEXTS.en;
+    const values = receiptValues(r, T);
+    const dataUrl = await fetchAsDataUrl(tpl.url);
+    const stampAsset = (r.status === 'confirmed') ? await loadStampAsset(lang) : null;
+    const stampSrc = (stampAsset && stampAsset.dataUrl) ? stampAsset.dataUrl : '';
+
+    const rows = [];
+    const push = (k, v) => rows.push({ k, v });
+    push(T.bookingId, values.id);
+    push(T.receivedFrom, values.residentLine);
+    push(T.facility, values.facility);
+    push(T.date, values.dateLong);
+    push(T.time, values.timeLbl + (values.durLbl ? ' \u00b7 ' + values.durLbl : ''));
+    push(T.purpose, values.purpose || '\u2014');
+    if (r.payment) {
+      push(T.charges, values.amtStr + ' \u00b7 ' + values.payLbl);
+      if (values.txnRef && values.txnRef !== '\u2014') push(T.txnId, values.txnRef);
+      if (values.verifiedBy) push(T.verifiedBy, values.verifiedBy);
+    }
+    push(T.status, values.statusLbl);
+
+    const rowsHtml = rows.map((row) =>
+      '<div class="row"><span class="k">' + escHtml(row.k) + '</span><span class="v">' + escHtml(row.v) + '</span></div>'
+    ).join('');
+
+    const html =
+      '<div class="tsh-rcpt theme-default" data-lang="' + lang + '" style="position:relative">' +
+        '<img class="lh-band" src="' + dataUrl + '" alt="" crossorigin="anonymous">' +
+        '<div class="title">' + escHtml(T.brandTitle) + '</div>' +
+        '<div class="rows">' + rowsHtml + '</div>' +
+        (stampSrc ? '<img class="stamp" src="' + stampSrc + '" alt="seal" crossorigin="anonymous">' : '') +
+        '<div class="foot"><hr>' +
+          escHtml(T.printedAt + ' ' + values.printedAt) +
+          '<br>' + escHtml(T.verifyAt) +
+        '</div>' +
+      '</div>';
+
+    const stage = document.createElement('div');
+    stage.className = 'tsh-rcpt-stage';
+    stage.innerHTML = html;
+    document.body.appendChild(stage);
+    try {
+      if (document.fonts && document.fonts.ready) {
+        try { await document.fonts.ready; } catch (_e) { /* ignore */ }
+      }
+      await new Promise((res) => setTimeout(res, 60));
+
+      const target = stage.firstElementChild;
+      const canvas = await root.html2canvas(target, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+        useCORS: true,
+        allowTaint: false,
+        logging: false,
+        windowWidth: target.offsetWidth,
+        windowHeight: target.offsetHeight,
+      });
+      const imgData = canvas.toDataURL('image/jpeg', 0.92);
+
+      const { jsPDF } = root.jspdf;
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      doc.addImage(imgData, 'JPEG', 0, 0, 210, 297);
       const blob = doc.output('blob');
       const bloburl = URL.createObjectURL(blob);
       return {
@@ -3314,6 +3412,19 @@
     let bundle;
     const buildBundle = async () => {
       if (theme === 'default') {
+        // Hindi + Marathi: jsPDF / pdf-lib core fonts can't render
+        // Devanagari, so route through the html2canvas-based default
+        // renderer. For PDF-mime letterheads there's no cheap way to
+        // rasterise the source PDF from the browser, so we fall back
+        // to Certificate Brand (which already handles the script) and
+        // let the user know once.
+        if (lang !== 'en') {
+          if (tpl.mime === 'application/pdf') {
+            root.UI.toast('PDF letterheads can\'t be reused for ' + (lang === 'hi' ? 'Hindi' : 'Marathi') + ' \u2014 falling back to Certificate Brand theme. Ask an admin to upload a PNG/JPEG letterhead to keep the default look.', { kind: 'warn' });
+            return await buildReceiptFromTheme(r, 'certificate-brand', lang);
+          }
+          return await buildReceiptDefaultI18n(r, tpl, lang);
+        }
         return tpl.mime === 'application/pdf'
           ? await buildReceiptFromPdfLetterhead(r, tpl.url, lang)
           : await buildReceiptFromImage(r, tpl, lang);
