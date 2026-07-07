@@ -267,7 +267,7 @@
         "role": "RESIDENT"
       },
       "createdAt": "2026-07-07T08:02:36.649Z",
-      "updatedAt": "2026-07-07T08:03:41.581Z",
+      "updatedAt": "2026-07-07T08:03:59.043Z",
       "timeline": [
         {
           "at": "2026-07-07T08:02:36.649Z",
@@ -286,10 +286,28 @@
           },
           "event": "payment-uploaded",
           "note": "LetterHeader.png (107 KB)"
+        },
+        {
+          "at": "2026-07-07T08:03:54.576Z",
+          "by": {
+            "email": "ta.deskops@gmail.com",
+            "role": "ADMIN"
+          },
+          "event": "payment-verified",
+          "note": "Verified from statement"
+        },
+        {
+          "at": "2026-07-07T08:03:59.043Z",
+          "by": {
+            "email": "ta.deskops@gmail.com",
+            "role": "ADMIN"
+          },
+          "event": "payment-verified",
+          "note": "Verified from statement"
         }
       ],
       "payment": {
-        "status": "submitted",
+        "status": "verified",
         "proofs": [
           {
             "path": "ch/proofs/CH-0707261332-01.png",
@@ -301,7 +319,10 @@
           }
         ],
         "amount": 5000,
-        "payee": "Society Manager"
+        "payee": "Society Manager",
+        "note": "Verified from statement",
+        "verifiedAt": "2026-07-07T08:03:59.043Z",
+        "verifiedBy": "ta.deskops@gmail.com"
       }
     }
   ]
