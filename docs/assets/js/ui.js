@@ -821,10 +821,16 @@
 
   // Wire header sign-in/out buttons once partials are mounted + Auth init'd.
   function bindHeader() {
-    const signin  = document.querySelector('[data-tsh-signin]');
-    const signout = document.querySelector('[data-tsh-signout]');
-    const userEl  = document.querySelector('[data-tsh-user]');
-    if (!signin || !signout || !userEl || !root.Auth) return;
+    // Grab ALL sign-in / sign-out triggers on the page (header partial + any
+    // in-page "please sign in" gate the current page may render, e.g. the
+    // Reservations gate at [data-res-signin]). A single-element querySelector
+    // would only wire the header icon and leave gate buttons dead.
+    const signins  = Array.from(document.querySelectorAll('[data-tsh-signin]'));
+    const signouts = Array.from(document.querySelectorAll('[data-tsh-signout]'));
+    const userEl   = document.querySelector('[data-tsh-user]');
+    if (signins.length === 0 || signouts.length === 0 || !userEl || !root.Auth) return;
+    const signin  = signins[0];   // the header icon — used by rest of this scope for busy-state seeding etc.
+    const signout = signouts[0];
 
     // Activation helper for the compact header icons. Fires on click,
     // dblclick, and touchend so both a desktop double-click and a mobile
@@ -984,6 +990,40 @@
       catch (_e) { /* user dismissed or GIS error — toast handled upstream */ }
       finally { done(); }
     });
+    // Also wire any additional in-page sign-in buttons (e.g. the Reservations
+    // "Please sign in" gate). Each gets the same busy-state + Auth.signIn().
+    signins.slice(1).forEach((btn) => {
+      bindIconActivation(btn, async () => {
+        const done = withBusyState(btn, 'Signing in\u2026');
+        try { await root.Auth.signIn(); }
+        catch (_e) { /* user dismissed */ }
+        finally { done(); }
+      });
+    });
+    // Safety-net delegated handler: if any page injects a [data-tsh-signin]
+    // button AFTER bindHeader() has run (dynamic gates, modal login prompts,
+    // etc.), a document-level click still triggers Auth.signIn(). The
+    // per-button bindIconActivation above short-circuits duplicate fires via
+    // its own 350ms dedupe, so wired buttons still route through their busy
+    // state — this only kicks in when nothing else caught the click.
+    if (!document.__tshSigninDelegate) {
+      document.__tshSigninDelegate = true;
+      document.addEventListener('click', (ev) => {
+        const btn = ev.target && ev.target.closest && ev.target.closest('[data-tsh-signin]');
+        if (!btn) return;
+        // Skip if the button was already wired by bindHeader (avoids double
+        // fire) — bindIconActivation stamps `__tshWired` via its listener
+        // set, so we track it explicitly here.
+        if (btn.__tshSigninWired) return;
+        btn.__tshSigninWired = true;
+        Promise.resolve()
+          .then(() => root.Auth && root.Auth.signIn && root.Auth.signIn())
+          .catch(() => { /* user dismissed */ })
+          .finally(() => { btn.__tshSigninWired = false; });
+      });
+    }
+    // Tag the wired buttons so the delegated safety-net doesn't re-fire them.
+    signins.forEach((btn) => { btn.__tshSigninWired = true; });
     bindIconActivation(signout, () => {
       withBusyState(signout, 'Signing out\u2026');
       // No restore needed — location.reload() replaces the page.

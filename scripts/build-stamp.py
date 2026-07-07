@@ -39,7 +39,7 @@ LOGO_MAX = 380                          # bounding box for centred logo (~150% o
 STAR_GAP_DEG = 6                        # angular gap between text endpoint and star
 STAR_R_OUT = 20
 STAR_R_IN = 9
-PIN_TEXT = "PIN 411045"                 # gold caption printed under the logo
+PIN_TEXT = "P.O. 411045"                # gold caption printed under the logo
 PIN_FSIZE = 34
 
 
