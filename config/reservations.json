@@ -191,7 +191,7 @@
         "role": "ADMIN"
       },
       "createdAt": "2026-07-07T05:14:57.637Z",
-      "updatedAt": "2026-07-07T05:30:33.690Z",
+      "updatedAt": "2026-07-07T05:30:50.241Z",
       "timeline": [
         {
           "at": "2026-07-07T05:14:57.637Z",
@@ -210,10 +210,19 @@
           },
           "event": "payment-uploaded",
           "note": "sample-ref.jpg (254 KB)"
+        },
+        {
+          "at": "2026-07-07T05:30:50.241Z",
+          "by": {
+            "email": "ta.deskops@gmail.com",
+            "role": "ADMIN"
+          },
+          "event": "payment-verified",
+          "note": "Verified from statement"
         }
       ],
       "payment": {
-        "status": "submitted",
+        "status": "verified",
         "proofs": [
           {
             "path": "ch/proofs/CH-0707261044/01.jpg",
@@ -225,7 +234,10 @@
           }
         ],
         "amount": 5000,
-        "payee": "Society Manager"
+        "payee": "Society Manager",
+        "note": "Verified from statement",
+        "verifiedAt": "2026-07-07T05:30:50.241Z",
+        "verifiedBy": "ta.deskops@gmail.com"
       }
     }
   ]
