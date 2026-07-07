@@ -191,7 +191,7 @@
         "role": "ADMIN"
       },
       "createdAt": "2026-07-07T05:14:57.637Z",
-      "updatedAt": "2026-07-07T05:14:57.637Z",
+      "updatedAt": "2026-07-07T05:30:33.690Z",
       "timeline": [
         {
           "at": "2026-07-07T05:14:57.637Z",
@@ -201,11 +201,29 @@
           },
           "event": "created",
           "note": "Awaiting manager review."
+        },
+        {
+          "at": "2026-07-07T05:30:33.690Z",
+          "by": {
+            "email": "ta.deskops@gmail.com",
+            "role": "ADMIN"
+          },
+          "event": "payment-uploaded",
+          "note": "sample-ref.jpg (254 KB)"
         }
       ],
       "payment": {
-        "status": "pending",
-        "proofs": [],
+        "status": "submitted",
+        "proofs": [
+          {
+            "path": "ch/proofs/CH-0707261044/01.jpg",
+            "name": "sample-ref.jpg",
+            "mime": "image/jpeg",
+            "size": 259607,
+            "uploadedAt": "2026-07-07T05:30:33.690Z",
+            "uploadedBy": "ta.deskops@gmail.com"
+          }
+        ],
         "amount": 5000,
         "payee": "Society Manager"
       }
