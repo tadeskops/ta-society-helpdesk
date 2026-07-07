@@ -704,6 +704,19 @@
       ],
       "link": "reservations.html?open=CH-0707261044",
       "actor": "ta.deskops@gmail.com"
+    },
+    {
+      "id": "NTF-mra7nkwx-8",
+      "recipient": "ta.deskops@gmail.com",
+      "event": "payment-verified",
+      "title": "Payment verified · CH-0707261044",
+      "body": "Community Hall · 2026-07-17 · Verified from statement",
+      "createdAt": "2026-07-07T05:30:52.449Z",
+      "channels": [
+        "in-app"
+      ],
+      "link": "reservations.html?open=CH-0707261044",
+      "actor": "ta.deskops@gmail.com"
     }
   ]
 }
