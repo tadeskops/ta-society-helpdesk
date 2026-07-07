@@ -1062,7 +1062,31 @@
         detail: 'Reflects the user\u2019s highest mapped role. Turn OFF to display only the email.',
         default: 'true',
       },
-
+      'FEATURE_DAILY_EXPORT_PDF': {
+        summary: 'Enable the "Export PDF" wizard button that appears on report pages.',
+        detail: 'When ON, pages like the public board and reservations expose a wizard that renders the current view to PDF (via jsPDF + autotable). Turn OFF to hide the button everywhere.',
+        default: 'true',
+      },
+      'FEATURE_BOOKINGS_REPORT': {
+        summary: 'Enable the Bookings PDF report on the Reservations page.',
+        detail: 'When ON, a "Bookings report" wizard is available on the Reservations page to export filtered booking lists to PDF. Turn OFF to hide it.',
+        default: 'true',
+      },
+      'FEATURE_TSH_RESERVATIONS': {
+        summary: 'Enable the community-facility Reservations page (booking wizard, calendar, receipts).',
+        detail: 'When OFF, the Reservations quick-tile is hidden on the landing page and /reservations.html renders a "not enabled for this site" message. All /reservations, /facilities and /availability API endpoints return feature-disabled. Turn ON to expose the full booking workflow (Guided Wizard for residents, Calendar mode for Manager+ staff, receipts + payment proof archive).',
+        default: 'true',
+      },
+      'FEATURE_TSH_NOTIFICATIONS': {
+        summary: 'Enable server-side email notifications for reservation events (created / approved / rejected / cancelled).',
+        detail: 'When ON, the worker sends outgoing e-mails on booking state changes via the configured provider. Turn OFF for silent operation (activity is still recorded in the timeline).',
+        default: 'true',
+      },
+      'FEATURE_TSH_RESERVATIONS_CALENDAR': {
+        summary: 'Mirror confirmed reservations to a shared Google Calendar.',
+        detail: 'Requires the worker to be configured with Google Calendar service-account credentials. Default OFF for safety \u2014 turn ON only after the credentials + target calendar ID are wired.',
+        default: 'false',
+      },
       // Tunables (short name, used by tunables.<NAME>)
       'DAILY_AUTO_ASSIGN_HOURS': {
         summary: 'Hours before a new issue with no manager action is auto-assigned to the Society Manager rota.',

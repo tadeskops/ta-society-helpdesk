@@ -135,44 +135,68 @@
       document.body.innerHTML = '<main class="tsh-main"><section class="tsh-card"><p>Reservations are not enabled for this site.</p></section></main>';
       return;
     }
-    // Sign-in gate.
-    if (!root.Auth || !root.Auth.token || !root.Auth.token()) {
-      $('[data-res-signin]').hidden = false;
-      $('[data-res-main]').hidden = true;
-      return;
+
+    // Sign-in gate. The header ships its own Google sign-in button, so
+    // when a signed-out user taps that, we get an Auth.onChange event
+    // and swap the body from the local "please sign in" card to the
+    // real workspace without a page reload. Prior to this the mobile
+    // body would keep showing "Sign in" even after the header greeting
+    // switched to the signed-in state.
+    const signinCard = $('[data-res-signin]');
+    const mainCard   = $('[data-res-main]');
+    let bootstrapped = false;
+
+    const isSignedIn = () => !!(root.Auth && root.Auth.token && root.Auth.token());
+
+    const bootstrapSignedIn = async () => {
+      if (bootstrapped) return;
+      bootstrapped = true;
+      who = await root.Flags.whoami();
+      const isStaff = who && root.Flags.isAtLeast && root.Flags.isAtLeast(who.primary, 'MANAGER');
+      $$('[data-res-staff-only]').forEach((el) => { el.hidden = !isStaff; });
+
+      // Guided Wizard is the default for everyone (residents + staff).
+      // Staff can still flip to Calendar via the mode toggle when they
+      // need the drag-book / on-behalf-of workflow.
+      bookMode = 'wizard';
+      wireBookMode();
+
+      wireTabs();
+      wireRange();
+
+      try {
+        const res = await root.Api.get('/facilities');
+        facilities = (res && res.facilities) || [];
+      } catch (e) {
+        root.UI.toast('Could not load facilities: ' + (e && e.message || e), { kind: 'danger' });
+        return;
+      }
+      renderFacilityPicker();
+      if (facilities.length) {
+        selectFacility(facilities[0].id);
+      }
+      // Preload the resident list so the tab count is accurate on first visit.
+      refreshMine();
+      if (isStaff) refreshManage();
+
+      bindPdfReport();
+    };
+
+    const syncGate = async () => {
+      if (isSignedIn()) {
+        if (signinCard) signinCard.hidden = true;
+        if (mainCard)   mainCard.hidden   = false;
+        await bootstrapSignedIn();
+      } else if (!bootstrapped) {
+        if (signinCard) signinCard.hidden = false;
+        if (mainCard)   mainCard.hidden   = true;
+      }
+    };
+
+    if (root.Auth && typeof root.Auth.onChange === 'function') {
+      root.Auth.onChange(() => { syncGate(); });
     }
-    $('[data-res-signin]').hidden = true;
-    $('[data-res-main]').hidden = false;
-
-    who = await root.Flags.whoami();
-    const isStaff = who && root.Flags.isAtLeast && root.Flags.isAtLeast(who.primary, 'MANAGER');
-    $$('[data-res-staff-only]').forEach((el) => { el.hidden = !isStaff; });
-
-    // Guided Wizard is the default for everyone (residents + staff).
-    // Staff can still flip to Calendar via the mode toggle when they
-    // need the drag-book / on-behalf-of workflow.
-    bookMode = 'wizard';
-    wireBookMode();
-
-    wireTabs();
-    wireRange();
-
-    try {
-      const res = await root.Api.get('/facilities');
-      facilities = (res && res.facilities) || [];
-    } catch (e) {
-      root.UI.toast('Could not load facilities: ' + (e && e.message || e), { kind: 'danger' });
-      return;
-    }
-    renderFacilityPicker();
-    if (facilities.length) {
-      selectFacility(facilities[0].id);
-    }
-    // Preload the resident list so the tab count is accurate on first visit.
-    refreshMine();
-    if (isStaff) refreshManage();
-
-    bindPdfReport();
+    await syncGate();
   }
 
   // -------------------------------------------------------- tabs
