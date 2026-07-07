@@ -1320,6 +1320,63 @@ export const mountReservations = (r: Router): void => {
     return ok(ctx.env, ctx.req, { template: tpl });
   });
 
+  // Narrow write endpoint for the two receipt presentation knobs
+  // (theme + seal language). Deliberately MANAGER+ instead of ADMIN-only
+  // so Society Managers and Committee members can pick a theme/language
+  // without needing full config write access. Everything else in
+  // site.json stays untouched.
+  r.put('/receipts/settings', async (ctx: Ctx) => {
+    ensureAllowed(ctx, {
+      flags: [FLAG],
+      roles: ['MANAGER', 'COMMITTEE', 'ADMIN'],
+      requireIdentity: true,
+    });
+    const body = await parseJson<Record<string, unknown>>(ctx.req);
+    let nextLang: 'en' | 'hi' | 'mr' | undefined;
+    let nextTheme: 'default' | 'cheque-classic' | 'certificate-brand' | undefined;
+    if (body['sealLang'] !== undefined) {
+      const v = oneOf(body['sealLang'], 'sealLang', ['en', 'hi', 'mr'] as const);
+      nextLang = v;
+    }
+    if (body['theme'] !== undefined) {
+      const v = oneOf(body['theme'], 'theme', ['default', 'cheque-classic', 'certificate-brand'] as const);
+      nextTheme = v;
+    }
+    if (nextLang === undefined && nextTheme === undefined) {
+      throw new BadRequest('provide at least one of sealLang, theme');
+    }
+    const siteFile = await getFile(ctx.env, 'config/site.json');
+    if (!siteFile) throw new BadRequest('config/site.json not found');
+    let site: Record<string, unknown>;
+    try { site = JSON.parse(siteFile.content) as Record<string, unknown>; }
+    catch { throw new BadRequest('config/site.json is not valid JSON'); }
+    const system = (site['system'] && typeof site['system'] === 'object')
+      ? site['system'] as Record<string, unknown>
+      : {};
+    if (nextLang  !== undefined) system['receiptSealLang'] = nextLang;
+    if (nextTheme !== undefined) system['receiptTheme']    = nextTheme;
+    site['system'] = system;
+    const actor = ctx.identity!.email;
+    const serialised = JSON.stringify(site, null, 2) + '\n';
+    await putFile(
+      ctx.env, 'config/site.json', serialised,
+      `receipts: update presentation defaults by ${actor}`,
+      actor, siteFile.sha,
+    );
+    await writeAudit(ctx.env, {
+      actor, action: 'receipts:settings',
+      target: 'config/site.json',
+      detail: [
+        nextTheme ? `theme=${nextTheme}` : null,
+        nextLang  ? `sealLang=${nextLang}` : null,
+      ].filter(Boolean).join(' '),
+    });
+    return ok(ctx.env, ctx.req, {
+      sealLang: system['receiptSealLang'] ?? 'en',
+      theme:    system['receiptTheme'] ?? 'default',
+    });
+  });
+
   r.post('/receipts/template', async (ctx: Ctx) => {
     ensureAllowed(ctx, {
       flags: [FLAG],

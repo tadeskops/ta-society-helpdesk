@@ -1115,3 +1115,62 @@ describe('/receipts/template', () => {
     expect(j.error).toMatch(/image\/jpeg\|png\|webp or application\/pdf/i);
   });
 });
+
+// -------------------------------------------------- receipt settings
+
+describe('/receipts/settings (PUT)', () => {
+  const seedSite = () => {
+    files.set('config/site.json', {
+      sha: 'sha-site',
+      content: JSON.stringify({
+        version: 1,
+        features: {}, tunables: {}, lists: {},
+        system: { issuesRepo: 'x/y' },
+      }),
+    });
+  };
+
+  it('is forbidden for residents', async () => {
+    seedSite();
+    const r = await send('PUT', '/receipts/settings', { theme: 'cheque-classic' }, 'resident1@x.com');
+    expect(r.status).toBe(403);
+  });
+
+  it('accepts a manager updating just the theme', async () => {
+    seedSite();
+    const r = await send('PUT', '/receipts/settings', { theme: 'cheque-classic' }, 'mgr@x.com');
+    expect(r.status).toBe(200);
+    const j = await r.json() as any;
+    expect(j.data.theme).toBe('cheque-classic');
+    expect(j.data.sealLang).toBe('en');
+    const stored = JSON.parse(files.get('config/site.json')!.content);
+    expect(stored.system.receiptTheme).toBe('cheque-classic');
+    expect(stored.system.receiptSealLang).toBeUndefined();
+  });
+
+  it('accepts a committee member updating both fields at once', async () => {
+    seedSite();
+    const r = await send('PUT', '/receipts/settings', {
+      theme: 'certificate-brand', sealLang: 'mr',
+    }, 'cmt@x.com');
+    expect(r.status).toBe(200);
+    const stored = JSON.parse(files.get('config/site.json')!.content);
+    expect(stored.system.receiptTheme).toBe('certificate-brand');
+    expect(stored.system.receiptSealLang).toBe('mr');
+    expect(stored.system.issuesRepo).toBe('x/y');
+  });
+
+  it('rejects an unknown theme value', async () => {
+    seedSite();
+    const r = await send('PUT', '/receipts/settings', { theme: 'holographic' }, 'mgr@x.com');
+    expect(r.status).toBe(400);
+  });
+
+  it('rejects an empty body', async () => {
+    seedSite();
+    const r = await send('PUT', '/receipts/settings', {}, 'mgr@x.com');
+    expect(r.status).toBe(400);
+    const j = await r.json() as any;
+    expect(j.error).toMatch(/at least one of sealLang, theme/i);
+  });
+});

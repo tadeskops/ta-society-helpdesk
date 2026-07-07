@@ -407,9 +407,17 @@
     catch (_e) { return; }
 
     const readOnly = who.primary !== 'ADMIN';
+    // Society Managers and Committee members get write access to a
+    // narrow slice of settings — currently the receipt-theme and
+    // seal-language selects — via the dedicated PUT /receipts/settings
+    // endpoint. Everything else stays admin-only.
+    const canEditReceiptSettings = Flags.isAtLeast(who.primary, 'MANAGER');
     document.getElementById('roleHint').textContent =
-      readOnly ? 'Committee read-only view. Ask an admin to make changes.'
-               : 'Admin write access. Changes apply within 60 s for all users.';
+      readOnly
+        ? (canEditReceiptSettings
+            ? 'Read-only view. You can still change the receipt theme and seal language below (Save receipt settings button).'
+            : 'Committee read-only view. Ask an admin to make changes.')
+        : 'Admin write access. Changes apply within 60 s for all users.';
 
     const cfg = await Flags.ready();
     const access = await Api.get('/access-lists').catch(() => ({ managers: [], committee: [], admins: [] }));
@@ -422,6 +430,11 @@
         el.disabled = true;
       }
       for (const el of document.querySelectorAll('[data-tsh-dev-only]')) el.hidden = true;
+
+      // Manager+/Committee: re-enable the two receipt presentation
+      // selects and mount a dedicated per-section Save button that goes
+      // through PUT /receipts/settings.
+      if (canEditReceiptSettings) mountReceiptSettingsEditor();
       return;
     }
 
@@ -445,6 +458,61 @@
         }
       }, { label: 'Saving settings\u2026' });
     });
+
+    // ------------------------------------------------------------------
+    // Manager+ / Committee editor for the receipt presentation defaults.
+    // Re-enables just the two selects inside #receiptArchiveSection and
+    // mounts a dedicated Save button that goes through the narrow
+    // PUT /receipts/settings worker endpoint. Called only in readOnly
+    // mode; admin uses the top-level Save button (which writes the
+    // whole site.json through PUT /config) instead.
+    function mountReceiptSettingsEditor() {
+      const form = document.getElementById('settingsForm');
+      const themeSel = form.elements['system.receiptTheme'];
+      const langSel  = form.elements['system.receiptSealLang'];
+      if (!themeSel || !langSel) return;
+      themeSel.disabled = false;
+      langSel.disabled  = false;
+
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'tsh-btn tsh-btn-primary';
+      btn.style.marginTop = '12px';
+      btn.innerHTML = '<i class="fas fa-floppy-disk"></i> Save receipt settings';
+      btn.disabled = true;
+
+      let baseTheme = themeSel.value;
+      let baseLang  = langSel.value;
+      const markDirty = () => {
+        btn.disabled = (themeSel.value === baseTheme && langSel.value === baseLang);
+      };
+      themeSel.addEventListener('change', markDirty);
+      langSel .addEventListener('change', markDirty);
+
+      btn.addEventListener('click', async () => {
+        await UI.busyButton(btn, async () => {
+          try {
+            const data = await Api.put('/receipts/settings', {
+              theme:    themeSel.value,
+              sealLang: langSel.value,
+            });
+            UI.toast('Receipt settings saved. Changes reach all users within 60 s.', { kind: 'success' });
+            baseTheme = (data && data.theme)    || themeSel.value;
+            baseLang  = (data && data.sealLang) || langSel.value;
+            btn.disabled = true;
+          } catch (e) {
+            UI.toast(e.message || 'Save failed.', { kind: 'danger' });
+            throw e;
+          }
+        }, { label: 'Saving\u2026' });
+      });
+
+      const section = document.getElementById('receiptArchiveSection');
+      if (!section) return;
+      const grid = section.querySelector('.tsh-grid-2');
+      if (grid) grid.parentNode.insertBefore(btn, grid.nextSibling);
+      else      section.appendChild(btn);
+    }
 
     function fill(cfg, access) {
       const form = document.getElementById('settingsForm');
