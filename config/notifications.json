@@ -913,6 +913,19 @@
       ],
       "link": "reservations.html?open=CH-0707261332",
       "actor": "ta.deskops@gmail.com"
+    },
+    {
+      "id": "NTF-mrad4k83-8",
+      "recipient": "vibhumaitreya@gmail.com",
+      "event": "payment-verified",
+      "title": "Payment verified · CH-0707261332",
+      "body": "Community Hall · 2026-07-18 · Verified from statement",
+      "createdAt": "2026-07-07T08:04:02.787Z",
+      "channels": [
+        "in-app"
+      ],
+      "link": "reservations.html?open=CH-0707261332",
+      "actor": "ta.deskops@gmail.com"
     }
   ]
 }
