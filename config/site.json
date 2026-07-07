@@ -291,7 +291,8 @@
       "bytes": 239593,
       "updatedBy": "ta.deskops@gmail.com",
       "updatedAt": "2026-07-06T18:45:30.752Z"
-    }
+    },
+    "receiptSealLang": "en"
   },
   "ui": {
     "defaultTheme": "light",

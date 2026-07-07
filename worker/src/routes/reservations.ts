@@ -1292,11 +1292,21 @@ export const mountReservations = (r: Router): void => {
     ensureAllowed(ctx, { flags: [FLAG] });
     const f = await getFile(ctx.env, 'config/site.json');
     let tpl: unknown = null;
+    let defaultSealLang: 'en' | 'hi' | 'mr' = 'en';
     if (f) {
       try {
-        const parsed = JSON.parse(f.content) as { system?: { receiptTemplate?: unknown } };
+        const parsed = JSON.parse(f.content) as { system?: { receiptTemplate?: unknown; receiptSealLang?: unknown } };
         tpl = parsed.system?.receiptTemplate ?? null;
+        const lang = parsed.system?.receiptSealLang;
+        if (lang === 'hi' || lang === 'mr' || lang === 'en') defaultSealLang = lang;
       } catch { /* ignore */ }
+    }
+    // Overlay the admin-configured seal language onto the template object
+    // so a single round-trip gives the client both the letterhead and the
+    // language default. Not persisted inside receiptTemplate — read from
+    // system.receiptSealLang each time so admins can flip it live.
+    if (tpl && typeof tpl === 'object') {
+      (tpl as Record<string, unknown>).defaultSealLang = defaultSealLang;
     }
     return ok(ctx.env, ctx.req, { template: tpl });
   });

@@ -2878,8 +2878,17 @@
     // (English P.O. / Hindi + Marathi डाकघर). Standard PDF fonts can't
     // render Devanagari so the body labels stay Latin; the seal is what
     // carries the language identity on the receipt.
+    //
+    // Access model: the DEFAULT language is chosen once by a Manager /
+    // Committee / Admin in Settings → Booking receipt archive → seal
+    // language. Residents get that default silently (no picker). Staff
+    // still see the picker on the modal so they can override on the fly
+    // for a one-off download.
     const LANG_LABEL = { en: 'English', hi: 'Hindi', mr: 'Marathi' };
-    let lang = 'en';
+    const cfgLang = tpl && (tpl.defaultSealLang === 'hi' || tpl.defaultSealLang === 'mr' || tpl.defaultSealLang === 'en')
+      ? tpl.defaultSealLang : 'en';
+    let lang = cfgLang;
+    const isStaff = !!(who && root.Flags && root.Flags.isAtLeast && root.Flags.isAtLeast(who.primary, 'MANAGER'));
     let bundle;
     const buildBundle = async () =>
       tpl.mime === 'application/pdf'
@@ -2897,11 +2906,12 @@
     const bar = document.createElement('div');
     bar.style.cssText = 'display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;align-items:center;';
 
-    // Language picker (only visible when a confirmed booking has a stamp
-    // to swap; the seal is only drawn on confirmed receipts). For pending
-    // or rejected receipts the picker would have no visible effect.
+    // Language picker — staff-only override. Hidden for residents (they
+    // just get the admin-configured default). Also hidden for
+    // pending/rejected bookings because the seal is only drawn on
+    // confirmed receipts.
     let langSel = null;
-    if (r.status === 'confirmed') {
+    if (r.status === 'confirmed' && isStaff) {
       const langWrap = document.createElement('label');
       langWrap.style.cssText = 'display:inline-flex;align-items:center;gap:6px;margin-right:auto;font-size:.9em;color:var(--tsh-muted,#4b5563);';
       langWrap.innerHTML = '<i class="fas fa-language" aria-hidden="true"></i><span>Seal language:</span>';
@@ -2910,10 +2920,12 @@
       langSel.style.cssText = 'padding:3px 6px;border-radius:4px;border:1px solid var(--tsh-border,#d1d5db);background:#fff;';
       for (const k of ['en', 'hi', 'mr']) {
         const opt = document.createElement('option');
-        opt.value = k; opt.textContent = LANG_LABEL[k];
+        opt.value = k;
+        opt.textContent = LANG_LABEL[k] + (k === cfgLang ? ' \u00b7 default' : '');
         langSel.appendChild(opt);
       }
       langSel.value = lang;
+      langSel.title = 'Override the site-wide default (' + LANG_LABEL[cfgLang] + ') for this download only.';
       langWrap.appendChild(langSel);
       bar.appendChild(langWrap);
     }
@@ -2928,10 +2940,15 @@
     dlBtn.innerHTML = '<i class="fas fa-file-arrow-down"></i> Download PDF';
     bar.append(printBtn, dlBtn);
 
+    // PDF Open Parameters: navpanes=0 hides the left thumbnail rail,
+    // toolbar=1 keeps the top page/zoom bar, view=FitH fits page width.
+    // Chrome/Edge honour these; Firefox mostly ignores them (still shows
+    // just the preview in either case, no sidebar clutter).
+    const viewerParams = '#toolbar=1&navpanes=0&statusbar=0&view=FitH';
     const frame = document.createElement('iframe');
     frame.title = 'Receipt preview';
     frame.style.cssText = 'width:100%;height:65vh;min-height:420px;border:1px solid var(--tsh-border,#e5e7eb);border-radius:6px;background:#f9fafb;';
-    frame.src = bundle.bloburl;
+    frame.src = bundle.bloburl + viewerParams;
     wrap.append(bar, frame);
 
     // Rebuild + swap the iframe when the user picks a different language.
@@ -2948,7 +2965,7 @@
         try {
           lang = next;
           bundle = await buildBundle();
-          frame.src = bundle.bloburl;
+          frame.src = bundle.bloburl + viewerParams;
           try { URL.revokeObjectURL(prevBloburl); } catch (_e) { /* ignore */ }
         } catch (e) {
           root.UI.toast('Rebuild failed: ' + (e && e.message || e), { kind: 'danger' });

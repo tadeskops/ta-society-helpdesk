@@ -248,6 +248,15 @@
               <input type="text" name="system.receiptsArchive.rollup.path" placeholder="{facilityCodeLower}/bckp/{period}/{periodKey}.pdf" />
               <p class="tsh-help">Consolidated rollup location. Example preview: <code id="raPreviewRoll">&mdash;</code></p>
             </div>
+            <div class="tsh-field">
+              <span class="tsh-label">seal language <span class="tsh-hint">(default for downloads)</span></span>
+              <select name="system.receiptSealLang">
+                <option value="en">English &mdash; P.O. 411045</option>
+                <option value="hi">Hindi &mdash; डाकघर 411045</option>
+                <option value="mr">Marathi &mdash; डाकघर 411045</option>
+              </select>
+              <p class="tsh-help">Language used for the confirmed-booking rubber stamp. Residents see only this default; Managers can override per download from the receipt preview.</p>
+            </div>
           </div>
         </details>
 
@@ -500,6 +509,8 @@
         (raRoll.period === 'quarterly' || raRoll.period === 'yearly') ? raRoll.period : 'monthly';
       form.elements['system.receiptsArchive.rollup.path'].value =
         raRoll.path || '{facilityCodeLower}/bckp/{period}/{periodKey}.pdf';
+      const sealLang = (sys.receiptSealLang === 'hi' || sys.receiptSealLang === 'mr') ? sys.receiptSealLang : 'en';
+      form.elements['system.receiptSealLang'].value = sealLang;
       wireReceiptArchivePreview();
       loadReceiptArchiveTarget();
 
@@ -627,6 +638,8 @@
           path: raRollPath || '{facilityCodeLower}/bckp/{period}/{periodKey}.pdf',
         },
       };
+      const _sealLang = form.elements['system.receiptSealLang'].value;
+      cfg.system.receiptSealLang = (_sealLang === 'hi' || _sealLang === 'mr') ? _sealLang : 'en';
 
       // UI defaults
       cfg.ui = cfg.ui || {};
