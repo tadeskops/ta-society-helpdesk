@@ -1124,11 +1124,24 @@ export const mountReservations = (r: Router): void => {
     }
 
     const nextIdx = rec.payment.proofs.length + 1;
-    const path = proofRepoPath(rec.id, nextIdx, mime as ProofMime);
+    // Route the upload to the private receipts repo when it is configured
+    // (env.GH_RECEIPTS_REPO is set). Falls back to the legacy public path
+    // in the main repo so a mis-configured worker still functions. Legacy
+    // proofs already sitting under payments/... in the main repo remain
+    // readable via the path-prefix fallback in the GET handler.
+    const receiptsTarget = receiptsRepoTarget(ctx.env);
+    const path = receiptsTarget
+      ? `${facilityCode(facility).toLowerCase()}/proofs/${rec.id}/${String(nextIdx).padStart(2, '0')}.${
+          mime === 'application/pdf' ? 'pdf' :
+          mime === 'image/png'       ? 'png' :
+          mime === 'image/webp'      ? 'webp' : 'jpg'
+        }`
+      : proofRepoPath(rec.id, nextIdx, mime as ProofMime);
     await putBinaryB64(
       ctx.env, path, b64,
       `reservations: payment proof for ${rec.id} by ${ctx.identity!.email}`,
       ctx.identity!.email,
+      receiptsTarget,
     );
 
     const nowIso = new Date().toISOString();
@@ -1185,7 +1198,14 @@ export const mountReservations = (r: Router): void => {
     if (!Number.isFinite(n) || n < 1) throw new BadRequest('proof index must be >= 1');
     const proof = rec.payment?.proofs[n - 1];
     if (!proof) throw new NotFound(`Proof #${n} not found`);
-    const bin = await getBinaryFile(ctx.env, proof.path);
+    // Legacy proofs live in the public main repo under `payments/…`.
+    // New proofs land in the private receipts repo (per-facility folder).
+    // The stored path is the discriminator so old records keep working
+    // even after the migration to the private repo.
+    const proofTarget = proof.path.startsWith('payments/')
+      ? undefined
+      : receiptsRepoTarget(ctx.env);
+    const bin = await getBinaryFile(ctx.env, proof.path, proofTarget);
     if (!bin) throw new NotFound(`Proof file ${proof.path} missing`);
     // Stream bytes with the recorded mime. No cache (PII).
     return new Response(bin.bytes as unknown as BodyInit, {
