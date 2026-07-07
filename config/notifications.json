@@ -509,6 +509,110 @@
       ],
       "link": "reservations.html?open=CH-0707260126",
       "actor": "ta.deskops@gmail.com"
+    },
+    {
+      "id": "NTF-mra736ol-1",
+      "recipient": "ta.deskops@gmail.com",
+      "event": "reservation-created",
+      "title": "New reservation · Community Hall",
+      "body": "2026-07-17 · 08:00–13:00 · C-1605 · Test Run",
+      "createdAt": "2026-07-07T05:15:00.885Z",
+      "channels": [
+        "in-app"
+      ],
+      "link": "reservations.html?open=CH-0707261044",
+      "actor": "ta.deskops@gmail.com"
+    },
+    {
+      "id": "NTF-mra736ol-2",
+      "recipient": "chironjeetb7@gmail.com",
+      "event": "reservation-created",
+      "title": "New reservation · Community Hall",
+      "body": "2026-07-17 · 08:00–13:00 · C-1605 · Test Run",
+      "createdAt": "2026-07-07T05:15:00.885Z",
+      "channels": [
+        "in-app"
+      ],
+      "link": "reservations.html?open=CH-0707261044",
+      "actor": "ta.deskops@gmail.com"
+    },
+    {
+      "id": "NTF-mra736ol-3",
+      "recipient": "sagarthakare@gmail.com",
+      "event": "reservation-created",
+      "title": "New reservation · Community Hall",
+      "body": "2026-07-17 · 08:00–13:00 · C-1605 · Test Run",
+      "createdAt": "2026-07-07T05:15:00.885Z",
+      "channels": [
+        "in-app"
+      ],
+      "link": "reservations.html?open=CH-0707261044",
+      "actor": "ta.deskops@gmail.com"
+    },
+    {
+      "id": "NTF-mra736ol-4",
+      "recipient": "dhiman.parekh89@gmail.com",
+      "event": "reservation-created",
+      "title": "New reservation · Community Hall",
+      "body": "2026-07-17 · 08:00–13:00 · C-1605 · Test Run",
+      "createdAt": "2026-07-07T05:15:00.885Z",
+      "channels": [
+        "in-app"
+      ],
+      "link": "reservations.html?open=CH-0707261044",
+      "actor": "ta.deskops@gmail.com"
+    },
+    {
+      "id": "NTF-mra736ol-5",
+      "recipient": "jayantr55@gmail.com",
+      "event": "reservation-created",
+      "title": "New reservation · Community Hall",
+      "body": "2026-07-17 · 08:00–13:00 · C-1605 · Test Run",
+      "createdAt": "2026-07-07T05:15:00.885Z",
+      "channels": [
+        "in-app"
+      ],
+      "link": "reservations.html?open=CH-0707261044",
+      "actor": "ta.deskops@gmail.com"
+    },
+    {
+      "id": "NTF-mra736ol-6",
+      "recipient": "tanujdang02@gmail.com",
+      "event": "reservation-created",
+      "title": "New reservation · Community Hall",
+      "body": "2026-07-17 · 08:00–13:00 · C-1605 · Test Run",
+      "createdAt": "2026-07-07T05:15:00.885Z",
+      "channels": [
+        "in-app"
+      ],
+      "link": "reservations.html?open=CH-0707261044",
+      "actor": "ta.deskops@gmail.com"
+    },
+    {
+      "id": "NTF-mra736ol-7",
+      "recipient": "sharmaanushka2802@gmail.com",
+      "event": "reservation-created",
+      "title": "New reservation · Community Hall",
+      "body": "2026-07-17 · 08:00–13:00 · C-1605 · Test Run",
+      "createdAt": "2026-07-07T05:15:00.885Z",
+      "channels": [
+        "in-app"
+      ],
+      "link": "reservations.html?open=CH-0707261044",
+      "actor": "ta.deskops@gmail.com"
+    },
+    {
+      "id": "NTF-mra736ol-8",
+      "recipient": "theaddressaundh@gmail.com",
+      "event": "reservation-created",
+      "title": "New reservation · Community Hall",
+      "body": "2026-07-17 · 08:00–13:00 · C-1605 · Test Run",
+      "createdAt": "2026-07-07T05:15:00.885Z",
+      "channels": [
+        "in-app"
+      ],
+      "link": "reservations.html?open=CH-0707261044",
+      "actor": "ta.deskops@gmail.com"
     }
   ]
 }
