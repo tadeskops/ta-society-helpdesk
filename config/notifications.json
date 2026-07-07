@@ -718,6 +718,110 @@
       "link": "reservations.html?open=CH-0707261044",
       "actor": "ta.deskops@gmail.com",
       "readAt": "2026-07-07T06:31:46.012Z"
+    },
+    {
+      "id": "NTF-mrad2ric-1",
+      "recipient": "ta.deskops@gmail.com",
+      "event": "reservation-created",
+      "title": "New reservation · Community Hall",
+      "body": "2026-07-18 · 09:00–13:00 · C-1706 · ertyuuiop",
+      "createdAt": "2026-07-07T08:02:38.916Z",
+      "channels": [
+        "in-app"
+      ],
+      "link": "reservations.html?open=CH-0707261332",
+      "actor": "vibhumaitreya@gmail.com"
+    },
+    {
+      "id": "NTF-mrad2ric-2",
+      "recipient": "chironjeetb7@gmail.com",
+      "event": "reservation-created",
+      "title": "New reservation · Community Hall",
+      "body": "2026-07-18 · 09:00–13:00 · C-1706 · ertyuuiop",
+      "createdAt": "2026-07-07T08:02:38.916Z",
+      "channels": [
+        "in-app"
+      ],
+      "link": "reservations.html?open=CH-0707261332",
+      "actor": "vibhumaitreya@gmail.com"
+    },
+    {
+      "id": "NTF-mrad2ric-3",
+      "recipient": "sagarthakare@gmail.com",
+      "event": "reservation-created",
+      "title": "New reservation · Community Hall",
+      "body": "2026-07-18 · 09:00–13:00 · C-1706 · ertyuuiop",
+      "createdAt": "2026-07-07T08:02:38.916Z",
+      "channels": [
+        "in-app"
+      ],
+      "link": "reservations.html?open=CH-0707261332",
+      "actor": "vibhumaitreya@gmail.com"
+    },
+    {
+      "id": "NTF-mrad2ric-4",
+      "recipient": "dhiman.parekh89@gmail.com",
+      "event": "reservation-created",
+      "title": "New reservation · Community Hall",
+      "body": "2026-07-18 · 09:00–13:00 · C-1706 · ertyuuiop",
+      "createdAt": "2026-07-07T08:02:38.916Z",
+      "channels": [
+        "in-app"
+      ],
+      "link": "reservations.html?open=CH-0707261332",
+      "actor": "vibhumaitreya@gmail.com"
+    },
+    {
+      "id": "NTF-mrad2ric-5",
+      "recipient": "jayantr55@gmail.com",
+      "event": "reservation-created",
+      "title": "New reservation · Community Hall",
+      "body": "2026-07-18 · 09:00–13:00 · C-1706 · ertyuuiop",
+      "createdAt": "2026-07-07T08:02:38.916Z",
+      "channels": [
+        "in-app"
+      ],
+      "link": "reservations.html?open=CH-0707261332",
+      "actor": "vibhumaitreya@gmail.com"
+    },
+    {
+      "id": "NTF-mrad2ric-6",
+      "recipient": "tanujdang02@gmail.com",
+      "event": "reservation-created",
+      "title": "New reservation · Community Hall",
+      "body": "2026-07-18 · 09:00–13:00 · C-1706 · ertyuuiop",
+      "createdAt": "2026-07-07T08:02:38.916Z",
+      "channels": [
+        "in-app"
+      ],
+      "link": "reservations.html?open=CH-0707261332",
+      "actor": "vibhumaitreya@gmail.com"
+    },
+    {
+      "id": "NTF-mrad2ric-7",
+      "recipient": "sharmaanushka2802@gmail.com",
+      "event": "reservation-created",
+      "title": "New reservation · Community Hall",
+      "body": "2026-07-18 · 09:00–13:00 · C-1706 · ertyuuiop",
+      "createdAt": "2026-07-07T08:02:38.916Z",
+      "channels": [
+        "in-app"
+      ],
+      "link": "reservations.html?open=CH-0707261332",
+      "actor": "vibhumaitreya@gmail.com"
+    },
+    {
+      "id": "NTF-mrad2ric-8",
+      "recipient": "theaddressaundh@gmail.com",
+      "event": "reservation-created",
+      "title": "New reservation · Community Hall",
+      "body": "2026-07-18 · 09:00–13:00 · C-1706 · ertyuuiop",
+      "createdAt": "2026-07-07T08:02:38.916Z",
+      "channels": [
+        "in-app"
+      ],
+      "link": "reservations.html?open=CH-0707261332",
+      "actor": "vibhumaitreya@gmail.com"
     }
   ]
 }
