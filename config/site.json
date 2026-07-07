@@ -292,7 +292,8 @@
       "updatedBy": "ta.deskops@gmail.com",
       "updatedAt": "2026-07-06T18:45:30.752Z"
     },
-    "receiptSealLang": "en"
+    "receiptSealLang": "en",
+    "receiptTheme": "default"
   },
   "ui": {
     "defaultTheme": "light",

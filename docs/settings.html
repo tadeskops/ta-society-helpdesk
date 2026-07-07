@@ -257,6 +257,15 @@
               </select>
               <p class="tsh-help">Language used for the confirmed-booking rubber stamp. Residents see only this default; Managers can override per download from the receipt preview.</p>
             </div>
+            <div class="tsh-field">
+              <span class="tsh-label">receipt theme <span class="tsh-hint">(default for downloads)</span></span>
+              <select name="system.receiptTheme">
+                <option value="default">Default &mdash; letterhead + overlay</option>
+                <option value="cheque-classic">Cheque Classic &mdash; blue grid (A5)</option>
+                <option value="certificate-brand">Certificate Brand &mdash; indigo + gold (A5)</option>
+              </select>
+              <p class="tsh-help">Visual layout used when a resident downloads a receipt. Non-default themes render at A5 landscape and translate the entire body into the picked language. Managers can override per download.</p>
+            </div>
           </div>
         </details>
 
@@ -511,6 +520,8 @@
         raRoll.path || '{facilityCodeLower}/bckp/{period}/{periodKey}.pdf';
       const sealLang = (sys.receiptSealLang === 'hi' || sys.receiptSealLang === 'mr') ? sys.receiptSealLang : 'en';
       form.elements['system.receiptSealLang'].value = sealLang;
+      const rTheme = (sys.receiptTheme === 'cheque-classic' || sys.receiptTheme === 'certificate-brand') ? sys.receiptTheme : 'default';
+      form.elements['system.receiptTheme'].value = rTheme;
       wireReceiptArchivePreview();
       loadReceiptArchiveTarget();
 
@@ -640,6 +651,8 @@
       };
       const _sealLang = form.elements['system.receiptSealLang'].value;
       cfg.system.receiptSealLang = (_sealLang === 'hi' || _sealLang === 'mr') ? _sealLang : 'en';
+      const _rTheme = form.elements['system.receiptTheme'].value;
+      cfg.system.receiptTheme = (_rTheme === 'cheque-classic' || _rTheme === 'certificate-brand') ? _rTheme : 'default';
 
       // UI defaults
       cfg.ui = cfg.ui || {};

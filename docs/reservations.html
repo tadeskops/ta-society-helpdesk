@@ -10,6 +10,14 @@
   <script>(function(){try{var t=localStorage.getItem('tsh_theme');if(t!=='dark'&&t!=='light'&&t!=='medium')t='light';if(t!=='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="./assets/css/theme.css?v=85" />
+  <!-- Google Fonts + html2canvas for the alternate receipt themes
+       (Cheque Classic + Certificate Brand). Noto Sans Devanagari
+       lets the Hindi/Marathi body text render at print quality. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Merriweather:wght@400;700&family=Noto+Sans+Devanagari:wght@400;600;700&family=Playfair+Display:wght@700&family=Roboto+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"
+          crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <style>
     /* Reservation-specific tweaks. Kept inline for Phase 1; will move to
        theme.css in a follow-up once the design is settled. */
@@ -518,7 +526,7 @@
   <script src="./assets/js/ui.js?v=53"></script>
   <script src="./assets/js/notify.js?v=1"></script>
   <script src="./assets/js/pdf-report.js?v=9"></script>
-  <script src="./assets/js/reservations.js?v=22"></script>
+  <script src="./assets/js/reservations.js?v=23"></script>
   <script>
   (async () => {
     await Partials.mount();

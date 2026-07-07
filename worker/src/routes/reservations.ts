@@ -1293,20 +1293,29 @@ export const mountReservations = (r: Router): void => {
     const f = await getFile(ctx.env, 'config/site.json');
     let tpl: unknown = null;
     let defaultSealLang: 'en' | 'hi' | 'mr' = 'en';
+    let defaultReceiptTheme: 'default' | 'cheque-classic' | 'certificate-brand' = 'default';
     if (f) {
       try {
-        const parsed = JSON.parse(f.content) as { system?: { receiptTemplate?: unknown; receiptSealLang?: unknown } };
+        const parsed = JSON.parse(f.content) as { system?: { receiptTemplate?: unknown; receiptSealLang?: unknown; receiptTheme?: unknown } };
         tpl = parsed.system?.receiptTemplate ?? null;
         const lang = parsed.system?.receiptSealLang;
         if (lang === 'hi' || lang === 'mr' || lang === 'en') defaultSealLang = lang;
+        const th = parsed.system?.receiptTheme;
+        if (th === 'cheque-classic' || th === 'certificate-brand' || th === 'default') defaultReceiptTheme = th;
       } catch { /* ignore */ }
     }
-    // Overlay the admin-configured seal language onto the template object
-    // so a single round-trip gives the client both the letterhead and the
-    // language default. Not persisted inside receiptTemplate — read from
-    // system.receiptSealLang each time so admins can flip it live.
+    // Overlay the admin-configured seal language + theme onto the
+    // template object so one round-trip gives the client every default
+    // it needs. Not persisted inside receiptTemplate — read from
+    // system.receiptSealLang / system.receiptTheme each time so admins
+    // can flip either live.
     if (tpl && typeof tpl === 'object') {
       (tpl as Record<string, unknown>).defaultSealLang = defaultSealLang;
+      (tpl as Record<string, unknown>).defaultReceiptTheme = defaultReceiptTheme;
+    } else if (defaultReceiptTheme !== 'default') {
+      // Non-default themes don't need a letterhead. Return a synthetic
+      // stub so the client can still render.
+      tpl = { defaultSealLang, defaultReceiptTheme } as Record<string, unknown>;
     }
     return ok(ctx.env, ctx.req, { template: tpl });
   });

@@ -2856,44 +2856,470 @@
     });
   }
 
+  // ==================================================================
+  // ALTERNATE RECEIPT THEMES (Cheque Classic + Certificate Brand)
+  // ==================================================================
+  // The "default" theme keeps the current letterhead+overlay flow above.
+  // These two themes are rendered from HTML/CSS via html2canvas onto an
+  // A5 landscape jsPDF page (210x148 mm). They fully translate the
+  // society header + body labels + certificate prose into the picked
+  // language using the Noto Sans Devanagari webfont loaded on the page.
+  //
+  // Worker-side archive rendering still uses the default template so
+  // the operational archive stays vector-clean; only the on-demand
+  // resident download switches themes.
+  // ------------------------------------------------------------------
+
+  const RECEIPT_THEMES = [
+    { id: 'default',            label: 'Default \u2014 letterhead' },
+    { id: 'cheque-classic',     label: 'Cheque Classic \u2014 blue grid' },
+    { id: 'certificate-brand',  label: 'Certificate Brand \u2014 indigo + gold' },
+  ];
+
+  const RECEIPT_TEXTS = {
+    en: {
+      h1: 'THE ADDRESS SAHAKARI GRUHARACHANA SANSTHA MARYADIT',
+      h2: '(THE ADDRESS CO-OPERATIVE HOUSING SOCIETY LTD.)',
+      addr: 'NEW SR. NO. 221/2/2/2/2/3 &amp; 221/2/2/2/3/8, PLOT NO E, BANER, TALUKA: HAVELI, DIST: PUNE \u2014 411045',
+      reg:  'REG. NO: PNA/PNA(2)/HSG/(TC)/29738/2025-2026 &nbsp;\u00b7&nbsp; DATED 24/12/2025',
+      brandTitle: 'Booking Receipt', brandSub: 'Official Receipt',
+      certTitle: 'Booking Receipt',
+      bookingId: 'Booking ID', receivedFrom: 'Received from', forPurpose: 'For the purpose of',
+      amount: 'Amount', facility: 'Facility', date: 'Date', time: 'Time', duration: 'Duration',
+      payment: 'Payment', txnId: 'Txn ID', status: 'Status', verifiedBy: 'Verified by',
+      charges: 'Charges', purpose: 'Purpose', memo: 'Memo',
+      societyMgr: 'Society Manager', residentAck: 'Resident acknowledgment',
+      confirmed: 'CONFIRMED', hours: 'hours', issued: 'Issued',
+      certBodyFmt: 'This is to acknowledge that {who} ({email}) has booked the {what} on {dateLong} from {time} for the purpose of "{purpose}", against a verified payment of {amount}.',
+      printedAt: 'Printed', verifyAt: 'Digital copy \u00b7 verify at tsh-worker.tadeskops.workers.dev',
+      locale: 'en-IN',
+    },
+    hi: {
+      h1: '\u0926 \u090f\u095c\u094d\u0930\u0947\u0938 \u0938\u0939\u0915\u093e\u0930\u0940 \u0917\u0943\u0939-\u0928\u093f\u0930\u094d\u092e\u093e\u0923 \u0938\u0902\u0938\u094d\u0925\u093e \u092e\u0930\u094d\u092f\u093e\u0926\u093f\u0924',
+      h2: '(\u0926 \u090f\u095c\u094d\u0930\u0947\u0938 \u0915\u094b-\u0911\u092a\u0930\u0947\u091f\u093f\u0935 \u0939\u093e\u0909\u0938\u093f\u0902\u0917 \u0938\u094b\u0938\u093e\u092f\u091f\u0940 \u0932\u093f\u092e\u093f\u091f\u0947\u0921)',
+      addr: '\u0928\u0908 \u0938\u0930\u094d\u0935\u0947 \u0928\u0902. 221/2/2/2/2/3 \u090f\u0935\u0902 221/2/2/2/3/8, \u092a\u094d\u0932\u0949\u091f \u0928\u0902. \u0908, \u092c\u093e\u0923\u0947\u0930, \u0924\u093e\u0932\u0941\u0915\u093e: \u0939\u0935\u0947\u0932\u0940, \u091c\u093f\u0932\u093e: \u092a\u0941\u0923\u0947 \u2014 411045',
+      reg:  '\u092a\u0902\u091c\u0940\u092f\u0928 \u0915\u094d\u0930\u092e\u093e\u0902\u0915: PNA/PNA(2)/HSG/(TC)/29738/2025-2026 &nbsp;\u00b7&nbsp; \u0926\u093f\u0928\u093e\u0902\u0915 24/12/2025',
+      brandTitle: '\u092c\u0941\u0915\u093f\u0902\u0917 \u0930\u0938\u0940\u0926', brandSub: '\u0906\u0927\u093f\u0915\u093e\u0930\u093f\u0915 \u0930\u0938\u0940\u0926',
+      certTitle: '\u092c\u0941\u0915\u093f\u0902\u0917 \u0930\u0938\u0940\u0926',
+      bookingId: '\u092c\u0941\u0915\u093f\u0902\u0917 \u0906\u0908\u0921\u0940', receivedFrom: '\u092a\u094d\u0930\u093e\u092a\u094d\u0924 \u0915\u0930\u094d\u0924\u093e', forPurpose: '\u0909\u0926\u094d\u0926\u0947\u0936\u094d\u092f',
+      amount: '\u0930\u093e\u0936\u093f', facility: '\u0938\u0941\u0935\u093f\u0927\u093e', date: '\u0924\u093e\u0930\u0940\u0916', time: '\u0938\u092e\u092f', duration: '\u0905\u0935\u0927\u093f',
+      payment: '\u092d\u0941\u0917\u0924\u093e\u0928', txnId: '\u0932\u0947\u0928\u0926\u0947\u0928 \u0906\u0908\u0921\u0940', status: '\u0938\u094d\u0925\u093f\u0924\u093f', verifiedBy: '\u0938\u0924\u094d\u092f\u093e\u092a\u093f\u0924 \u0915\u0930\u094d\u0924\u093e',
+      charges: '\u0936\u0941\u0932\u094d\u0915', purpose: '\u0909\u0926\u094d\u0926\u0947\u0936\u094d\u092f', memo: '\u091f\u093f\u092a\u094d\u092a\u0923\u0940',
+      societyMgr: '\u0938\u094b\u0938\u093e\u092f\u091f\u0940 \u092a\u094d\u0930\u092c\u0902\u0927\u0915', residentAck: '\u0928\u093f\u0935\u093e\u0938\u0940 \u0938\u094d\u0935\u0940\u0915\u0943\u0924\u093f',
+      confirmed: '\u092a\u0941\u0937\u094d\u091f', hours: '\u0918\u0902\u091f\u0947', issued: '\u091c\u093e\u0930\u0940',
+      certBodyFmt: '\u092f\u0939 \u092a\u094d\u0930\u092e\u093e\u0923\u093f\u0924 \u0915\u093f\u092f\u093e \u091c\u093e\u0924\u093e \u0939\u0948 \u0915\u093f {who} ({email}) \u0928\u0947 \u0926\u093f\u0928\u093e\u0902\u0915 {dateLong} \u0915\u094b {time} \u0924\u0915 "{purpose}" \u0939\u0947\u0924\u0941 {what} \u0915\u0940 \u092c\u0941\u0915\u093f\u0902\u0917 \u0915\u0940 \u0939\u0948, \u091c\u093f\u0938\u0915\u0947 \u0932\u093f\u090f {amount} \u0915\u093e \u092d\u0941\u0917\u0924\u093e\u0928 \u0938\u0924\u094d\u092f\u093e\u092a\u093f\u0924 \u0915\u093f\u092f\u093e \u0917\u092f\u093e \u0939\u0948.',
+      printedAt: '\u092e\u0941\u0926\u094d\u0930\u093f\u0924', verifyAt: '\u0921\u093f\u091c\u093f\u091f\u0932 \u092a\u094d\u0930\u0924\u093f \u00b7 tsh-worker.tadeskops.workers.dev \u092a\u0930 \u0938\u0924\u094d\u092f\u093e\u092a\u093f\u0924 \u0915\u0930\u0947\u0902',
+      locale: 'hi-IN',
+    },
+    mr: {
+      h1: '\u0926 \u0972\u0921\u094d\u0930\u0947\u0938 \u0938\u0939\u0915\u093e\u0930\u0940 \u0917\u0943\u0939\u0930\u091a\u0928\u093e \u0938\u0902\u0938\u094d\u0925\u093e \u092e\u0930\u094d\u092f\u093e\u0926\u093f\u0924',
+      h2: '(\u0926 \u0972\u0921\u094d\u0930\u0947\u0938 \u0915\u094b-\u0911\u092a\u0930\u0947\u091f\u093f\u0935\u094d\u0939 \u0939\u093e\u0909\u0938\u093f\u0902\u0917 \u0938\u094b\u0938\u093e\u092f\u091f\u0940 \u092e\u0930\u094d\u092f\u093e\u0926\u093f\u0924)',
+      addr: '\u0928\u0935\u0940\u0928 \u0938\u0930\u094d\u0935\u094d\u0939\u0947 \u0928\u0902. 221/2/2/2/2/3 \u0935 221/2/2/2/3/8, \u092a\u094d\u0932\u0949\u091f \u0915\u094d\u0930. \u0908, \u092c\u093e\u0923\u0947\u0930, \u0924\u093e\u0932\u0941\u0915\u093e: \u0939\u0935\u0947\u0932\u0940, \u091c\u093f\u0932\u094d\u0939\u093e: \u092a\u0941\u0923\u0947 \u2014 411045',
+      reg:  '\u0928\u094b\u0902\u0926\u0923\u0940 \u0915\u094d\u0930\u092e\u093e\u0902\u0915: PNA/PNA(2)/HSG/(TC)/29738/2025-2026 &nbsp;\u00b7&nbsp; \u0926\u093f\u0928\u093e\u0902\u0915 24/12/2025',
+      brandTitle: '\u092c\u0941\u0915\u093f\u0902\u0917 \u092a\u093e\u0935\u0924\u0940', brandSub: '\u0905\u0927\u093f\u0915\u0943\u0924 \u092a\u093e\u0935\u0924\u0940',
+      certTitle: '\u092c\u0941\u0915\u093f\u0902\u0917 \u092a\u093e\u0935\u0924\u0940',
+      bookingId: '\u092c\u0941\u0915\u093f\u0902\u0917 \u0906\u092f\u0921\u0940', receivedFrom: '\u092a\u094d\u0930\u093e\u092a\u094d\u0924\u0915\u0930\u094d\u0924\u093e', forPurpose: '\u0909\u0926\u094d\u0926\u0947\u0936',
+      amount: '\u0930\u0915\u094d\u0915\u092e', facility: '\u0938\u0941\u0935\u093f\u0927\u093e', date: '\u0926\u093f\u0928\u093e\u0902\u0915', time: '\u0935\u0947\u0933', duration: '\u0915\u093e\u0932\u093e\u0935\u0927\u0940',
+      payment: '\u092a\u0947\u092e\u0947\u0902\u091f', txnId: '\u0935\u094d\u092f\u0935\u0939\u093e\u0930 \u0906\u092f\u0921\u0940', status: '\u0938\u094d\u0925\u093f\u0924\u0940', verifiedBy: '\u092a\u0921\u0924\u093e\u0933\u0932\u0947',
+      charges: '\u0936\u0941\u0932\u094d\u0915', purpose: '\u0909\u0926\u094d\u0926\u0947\u0936', memo: '\u091f\u093f\u092a\u094d\u092a\u0923\u0940',
+      societyMgr: '\u0938\u094b\u0938\u093e\u092f\u091f\u0940 \u0935\u094d\u092f\u0935\u0938\u094d\u0925\u093e\u092a\u0915', residentAck: '\u0930\u0939\u093f\u0935\u093e\u0936\u094d\u092f\u093e\u091a\u0940 \u092a\u094b\u091a',
+      confirmed: '\u092a\u0941\u0937\u094d\u091f\u0940 \u091d\u093e\u0932\u0947\u0932\u0940', hours: '\u0924\u093e\u0938', issued: '\u091c\u093e\u0930\u0940',
+      certBodyFmt: '\u092f\u093e\u0926\u094d\u0935\u093e\u0930\u0947 \u092a\u0941\u0937\u094d\u091f\u0940 \u0915\u0947\u0932\u0940 \u091c\u093e\u0924\u0947 \u0915\u0940 {who} ({email}) \u092f\u093e\u0902\u0928\u0940 \u0926\u093f\u0928\u093e\u0902\u0915 {dateLong} \u0930\u094b\u091c\u0940 {time} \u092f\u093e \u0935\u0947\u0933\u0947\u0924 "{purpose}" \u0938\u093e\u0920\u0940 {what} \u092c\u0941\u0915 \u0915\u0947\u0932\u0940 \u0906\u0939\u0947, \u091c\u094d\u092f\u093e\u0938\u093e\u0920\u0940 {amount} \u091a\u0947 \u092a\u093e\u0935\u0924\u0940 \u092a\u0921\u0924\u093e\u0933\u0928\u0940 \u091d\u093e\u0932\u0947\u0932\u0940 \u0906\u0939\u0947.',
+      printedAt: '\u091b\u093e\u092a\u0932\u0947', verifyAt: '\u0921\u093f\u091c\u093f\u091f\u0932 \u092a\u094d\u0930\u0924 \u00b7 tsh-worker.tadeskops.workers.dev \u0935\u0930 \u092a\u0921\u0924\u093e\u0933\u093e',
+      locale: 'mr-IN',
+    },
+  };
+
+  // A single style block injected once into <head> when the first
+  // themed receipt is rendered. Extracted from the finalised preview
+  // (temp/receipt-themes-preview.html). Scoped to .tsh-rcpt-* so it
+  // can't collide with the reservations page or the modal.
+  const THEME_CSS_MARKER = 'tshReceiptThemeStyles';
+  const THEME_CSS = `
+    .tsh-rcpt-stage { position: fixed; left: -20000px; top: 0; z-index: -1; opacity: 0.01; pointer-events: none; }
+    .tsh-rcpt {
+      width: 210mm; height: 148mm; background: #fff; color: #0f172a; overflow: hidden;
+      position: relative; box-sizing: border-box; font-family: 'Merriweather', 'Inter', -apple-system, sans-serif;
+      line-height: 1.4;
+    }
+    .tsh-rcpt[data-lang="hi"], .tsh-rcpt[data-lang="mr"] {
+      font-family: 'Noto Sans Devanagari', 'Merriweather', 'Inter', sans-serif;
+    }
+    .tsh-rcpt * { box-sizing: border-box; }
+    .tsh-rcpt .society-hdr { padding: 6px 18px 5px; text-align: center; color: #193e8a; border-bottom: 1px solid rgba(25,62,138,0.15); }
+    .tsh-rcpt .society-hdr h1 { font-family: 'Merriweather', serif; font-size: 11px; font-weight: 700; margin: 0; letter-spacing: 0.03em; line-height: 1.2; }
+    .tsh-rcpt[data-lang="hi"] .society-hdr h1, .tsh-rcpt[data-lang="mr"] .society-hdr h1 { font-family: 'Noto Sans Devanagari', serif; font-size: 12px; }
+    .tsh-rcpt .society-hdr h2 { font-family: 'Merriweather', serif; font-size: 9px; font-weight: 400; margin: 1px 0 3px; color: #1e40af; font-style: italic; }
+    .tsh-rcpt[data-lang="hi"] .society-hdr h2, .tsh-rcpt[data-lang="mr"] .society-hdr h2 { font-family: 'Noto Sans Devanagari', serif; }
+    .tsh-rcpt .society-hdr .addr { font-size: 8px; color: #475569; line-height: 1.25; margin: 0; }
+    .tsh-rcpt .society-hdr .reg  { font-size: 7.5px; color: #475569; margin: 2px 0 0; font-weight: 500; }
+    .tsh-rcpt .status-badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 700; letter-spacing: 0.06em; background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+    .tsh-rcpt .print-footer { display: flex; justify-content: space-between; padding: 4px 16px; background: #f8fafc; font-family: 'Roboto Mono', monospace; font-size: 8px; color: #94a3b8; border-top: 1px solid #e2e8f0; }
+
+    /* -- Theme A: Cheque Classic ------------------------------------ */
+    .tsh-rcpt.theme-a .body {
+      position: relative; padding: 10px 16px 12px;
+      background: repeating-linear-gradient(45deg, rgba(37,99,235,0.05) 0 1px, transparent 1px 14px),
+                  repeating-linear-gradient(-45deg, rgba(37,99,235,0.05) 0 1px, transparent 1px 14px),
+                  linear-gradient(180deg, #f0f6ff 0%, #ffffff 100%);
+      border-top: 2px solid #193e8a; border-bottom: 4px double #193e8a; min-height: 118mm;
+    }
+    .tsh-rcpt.theme-a .body::before, .tsh-rcpt.theme-a .body::after { content: ''; position: absolute; width: 26px; height: 26px; border: 2px solid #193e8a; }
+    .tsh-rcpt.theme-a .body::before { top: 6px; left: 6px; border-right: none; border-bottom: none; }
+    .tsh-rcpt.theme-a .body::after  { top: 6px; right: 6px; border-left: none; border-bottom: none; }
+    .tsh-rcpt.theme-a .cheque-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+    .tsh-rcpt.theme-a .brand { display: flex; align-items: center; gap: 8px; }
+    .tsh-rcpt.theme-a .logo-dot { width: 30px; height: 30px; border-radius: 50%; background: #193e8a; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-family: 'Playfair Display', serif; font-weight: 700; font-size: 15px; box-shadow: 0 2px 6px rgba(25,62,138,0.35); }
+    .tsh-rcpt.theme-a .brand-txt b { display: block; font-family: 'Merriweather', serif; color: #193e8a; font-size: 11px; font-weight: 700; }
+    .tsh-rcpt.theme-a .brand-txt span { color: #64748b; font-size: 8.5px; letter-spacing: 0.05em; text-transform: uppercase; }
+    .tsh-rcpt.theme-a .rec-no { text-align: right; font-family: 'Roboto Mono', monospace; }
+    .tsh-rcpt.theme-a .rec-no .lbl { color: #64748b; font-size: 7.5px; letter-spacing: 0.15em; text-transform: uppercase; }
+    .tsh-rcpt.theme-a .rec-no .val { color: #193e8a; font-weight: 700; font-size: 12px; }
+    .tsh-rcpt.theme-a .rec-no .date { display: block; margin-top: 3px; background: #fff; border: 1px solid #193e8a; padding: 2px 6px; font-size: 9.5px; color: #1e40af; }
+    .tsh-rcpt.theme-a .pay-line { display: grid; grid-template-columns: 110px 1fr; gap: 8px; align-items: end; margin-bottom: 4px; }
+    .tsh-rcpt.theme-a .pay-line .lbl { font-family: 'Merriweather', serif; font-size: 9px; color: #64748b; text-transform: uppercase; letter-spacing: 0.08em; }
+    .tsh-rcpt.theme-a .pay-line .val { font-family: 'Cormorant Garamond', serif; font-size: 14px; color: #0f172a; font-weight: 600; border-bottom: 1.5px solid #193e8a; padding-bottom: 1px; }
+    .tsh-rcpt.theme-a .amount-row { display: grid; grid-template-columns: 1fr 150px; gap: 10px; margin: 6px 0; }
+    .tsh-rcpt.theme-a .amount-row .desc { background: #fff; border: 1px dashed #193e8a; padding: 5px 9px; font-size: 9.5px; color: #0f172a; border-radius: 3px; line-height: 1.35; }
+    .tsh-rcpt.theme-a .amount-row .desc b { color: #193e8a; }
+    .tsh-rcpt.theme-a .amount-row .amt-box { background: #fff; border: 2px solid #193e8a; border-radius: 4px; padding: 5px 10px; text-align: right; }
+    .tsh-rcpt.theme-a .amount-row .amt-box .lbl { display: block; font-size: 7.5px; color: #64748b; letter-spacing: 0.15em; text-transform: uppercase; }
+    .tsh-rcpt.theme-a .amount-row .amt-box .val { font-family: 'Playfair Display', serif; font-weight: 700; font-size: 18px; color: #193e8a; line-height: 1.1; }
+    .tsh-rcpt.theme-a .details-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px 18px; margin: 4px 0; font-size: 9px; }
+    .tsh-rcpt.theme-a .details-grid .row { display: flex; justify-content: space-between; border-bottom: 1px dotted #cbd5e1; padding: 1.5px 0; }
+    .tsh-rcpt.theme-a .details-grid .row .k { color: #64748b; font-weight: 500; }
+    .tsh-rcpt.theme-a .details-grid .row .v { color: #0f172a; font-weight: 600; text-align: right; }
+    .tsh-rcpt.theme-a .footer-strip { display: flex; justify-content: space-between; align-items: end; margin-top: 6px; }
+    .tsh-rcpt.theme-a .memo { flex: 1; padding-right: 16px; }
+    .tsh-rcpt.theme-a .memo .lbl { font-size: 8px; color: #64748b; text-transform: uppercase; letter-spacing: 0.1em; }
+    .tsh-rcpt.theme-a .memo .val { border-bottom: 1px solid #193e8a; padding: 3px 0 2px; font-family: 'Cormorant Garamond', serif; font-size: 11px; }
+    .tsh-rcpt.theme-a .sign { text-align: center; min-width: 130px; }
+    .tsh-rcpt.theme-a .sign .line { border-top: 1.5px solid #193e8a; margin-bottom: 2px; height: 22px; }
+    .tsh-rcpt.theme-a .sign .cap  { font-size: 8.5px; color: #64748b; letter-spacing: 0.1em; text-transform: uppercase; }
+    .tsh-rcpt.theme-a .stamp { position: absolute; right: 44px; bottom: 44px; width: 88px; opacity: 0.85; transform: rotate(-8deg); pointer-events: none; }
+    .tsh-rcpt.theme-a .micro { position: absolute; left: 16px; bottom: 4px; font-family: 'Roboto Mono', monospace; font-size: 8px; color: #94a3b8; letter-spacing: 0.15em; }
+
+    /* -- Theme B: Certificate Brand --------------------------------- */
+    .tsh-rcpt.theme-b .society-hdr { border-bottom: 2px solid #193e8a; }
+    .tsh-rcpt.theme-b .body {
+      position: relative; padding: 10px 16px 12px;
+      background: repeating-linear-gradient(35deg, rgba(25,62,138,0.05) 0 1.5px, transparent 1.5px 16px),
+                  radial-gradient(circle at 50% 0%, rgba(25,62,138,0.08) 0%, transparent 55%), #f8faff;
+      border-top: 4px double #193e8a; border-bottom: 4px double #193e8a; min-height: 118mm;
+    }
+    .tsh-rcpt.theme-b .body::before { content: ''; position: absolute; left: 8px; right: 8px; top: 8px; bottom: 8px; border: 1px solid #c8a45e; pointer-events: none; }
+    .tsh-rcpt.theme-b .corner { position: absolute; width: 28px; height: 28px; border: 2px solid #193e8a; border-radius: 50%; background: radial-gradient(circle, #f8faff 0 45%, transparent 45%); z-index: 1; }
+    .tsh-rcpt.theme-b .corner.tl { top: 3px; left: 3px; } .tsh-rcpt.theme-b .corner.tr { top: 3px; right: 3px; }
+    .tsh-rcpt.theme-b .corner.bl { bottom: 3px; left: 3px; } .tsh-rcpt.theme-b .corner.br { bottom: 3px; right: 3px; }
+    .tsh-rcpt.theme-b .corner::after { content: ''; position: absolute; inset: 5px; border: 1.5px solid #c8a45e; border-radius: 50%; }
+    .tsh-rcpt.theme-b .cert-title { text-align: center; margin: 4px 0 6px; position: relative; z-index: 1; }
+    .tsh-rcpt.theme-b .cert-title .caps { font-family: 'Playfair Display', serif; font-size: 14px; color: #193e8a; letter-spacing: 0.22em; text-transform: uppercase; font-weight: 700; }
+    .tsh-rcpt.theme-b[data-lang="hi"] .cert-title .caps, .tsh-rcpt.theme-b[data-lang="mr"] .cert-title .caps { font-family: 'Noto Sans Devanagari', serif; letter-spacing: 0.05em; }
+    .tsh-rcpt.theme-b .cert-title .caps::before, .tsh-rcpt.theme-b .cert-title .caps::after { content: '\u2766'; margin: 0 8px; color: #c8a45e; font-size: 11px; vertical-align: middle; }
+    .tsh-rcpt.theme-b .cert-title .sub { font-family: 'Cormorant Garamond', serif; font-size: 10.5px; color: #1e40af; font-style: italic; margin-top: 2px; }
+    .tsh-rcpt.theme-b .cert-body { max-width: 640px; margin: 0 auto 6px; position: relative; z-index: 1; font-family: 'Cormorant Garamond', serif; font-size: 11.5px; color: #0f172a; line-height: 1.5; text-align: center; }
+    .tsh-rcpt.theme-b[data-lang="hi"] .cert-body, .tsh-rcpt.theme-b[data-lang="mr"] .cert-body { font-family: 'Noto Sans Devanagari', serif; font-size: 11px; }
+    .tsh-rcpt.theme-b .cert-body .who,
+    .tsh-rcpt.theme-b .cert-body .what { display: inline-block; padding: 0 4px 1px; border-bottom: 1.5px dashed #193e8a; color: #193e8a; font-weight: 700; font-size: 12.5px; }
+    .tsh-rcpt.theme-b .cert-body .what { color: #1e40af; }
+    .tsh-rcpt.theme-b .cert-table { max-width: 560px; margin: 4px auto; position: relative; z-index: 1; background: #fff; border: 1px solid #193e8a; border-radius: 5px; padding: 4px 12px; box-shadow: 0 0 0 2px #fff, 0 0 0 3px #c8a45e; }
+    .tsh-rcpt.theme-b .cert-table .row { display: grid; grid-template-columns: 110px 1fr; gap: 6px; padding: 1.5px 0; font-size: 9.5px; border-bottom: 1px dotted rgba(25,62,138,0.25); }
+    .tsh-rcpt.theme-b .cert-table .row:last-child { border-bottom: none; }
+    .tsh-rcpt.theme-b .cert-table .row .k { color: #193e8a; font-weight: 600; text-transform: uppercase; font-size: 8.5px; letter-spacing: 0.08em; }
+    .tsh-rcpt.theme-b[data-lang="hi"] .cert-table .row .k, .tsh-rcpt.theme-b[data-lang="mr"] .cert-table .row .k { text-transform: none; letter-spacing: 0.02em; font-size: 9.5px; }
+    .tsh-rcpt.theme-b .cert-table .row .v { color: #0f172a; font-weight: 500; }
+    .tsh-rcpt.theme-b .cert-table .row .v.amt { color: #193e8a; font-weight: 700; }
+    .tsh-rcpt.theme-b .footer-b { display: flex; justify-content: space-between; align-items: end; max-width: 560px; margin: 4px auto 2px; position: relative; z-index: 1; }
+    .tsh-rcpt.theme-b .footer-b .sign { text-align: center; min-width: 130px; }
+    .tsh-rcpt.theme-b .footer-b .sign .line { border-top: 1.5px solid #193e8a; height: 18px; margin-bottom: 2px; }
+    .tsh-rcpt.theme-b .footer-b .sign .cap  { font-family: 'Cormorant Garamond', serif; font-style: italic; color: #1e40af; font-size: 10px; }
+    .tsh-rcpt.theme-b[data-lang="hi"] .footer-b .sign .cap, .tsh-rcpt.theme-b[data-lang="mr"] .footer-b .sign .cap { font-family: 'Noto Sans Devanagari', serif; font-style: normal; }
+    .tsh-rcpt.theme-b .stamp { position: absolute; right: 22px; bottom: 28px; width: 92px; opacity: 0.9; transform: rotate(6deg); pointer-events: none; z-index: 1; }
+  `;
+
+  function ensureThemeStyles() {
+    if (document.getElementById(THEME_CSS_MARKER)) return;
+    const s = document.createElement('style');
+    s.id = THEME_CSS_MARKER;
+    s.textContent = THEME_CSS;
+    document.head.appendChild(s);
+  }
+
+  function escHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function formatDateLocale(ymd, locale, opts) {
+    if (!ymd) return '';
+    const [y, m, d] = ymd.split('-').map(Number);
+    if (!y || !m || !d) return ymd;
+    const dt = new Date(Date.UTC(y, m - 1, d));
+    try { return dt.toLocaleDateString(locale, opts || { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }); }
+    catch (_e) { return dt.toLocaleDateString(undefined, opts || {}); }
+  }
+
+  function hoursBetween(startTime, endTime) {
+    if (!startTime || !endTime) return null;
+    const [sH, sM] = startTime.split(':').map(Number);
+    const [eH, eM] = endTime.split(':').map(Number);
+    if (![sH, sM, eH, eM].every(Number.isFinite)) return null;
+    const mins = (eH * 60 + eM) - (sH * 60 + sM);
+    return mins > 0 ? +(mins / 60).toFixed(mins % 60 ? 2 : 0) : null;
+  }
+
+  // Collect the field values used by both themes into one struct so
+  // the HTML templates stay declarative.
+  function receiptValues(r, T) {
+    const dateLong = formatDateLocale(r.date, T.locale);
+    const dateShort = formatDateLocale(r.date, T.locale, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+    const timeLbl = reservationTimeLabel ? reservationTimeLabel(r) : '';
+    const durH = hoursBetween(r.startTime, r.endTime);
+    const durLbl = durH != null ? (durH + ' ' + T.hours) : '';
+    const amtStr = r.payment && r.payment.amount != null ? ('\u20b9 ' + Number(r.payment.amount).toLocaleString(T.locale)) : '\u2014';
+    const payLbl = r.payment ? (PAYMENT_STATUS_LABEL[r.payment.status] || r.payment.status || '') : '';
+    const statusLbl = r.status === 'confirmed'
+      ? '<span class="status-badge">' + escHtml(T.confirmed) + '</span>'
+      : escHtml(RESIDENT_STATUS_LABEL[r.status] || r.status || '');
+    const now = new Date();
+    const printedAt = now.toLocaleString(T.locale, { dateStyle: 'medium', timeStyle: 'short' });
+    return {
+      id: r.id || '',
+      resident: (r.owner && (r.owner.name || r.owner.email)) || '',
+      email: (r.owner && r.owner.email) || '',
+      flat: (r.owner && r.owner.flat) || '',
+      residentLine: escHtml(((r.owner && (r.owner.name || r.owner.email)) || '') + ((r.owner && r.owner.flat) ? ' \u00b7 Flat ' + r.owner.flat : '')),
+      facility: r.facilityLabel || '',
+      dateShort, dateLong, timeLbl, durLbl,
+      purpose: r.purpose || '',
+      amtStr, payLbl,
+      txnRef: (r.payment && r.payment.txnRef) || '\u2014',
+      verifiedBy: (r.payment && r.payment.verifiedBy) || '',
+      statusLbl,
+      printedAt,
+    };
+  }
+
+  function themeAHtml(r, T, lang, stampSrc, values) {
+    const v = values;
+    const brandDot = (v.facility || 'A').charAt(0).toUpperCase();
+    const chargesLine = escHtml(v.facility + ' \u00b7 ' + v.dateShort + ' \u00b7 ' + v.timeLbl + (v.durLbl ? ' (' + v.durLbl + ')' : ''));
+    return (
+      '<div class="tsh-rcpt theme-a" data-lang="' + lang + '">' +
+        '<header class="society-hdr">' +
+          '<h1>' + T.h1 + '</h1>' +
+          '<h2>' + T.h2 + '</h2>' +
+          '<p class="addr">' + T.addr + '</p>' +
+          '<p class="reg">' + T.reg + '</p>' +
+        '</header>' +
+        '<div class="body">' +
+          '<div class="cheque-head">' +
+            '<div class="brand">' +
+              '<span class="logo-dot">' + escHtml(brandDot) + '</span>' +
+              '<div class="brand-txt"><b>' + escHtml(T.brandTitle) + '</b><span>' + escHtml(T.brandSub) + '</span></div>' +
+            '</div>' +
+            '<div class="rec-no">' +
+              '<span class="lbl">' + escHtml(T.bookingId) + '</span>' +
+              '<div class="val">' + escHtml(v.id) + '</div>' +
+              '<span class="date">' + escHtml(T.issued + ' \u00b7 ' + v.printedAt) + '</span>' +
+            '</div>' +
+          '</div>' +
+          '<div class="pay-line"><span class="lbl">' + escHtml(T.receivedFrom) + '</span><span class="val">' + v.residentLine + '</span></div>' +
+          '<div class="pay-line"><span class="lbl">' + escHtml(T.forPurpose)   + '</span><span class="val">' + escHtml(v.purpose || '\u2014') + '</span></div>' +
+          '<div class="amount-row">' +
+            '<div class="desc">' + chargesLine + '</div>' +
+            '<div class="amt-box"><span class="lbl">' + escHtml(T.amount) + '</span><span class="val">' + escHtml(v.amtStr) + '</span></div>' +
+          '</div>' +
+          '<div class="details-grid">' +
+            '<div class="row"><span class="k">' + escHtml(T.facility)   + '</span><span class="v">' + escHtml(v.facility) + '</span></div>' +
+            '<div class="row"><span class="k">' + escHtml(T.date)       + '</span><span class="v">' + escHtml(v.dateShort) + '</span></div>' +
+            '<div class="row"><span class="k">' + escHtml(T.time)       + '</span><span class="v">' + escHtml(v.timeLbl) + '</span></div>' +
+            '<div class="row"><span class="k">' + escHtml(T.duration)   + '</span><span class="v">' + escHtml(v.durLbl) + '</span></div>' +
+            '<div class="row"><span class="k">' + escHtml(T.payment)    + '</span><span class="v">' + escHtml(v.payLbl) + '</span></div>' +
+            '<div class="row"><span class="k">' + escHtml(T.txnId)      + '</span><span class="v" style="font-family:\'Roboto Mono\',monospace;font-size:8.5px">' + escHtml(v.txnRef) + '</span></div>' +
+            '<div class="row"><span class="k">' + escHtml(T.status)     + '</span><span class="v">' + v.statusLbl + '</span></div>' +
+            (v.verifiedBy ? '<div class="row"><span class="k">' + escHtml(T.verifiedBy) + '</span><span class="v">' + escHtml(v.verifiedBy) + '</span></div>' : '') +
+          '</div>' +
+          '<div class="footer-strip">' +
+            '<div class="memo"><div class="lbl">' + escHtml(T.memo) + '</div><div class="val">&nbsp;</div></div>' +
+            '<div class="sign"><div class="line"></div><div class="cap">' + escHtml(T.societyMgr) + '</div></div>' +
+          '</div>' +
+          (stampSrc && r.status === 'confirmed' ? '<img class="stamp" src="' + stampSrc + '" alt="seal" crossorigin="anonymous">' : '') +
+          '<div class="micro">\u2022 \u2022 \u2022 &nbsp; TACHS \u00b7 411045 &nbsp; \u2022 \u2022 \u2022</div>' +
+        '</div>' +
+        '<div class="print-footer"><span>' + escHtml(T.printedAt + ' ' + v.printedAt) + '</span><span>' + escHtml(T.verifyAt) + '</span></div>' +
+      '</div>'
+    );
+  }
+
+  function themeBHtml(r, T, lang, stampSrc, values) {
+    const v = values;
+    const certBody = T.certBodyFmt
+      .replace('{who}',     '<span class="who">'  + escHtml(v.resident + (v.flat ? ' \u00b7 Flat ' + v.flat : '')) + '</span>')
+      .replace('{email}',   escHtml(v.email))
+      .replace('{what}',    '<span class="what">' + escHtml(v.facility) + '</span>')
+      .replace('{dateLong}', escHtml(v.dateLong))
+      .replace('{time}',    escHtml(v.timeLbl))
+      .replace('{purpose}', escHtml(v.purpose || '\u2014'))
+      .replace('{amount}',  '<span class="what">' + escHtml(v.amtStr) + '</span>');
+    return (
+      '<div class="tsh-rcpt theme-b" data-lang="' + lang + '">' +
+        '<header class="society-hdr">' +
+          '<h1>' + T.h1 + '</h1>' +
+          '<h2>' + T.h2 + '</h2>' +
+          '<p class="addr">' + T.addr + '</p>' +
+          '<p class="reg">' + T.reg + '</p>' +
+        '</header>' +
+        '<div class="body">' +
+          '<span class="corner tl"></span><span class="corner tr"></span>' +
+          '<span class="corner bl"></span><span class="corner br"></span>' +
+          '<div class="cert-title">' +
+            '<div class="caps">' + escHtml(T.certTitle) + '</div>' +
+            '<div class="sub">' + escHtml(T.bookingId) + ' \u00b7 ' + escHtml(v.id) + ' &nbsp;\u00b7&nbsp; ' + escHtml(T.issued + ' ' + v.printedAt) + '</div>' +
+          '</div>' +
+          '<p class="cert-body">' + certBody + '</p>' +
+          '<div class="cert-table">' +
+            '<div class="row"><span class="k">' + escHtml(T.bookingId) + '</span><span class="v" style="font-family:\'Roboto Mono\',monospace">' + escHtml(v.id) + '</span></div>' +
+            '<div class="row"><span class="k">' + escHtml(T.facility)  + '</span><span class="v">' + escHtml(v.facility) + '</span></div>' +
+            '<div class="row"><span class="k">' + escHtml(T.date)      + '</span><span class="v">' + escHtml(v.dateLong) + '</span></div>' +
+            '<div class="row"><span class="k">' + escHtml(T.time)      + '</span><span class="v">' + escHtml(v.timeLbl) + (v.durLbl ? ' \u00b7 ' + escHtml(v.durLbl) : '') + '</span></div>' +
+            '<div class="row"><span class="k">' + escHtml(T.purpose)   + '</span><span class="v">' + escHtml(v.purpose || '\u2014') + '</span></div>' +
+            '<div class="row"><span class="k">' + escHtml(T.charges)   + '</span><span class="v amt">' + escHtml(v.amtStr) + '</span></div>' +
+            '<div class="row"><span class="k">' + escHtml(T.payment)   + '</span><span class="v">' + escHtml(v.payLbl) + '</span></div>' +
+            '<div class="row"><span class="k">' + escHtml(T.txnId)     + '</span><span class="v" style="font-family:\'Roboto Mono\',monospace;font-size:9px">' + escHtml(v.txnRef) + '</span></div>' +
+            (v.verifiedBy ? '<div class="row"><span class="k">' + escHtml(T.verifiedBy) + '</span><span class="v">' + escHtml(v.verifiedBy) + '</span></div>' : '') +
+            '<div class="row"><span class="k">' + escHtml(T.status)    + '</span><span class="v">' + v.statusLbl + '</span></div>' +
+          '</div>' +
+          '<div class="footer-b">' +
+            '<div class="sign"><div class="line"></div><div class="cap">' + escHtml(T.residentAck) + '</div></div>' +
+            '<div class="sign"><div class="line"></div><div class="cap">' + escHtml(T.societyMgr)  + '</div></div>' +
+          '</div>' +
+          (stampSrc && r.status === 'confirmed' ? '<img class="stamp" src="' + stampSrc + '" alt="seal" crossorigin="anonymous">' : '') +
+        '</div>' +
+        '<div class="print-footer"><span>' + escHtml(T.printedAt + ' ' + v.printedAt) + '</span><span>' + escHtml(T.verifyAt) + '</span></div>' +
+      '</div>'
+    );
+  }
+
+  async function waitForHtml2Canvas(maxMs) {
+    if (root.html2canvas) return true;
+    const deadline = Date.now() + (maxMs || 6000);
+    while (Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 100));
+      if (root.html2canvas) return true;
+    }
+    return false;
+  }
+
+  // Renders one of the alternate themes to an A5-landscape PDF using
+  // html2canvas + jsPDF. Returns the same bundle shape as the default
+  // path so the modal button bar doesn't care which renderer ran.
+  async function buildReceiptFromTheme(r, theme, lang) {
+    if (!(await waitForHtml2Canvas(6000))) throw new Error('html2canvas failed to load');
+    if (!(root.jspdf && root.jspdf.jsPDF)) throw new Error('jsPDF not loaded');
+    ensureThemeStyles();
+
+    const T = RECEIPT_TEXTS[lang] || RECEIPT_TEXTS.en;
+    const stampAsset = await loadStampAsset(lang);
+    const stampSrc = stampAsset && stampAsset.dataUrl ? stampAsset.dataUrl : '';
+    const values = receiptValues(r, T);
+    const html = theme === 'certificate-brand'
+      ? themeBHtml(r, T, lang, stampSrc, values)
+      : themeAHtml(r, T, lang, stampSrc, values);
+
+    // Render off-screen so the visible layout isn't touched.
+    const stage = document.createElement('div');
+    stage.className = 'tsh-rcpt-stage';
+    stage.innerHTML = html;
+    document.body.appendChild(stage);
+    try {
+      // Let webfonts finish loading before rasterising.
+      if (document.fonts && document.fonts.ready) {
+        try { await document.fonts.ready; } catch (_e) { /* ignore */ }
+      }
+      // One extra tick for layout to settle.
+      await new Promise((res) => setTimeout(res, 60));
+
+      const target = stage.firstElementChild;
+      const canvas = await root.html2canvas(target, {
+        scale: 3,             // ~300 dpi at CSS-mm; sharp on print
+        backgroundColor: '#ffffff',
+        useCORS: true,
+        allowTaint: false,
+        logging: false,
+        windowWidth: target.offsetWidth,
+        windowHeight: target.offsetHeight,
+      });
+      const imgData = canvas.toDataURL('image/jpeg', 0.92);
+
+      const { jsPDF } = root.jspdf;
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a5' });
+      const pageW = 210, pageH = 148;
+      doc.addImage(imgData, 'JPEG', 0, 0, pageW, pageH);
+      const blob = doc.output('blob');
+      const bloburl = URL.createObjectURL(blob);
+      return {
+        bloburl,
+        download: (name) => {
+          const a = document.createElement('a');
+          a.href = bloburl; a.download = name || ('receipt-' + r.id + '.pdf');
+          document.body.appendChild(a); a.click(); a.remove();
+        },
+        doc,
+      };
+    } finally {
+      try { stage.remove(); } catch (_e) { /* ignore */ }
+    }
+  }
+
   async function openReceiptModal(r) {
     let tpl;
     try { tpl = await getReceiptTemplate(false); }
     catch (_e) { tpl = null; }
-    if (!tpl || !tpl.url) {
+    // Alternate themes (Cheque Classic, Certificate Brand) don't need a
+    // letterhead template — they render their own design. Only the
+    // Default theme requires the uploaded letterhead.
+    const rawTheme = (tpl && typeof tpl.defaultReceiptTheme === 'string') ? tpl.defaultReceiptTheme : 'default';
+    const themeIds = RECEIPT_THEMES.map((t) => t.id);
+    const cfgTheme = themeIds.includes(rawTheme) ? rawTheme : 'default';
+    if (cfgTheme === 'default' && (!tpl || !tpl.url)) {
       root.UI.toast('No receipt template uploaded yet. A Society Manager, Committee member or Admin can upload one from the Reservations page (Receipt template button).', { kind: 'warn' });
       return;
     }
 
-    // Two rendering back-ends depending on the template mime:
-    //   image/*         -> jsPDF adds the image as a top-band header.
-    //   application/pdf -> pdf-lib loads the letterhead as the base
-    //                      document and overlays the booking fields on
-    //                      the first page (keeps the letterhead pixel-
-    //                      perfect, no rasterisation).
-    // Both back-ends expose the same { bloburl, download(name), doc }
-    // shape so the preview iframe + print/download buttons don't care.
+    // Three rendering back-ends:
+    //   default + image/*         -> jsPDF adds the image as a top-band header.
+    //   default + application/pdf -> pdf-lib loads the letterhead as the base
+    //                                document and overlays the booking fields.
+    //   cheque-classic / certificate-brand -> html2canvas + jsPDF, A5 landscape.
+    // All three expose the same { bloburl, download(name), doc } shape
+    // so the preview iframe + print/download buttons don't care.
     //
-    // Language: swaps the confirmed-stamp overlay to the localised seal
-    // (English P.O. / Hindi + Marathi डाकघर). Standard PDF fonts can't
-    // render Devanagari so the body labels stay Latin; the seal is what
-    // carries the language identity on the receipt.
+    // Language: swaps the confirmed-stamp overlay to the localised seal.
+    // For the non-default themes it also swaps the entire body text
+    // (Noto Sans Devanagari webfont covers Hindi + Marathi).
     //
-    // Access model: the DEFAULT language is chosen once by a Manager /
-    // Committee / Admin in Settings → Booking receipt archive → seal
-    // language. Residents get that default silently (no picker). Staff
-    // still see the picker on the modal so they can override on the fly
-    // for a one-off download.
+    // Access model:
+    //   Residents see NO pickers and get the admin-configured default
+    //     theme + language silently.
+    //   Managers / Committee / Admins see both pickers on the modal so
+    //     they can override for a one-off download.
     const LANG_LABEL = { en: 'English', hi: 'Hindi', mr: 'Marathi' };
     const cfgLang = tpl && (tpl.defaultSealLang === 'hi' || tpl.defaultSealLang === 'mr' || tpl.defaultSealLang === 'en')
       ? tpl.defaultSealLang : 'en';
-    let lang = cfgLang;
+    let lang  = cfgLang;
+    let theme = cfgTheme;
     const isStaff = !!(who && root.Flags && root.Flags.isAtLeast && root.Flags.isAtLeast(who.primary, 'MANAGER'));
     let bundle;
-    const buildBundle = async () =>
-      tpl.mime === 'application/pdf'
-        ? await buildReceiptFromPdfLetterhead(r, tpl.url, lang)
-        : await buildReceiptFromImage(r, tpl, lang);
+    const buildBundle = async () => {
+      if (theme === 'default') {
+        return tpl.mime === 'application/pdf'
+          ? await buildReceiptFromPdfLetterhead(r, tpl.url, lang)
+          : await buildReceiptFromImage(r, tpl, lang);
+      }
+      return await buildReceiptFromTheme(r, theme, lang);
+    };
     try {
       bundle = await buildBundle();
     } catch (e) {
@@ -2906,28 +3332,51 @@
     const bar = document.createElement('div');
     bar.style.cssText = 'display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;align-items:center;';
 
-    // Language picker — staff-only override. Hidden for residents (they
-    // just get the admin-configured default). Also hidden for
-    // pending/rejected bookings because the seal is only drawn on
-    // confirmed receipts.
-    let langSel = null;
-    if (r.status === 'confirmed' && isStaff) {
-      const langWrap = document.createElement('label');
-      langWrap.style.cssText = 'display:inline-flex;align-items:center;gap:6px;margin-right:auto;font-size:.9em;color:var(--tsh-muted,#4b5563);';
-      langWrap.innerHTML = '<i class="fas fa-language" aria-hidden="true"></i><span>Seal language:</span>';
-      langSel = document.createElement('select');
-      langSel.className = 'tsh-select tsh-select-sm';
-      langSel.style.cssText = 'padding:3px 6px;border-radius:4px;border:1px solid var(--tsh-border,#d1d5db);background:#fff;';
-      for (const k of ['en', 'hi', 'mr']) {
+    // Theme + language pickers — staff-only override. Both hidden for
+    // residents. Language picker also hidden for pending/rejected
+    // bookings (no seal is drawn there anyway).
+    let themeSel = null;
+    let langSel  = null;
+    if (isStaff) {
+      const staffWrap = document.createElement('div');
+      staffWrap.style.cssText = 'display:inline-flex;align-items:center;gap:12px;margin-right:auto;font-size:.9em;color:var(--tsh-muted,#4b5563);flex-wrap:wrap;';
+
+      const themeWrap = document.createElement('label');
+      themeWrap.style.cssText = 'display:inline-flex;align-items:center;gap:6px;';
+      themeWrap.innerHTML = '<i class="fas fa-palette" aria-hidden="true"></i><span>Theme:</span>';
+      themeSel = document.createElement('select');
+      themeSel.className = 'tsh-select tsh-select-sm';
+      themeSel.style.cssText = 'padding:3px 6px;border-radius:4px;border:1px solid var(--tsh-border,#d1d5db);background:#fff;';
+      for (const t of RECEIPT_THEMES) {
         const opt = document.createElement('option');
-        opt.value = k;
-        opt.textContent = LANG_LABEL[k] + (k === cfgLang ? ' \u00b7 default' : '');
-        langSel.appendChild(opt);
+        opt.value = t.id;
+        opt.textContent = t.label + (t.id === cfgTheme ? ' \u00b7 default' : '');
+        themeSel.appendChild(opt);
       }
-      langSel.value = lang;
-      langSel.title = 'Override the site-wide default (' + LANG_LABEL[cfgLang] + ') for this download only.';
-      langWrap.appendChild(langSel);
-      bar.appendChild(langWrap);
+      themeSel.value = theme;
+      themeSel.title = 'Override the site-wide default theme (' + (RECEIPT_THEMES.find((t) => t.id === cfgTheme) || {}).label + ') for this download only.';
+      themeWrap.appendChild(themeSel);
+      staffWrap.appendChild(themeWrap);
+
+      if (r.status === 'confirmed') {
+        const langWrap = document.createElement('label');
+        langWrap.style.cssText = 'display:inline-flex;align-items:center;gap:6px;';
+        langWrap.innerHTML = '<i class="fas fa-language" aria-hidden="true"></i><span>Language:</span>';
+        langSel = document.createElement('select');
+        langSel.className = 'tsh-select tsh-select-sm';
+        langSel.style.cssText = 'padding:3px 6px;border-radius:4px;border:1px solid var(--tsh-border,#d1d5db);background:#fff;';
+        for (const k of ['en', 'hi', 'mr']) {
+          const opt = document.createElement('option');
+          opt.value = k;
+          opt.textContent = LANG_LABEL[k] + (k === cfgLang ? ' \u00b7 default' : '');
+          langSel.appendChild(opt);
+        }
+        langSel.value = lang;
+        langSel.title = 'Override the site-wide default (' + LANG_LABEL[cfgLang] + ') for this download only.';
+        langWrap.appendChild(langSel);
+        staffWrap.appendChild(langWrap);
+      }
+      bar.appendChild(staffWrap);
     }
 
     const printBtn = document.createElement('button');
@@ -2951,30 +3400,43 @@
     frame.src = bundle.bloburl + viewerParams;
     wrap.append(bar, frame);
 
-    // Rebuild + swap the iframe when the user picks a different language.
-    // Revokes the previous blob URL so we don't leak memory across swaps.
+    // Rebuild the receipt whenever theme OR language changes. Revokes
+    // the previous blob URL so we don't leak memory across swaps.
+    async function rebuild(prevBloburl) {
+      if (themeSel) themeSel.disabled = true;
+      if (langSel)  langSel.disabled  = true;
+      const origLabel = dlBtn.innerHTML;
+      dlBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Rebuilding\u2026';
+      dlBtn.disabled = true; printBtn.disabled = true;
+      try {
+        bundle = await buildBundle();
+        frame.src = bundle.bloburl + viewerParams;
+        try { URL.revokeObjectURL(prevBloburl); } catch (_e) { /* ignore */ }
+      } catch (e) {
+        root.UI.toast('Rebuild failed: ' + (e && e.message || e), { kind: 'danger' });
+      } finally {
+        if (themeSel) themeSel.disabled = false;
+        if (langSel)  langSel.disabled  = false;
+        dlBtn.disabled = false; printBtn.disabled = false;
+        dlBtn.innerHTML = origLabel;
+      }
+    }
+    if (themeSel) {
+      themeSel.addEventListener('change', async () => {
+        const next = themeSel.value;
+        if (next === theme) return;
+        const prev = bundle.bloburl;
+        theme = next;
+        await rebuild(prev);
+      });
+    }
     if (langSel) {
       langSel.addEventListener('change', async () => {
         const next = langSel.value;
         if (next === lang) return;
-        const prevBloburl = bundle.bloburl;
-        langSel.disabled = true;
-        const origLabel = dlBtn.innerHTML;
-        dlBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Rebuilding\u2026';
-        dlBtn.disabled = true; printBtn.disabled = true;
-        try {
-          lang = next;
-          bundle = await buildBundle();
-          frame.src = bundle.bloburl + viewerParams;
-          try { URL.revokeObjectURL(prevBloburl); } catch (_e) { /* ignore */ }
-        } catch (e) {
-          root.UI.toast('Rebuild failed: ' + (e && e.message || e), { kind: 'danger' });
-          lang = langSel.value = 'en';  // fall back to the always-present English seal
-        } finally {
-          langSel.disabled = false;
-          dlBtn.disabled = false; printBtn.disabled = false;
-          dlBtn.innerHTML = origLabel;
-        }
+        const prev = bundle.bloburl;
+        lang = next;
+        await rebuild(prev);
       });
     }
 
