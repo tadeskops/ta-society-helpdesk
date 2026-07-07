@@ -926,6 +926,19 @@
       ],
       "link": "reservations.html?open=CH-0707261332",
       "actor": "ta.deskops@gmail.com"
+    },
+    {
+      "id": "NTF-mrad4sp8-9",
+      "recipient": "vibhumaitreya@gmail.com",
+      "event": "reservation-approved",
+      "title": "Reservation confirmed · Community Hall",
+      "body": "2026-07-18 · 09:00–13:00",
+      "createdAt": "2026-07-07T08:04:13.772Z",
+      "channels": [
+        "in-app"
+      ],
+      "link": "reservations.html?open=CH-0707261332",
+      "actor": "ta.deskops@gmail.com"
     }
   ]
 }
