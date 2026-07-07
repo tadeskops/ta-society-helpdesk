@@ -66,3 +66,4 @@
 {"at":"2026-07-07T05:30:34.984Z","actor":"ta.deskops@gmail.com","action":"reservations:payment-uploaded","target":"CH-0707261044","detail":"path=ch/proofs/CH-0707261044/01.jpg bytes=259607 txnRef="}
 {"at":"2026-07-07T05:30:51.071Z","actor":"ta.deskops@gmail.com","action":"reservations:payment-verified","target":"CH-0707261044","detail":"note=Verified from statement"}
 {"at":"2026-07-07T05:30:58.322Z","actor":"ta.deskops@gmail.com","action":"reservations:approved","target":"CH-0707261044","detail":""}
+{"at":"2026-07-07T05:31:02.508Z","actor":"system","action":"receipts:archive-failed","target":"CH-0707261044","detail":"WinAnsi cannot encode \"₹\" (0x20b9)"}
