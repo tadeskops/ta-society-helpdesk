@@ -2476,10 +2476,14 @@
   // hit the network on each print. Returns { dataUrl, bytes } or null if
   // the asset is unavailable (never throws — the stamp is a best-effort
   // visual, absence must not break the receipt build).
+  // Version-tag on the PNG URL so a stale copy in the browser / CDN
+  // (from before the localised seals were pushed) never wins over the
+  // current file. Bump when the PNG bytes change.
+  const STAMP_VER = '3';
   const STAMP_URLS = {
-    en: './assets/images/TaStampBlueOverlay.png',
-    hi: './assets/images/TaStampBlueOverlay-hi.png',
-    mr: './assets/images/TaStampBlueOverlay-mr.png',
+    en: './assets/images/TaStampBlueOverlay.png?v=' + STAMP_VER,
+    hi: './assets/images/TaStampBlueOverlay-hi.png?v=' + STAMP_VER,
+    mr: './assets/images/TaStampBlueOverlay-mr.png?v=' + STAMP_VER,
   };
   const _stampCache = { en: undefined, hi: undefined, mr: undefined };
   async function loadStampAsset(lang) {
@@ -2487,7 +2491,7 @@
     if (_stampCache[key] !== undefined) return _stampCache[key];
     try {
       const res = await fetch(STAMP_URLS[key], {
-        mode: 'cors', credentials: 'omit',
+        mode: 'cors', credentials: 'omit', cache: 'reload',
       });
       if (!res.ok) throw new Error('stamp fetch ' + res.status);
       const buf = await res.arrayBuffer();
@@ -2587,7 +2591,7 @@
     // reads through. Only stamped when the booking is actually confirmed.
     if (r.status === 'confirmed' && stampDataUrl) {
       try {
-        const sW = 45, sH = 45;   // mm
+        const sW = 55, sH = 55;   // mm — large enough that the curved seal text is legible
         doc.addImage(stampDataUrl, 'PNG', pageW - 20 - sW, pageH - 30 - sH - 2, sW, sH);
       } catch (_e) { /* best-effort */ }
     }
@@ -2738,7 +2742,7 @@
         const stampAsset = await loadStampAsset(lang);
         if (stampAsset && stampAsset.bytes) {
           const stampImg = await pdfDoc.embedPng(stampAsset.bytes);
-          const stampW = MM(45);
+          const stampW = MM(55);   // enlarged so the curved seal text is legible
           const stampH = stampW;   // square source
           const stampX = pageW - marginX - stampW;
           const stampY = footY + MM(10);

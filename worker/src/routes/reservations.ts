@@ -1133,8 +1133,11 @@ export const mountReservations = (r: Router): void => {
     // proofs already sitting under payments/... in the main repo remain
     // readable via the path-prefix fallback in the GET handler.
     const receiptsTarget = receiptsRepoTarget(ctx.env);
+    // Flat layout: files live directly under `<fac>/proofs/` with the reservation
+    // id + zero-padded index as the filename, so all proofs for a booking sort
+    // together without spawning a subfolder per reservation.
     const path = receiptsTarget
-      ? `${facilityCode(facility).toLowerCase()}/proofs/${rec.id}/${String(nextIdx).padStart(2, '0')}.${
+      ? `${facilityCode(facility).toLowerCase()}/proofs/${rec.id}-${String(nextIdx).padStart(2, '0')}.${
           mime === 'application/pdf' ? 'pdf' :
           mime === 'image/png'       ? 'png' :
           mime === 'image/webp'      ? 'webp' : 'jpg'
