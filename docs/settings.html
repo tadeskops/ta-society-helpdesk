@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
@@ -8,7 +8,7 @@
   <link rel="icon" href="./assets/images/TaLogo.png" type="image/png" />
   <script>(function(){try{var t=localStorage.getItem('tsh_theme');if(t!=='dark'&&t!=='light'&&t!=='medium')t='light';if(t!=='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="./assets/css/theme.css?v=85" />
+  <link rel="stylesheet" href="./assets/css/theme.css?v=88" />
   <style>
     /* Info-icon + click-to-expand help panels for each setting */
     .tsh-info {
@@ -174,9 +174,24 @@
           </div>
         </details>
 
+        <details class="tsh-section" id="treasurySection" open>
+          <summary><h2><i class="fas fa-wallet gold-accent"></i> Treasury &amp; Reimbursements</h2></summary>
+          <p class="tsh-hint">
+            All treasury feature flags, tunables, and the <strong>private receipt-storage</strong>
+            path template live here in one place. Receipts (proofs, cash slips, expense bills) are
+            uploaded to a private GitHub repo &mdash; identity of that repo is set by the worker
+            environment variables <code>GH_TREASURY_OWNER</code>, <code>GH_TREASURY_REPO</code> and
+            <code>GH_TREASURY_BRANCH</code> (with token <code>GITHUB_TREASURY_TOKEN</code>). The path
+            <em>within</em> that repo is a template &mdash; placeholders:
+            <code>{yearMonth}</code>, <code>{kind}</code> (proof|payment|receipt),
+            <code>{id}</code> (RMB-* or EXP-*), <code>{seq}</code>, <code>{name}</code>.
+          </p>
+          <div class="tsh-grid-2" id="treasuryGrid"></div>
+        </details>
+
         <details class="tsh-section" open>
           <summary><h2>Feature flags</h2></summary>
-          <div class="tsh-grid-2" id="flagsGrid"></div>
+          <div class="tsh-flag-groups" id="flagsGrid"></div>
         </details>
 
         <details class="tsh-section">
@@ -520,26 +535,84 @@
       form.elements['committee'].value  = (access.committee || []).join('\n');
       form.elements['managers'].value   = (access.managers || []).join('\n');
 
-      // Feature flags â€” generate one card per flag from the config snapshot.
-      // Each card shows: name (clickable for full help) + always-visible
-      // description + tick box. New admin-facing flags appear here
-      // automatically as soon as they're added to the config defaults.
+      // Feature flags — grouped by product area so related flags sit
+      // together. Master flag (e.g. FEATURE_TREASURY) is pushed to the
+      // top of its group. Any new flag whose name doesn't match a known
+      // prefix drops into "Other" automatically. Treasury flags are
+      // rendered inside the dedicated Treasury section below (not here),
+      // so we filter them out of the generic grid to avoid duplication.
+      const isTreasuryFlag = (n) => n === 'FEATURE_TREASURY' || n.startsWith('FEATURE_TREASURY_');
+      const isTreasuryTunable = (n) => n.startsWith('TREASURY_');
+      const FLAG_GROUPS = [
+        { key: 'DAILY',        label: 'Daily issues & reporting',  match: (n) => n === 'FEATURE_DAILY_TRACK' || n.startsWith('FEATURE_DAILY_') },
+        { key: 'RESERVATIONS', label: 'Reservations',              match: (n) => n === 'FEATURE_TSH_RESERVATIONS' || n.startsWith('FEATURE_TSH_RESERVATIONS_') },
+        { key: 'HANDOVER',     label: 'Handover portal',           match: (n) => n === 'FEATURE_HANDOVER_TRACK' || n.startsWith('FEATURE_HANDOVER_') },
+        { key: 'OTHER',        label: 'Other features',            match: () => true },
+      ];
       const flagsGrid = document.getElementById('flagsGrid');
+      const flagsByGroup = new Map(FLAG_GROUPS.map((g) => [g.key, []]));
       for (const [name, val] of Object.entries(cfg.features || {})) {
+        if (isTreasuryFlag(name)) continue;
+        const grp = FLAG_GROUPS.find((g) => g.match(name)) || FLAG_GROUPS[FLAG_GROUPS.length - 1];
+        flagsByGroup.get(grp.key).push([name, val]);
+      }
+      // Within a group: master (shortest name) first, then alphabetical.
+      const flagSort = (a, b) => (a[0].length - b[0].length) || a[0].localeCompare(b[0]);
+      for (const grp of FLAG_GROUPS) {
+        const items = flagsByGroup.get(grp.key).sort(flagSort);
+        if (!items.length) continue;
+        const body = UI.el('div', { class: 'tsh-grid-2 tsh-flag-group-body' });
+        for (const [name, val] of items) {
+          const info = lookupHelp(name) || {};
+          const desc = info.summary || '';
+          body.appendChild(UI.el('div', { class: 'tsh-field tsh-field-card' },
+            UI.el('div', { class: 'tsh-field-head' },
+              UI.el('span', { class: 'tsh-label' }, name),
+              UI.el('input', { type: 'checkbox', name: `features.${name}`, ...(val ? { checked: '' } : {}) }),
+            ),
+            desc ? UI.el('small', { class: 'tsh-field-desc' }, desc) : null,
+          ));
+        }
+        flagsGrid.appendChild(UI.el('fieldset', { class: 'tsh-flag-group' },
+          UI.el('legend', {}, grp.label),
+          body,
+        ));
+      }
+
+      // Dedicated Treasury section — combines ALL treasury feature flags
+      // AND all treasury tunables (incl. the receipt-storage path template)
+      // in ONE grid so the treasurer has everything in one place.
+      const treasuryGrid = document.getElementById('treasuryGrid');
+      const treasuryFlags = Object.entries(cfg.features || {})
+        .filter(([n]) => isTreasuryFlag(n))
+        .sort(flagSort);
+      for (const [name, val] of treasuryFlags) {
         const info = lookupHelp(name) || {};
         const desc = info.summary || '';
-        const row = UI.el('div', { class: 'tsh-field tsh-field-card' },
+        treasuryGrid.appendChild(UI.el('div', { class: 'tsh-field tsh-field-card' },
           UI.el('div', { class: 'tsh-field-head' },
             UI.el('span', { class: 'tsh-label' }, name),
             UI.el('input', { type: 'checkbox', name: `features.${name}`, ...(val ? { checked: '' } : {}) }),
           ),
           desc ? UI.el('small', { class: 'tsh-field-desc' }, desc) : null,
-        );
-        flagsGrid.appendChild(row);
+        ));
+      }
+      const treasuryTunables = Object.entries(cfg.tunables || {})
+        .filter(([n]) => isTreasuryTunable(n))
+        .sort((a, b) => a[0].localeCompare(b[0]));
+      for (const [name, val] of treasuryTunables) {
+        const info = lookupHelp(name) || {};
+        const desc = info.summary || '';
+        treasuryGrid.appendChild(UI.el('div', { class: 'tsh-field tsh-field-card' },
+          UI.el('span', { class: 'tsh-label' }, name),
+          desc ? UI.el('small', { class: 'tsh-field-desc' }, desc) : null,
+          UI.el('input', { type: 'text', name: `tunables.${name}`, value: String(val) }),
+        ));
       }
 
       const tunGrid = document.getElementById('tunablesGrid');
       for (const [name, val] of Object.entries(cfg.tunables || {})) {
+        if (isTreasuryTunable(name)) continue;
         const info = lookupHelp(name) || {};
         const desc = info.summary || '';
         const row = UI.el('div', { class: 'tsh-field tsh-field-card' },

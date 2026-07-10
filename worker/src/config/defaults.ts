@@ -10,6 +10,8 @@ export interface SiteConfig {
     towers: string[];
     categories: string[];
     subCategories: Record<string, string[]>;
+    /** Optional treasury categories. Absent = fall back to DEFAULT_CONFIG. */
+    treasuryCategories?: string[];
   };
   system: {
     issuesRepo: string;
@@ -88,6 +90,14 @@ export const DEFAULT_CONFIG: SiteConfig = {
     FEATURE_TSH_RESERVATIONS:             true,
     FEATURE_TSH_NOTIFICATIONS:            true,
     FEATURE_TSH_RESERVATIONS_CALENDAR:    false,
+    // Treasury &amp; Reimbursements (§ treasury-requirements.md).
+    // Master switch and per-capability toggles so committees can grant
+    // the manager more or less without redeploying.
+    FEATURE_TREASURY:                        true,
+    FEATURE_TREASURY_MANAGER_APPROVE:        false,
+    FEATURE_TREASURY_MANAGER_PAY:            false,
+    FEATURE_TREASURY_MANAGER_RECORD_EXPENSE: true,
+    FEATURE_TREASURY_RESIDENT_RAISE:         true,
   },
   tunables: {
     // Auto-assign sweep: a `new` ticket older than this many hours is
@@ -122,6 +132,19 @@ export const DEFAULT_CONFIG: SiteConfig = {
     NOTIFICATIONS_PER_USER_CAP:  200,
     CALENDAR_RETRY_MAX:          5,
     CALENDAR_QUEUE_CACHE_SECONDS: 60,
+    // Treasury tunables. `TREASURY_APPROVAL_QUORUM` may be 1 (single
+    // committee approval) or 2 (two committee approvals before Paid can
+    // be clicked). Everything else is size / TTL.
+    TREASURY_CACHE_SECONDS:      60,
+    TREASURY_MAX_FILE_BYTES:     5_242_880,   // 5 MB per file
+    TREASURY_MAX_FILES_PER_ITEM: 5,           // proofs OR payment slips
+    TREASURY_ARCHIVE_AFTER_DAYS: 120,
+    TREASURY_APPROVAL_QUORUM:    1,
+    // Path template for receipt/proof binaries written into the treasury
+    // private repo. Placeholders: {yearMonth} (UTC YYYY-MM), {kind}
+    // ('proof' | 'payment' | 'receipt'), {id} (RMB-* or EXP-*), {seq}
+    // (2-digit index within the batch), {name} (sanitised original filename).
+    TREASURY_RECEIPT_PATH:       'treasury/receipts/{yearMonth}/{kind}/{id}/{seq}-{name}',
   },
   lists: {
     towers:     ['A', 'B', 'C', 'Common Area'],
@@ -169,6 +192,29 @@ export const DEFAULT_CONFIG: SiteConfig = {
       'Vendor / Service': ['Delivery issue', 'Service quality', 'Billing', 'Schedule', 'Other'],
       'Other':            ['Other'],
     },
+    // Treasury categories — surfaced in the reimbursement + expense forms
+    // on docs/treasury.html. Editable from settings.html (admin only).
+    treasuryCategories: [
+      'Repairs',
+      'Plumbing',
+      'Electrical',
+      'Housekeeping',
+      'Security',
+      'Water',
+      'Utilities',
+      'Lift AMC',
+      'Fire / Safety AMC',
+      'DG / STP AMC',
+      'Garden',
+      'Pest Control',
+      'Office / Admin',
+      'Festivals',
+      'Events',
+      'Insurance',
+      'Legal / Audit',
+      'Statutory / Tax',
+      'Miscellaneous',
+    ],
   },
   system: {
     issuesRepo:        'tadeskops/ta-society-helpdesk',

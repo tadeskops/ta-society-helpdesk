@@ -19,6 +19,7 @@ import { mountBackup } from './backup.ts';
 import { mountReservations } from './reservations.ts';
 import { mountNotifications } from './notifications.ts';
 import { mountCalendar } from './calendar.ts';
+import { mountTreasury } from './treasury.ts';
 
 export const buildRouter = (): Router => {
   const r = new Router();
@@ -38,6 +39,7 @@ export const buildRouter = (): Router => {
   mountReservations(r);
   mountNotifications(r);
   mountCalendar(r);
+  mountTreasury(r);
   return r;
 };
 

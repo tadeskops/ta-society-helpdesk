@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Treasury &amp; Reimbursements &middot; TSH</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#1a1f2e" />
+  <meta name="description" content="Reimbursement requests, direct expenses and the society expense ledger." />
+  <link rel="icon" href="./assets/images/TaLogo.png" type="image/png" />
+  <script>(function(){try{var t=localStorage.getItem('tsh_theme');if(t!=='dark'&&t!=='light'&&t!=='medium')t='light';if(t!=='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="./assets/css/theme.css?v=87" />
+  <style>
+    /* ============================================================
+       Treasury page â€” merged Design 1 (Ledger Console) + Design 3
+       (Wallet Feed). Mobile-first architecture: base styles render a
+       single-column card feed; @media (min-width) queries progressively
+       enhance to a two-column tile grid (tablet) and then to a dense
+       table + right-rail inspector (desktop).
+
+       Single DOM. No duplicated markup. The same <li> node renders as
+       a card on phones and a table row on desktop via CSS.
+       ============================================================ */
+
+    /* KPI strip â€” 2-up on phones, 4-up from small-tablet up. */
+    .tr-kpi-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0; }
+    .tr-kpi { background: var(--c-card-bg); border: 1px solid var(--c-border); border-radius: var(--rad-lg); padding: 10px 12px; display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .tr-kpi-icon { width: 32px; height: 32px; border-radius: 8px; display: grid; place-items: center; font-size: 14px; flex-shrink: 0; }
+    .tr-kpi-body { min-width: 0; }
+    .tr-kpi-label { font-size: 10.5px; color: var(--c-text-muted); text-transform: uppercase; letter-spacing: .05em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tr-kpi-val { font-size: var(--fs-lg); font-weight: 800; color: var(--c-text); }
+    .tr-kpi-open  .tr-kpi-icon { background: rgba(96,165,250,.15); color: #60a5fa; }
+    .tr-kpi-paid  .tr-kpi-icon { background: rgba(34,197,94,.15);  color: #22c55e; }
+    .tr-kpi-total .tr-kpi-icon { background: rgba(245,158,11,.15); color: #f59e0b; }
+    .tr-kpi-alert .tr-kpi-icon { background: rgba(239,68,68,.15);  color: #ef4444; }
+    @media (min-width: 640px) {
+      .tr-kpi-row { grid-template-columns: repeat(4, 1fr); gap: 10px; }
+      .tr-kpi-val { font-size: var(--fs-xl); }
+      .tr-kpi-label { font-size: 11px; }
+    }
+
+    /* Tabs â€” scrollable pill row on mobile, static bar on desktop. */
+    .tr-tabs { display: flex; gap: 6px; padding: 4px; margin: 0 -4px 12px; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+    .tr-tabs::-webkit-scrollbar { display: none; }
+    .tr-tab { flex-shrink: 0; padding: 8px 12px; background: var(--c-card-bg); border: 1px solid var(--c-border-soft); border-radius: 999px; color: var(--c-text-muted); font-size: var(--fs-xs); font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-family: inherit; }
+    .tr-tab.on { background: var(--c-primary); color: #1a1f2e; border-color: var(--c-primary); }
+    .tr-tab-count { padding: 1px 7px; background: rgba(0,0,0,.2); border-radius: 999px; font-size: 10px; }
+    .tr-tab.on .tr-tab-count { background: rgba(0,0,0,.25); }
+    .tr-tab:focus-visible { outline: 2px solid var(--c-primary); outline-offset: 1px; }
+    @media (min-width: 768px) {
+      .tr-tabs { background: var(--c-card-bg); border: 1px solid var(--c-border); border-radius: 10px; padding: 4px; display: inline-flex; margin: 0 0 12px; overflow: visible; }
+      .tr-tab { background: transparent; border: 0; border-radius: 6px; }
+    }
+
+    /* Filter ribbon. Wraps naturally. Search takes full width on phones.
+       Theme.css forces width:100% on <select> and search inputs; the
+       overrides below un-set that so flex-basis actually drives layout. */
+    .tr-ribbon { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; align-items: center; }
+    .tr-ribbon input, .tr-ribbon select {
+      padding: 7px 10px; background: var(--c-input-bg); border: 1px solid var(--c-input-border);
+      color: var(--c-text); border-radius: var(--rad-md); font-size: var(--fs-xs);
+      font-family: inherit; min-height: 36px; width: auto; min-width: 0; flex: 0 0 auto;
+    }
+    .tr-ribbon select { max-width: 220px; }
+    .tr-ribbon input:focus, .tr-ribbon select:focus { background: var(--c-input-bg-focus); outline: 1px solid var(--c-primary); }
+    .tr-search { flex: 1 1 100%; min-width: 0; position: relative; order: -1; }
+    .tr-search input[type="search"] { width: 100%; padding-left: 32px; }
+    .tr-search i { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--c-text-muted); font-size: 12px; }
+    @media (min-width: 640px) { .tr-search { flex: 1 1 220px; order: 0; } }
+
+    /* Two-pane layout (list + inspector). Inspector shows only on desktop. */
+    .tr-layout { display: grid; grid-template-columns: 1fr; gap: 12px; align-items: flex-start; }
+    @media (min-width: 1100px) { .tr-layout { grid-template-columns: 1fr 340px; gap: 16px; } }
+    .tr-panel { background: var(--c-card-bg); border: 1px solid var(--c-border); border-radius: var(--rad-lg); overflow: hidden; }
+    .tr-panel-head { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-bottom: 1px solid var(--c-border-soft); background: rgba(0,0,0,.10); }
+    .tr-panel-head h3 { margin: 0; font-size: var(--fs-sm); color: var(--c-text); }
+    .tr-panel-head .n { color: var(--c-text-muted); font-size: 11px; font-weight: 400; }
+
+    /* The list â€” mobile-first card layout. */
+    .tr-list { list-style: none; margin: 0; padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+    .tr-item {
+      background: var(--c-card-bg); border: 1px solid var(--c-border-soft); border-radius: 12px; padding: 12px;
+      display: grid; grid-template-columns: 1fr auto;
+      grid-template-areas:
+        "who  amt"
+        "purp purp"
+        "meta meta";
+      gap: 4px 8px; cursor: pointer; transition: border-color .15s; min-width: 0;
+    }
+    .tr-item:hover { border-color: var(--c-primary); }
+    .tr-item.on { background: rgba(212,175,55,.10); border-color: var(--c-primary); }
+    .tr-item.mine { border-left: 3px solid var(--c-primary); }
+
+    .tr-i-id     { grid-area: id; display: none; }
+    .tr-i-who    { grid-area: who; font-size: var(--fs-xs); color: var(--c-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+    .tr-i-who b  { color: var(--c-text); font-weight: 700; }
+    .tr-i-cat    { grid-area: cat; display: none; }
+    .tr-i-purp   { grid-area: purp; font-size: var(--fs-sm); color: var(--c-text); overflow-wrap: anywhere; }
+    .tr-i-date   { grid-area: date; display: none; }
+    .tr-i-amt    { grid-area: amt; font-weight: 800; text-align: right; font-size: var(--fs-lg); white-space: nowrap; color: #f87171; }
+    .tr-i-amt.pos{ color: #4ade80; }
+    .tr-i-proofs { grid-area: proofs; display: none; }
+    .tr-i-status { grid-area: status; }
+    .tr-i-meta   { grid-area: meta; display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 11px; color: var(--c-text-muted); }
+    .tr-i-meta > * { display: inline; padding: 0; }
+    .tr-i-meta .tr-i-cat,
+    .tr-i-meta .tr-i-date,
+    .tr-i-meta .tr-i-proofs { display: inline; }
+
+    /* Day headers (only useful in card layout). */
+    .tr-day-h { font-size: 10.5px; color: var(--c-text-muted); text-transform: uppercase; letter-spacing: .06em; margin: 12px 4px 2px; font-weight: 700; }
+
+    /* Tablet: 2-up card grid. */
+    @media (min-width: 768px) and (max-width: 1099px) {
+      .tr-list { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px; }
+      .tr-day-h { grid-column: 1 / -1; }
+    }
+
+    /* Desktop: transform the same DOM to a semantic table + inspector. */
+    @media (min-width: 1100px) {
+      .tr-list { display: table; width: 100%; border-collapse: collapse; padding: 0; }
+      .tr-day-h { display: none; }
+      .tr-item {
+        display: table-row; cursor: pointer; border: 0; border-radius: 0;
+        border-bottom: 1px solid var(--c-border-soft); background: transparent; padding: 0;
+      }
+      .tr-item.on { background: rgba(212,175,55,.10); }
+      .tr-item.mine { border-left: 0; }
+      .tr-item > * {
+        display: table-cell; padding: 10px 12px; vertical-align: middle;
+        font-size: var(--fs-sm); white-space: nowrap;
+      }
+      .tr-i-id     { display: table-cell; width: 130px; font-family: var(--font-mono); color: var(--c-primary); font-size: 12px; }
+      .tr-i-who    { max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
+      .tr-i-cat    { display: table-cell; width: 130px; }
+      .tr-i-purp   { white-space: normal; }
+      .tr-i-date   { display: table-cell; width: 80px; }
+      .tr-i-amt    { width: 100px; text-align: right; font-size: var(--fs-sm); }
+      .tr-i-proofs { display: table-cell; width: 70px; text-align: center; }
+      .tr-i-status { width: 110px; }
+      /* Meta duplicates data on mobile; hide on desktop where each cell exists. */
+      .tr-i-meta   { display: none; }
+
+      .tr-list-head { display: table-header-group; }
+      .tr-list-head .tr-item {
+        cursor: default; background: rgba(0,0,0,.15);
+        color: var(--c-text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; font-weight: 700;
+      }
+      .tr-list-head .tr-item > * { padding: 10px 12px; }
+    }
+    /* Column header row: table-only device. */
+    .tr-list-head { display: none; }
+
+    /* Status pills. */
+    .tr-pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
+    .tr-pill-requested    { background: rgba(96,165,250,.15); color: #60a5fa; }
+    .tr-pill-under-review { background: rgba(192,132,252,.15); color: #c084fc; }
+    .tr-pill-approved     { background: rgba(34,211,238,.15);  color: #22d3ee; }
+    .tr-pill-paid         { background: rgba(74,222,128,.15);  color: #4ade80; }
+    .tr-pill-rejected     { background: rgba(148,163,184,.15); color: #94a3b8; }
+    .tr-pill-closed       { background: rgba(100,116,139,.15); color: #64748b; }
+    .tr-pill-cat          { background: rgba(255,255,255,.06); color: var(--c-text-muted); border: 1px solid var(--c-border-soft); }
+    .tr-pill-mode         { background: rgba(212,175,55,.10); color: var(--c-primary); }
+    .tr-badge-you { padding: 1px 6px; background: rgba(212,175,55,.15); color: var(--c-primary); border-radius: 4px; font-size: 10px; font-weight: 600; margin-left: 4px; }
+
+    /* Proofs cell. */
+    .tr-proofs-cell { display: inline-flex; gap: 6px; align-items: center; color: var(--c-text-muted); font-size: 12px; white-space: nowrap; }
+    .tr-proofs-cell .pay { color: var(--c-primary); }
+
+    /* Empty state. */
+    .tr-state { padding: 32px 16px; text-align: center; color: var(--c-text-muted); font-size: var(--fs-sm); }
+    .tr-state i { font-size: 26px; margin-bottom: 8px; display: block; opacity: .5; }
+
+    /* Inspector (desktop only). */
+    .tr-insp { background: var(--c-card-bg); border: 1px solid var(--c-border); border-radius: var(--rad-lg); padding: 14px; position: sticky; top: 12px; display: none; }
+    @media (min-width: 1100px) { .tr-insp { display: block; } }
+    .tr-insp-hdr { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+    .tr-insp-hdr h3 { margin: 0; font-size: var(--fs-lg); color: var(--c-primary); font-family: var(--font-mono); }
+    .tr-insp-sub { color: var(--c-text-muted); font-size: var(--fs-xs); margin-bottom: 8px; word-break: break-word; }
+    .tr-insp-big { font-size: 24px; font-weight: 800; color: var(--c-text); margin: 4px 0 12px; }
+    .tr-insp-kv { display: grid; grid-template-columns: 105px 1fr; gap: 4px 10px; font-size: var(--fs-xs); margin-bottom: 12px; }
+    .tr-insp-kv .k { color: var(--c-text-muted); }
+    .tr-insp-h4 { margin: 12px 0 6px; font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--c-text-muted); font-weight: 700; }
+    .tr-files { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .tr-file { aspect-ratio: 1; background: rgba(0,0,0,.15); border: 1px dashed var(--c-border-soft); border-radius: var(--rad-md); display: grid; place-items: center; font-size: 18px; color: var(--c-text-muted); position: relative; overflow: hidden; text-decoration: none; }
+    .tr-file .lbl { position: absolute; bottom: 3px; left: 3px; right: 3px; font-size: 9px; color: var(--c-text-muted); text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tr-file.pdf { color: #ef4444; }
+    .tr-file.img { color: #22d3ee; }
+    .tr-file.pay { border-color: var(--c-primary); color: var(--c-primary); border-style: solid; }
+    .tr-timeline { list-style: none; padding: 0; margin: 0; }
+    .tr-timeline li { display: grid; grid-template-columns: 16px 1fr; gap: 8px; padding: 6px 0; border-top: 1px solid var(--c-border-soft); font-size: 11.5px; }
+    .tr-timeline li:first-child { border-top: 0; }
+    .tr-timeline .tr-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 4px; background: var(--c-text-muted); }
+    .tr-timeline .tr-dot.req { background: #60a5fa; }
+    .tr-timeline .tr-dot.apr { background: #22d3ee; }
+    .tr-timeline .tr-dot.pai { background: #4ade80; }
+    .tr-timeline .tr-dot.rej { background: #f87171; }
+    .tr-timeline .who  { color: var(--c-primary); font-weight: 600; }
+    .tr-timeline .when { color: var(--c-text-muted); font-size: 10.5px; }
+
+    /* Action row (inspector + mobile detail sheet). */
+    .tr-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 12px; }
+    .tr-actions .tsh-btn { justify-content: center; padding: 8px 10px; font-size: var(--fs-xs); }
+    .tr-actions .tsh-btn-approve { background: rgba(34,197,94,.15); color: #4ade80; border-color: rgba(34,197,94,.3); }
+    .tr-actions .tsh-btn-reject  { background: rgba(239,68,68,.15); color: #f87171; border-color: rgba(239,68,68,.3); }
+    .tr-actions .tsh-btn-pay     { background: var(--c-primary); color: #1a1f2e; border-color: var(--c-primary); font-weight: 700; grid-column: 1 / -1; }
+    .tr-actions .tsh-btn-close   { grid-column: 1 / -1; }
+
+    /* Floating action button â€” mobile/tablet only. */
+    .tr-fab { position: fixed; bottom: 20px; right: 20px; background: linear-gradient(135deg, var(--c-primary), var(--c-primary-2, var(--c-primary))); color: #1a1f2e; border: 0; padding: 14px 20px; border-radius: 999px; font-weight: 800; font-size: var(--fs-sm); cursor: pointer; box-shadow: var(--shadow-gold, 0 8px 20px rgba(0,0,0,.35)); display: inline-flex; align-items: center; gap: 8px; font-family: inherit; z-index: 20; }
+    @media (min-width: 1100px) { .tr-fab { display: none; } }
+
+    /* Storage banner. */
+    .tr-storage-warn { background: rgba(245,158,11,.12); border: 1px solid rgba(245,158,11,.35); color: #fef3c7; padding: 10px 14px; border-radius: var(--rad-md); font-size: var(--fs-xs); margin-bottom: 12px; display: flex; gap: 10px; align-items: flex-start; }
+    .tr-storage-warn i { color: #f59e0b; margin-top: 2px; flex-shrink: 0; }
+
+    /* Summary bars. */
+    .tr-bar-row { display: grid; grid-template-columns: minmax(90px, 130px) 1fr auto; gap: 8px; align-items: center; padding: 6px 0; font-size: var(--fs-xs); }
+    .tr-bar-track { background: rgba(255,255,255,.05); border-radius: 999px; height: 10px; overflow: hidden; }
+    .tr-bar-fill  { background: linear-gradient(90deg, var(--c-primary), var(--c-primary-2, var(--c-primary))); height: 100%; border-radius: 999px; }
+    .tr-bar-val   { text-align: right; font-weight: 700; color: var(--c-text); font-size: var(--fs-xs); white-space: nowrap; }
+    .tr-sum-grid  { display: grid; grid-template-columns: 1fr; gap: 12px; }
+    @media (min-width: 768px) { .tr-sum-grid { grid-template-columns: 1fr 1fr; } }
+  </style>
+</head>
+<body class="tsh-page tsh-page-wide">
+  <div data-include="header"></div>
+  <div data-include="pdf-report"></div>
+  <div data-include="toast"></div>
+  <div data-include="modal"></div>
+
+  <main class="tsh-main tsh-main-wide">
+    <section class="tsh-card">
+      <header class="tsh-card-head tsh-card-head-row">
+        <div>
+          <h1><i class="fas fa-wallet gold-accent"></i> Treasury &amp; Reimbursements</h1>
+          <p class="tsh-sub">Reimbursement requests, direct expenses and the monthly ledger &mdash; one place, one audit trail.</p>
+        </div>
+        <div class="tsh-toolbar">
+          <button type="button" class="tsh-btn tsh-btn-ghost" id="trExportBtn" title="Export current view as PDF">
+            <i class="fas fa-file-pdf"></i>Export
+          </button>
+          <button type="button" class="tsh-btn tsh-btn-primary" id="trNewBtn">
+            <i class="fas fa-plus"></i>New request
+          </button>
+        </div>
+      </header>
+
+      <div class="tr-storage-warn" id="trStorageWarn" hidden>
+        <i class="fas fa-triangle-exclamation"></i>
+        <div>
+          <b>Private treasury repo not yet configured.</b>
+          Reads work with an empty ledger; writes are disabled until an admin sets
+          <code>GH_TREASURY_REPO</code> (recommended: <code>tsh-treasury</code>) in the Worker environment.
+        </div>
+      </div>
+
+      <div class="tr-kpi-row" aria-live="polite">
+        <div class="tr-kpi tr-kpi-open">
+          <div class="tr-kpi-icon"><i class="fas fa-hourglass-half"></i></div>
+          <div class="tr-kpi-body">
+            <div class="tr-kpi-label">Open requests</div>
+            <div class="tr-kpi-val" data-tr-kpi="open">&mdash;</div>
+          </div>
+        </div>
+        <div class="tr-kpi tr-kpi-paid">
+          <div class="tr-kpi-icon"><i class="fas fa-check-double"></i></div>
+          <div class="tr-kpi-body">
+            <div class="tr-kpi-label">Paid this month</div>
+            <div class="tr-kpi-val" data-tr-kpi="paidMonth">&mdash;</div>
+          </div>
+        </div>
+        <div class="tr-kpi tr-kpi-total">
+          <div class="tr-kpi-icon"><i class="fas fa-receipt"></i></div>
+          <div class="tr-kpi-body">
+            <div class="tr-kpi-label">Expenses this month</div>
+            <div class="tr-kpi-val" data-tr-kpi="totalMonth">&mdash;</div>
+          </div>
+        </div>
+        <div class="tr-kpi tr-kpi-alert">
+          <div class="tr-kpi-icon"><i class="fas fa-money-bill-wave"></i></div>
+          <div class="tr-kpi-body">
+            <div class="tr-kpi-label">Open liability</div>
+            <div class="tr-kpi-val" data-tr-kpi="openLiability">&mdash;</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tr-tabs" role="tablist" aria-label="Treasury sections">
+        <button type="button" class="tr-tab on" role="tab" aria-selected="true" data-tr-tab="reimbursements">
+          <i class="fas fa-hand-holding-dollar"></i> Reimbursements
+          <span class="tr-tab-count" data-tr-count="reimbursements">0</span>
+        </button>
+        <button type="button" class="tr-tab" role="tab" aria-selected="false" data-tr-tab="expenses" data-tr-min-role="MANAGER" hidden>
+          <i class="fas fa-file-invoice-dollar"></i> Expenses
+          <span class="tr-tab-count" data-tr-count="expenses">0</span>
+        </button>
+        <button type="button" class="tr-tab" role="tab" aria-selected="false" data-tr-tab="summary" data-tr-min-role="MANAGER" hidden>
+          <i class="fas fa-chart-column"></i> Summary
+        </button>
+      </div>
+
+      <!-- Reimbursements tab -->
+      <section class="tr-section" data-tr-section="reimbursements">
+        <div class="tr-ribbon">
+          <div class="tr-search">
+            <i class="fas fa-search"></i>
+            <input type="search" id="trSearch" placeholder="Search by id, requester, purpose, amount..." autocomplete="off" />
+          </div>
+          <select id="trStatusFilter" aria-label="Filter by status">
+            <option value="">All statuses</option>
+            <option value="requested">Requested</option>
+            <option value="under-review">Under review</option>
+            <option value="approved">Approved</option>
+            <option value="paid">Paid</option>
+            <option value="rejected">Rejected</option>
+            <option value="closed">Closed</option>
+          </select>
+          <select id="trCategoryFilter" aria-label="Filter by category">
+            <option value="">All categories</option>
+          </select>
+          <select id="trScopeFilter" aria-label="Scope" data-tr-min-role="MANAGER" hidden>
+            <option value="all">All requests</option>
+            <option value="mine">My requests only</option>
+          </select>
+        </div>
+
+        <div class="tr-layout">
+          <div class="tr-panel">
+            <ul class="tr-list" id="trRmbList" role="list" aria-label="Reimbursement requests">
+              <li class="tr-list-head">
+                <div class="tr-item" aria-hidden="true">
+                  <span class="tr-i-id">ID</span>
+                  <span class="tr-i-who">Requester</span>
+                  <span class="tr-i-cat">Category</span>
+                  <span class="tr-i-purp">Purpose</span>
+                  <span class="tr-i-date">Date</span>
+                  <span class="tr-i-amt">Amount</span>
+                  <span class="tr-i-proofs">Files</span>
+                  <span class="tr-i-status">Status</span>
+                </div>
+              </li>
+            </ul>
+            <div class="tr-state" id="trRmbEmpty" hidden>
+              <i class="fas fa-inbox"></i>
+              No reimbursements to show.
+            </div>
+          </div>
+
+          <aside class="tr-insp" id="trInsp" aria-live="polite">
+            <div id="trInspEmpty" class="tr-state" style="padding: 20px 0">
+              <i class="fas fa-hand-pointer"></i>
+              Select a request to see details.
+            </div>
+            <div id="trInspBody" hidden></div>
+          </aside>
+        </div>
+      </section>
+
+      <!-- Expenses tab (Manager+) -->
+      <section class="tr-section" data-tr-section="expenses" hidden>
+        <div class="tr-ribbon">
+          <div class="tr-search">
+            <i class="fas fa-search"></i>
+            <input type="search" id="trExpSearch" placeholder="Search by payee, category, reference..." autocomplete="off" />
+          </div>
+          <select id="trExpMonth" aria-label="Month"></select>
+          <select id="trExpCategory" aria-label="Category">
+            <option value="">All categories</option>
+          </select>
+          <button type="button" class="tsh-btn tsh-btn-ghost tsh-btn-sm" id="trAddExpenseBtn" data-tr-min-role="MANAGER" hidden>
+            <i class="fas fa-plus"></i>Add expense
+          </button>
+        </div>
+
+        <div class="tr-panel">
+          <ul class="tr-list" id="trExpList" role="list" aria-label="Expense ledger">
+            <li class="tr-list-head">
+              <div class="tr-item" aria-hidden="true">
+                <span class="tr-i-id">ID</span>
+                <span class="tr-i-who">Paid to</span>
+                <span class="tr-i-cat">Category</span>
+                <span class="tr-i-purp">Reference / notes</span>
+                <span class="tr-i-date">Date</span>
+                <span class="tr-i-amt">Amount</span>
+                <span class="tr-i-proofs">Files</span>
+                <span class="tr-i-status">Mode</span>
+              </div>
+            </li>
+          </ul>
+          <div class="tr-state" id="trExpEmpty" hidden>
+            <i class="fas fa-receipt"></i>
+            No expenses recorded for this month.
+          </div>
+        </div>
+      </section>
+
+      <!-- Summary tab (Manager+) -->
+      <section class="tr-section" data-tr-section="summary" hidden>
+        <div class="tr-ribbon">
+          <select id="trSumMonth" aria-label="Summary month"></select>
+        </div>
+
+        <div class="tr-sum-grid">
+          <div class="tr-panel" style="padding: 14px 16px">
+            <h3 style="margin: 0 0 10px; font-size: 14px; color: var(--c-primary)">
+              <i class="fas fa-chart-column"></i> Spend by category
+            </h3>
+            <div id="trSumBars">
+              <div class="tr-state"><i class="fas fa-chart-column"></i>Loading&hellip;</div>
+            </div>
+          </div>
+          <div class="tr-panel" style="padding: 14px 16px">
+            <h3 style="margin: 0 0 10px; font-size: 14px; color: var(--c-primary)">
+              <i class="fas fa-scale-balanced"></i> Snapshot
+            </h3>
+            <div id="trSumSnapshot" class="tr-insp-kv" style="grid-template-columns: 170px 1fr">
+              <div class="k">Loading&hellip;</div><div></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </section>
+  </main>
+
+  <div data-include="footer"></div>
+
+  <button type="button" class="tr-fab" id="trFab" aria-label="New request">
+    <i class="fas fa-plus"></i>New
+  </button>
+
+  <script src="./assets/js/config.js?v=11"></script>
+  <script src="./assets/js/partials.js?v=22"></script>
+  <script src="./assets/js/api.js?v=12"></script>
+  <script src="./assets/js/auth.js?v=11"></script>
+  <script src="./assets/js/flags.js?v=13"></script>
+  <script src="./assets/js/ui.js?v=53"></script>
+  <script src="./assets/js/pdf-report.js?v=9"></script>
+  <script src="./assets/js/treasury.js?v=2"></script>
+  <script>
+    (async () => {
+      try {
+        if (window.Treasury && typeof window.Treasury.init === 'function') {
+          await window.Treasury.init();
+        }
+      } catch (e) {
+        console.error('[treasury] init failed', e);
+      }
+    })();
+  </script>
+</body>
+</html>

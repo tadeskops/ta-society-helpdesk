@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
@@ -9,7 +9,7 @@
   <link rel="icon" href="./assets/images/TaLogo.png" type="image/png" />
   <script>(function(){try{var t=localStorage.getItem('tsh_theme');if(t!=='dark'&&t!=='light'&&t!=='medium')t='light';if(t!=='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="./assets/css/theme.css?v=86" />
+  <link rel="stylesheet" href="./assets/css/theme.css?v=87" />
 </head>
 <body class="tsh-page tsh-page-landing">
   <div data-include="header"></div>
@@ -51,9 +51,13 @@
       </div>
     </section>
 
-    <!-- 3. Quick-access tile grid. Each tile carries data-tsh-feature so
-         the grid auto-rebalances when flags hide any item. Stacked variant
-         (icon-on-top, centred) for senior-friendly scanability. -->
+    <!-- 3. Quick-access tile grid. Trimmed to the 4 highest-frequency
+         destinations — the ones a resident hits weekly. Everything else
+         (including deeper directory anchors, events, polls, and future
+         services) lives in the "All services" collapsible below so the
+         home page stays scannable on mobile without losing discoverability.
+         Each tile carries data-tsh-feature so the grid auto-rebalances
+         when a flag hides an item. -->
     <section id="tshQuick" class="tsh-quick" aria-labelledby="tshQuickTitle" data-tsh-collapsible>
       <h2 id="tshQuickTitle" class="tsh-section-h">Quick Access</h2>
       <div class="tsh-quick-grid tsh-quick-grid--stacked">
@@ -64,13 +68,6 @@
             <span class="tsh-quick-d">See what's reported</span>
           </span>
         </a>
-        <a class="tsh-quick-tile" href="./directory.html#vendors" data-tsh-feature="FEATURE_DAILY_DIRECTORY">
-          <span class="tsh-quick-icon"><i class="fas fa-address-card"></i></span>
-          <span class="tsh-quick-body">
-            <span class="tsh-quick-h">Vendor Contacts</span>
-            <span class="tsh-quick-d">Important numbers</span>
-          </span>
-        </a>
         <a class="tsh-quick-tile" href="./reservations.html" data-tsh-feature="FEATURE_TSH_RESERVATIONS">
           <span class="tsh-quick-icon"><i class="fas fa-calendar-check"></i></span>
           <span class="tsh-quick-body">
@@ -78,27 +75,68 @@
             <span class="tsh-quick-d">Community Hall &amp; more</span>
           </span>
         </a>
-        <a class="tsh-quick-tile" href="./directory.html#committee" data-tsh-feature="FEATURE_DAILY_DIRECTORY">
-          <span class="tsh-quick-icon"><i class="fas fa-people-group"></i></span>
+        <a class="tsh-quick-tile" href="./treasury.html" data-tsh-feature="FEATURE_TREASURY">
+          <span class="tsh-quick-icon"><i class="fas fa-wallet"></i></span>
           <span class="tsh-quick-body">
-            <span class="tsh-quick-h">Management Committee</span>
-            <span class="tsh-quick-d">Who's who</span>
+            <span class="tsh-quick-h">Treasury &amp; Reimbursements</span>
+            <span class="tsh-quick-d">Claim expenses, view ledger</span>
           </span>
         </a>
-        <a class="tsh-quick-tile" href="#tshEvents" data-tsh-feature="FEATURE_DAILY_EVENTS" hidden>
-          <span class="tsh-quick-icon"><i class="fas fa-calendar-days"></i></span>
+        <a class="tsh-quick-tile" href="./directory.html" data-tsh-feature="FEATURE_DAILY_DIRECTORY">
+          <span class="tsh-quick-icon"><i class="fas fa-address-book"></i></span>
           <span class="tsh-quick-body">
-            <span class="tsh-quick-h">Upcoming Events</span>
-            <span class="tsh-quick-d">What's coming up</span>
+            <span class="tsh-quick-h">Directory</span>
+            <span class="tsh-quick-d">Committee, managers, vendors</span>
           </span>
         </a>
-        <a class="tsh-quick-tile" href="#tshPolls" data-tsh-feature="FEATURE_DAILY_POLLS">
-          <span class="tsh-quick-icon"><i class="fas fa-square-poll-vertical"></i></span>
-          <span class="tsh-quick-body">
-            <span class="tsh-quick-h">Polls</span>
-            <span class="tsh-quick-d">Vote &amp; feedback</span>
-          </span>
-        </a>
+      </div>
+    </section>
+
+    <!-- 3b. "All services" — one canonical place for every current and
+         future destination. Each group is a <details> so it collapses on
+         mobile (compact, easy to scan) and can be opened on demand. On
+         desktop all groups open by default via CSS. Feature-flag gating
+         is inherited via data-tsh-feature; empty groups auto-hide via
+         the .tsh-svc-group[hidden] rule. Add new features by inserting
+         one <a> row in the appropriate group — no other markup change. -->
+    <section id="tshServices" class="tsh-services" aria-labelledby="tshServicesTitle" data-tsh-collapsible>
+      <h2 id="tshServicesTitle" class="tsh-section-h">All services</h2>
+      <div class="tsh-svc-groups">
+        <details class="tsh-svc-group" open>
+          <summary><i class="fas fa-people-roof" aria-hidden="true"></i> Community</summary>
+          <ul class="tsh-svc-list">
+            <li><a class="tsh-svc-row" href="./public-board.html" data-tsh-feature="FEATURE_DAILY_PUBLIC_BOARD"><i class="fas fa-list-check" aria-hidden="true"></i><span>Public Issues</span></a></li>
+            <li><a class="tsh-svc-row" href="#tshAnnouncements"><i class="fas fa-bullhorn" aria-hidden="true"></i><span>Announcements</span></a></li>
+            <li><a class="tsh-svc-row" href="#tshEvents" data-tsh-feature="FEATURE_DAILY_EVENTS"><i class="fas fa-calendar-days" aria-hidden="true"></i><span>Events</span></a></li>
+            <li><a class="tsh-svc-row" href="#tshPolls" data-tsh-feature="FEATURE_DAILY_POLLS"><i class="fas fa-square-poll-vertical" aria-hidden="true"></i><span>Polls</span></a></li>
+          </ul>
+        </details>
+
+        <details class="tsh-svc-group" open>
+          <summary><i class="fas fa-wallet" aria-hidden="true"></i> Bookings &amp; Money</summary>
+          <ul class="tsh-svc-list">
+            <li><a class="tsh-svc-row" href="./reservations.html" data-tsh-feature="FEATURE_TSH_RESERVATIONS"><i class="fas fa-calendar-check" aria-hidden="true"></i><span>Reserve a space</span></a></li>
+            <li><a class="tsh-svc-row" href="./reservations.html#mine" data-tsh-feature="FEATURE_TSH_RESERVATIONS"><i class="fas fa-user-clock" aria-hidden="true"></i><span>My reservations</span></a></li>
+            <li><a class="tsh-svc-row" href="./treasury.html" data-tsh-feature="FEATURE_TREASURY"><i class="fas fa-money-check-dollar" aria-hidden="true"></i><span>Treasury &amp; reimbursements</span></a></li>
+          </ul>
+        </details>
+
+        <details class="tsh-svc-group" open>
+          <summary><i class="fas fa-address-book" aria-hidden="true"></i> Directory</summary>
+          <ul class="tsh-svc-list">
+            <li><a class="tsh-svc-row" href="./directory.html#committee" data-tsh-feature="FEATURE_DAILY_DIRECTORY"><i class="fas fa-people-group" aria-hidden="true"></i><span>Management Committee</span></a></li>
+            <li><a class="tsh-svc-row" href="./directory.html#managers" data-tsh-feature="FEATURE_DAILY_DIRECTORY"><i class="fas fa-user-tie" aria-hidden="true"></i><span>Society managers</span></a></li>
+            <li><a class="tsh-svc-row" href="./directory.html#vendors" data-tsh-feature="FEATURE_DAILY_DIRECTORY"><i class="fas fa-address-card" aria-hidden="true"></i><span>Vendors</span></a></li>
+          </ul>
+        </details>
+
+        <details class="tsh-svc-group" open>
+          <summary><i class="fas fa-life-ring" aria-hidden="true"></i> Support</summary>
+          <ul class="tsh-svc-list">
+            <li><a class="tsh-svc-row" href="./daily-report.html"><i class="fas fa-screwdriver-wrench" aria-hidden="true"></i><span>Report a daily issue</span></a></li>
+            <li><a class="tsh-svc-row" data-tsh-handover-link href="#" hidden><i class="fas fa-building" aria-hidden="true"></i><span>Report a handover issue</span></a></li>
+          </ul>
+        </details>
       </div>
     </section>
 
@@ -152,6 +190,13 @@
           <span class="tsh-quick-body">
             <span class="tsh-quick-h">Manage tickets</span>
             <span class="tsh-quick-d">Triage, assign, resolve</span>
+          </span>
+        </a>
+        <a class="tsh-quick-tile tsh-quick-tile-staff" href="./treasury.html" data-tsh-role-link="MANAGER" data-tsh-feature="FEATURE_TREASURY" hidden>
+          <span class="tsh-quick-icon"><i class="fas fa-money-check-dollar"></i></span>
+          <span class="tsh-quick-body">
+            <span class="tsh-quick-h">Treasury desk</span>
+            <span class="tsh-quick-d">Approve, pay &amp; ledger</span>
           </span>
         </a>
         <a class="tsh-quick-tile tsh-quick-tile-staff" href="./settings.html" data-tsh-role-link="ADMIN" hidden>

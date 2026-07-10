@@ -34,7 +34,12 @@
     "FEATURE_DAILY_VISITOR_COUNTER": false,
     "FEATURE_DAILY_USER_ROLE_BADGE": true,
     "FEATURE_DAILY_EXPORT_PDF": true,
-    "FEATURE_BOOKINGS_REPORT": true
+    "FEATURE_BOOKINGS_REPORT": true,
+    "FEATURE_TREASURY": true,
+    "FEATURE_TREASURY_MANAGER_APPROVE": false,
+    "FEATURE_TREASURY_MANAGER_PAY": false,
+    "FEATURE_TREASURY_MANAGER_RECORD_EXPENSE": true,
+    "FEATURE_TREASURY_RESIDENT_RAISE": true
   },
   "tunables": {
     "DAILY_AUTO_ASSIGN_HOURS": 4,
@@ -56,7 +61,13 @@
     "EVENTS_CACHE_SECONDS": 60,
     "POLLS_CACHE_SECONDS": 60,
     "POLLS_VOTES_CACHE_SECONDS": 30,
-    "DAILY_NOTICE_TTL_DAYS": 7
+    "DAILY_NOTICE_TTL_DAYS": 7,
+    "TREASURY_CACHE_SECONDS": 60,
+    "TREASURY_MAX_FILE_BYTES": 5242880,
+    "TREASURY_MAX_FILES_PER_ITEM": 5,
+    "TREASURY_ARCHIVE_AFTER_DAYS": 120,
+    "TREASURY_APPROVAL_QUORUM": 1,
+    "TREASURY_RECEIPT_PATH": "treasury/receipts/{yearMonth}/{kind}/{id}/{seq}-{name}"
   },
   "lists": {
     "towers": [
@@ -264,7 +275,28 @@
         "Damaged fixture",
         "Other"
       ]
-    }
+    },
+    "treasuryCategories": [
+      "Repairs",
+      "Plumbing",
+      "Electrical",
+      "Housekeeping",
+      "Security",
+      "Water",
+      "Utilities",
+      "Lift AMC",
+      "Fire / Safety AMC",
+      "DG / STP AMC",
+      "Garden",
+      "Pest Control",
+      "Office / Admin",
+      "Festivals",
+      "Events",
+      "Insurance",
+      "Legal / Audit",
+      "Statutory / Tax",
+      "Miscellaneous"
+    ]
   },
   "system": {
     "issuesRepo": "tadeskops/ta-society-helpdesk",

@@ -11,6 +11,13 @@ export interface Env {
   /** Receipts repo name (default: "tsh-booking-receipts"). Empty disables archive. */
   GH_RECEIPTS_REPO?: string;
   GH_RECEIPTS_BRANCH?: string;
+  /** Treasury private repo (reimbursements + expense proofs + payment slips).
+   *  When GH_TREASURY_REPO is unset, the Worker refuses treasury writes
+   *  and treasury reads return empty envelopes. Recommended name:
+   *  "ta-society-treasury". Falls back to GH_OWNER for the owner. */
+  GH_TREASURY_OWNER?: string;
+  GH_TREASURY_REPO?: string;
+  GH_TREASURY_BRANCH?: string;
   GOOGLE_OAUTH_CLIENT_ID: string;
   TURNSTILE_SITE_KEY: string;
   ALLOWED_ORIGINS: string;
@@ -20,6 +27,10 @@ export interface Env {
   GITHUB_TOKEN: string;
   /** Optional: separate PAT for the receipts repo. Falls back to GITHUB_TOKEN. */
   GITHUB_RECEIPTS_TOKEN?: string;
+  /** Optional: separate PAT for the treasury private repo. When absent
+   *  the primary GITHUB_TOKEN is reused — safe only if that PAT has
+   *  contents:write on the treasury repo too. Recommended: dedicated PAT. */
+  GITHUB_TREASURY_TOKEN?: string;
   BOOTSTRAP_ADMINS?: string;
   /** Legacy alias for BOOTSTRAP_ADMINS. Read as fallback during migration. */
   BOOTSTRAP_DEVELOPERS?: string;
