@@ -6,19 +6,19 @@
 //   POST  /treasury/reimbursements              raise a request (Resident+)
 //   PATCH /treasury/reimbursements/:id          transition (review/approve/reject/reopen)
 //   POST  /treasury/reimbursements/:id/payment  mark paid + payment slip metadata
-//                                               (binary upload = phase 2)
+//                                               (binaries uploaded to private repo)
 //   GET   /treasury/expenses                    ledger list
 //   POST  /treasury/expenses                    manual expense entry
 //   PATCH /treasury/expenses/:id                edit (Committee+)
 //   POST  /treasury/expenses/:id/delete         soft-delete (Committee+, reason required)
 //   GET   /treasury/summary?month=YYYY-MM       KPI + category breakdown
+//   GET   /treasury/file?path=<repo-path>       stream a stored receipt/proof (Manager+)
 //
-// Storage: two JSON files in the treasury private repo.
+// Storage: two JSON files + one folder tree in the treasury private repo.
 //   config/treasury-reimbursements.json
 //   config/treasury-expenses.json
-// Binary proofs (bill scans, payment slips) are Phase 2 — the routes
-// accept file metadata today, but /files uploads land in a follow-up
-// commit alongside a dedicated file-streaming endpoint.
+//   treasury/receipts/{yearMonth}/{kind}/{id}/{seq}-{name}   (binary blobs)
+// Path template is configurable via tunable TREASURY_RECEIPT_PATH.
 //
 // If GH_TREASURY_REPO is not configured, all writes 503 with a clear
 // message so a mis-provisioned worker fails obviously instead of losing
@@ -33,7 +33,7 @@ import { ok } from '../lib/envelope.ts';
 import { ensureAllowed } from '../middleware/rbac.ts';
 import { BadRequest, NotFound, Forbidden, FeatureDisabled } from '../lib/errors.ts';
 import { parseJson, str, optStr, oneOf, num, optNum } from '../lib/validate.ts';
-import { getFile, putFile, putBinaryB64 } from '../github/client.ts';
+import { getFile, putFile, putBinaryB64, getBinaryFile } from '../github/client.ts';
 import { writeAudit } from '../lib/audit.ts';
 import { isAtLeast, hasAny } from '../auth/roles.ts';
 import { tunable, isFeatureOn } from '../config/defaults.ts';
@@ -72,8 +72,8 @@ const TRANSITIONS: Record<ReimbursementStatus, ReimbursementStatus[]> = {
 export interface FileRef {
   name: string;         // display name
   mime: string;         // image/jpeg | image/png | image/webp | application/pdf
-  size: number;         // bytes (client-declared; binary upload lands in phase 2)
-  path?: string;        // set once the binary is uploaded (phase 2)
+  size: number;         // bytes (declared by client; matches uploaded blob)
+  path?: string;        // set once the binary is stored in the treasury repo
   addedAt: string;
   addedBy: string;
 }
@@ -792,6 +792,58 @@ export const mountTreasury = (r: Router): void => {
       paidMonth,
       paidMonthCount: paidMonthRmb.length,
       expenseCount: monthExp.length,
+    });
+  });
+
+  // -------------------------- GET /treasury/file?path=…
+  // Stream a stored receipt / proof / payment-slip binary from the
+  // private treasury repo. Manager+ only — residents see the metadata
+  // on their own reimbursement records but never touch the blob.
+  // We only serve paths that (a) live under `treasury/` and (b) match a
+  // FileRef we actually stored, so this can never be turned into an
+  // arbitrary read of the private repo.
+  r.get('/treasury/file', async (ctx: Ctx) => {
+    ensureAllowed(ctx, {
+      flags: [FLAG], requireIdentity: true,
+      roles: ['MANAGER', 'COMMITTEE', 'ADMIN'],
+    });
+    const path = ctx.url.searchParams.get('path');
+    if (!path) throw new BadRequest('path query parameter is required');
+    if (!path.startsWith('treasury/') || path.includes('..') || path.includes('//')) {
+      throw new BadRequest('path must be a stored treasury receipt path');
+    }
+    const target = treasuryRepoTarget(ctx.env);
+    if (!target) throw new NotFound('Treasury storage is not configured on this worker');
+
+    // Look up the FileRef so (1) we confirm the path was stored by us
+    // and (2) we recover the mime + display name for correct headers.
+    const [{ items: rmbs }, { items: exps }] = await Promise.all([
+      loadReimbursements(ctx), loadExpenses(ctx),
+    ]);
+    let match: FileRef | undefined;
+    for (const rec of rmbs) {
+      match = rec.proofs.find((p) => p.path === path)
+           ?? rec.paymentProofs.find((p) => p.path === path);
+      if (match) break;
+    }
+    if (!match) {
+      for (const rec of exps) {
+        match = rec.receipts.find((p) => p.path === path);
+        if (match) break;
+      }
+    }
+    if (!match) throw new NotFound(`Receipt not found: ${path}`);
+
+    const bin = await getBinaryFile(ctx.env, path, target);
+    if (!bin) throw new NotFound(`Receipt file ${path} missing from repo`);
+    return new Response(bin.bytes as unknown as BodyInit, {
+      status: 200,
+      headers: {
+        'Content-Type': match.mime,
+        'Content-Length': String(bin.bytes.length),
+        'Cache-Control': 'private, no-store',
+        'Content-Disposition': `inline; filename="${encodeURIComponent(match.name)}"`,
+      },
     });
   });
 };

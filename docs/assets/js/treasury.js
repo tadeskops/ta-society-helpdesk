@@ -570,9 +570,49 @@
     return g;
   }
   function showFileInfo(f) {
-    // Files live in the private treasury repo; we don't render them inline
-    // to keep the private repo private (a resident could inadvertently
-    // paste a signed URL). Show metadata only.
+    // Files live in the private treasury repo. Manager+ can view them
+    // via /treasury/file (RBAC + path validation on the worker); the
+    // link below fetches through the authenticated Api base so the JWT
+    // bearer is attached, then hands the browser an object URL so
+    // images/PDFs open inline in a new tab.
+    const canView = f.path && (state.isCommittee || state.canApprove || state.canPay || state.canRecordExpense);
+    const openBtn = canView ? el('button', {
+      type: 'button', class: 'tsh-btn tsh-btn-secondary',
+      style: 'margin-top:10px',
+      onclick: async (e) => {
+        const btn = e.currentTarget;
+        btn.disabled = true;
+        const orig = btn.textContent;
+        btn.textContent = 'Opening…';
+        try {
+          const tok = root.Auth && root.Auth.token();
+          const url = root.Api.base() + '/treasury/file?path=' + encodeURIComponent(f.path);
+          const res = await fetch(url, {
+            method: 'GET',
+            headers: tok ? { Authorization: `Bearer ${tok}` } : {},
+            credentials: 'omit',
+          });
+          if (!res.ok) {
+            const j = await res.json().catch(() => ({}));
+            throw new Error(j.error || `HTTP ${res.status}`);
+          }
+          const blob = await res.blob();
+          const objUrl = URL.createObjectURL(blob);
+          const win = window.open(objUrl, '_blank', 'noopener,noreferrer');
+          // Revoke after the tab has had time to load the blob so we
+          // don't leak the URL forever (or invalidate it before the tab
+          // reads it on a slow device).
+          setTimeout(() => URL.revokeObjectURL(objUrl), 60_000);
+          if (!win) alert('Popup was blocked — allow popups for this site.');
+        } catch (err) {
+          alert('Could not open receipt: ' + (err && err.message ? err.message : err));
+        } finally {
+          btn.disabled = false;
+          btn.textContent = orig;
+        }
+      },
+    }, el('i', { class: 'fas fa-arrow-up-right-from-square' }), ' Open receipt') : null;
+
     root.UI.modal({
       title: f.name,
       body: el('div', { style: 'font-size:13px;line-height:1.6' },
@@ -580,7 +620,10 @@
         el('div', {}, el('b', {}, 'Size: '), Math.round((f.size || 0) / 1024) + ' KB'),
         f.path ? el('div', {}, el('b', {}, 'Path: '), el('code', { style: 'font-size:11px' }, f.path)) : null,
         el('div', { style: 'color:var(--c-text-muted);font-size:11px;margin-top:8px' },
-          'Files are stored in the private treasury repository; contact the treasurer for access.'),
+          f.path
+            ? 'Stored in the private treasury repository. Manager+ access required to open.'
+            : 'File metadata only — no binary was uploaded when this record was created.'),
+        openBtn,
       ),
       actions: [{ label: 'Close', value: null }],
     });

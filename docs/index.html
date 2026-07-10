@@ -92,6 +92,16 @@
       </div>
     </section>
 
+    <!-- 4. KPIs at-a-glance — sleek 4-tile strip. Computed client-side
+         from the same /issues/public payload that feeds the Recent
+         issues list below, so it's free (one round-trip). Full triage
+         dashboards remain on Manage. -->
+    <section id="tshKpi" class="tsh-kpi-strip"
+             data-tsh-feature="FEATURE_DAILY_PUBLIC_BOARD"
+             hidden aria-label="Issues at a glance">
+      <ul class="tsh-kpi-list" data-tsh-kpi-host></ul>
+    </section>
+
     <!-- 3b. "All services" — one canonical place for every current and
          future destination. Each group is a <details> so it collapses on
          mobile (compact, easy to scan) and can be opened on demand. On
@@ -138,16 +148,6 @@
           </ul>
         </details>
       </div>
-    </section>
-
-    <!-- 4. KPIs at-a-glance â€” sleek 4-tile strip. Computed client-side
-         from the same /issues/public payload that feeds the Recent
-         issues list below, so it's free (one round-trip). Full triage
-         dashboards remain on Manage. -->
-    <section id="tshKpi" class="tsh-kpi-strip"
-             data-tsh-feature="FEATURE_DAILY_PUBLIC_BOARD"
-             hidden aria-label="Issues at a glance">
-      <ul class="tsh-kpi-list" data-tsh-kpi-host></ul>
     </section>
 
     <!-- 5. Recent issues â€” sleek, compact preview on the home page.

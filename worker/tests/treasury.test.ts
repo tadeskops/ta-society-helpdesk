@@ -143,6 +143,7 @@ beforeEach(() => {
   tunableOverrides = {};
   _resetTreasuryCachesForTests();
   (ghClient.putBinaryB64 as any).mockClear?.();
+  (ghClient.getBinaryFile as any).mockClear?.();
 });
 
 // ---------------------------------------------------------------- routing
@@ -677,5 +678,80 @@ describe('treasury: binary receipt upload to private repo', () => {
     }), 'res@x.com');
     expect(res.status).toBe(400);
     expect((ghClient.putBinaryB64 as any).mock.calls.length).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------- receipt streaming
+
+describe('treasury: GET /treasury/file (receipt streaming)', () => {
+  const b64 = 'AAECAwQFBgcICQ=='; // 10 bytes
+
+  // Helper: raise a reimbursement that has an uploaded proof, return its path.
+  const raiseWithProof = async () => {
+    const res = await send('POST', '/treasury/reimbursements', buildRaiseBody({
+      proofs: [{ name: 'bill.pdf', mime: 'application/pdf', size: 10, dataBase64: b64 }],
+    }), 'res@x.com');
+    const j = await readJson(res);
+    return j.data.reimbursement.proofs[0].path as string;
+  };
+
+  it('residents cannot fetch receipts (Manager+ only)', async () => {
+    const path = await raiseWithProof();
+    const res = await send('GET', '/treasury/file?path=' + encodeURIComponent(path), undefined, 'res@x.com');
+    expect(res.status).toBe(403);
+  });
+
+  it('committee can fetch a stored receipt and gets binary + correct headers', async () => {
+    const path = await raiseWithProof();
+    // Stub the binary read to return known bytes.
+    (ghClient.getBinaryFile as any).mockImplementationOnce(async () => ({
+      sha: 'x', bytes: new Uint8Array([1, 2, 3, 4]),
+    }));
+    const res = await send('GET', '/treasury/file?path=' + encodeURIComponent(path), undefined, 'cmt@x.com');
+    expect(res.status).toBe(200);
+    expect(res.headers.get('Content-Type')).toBe('application/pdf');
+    expect(res.headers.get('Content-Length')).toBe('4');
+    expect(res.headers.get('Cache-Control')).toBe('private, no-store');
+    expect(res.headers.get('Content-Disposition')).toContain('bill.pdf');
+    const buf = new Uint8Array(await res.arrayBuffer());
+    expect(Array.from(buf)).toEqual([1, 2, 3, 4]);
+  });
+
+  it('rejects missing path query', async () => {
+    const res = await send('GET', '/treasury/file', undefined, 'cmt@x.com');
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects paths outside the treasury/ tree (traversal defence)', async () => {
+    const res = await send('GET', '/treasury/file?path=' + encodeURIComponent('config/site.json'), undefined, 'cmt@x.com');
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects paths that contain `..` or `//`', async () => {
+    const res1 = await send('GET', '/treasury/file?path=' + encodeURIComponent('treasury/../config/site.json'), undefined, 'cmt@x.com');
+    expect(res1.status).toBe(400);
+    const res2 = await send('GET', '/treasury/file?path=' + encodeURIComponent('treasury//x.pdf'), undefined, 'cmt@x.com');
+    expect(res2.status).toBe(400);
+  });
+
+  it('returns 404 for a treasury path that no FileRef references', async () => {
+    // Path shape valid, but no reimbursement/expense has it.
+    const res = await send('GET', '/treasury/file?path=' + encodeURIComponent('treasury/receipts/2026-07/proof/RMB-999/01-ghost.pdf'), undefined, 'cmt@x.com');
+    expect(res.status).toBe(404);
+    // Should not touch the binary read either.
+    expect((ghClient.getBinaryFile as any).mock.calls.length).toBe(0);
+  });
+
+  it('returns 404 when the FileRef exists but the blob is gone from the repo', async () => {
+    const path = await raiseWithProof();
+    (ghClient.getBinaryFile as any).mockImplementationOnce(async () => undefined);
+    const res = await send('GET', '/treasury/file?path=' + encodeURIComponent(path), undefined, 'cmt@x.com');
+    expect(res.status).toBe(404);
+  });
+
+  it('returns 404 when treasury storage is not configured', async () => {
+    const res = await send('GET', '/treasury/file?path=' + encodeURIComponent('treasury/receipts/2026-07/proof/RMB-1/01-a.pdf'),
+      undefined, 'cmt@x.com', envUnconfigured);
+    expect(res.status).toBe(404);
   });
 });
