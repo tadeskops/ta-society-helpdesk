@@ -35,7 +35,7 @@ import { BadRequest, NotFound, Forbidden, FeatureDisabled } from '../lib/errors.
 import { parseJson, str, optStr, oneOf, num, optNum } from '../lib/validate.ts';
 import { getFile, putFile, putBinaryB64, getBinaryFile } from '../github/client.ts';
 import { writeAudit } from '../lib/audit.ts';
-import { isAtLeast, hasAny } from '../auth/roles.ts';
+import { isAtLeast, hasAny, canViewTreasuryLedger, canActOnTreasuryLedger } from '../auth/roles.ts';
 import { tunable, isFeatureOn } from '../config/defaults.ts';
 import { log } from '../lib/log.ts';
 
@@ -273,18 +273,55 @@ const mintId = (kind: 'RMB' | 'EXP', existing: string[], nowMs = Date.now()): st
 
 const nowIso = (): string => new Date().toISOString();
 
+// -------------------------------------------------- treasury access gates
+//
+// The confidential treasury dashboard (ledger, all reimbursements, expenses,
+// summary, receipt binaries, approve/pay/record actions) is restricted to
+// the additive Treasurer/Chairman/Secretary tags, plus ADMIN. See
+// worker/src/auth/roles.ts for the precise rules (including grandfathering).
+//
+// * `ensureCanViewLedger` — gates read endpoints (list / summary / file).
+// * `ensureCanActLedger`  — gates write endpoints (approve, pay, expense
+//                           add/edit/delete). Secretary is view-only even
+//                           when the opt-in flag is on.
+//
+// Personal endpoints (POST /reimbursements to raise, and
+// GET /reimbursements?scope=mine to see one's own claims) are NOT gated
+// by these — they follow FEATURE_TREASURY_RESIDENT_RAISE + identity.
+
+const canViewLedger = (ctx: Ctx): boolean =>
+  canViewTreasuryLedger(ctx.roles, ctx.access, ctx.config);
+
+const ensureCanViewLedger = (ctx: Ctx): void => {
+  if (!canViewLedger(ctx)) {
+    throw new Forbidden(
+      'Treasury dashboard is restricted. Ask an admin to add you to the '
+      + 'Treasurer, Chairman, or Secretary list.',
+    );
+  }
+};
+
+const ensureCanActLedger = (ctx: Ctx): void => {
+  if (!canActOnTreasuryLedger(ctx.roles, ctx.access)) {
+    throw new Forbidden(
+      'This action is restricted to Treasurer, Chairman, or Admin. '
+      + 'Secretary access is view-only.',
+    );
+  }
+};
+
 const roleCanApprove = (ctx: Ctx): boolean => {
-  if (isAtLeast(ctx.roles, 'COMMITTEE')) return true;
+  if (canActOnTreasuryLedger(ctx.roles, ctx.access)) return true;
   return hasAny(ctx.roles, 'MANAGER') && isFeatureOn(ctx.config, 'FEATURE_TREASURY_MANAGER_APPROVE');
 };
 
 const roleCanPay = (ctx: Ctx): boolean => {
-  if (isAtLeast(ctx.roles, 'COMMITTEE')) return true;
+  if (canActOnTreasuryLedger(ctx.roles, ctx.access)) return true;
   return hasAny(ctx.roles, 'MANAGER') && isFeatureOn(ctx.config, 'FEATURE_TREASURY_MANAGER_PAY');
 };
 
 const roleCanRecordExpense = (ctx: Ctx): boolean => {
-  if (isAtLeast(ctx.roles, 'COMMITTEE')) return true;
+  if (canActOnTreasuryLedger(ctx.roles, ctx.access)) return true;
   return hasAny(ctx.roles, 'MANAGER')
     && isFeatureOn(ctx.config, 'FEATURE_TREASURY_MANAGER_RECORD_EXPENSE');
 };
@@ -402,18 +439,25 @@ const pushTimeline = (rec: Reimbursement, item: TimelineItem): void => {
 
 export const mountTreasury = (r: Router): void => {
   // -------------------------- GET /treasury/reimbursements
+  //
+  // Personal view (scope=mine, or caller lacks confidential ledger
+  // access) → only own claims. Confidential ledger view → all items.
+  // The confidential dashboard is gated by canViewTreasuryLedger
+  // (Treasurer/Chairman/Admin always; Secretary when the opt-in flag
+  // is on; grandfathered Committee+Admin when none of the three new
+  // lists are seeded yet).
   r.get('/treasury/reimbursements', async (ctx: Ctx) => {
     ensureAllowed(ctx, { flags: [FLAG], requireIdentity: true });
     const { items } = await loadReimbursements(ctx);
 
-    const isStaff = isAtLeast(ctx.roles, 'MANAGER');
+    const canSeeAll = canViewLedger(ctx);
     const me = ctx.identity!.email.toLowerCase();
     const scope = ctx.url.searchParams.get('scope'); // 'mine' | 'all'
     const status = ctx.url.searchParams.get('status');
     const category = ctx.url.searchParams.get('category');
 
     let out = items.slice();
-    if (!isStaff || scope === 'mine') {
+    if (!canSeeAll || scope === 'mine') {
       out = out.filter((x) => x.createdBy.toLowerCase() === me);
     }
     if (status && (ALL_STATUSES as readonly string[]).includes(status)) {
@@ -525,7 +569,9 @@ export const mountTreasury = (r: Router): void => {
       throw new BadRequest('Use POST /treasury/reimbursements/:id/payment to mark paid');
     }
     if (nextStatus === 'closed') {
-      if (!isAtLeast(ctx.roles, 'COMMITTEE')) throw new Forbidden('Only committee/admin can close');
+      if (!canActOnTreasuryLedger(ctx.roles, ctx.access)) {
+        throw new Forbidden('Only Treasurer / Chairman / Admin can close');
+      }
     }
     if (nextStatus === 'requested' && rec.status === 'rejected') {
       // Reopen — allow owner or staff.
@@ -569,7 +615,8 @@ export const mountTreasury = (r: Router): void => {
 
   // -------------------------- POST /treasury/reimbursements/:id/payment
   r.post('/treasury/reimbursements/:id/payment', async (ctx: Ctx, params) => {
-    ensureAllowed(ctx, { flags: [FLAG], requireIdentity: true, roles: ['MANAGER', 'COMMITTEE', 'ADMIN'] });
+    ensureAllowed(ctx, { flags: [FLAG], requireIdentity: true });
+    ensureCanViewLedger(ctx);
     if (!roleCanPay(ctx)) throw new Forbidden('You cannot mark reimbursements as paid');
 
     const body = await parseJson<Record<string, unknown>>(ctx.req);
@@ -636,10 +683,11 @@ export const mountTreasury = (r: Router): void => {
 
   // -------------------------- GET /treasury/expenses
   r.get('/treasury/expenses', async (ctx: Ctx) => {
-    ensureAllowed(ctx, { flags: [FLAG], requireIdentity: true, roles: ['MANAGER', 'COMMITTEE', 'ADMIN'] });
+    ensureAllowed(ctx, { flags: [FLAG], requireIdentity: true });
+    ensureCanViewLedger(ctx);
     const { items } = await loadExpenses(ctx);
     const showDeleted = ctx.url.searchParams.get('showDeleted') === '1'
-      && isAtLeast(ctx.roles, 'COMMITTEE');
+      && canActOnTreasuryLedger(ctx.roles, ctx.access);
     const month = ctx.url.searchParams.get('month');
     const category = ctx.url.searchParams.get('category');
 
@@ -658,7 +706,8 @@ export const mountTreasury = (r: Router): void => {
 
   // -------------------------- POST /treasury/expenses  (manual entry)
   r.post('/treasury/expenses', async (ctx: Ctx) => {
-    ensureAllowed(ctx, { flags: [FLAG], requireIdentity: true, roles: ['MANAGER', 'COMMITTEE', 'ADMIN'] });
+    ensureAllowed(ctx, { flags: [FLAG], requireIdentity: true });
+    ensureCanViewLedger(ctx);
     if (!roleCanRecordExpense(ctx)) throw new Forbidden('You cannot record direct expenses');
     const body = await parseJson<Record<string, unknown>>(ctx.req);
 
@@ -705,7 +754,8 @@ export const mountTreasury = (r: Router): void => {
 
   // -------------------------- PATCH /treasury/expenses/:id
   r.patch('/treasury/expenses/:id', async (ctx: Ctx, params) => {
-    ensureAllowed(ctx, { flags: [FLAG], requireIdentity: true, roles: ['COMMITTEE', 'ADMIN'] });
+    ensureAllowed(ctx, { flags: [FLAG], requireIdentity: true });
+    ensureCanActLedger(ctx);
     const body = await parseJson<Record<string, unknown>>(ctx.req);
     const { items, sha } = await loadExpenses(ctx);
     const idx = items.findIndex((x) => x.id === params['id']);
@@ -740,7 +790,8 @@ export const mountTreasury = (r: Router): void => {
 
   // -------------------------- POST /treasury/expenses/:id/delete
   r.post('/treasury/expenses/:id/delete', async (ctx: Ctx, params) => {
-    ensureAllowed(ctx, { flags: [FLAG], requireIdentity: true, roles: ['COMMITTEE', 'ADMIN'] });
+    ensureAllowed(ctx, { flags: [FLAG], requireIdentity: true });
+    ensureCanActLedger(ctx);
     const body = await parseJson<Record<string, unknown>>(ctx.req);
     const reason = str(body['reason'], 'reason', { min: 3, max: 240 });
 
@@ -764,7 +815,8 @@ export const mountTreasury = (r: Router): void => {
 
   // -------------------------- GET /treasury/summary
   r.get('/treasury/summary', async (ctx: Ctx) => {
-    ensureAllowed(ctx, { flags: [FLAG], requireIdentity: true, roles: ['MANAGER', 'COMMITTEE', 'ADMIN'] });
+    ensureAllowed(ctx, { flags: [FLAG], requireIdentity: true });
+    ensureCanViewLedger(ctx);
     const month = ctx.url.searchParams.get('month') ?? monthKeyIst();
     if (!MONTH_RE.test(month)) throw new BadRequest('month must be YYYY-MM');
 
@@ -797,16 +849,17 @@ export const mountTreasury = (r: Router): void => {
 
   // -------------------------- GET /treasury/file?path=…
   // Stream a stored receipt / proof / payment-slip binary from the
-  // private treasury repo. Manager+ only — residents see the metadata
-  // on their own reimbursement records but never touch the blob.
+  // private treasury repo. Treasury-authorized viewers only (Treasurer /
+  // Chairman / Admin, plus Secretary when the opt-in flag is on;
+  // grandfathered Committee+Admin when no Treasurer/Chairman/Secretary
+  // list is seeded). Residents see the metadata on their own
+  // reimbursement records but never touch the blob.
   // We only serve paths that (a) live under `treasury/` and (b) match a
   // FileRef we actually stored, so this can never be turned into an
   // arbitrary read of the private repo.
   r.get('/treasury/file', async (ctx: Ctx) => {
-    ensureAllowed(ctx, {
-      flags: [FLAG], requireIdentity: true,
-      roles: ['MANAGER', 'COMMITTEE', 'ADMIN'],
-    });
+    ensureAllowed(ctx, { flags: [FLAG], requireIdentity: true });
+    ensureCanViewLedger(ctx);
     const path = ctx.url.searchParams.get('path');
     if (!path) throw new BadRequest('path query parameter is required');
     if (!path.startsWith('treasury/') || path.includes('..') || path.includes('//')) {

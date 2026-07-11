@@ -16,6 +16,11 @@ const PATHS: Record<string, string> = {
   managers:  'config/managers.json',
   committee: 'config/committee.json',
   admins:    'config/admins.json',
+  // Additive capability tags for confidential Treasury access.
+  // See worker/src/auth/roles.ts → canViewTreasuryLedger.
+  treasurer: 'config/treasurer.json',
+  chairman:  'config/chairman.json',
+  secretary: 'config/secretary.json',
 };
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

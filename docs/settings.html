@@ -174,6 +174,42 @@
           </div>
         </details>
 
+        <details class="tsh-section" id="treasuryAccessSection" open>
+          <summary><h2><i class="fas fa-user-shield gold-accent"></i> Treasury access (above committee)</h2></summary>
+          <p class="tsh-hint">
+            The confidential Treasury dashboard (full ledger, all reimbursements, monthly summary,
+            receipt viewer, approve/pay actions) is restricted to <strong>Treasurer / Chairman /
+            Admin</strong>. Secretary is an <em>opt-in</em> read-only tier (enable the
+            <code>FEATURE_TREASURY_SECRETARY_ACCESS</code> flag below to grant secretary view
+            without action rights).
+          </p>
+          <div id="treasuryGrandfatherBanner" class="tsh-hint" style="border:1px solid var(--tsh-warn, #d4a017);background:rgba(212,160,23,0.08);padding:.6rem .8rem;border-radius:6px;margin-bottom:.6rem;display:none;">
+            <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
+            <strong>Grandfather clause active.</strong> None of the three lists below are seeded yet,
+            so the legacy Committee+Admin gate is still granting access to the treasury dashboard.
+            Seed at least one of the three (Treasurer/Chairman/Secretary) to lock down access to the
+            new capability model. Once seeded, plain committee members will no longer see the ledger
+            unless they are also listed here.
+          </div>
+          <div class="tsh-grid-3">
+            <div class="tsh-field">
+              <span class="tsh-label">Treasurer</span>
+              <textarea name="treasurer" rows="4" placeholder="one email per line"></textarea>
+              <small class="tsh-field-desc">Full view + all actions (approve / reject / pay / record expense).</small>
+            </div>
+            <div class="tsh-field">
+              <span class="tsh-label">Chairman</span>
+              <textarea name="chairman" rows="4" placeholder="one email per line"></textarea>
+              <small class="tsh-field-desc">Full view + all actions (same as Treasurer).</small>
+            </div>
+            <div class="tsh-field">
+              <span class="tsh-label">Secretary <span class="tsh-hint">(view-only, opt-in flag)</span></span>
+              <textarea name="secretary" rows="4" placeholder="one email per line"></textarea>
+              <small class="tsh-field-desc">Read-only view of the ledger. Requires <code>FEATURE_TREASURY_SECRETARY_ACCESS</code>.</small>
+            </div>
+          </div>
+        </details>
+
         <details class="tsh-section" id="treasurySection" open>
           <summary><h2><i class="fas fa-wallet gold-accent"></i> Treasury &amp; Reimbursements</h2></summary>
           <p class="tsh-hint">
@@ -435,7 +471,7 @@
         : 'Admin write access. Changes apply within 60 s for all users.';
 
     const cfg = await Flags.ready();
-    const access = await Api.get('/access-lists').catch(() => ({ managers: [], committee: [], admins: [] }));
+    const access = await Api.get('/access-lists').catch(() => ({ managers: [], committee: [], admins: [], treasurer: [], chairman: [], secretary: [] }));
 
     fill(cfg, access);
 
@@ -462,7 +498,7 @@
           const payload = collect();
           await Api.put('/config', { config: payload.config });
           // Access lists are saved separately.
-          for (const role of ['admins', 'committee', 'managers']) {
+          for (const role of ['admins', 'committee', 'managers', 'treasurer', 'chairman', 'secretary']) {
             await Api.put(`/access-lists/${role}`, { emails: payload.access[role] });
           }
           UI.toast('Saved. Changes will reach all users within 60 s.', { kind: 'success' });
@@ -534,6 +570,21 @@
       form.elements['admins'].value = (access.admins || []).join('\n');
       form.elements['committee'].value  = (access.committee || []).join('\n');
       form.elements['managers'].value   = (access.managers || []).join('\n');
+      form.elements['treasurer'].value  = (access.treasurer || []).join('\n');
+      form.elements['chairman'].value   = (access.chairman  || []).join('\n');
+      form.elements['secretary'].value  = (access.secretary || []).join('\n');
+
+      // Grandfather banner — visible only while none of the three new
+      // treasury lists are seeded (matches worker's
+      // isTreasuryGrandfatherActive helper).
+      const gfBanner = document.getElementById('treasuryGrandfatherBanner');
+      if (gfBanner) {
+        const noneSeeded =
+          (access.treasurer || []).length === 0 &&
+          (access.chairman  || []).length === 0 &&
+          (access.secretary || []).length === 0;
+        gfBanner.style.display = noneSeeded ? '' : 'none';
+      }
 
       // Feature flags — grouped by product area so related flags sit
       // together. Master flag (e.g. FEATURE_TREASURY) is pushed to the
@@ -827,6 +878,9 @@
         admins:     lines(form.elements['admins'].value),
         committee:  lines(form.elements['committee'].value),
         managers:   lines(form.elements['managers'].value),
+        treasurer:  lines(form.elements['treasurer'].value),
+        chairman:   lines(form.elements['chairman'].value),
+        secretary:  lines(form.elements['secretary'].value),
       };
       return { config: cfg, access };
     }

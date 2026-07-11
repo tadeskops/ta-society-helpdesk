@@ -227,9 +227,49 @@
     throw new Error('FeatureDisabled:' + flag);
   }
 
+  // ---- Treasury access helpers (mirror worker/src/auth/roles.ts) ----
+  //
+  // The confidential treasury dashboard (ledger, all reimbursements,
+  // expenses, summary, receipt viewer, approve/pay actions) is
+  // restricted to the additive Treasurer / Chairman / Secretary tags
+  // plus Admin. Secretary is opt-in via FEATURE_TREASURY_SECRETARY_ACCESS.
+  // Committee+Admin retain access via a grandfather clause as long as
+  // none of the three new lists is seeded — the SETTINGS page shows a
+  // banner while grandfather is active. The worker is the authoritative
+  // enforcer; these client helpers just decide what to render.
+  function _rolesOf(who) {
+    if (!who) return [];
+    if (Array.isArray(who.roles)) return who.roles;
+    return [];
+  }
+
+  function canViewTreasury(who) {
+    const roles = _rolesOf(who);
+    if (roles.includes('ADMIN') || roles.includes('CHAIRMAN') || roles.includes('TREASURER')) return true;
+    if (roles.includes('SECRETARY') && on('FEATURE_TREASURY_SECRETARY_ACCESS')) return true;
+    // Client can't know the three access lists directly (only admins
+    // see /access-lists), so we DO NOT try to compute the grandfather
+    // fallback here — instead we fail open on the safer side by also
+    // treating COMMITTEE as a view-candidate. The server still enforces
+    // the strict rule; if the caller is a plain committee member on a
+    // seeded install, their API calls will 403 and treasury.js will
+    // surface that with a clear message.
+    if (roles.includes('COMMITTEE')) return true;
+    return false;
+  }
+
+  function canActOnTreasury(who) {
+    const roles = _rolesOf(who);
+    if (roles.includes('ADMIN') || roles.includes('CHAIRMAN') || roles.includes('TREASURER')) return true;
+    // COMMITTEE for grandfather (see above); server has the last word.
+    if (roles.includes('COMMITTEE')) return true;
+    return false;
+  }
+
   root.Flags = {
     ready, on, tunable, list, subcats,
     whoami, isAtLeast, hasRole, ensureAuthorized, ensureFeature,
+    canViewTreasury, canActOnTreasury,
     invalidate,
     get raw() { return cfg; },
   };

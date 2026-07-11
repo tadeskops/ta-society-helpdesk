@@ -44,6 +44,10 @@ vi.mock('../src/github/client.ts', () => ({
 
 let featureOverrides: Record<string, boolean> = {};
 let tunableOverrides: Record<string, number | string> = {};
+let accessOverrides: Partial<{
+  managers: string[]; committee: string[]; admins: string[];
+  treasurer: string[]; chairman: string[]; secretary: string[];
+}> = {};
 
 vi.mock('../src/config/loader.ts', async () => {
   const { DEFAULT_CONFIG } = await import('../src/config/defaults.ts');
@@ -67,9 +71,16 @@ vi.mock('../src/config/loader.ts', async () => {
         },
       },
       access: {
-        managers:  ['mgr@x.com'],
-        committee: ['cmt@x.com'],
-        admins:    ['dev@x.com'],
+        managers:  accessOverrides.managers  ?? ['mgr@x.com'],
+        committee: accessOverrides.committee ?? ['cmt@x.com'],
+        admins:    accessOverrides.admins    ?? ['dev@x.com'],
+        // Empty by default → grandfather clause active → legacy
+        // Committee+Admin retain ledger access, matching pre-migration
+        // behaviour. Individual tests set these via `accessOverrides`
+        // to exercise the additive Treasurer/Chairman/Secretary tags.
+        treasurer: accessOverrides.treasurer ?? [],
+        chairman:  accessOverrides.chairman  ?? [],
+        secretary: accessOverrides.secretary ?? [],
       },
     })),
     invalidateCache: vi.fn(),
@@ -141,6 +152,7 @@ beforeEach(() => {
   putCount = 0;
   featureOverrides = {};
   tunableOverrides = {};
+  accessOverrides = {};
   _resetTreasuryCachesForTests();
   (ghClient.putBinaryB64 as any).mockClear?.();
   (ghClient.getBinaryFile as any).mockClear?.();
@@ -263,9 +275,33 @@ describe('treasury: list scoping', () => {
     expect(j.data.items[0].createdBy).toBe('res@x.com');
   });
 
-  it('manager can see all with scope=all', async () => {
+  it('manager without treasury tag can NOT see others (own only)', async () => {
+    // Under the additive-tag model, a plain MANAGER is NOT covered by
+    // the confidential-ledger gate (only Treasurer / Chairman / Admin
+    // are; SECRETARY when the opt-in flag is on; COMMITTEE via the
+    // grandfather clause when none of the three new lists is seeded).
+    // So even with `scope=all` the manager sees only their own claim.
     await seedTwo();
     const res = await send('GET', '/treasury/reimbursements?scope=all', undefined, 'mgr@x.com');
+    const j = await readJson(res);
+    expect(j.data.items).toHaveLength(1);
+    expect(j.data.items[0].createdBy).toBe('mgr@x.com');
+  });
+
+  it('committee CAN see all with scope=all (grandfathered)', async () => {
+    await seedTwo();
+    const res = await send('GET', '/treasury/reimbursements?scope=all', undefined, 'cmt@x.com');
+    const j = await readJson(res);
+    expect(j.data.items).toHaveLength(2);
+  });
+
+  it('treasurer tag alone grants full ledger view', async () => {
+    accessOverrides = {
+      // Seeding treasurer disables the grandfather clause too.
+      treasurer: ['tre@x.com'],
+    };
+    await seedTwo();
+    const res = await send('GET', '/treasury/reimbursements?scope=all', undefined, 'tre@x.com');
     const j = await readJson(res);
     expect(j.data.items).toHaveLength(2);
   });
@@ -280,14 +316,14 @@ describe('treasury: list scoping', () => {
 
   it('filters by status', async () => {
     await seedTwo();
-    const res = await send('GET', '/treasury/reimbursements?scope=all&status=paid', undefined, 'mgr@x.com');
+    const res = await send('GET', '/treasury/reimbursements?scope=all&status=paid', undefined, 'cmt@x.com');
     const j = await readJson(res);
     expect(j.data.items).toHaveLength(0);
   });
 
   it('filters by category (case-insensitive)', async () => {
     await seedTwo();
-    const res = await send('GET', '/treasury/reimbursements?scope=all&category=repairs', undefined, 'mgr@x.com');
+    const res = await send('GET', '/treasury/reimbursements?scope=all&category=repairs', undefined, 'cmt@x.com');
     const j = await readJson(res);
     expect(j.data.items).toHaveLength(2);
   });
@@ -461,7 +497,16 @@ describe('treasury: direct expenses', () => {
     expect(res.status).toBe(403);
   });
 
-  it('manager with the flag can record', async () => {
+  it('manager with the RECORD_EXPENSE flag cannot record without ledger tag', async () => {
+    // Under the additive-tag model, the MANAGER_RECORD_EXPENSE flag
+    // alone no longer grants treasury access. The manager must also
+    // be on a treasury list (Treasurer/Chairman) OR be an Admin.
+    const res = await send('POST', '/treasury/expenses', expBody(), 'mgr@x.com');
+    expect(res.status).toBe(403);
+  });
+
+  it('manager tagged as treasurer CAN record with the flag', async () => {
+    accessOverrides = { treasurer: ['mgr@x.com'] };
     const res = await send('POST', '/treasury/expenses', expBody(), 'mgr@x.com');
     const j = await readJson(res);
     expect(res.status).toBe(201);
@@ -493,7 +538,9 @@ describe('treasury: direct expenses', () => {
   });
 
   it('manager (non-committee) cannot delete an expense', async () => {
-    const create = await send('POST', '/treasury/expenses', expBody(), 'mgr@x.com');
+    // Create the expense as a committee member (grandfathered), then
+    // try to delete as a plain manager → blocked by ensureCanActLedger.
+    const create = await send('POST', '/treasury/expenses', expBody(), 'cmt@x.com');
     const id = (await readJson(create)).data.expense.id as string;
     const res = await send('POST', `/treasury/expenses/${id}/delete`, { reason: 'oops' }, 'mgr@x.com');
     expect(res.status).toBe(403);

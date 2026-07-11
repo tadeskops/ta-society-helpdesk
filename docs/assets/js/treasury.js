@@ -183,10 +183,20 @@
     const primary = (state.who && state.who.primary) || 'UNKNOWN';
     state.isStaff       = root.Flags.isAtLeast(primary, 'MANAGER');
     state.isCommittee   = root.Flags.isAtLeast(primary, 'COMMITTEE');
-    // Manager-side flags are additive on top of role rank.
-    state.canApprove       = state.isStaff && !!root.Flags.on('FEATURE_TREASURY_MANAGER_APPROVE');
-    state.canPay           = state.isStaff && !!root.Flags.on('FEATURE_TREASURY_MANAGER_PAY');
-    state.canRecordExpense = state.isStaff && !!root.Flags.on('FEATURE_TREASURY_MANAGER_RECORD_EXPENSE');
+    // Confidential treasury dashboard access — see docs/assets/js/flags.js.
+    // These decide what the client renders. The worker enforces the same
+    // rules server-side (canViewTreasuryLedger / canActOnTreasuryLedger).
+    state.canViewLedger = root.Flags.canViewTreasury(state.who);
+    state.canActLedger  = root.Flags.canActOnTreasury(state.who);
+    // Client-side action gates mirror the server exactly: approve, pay,
+    // and record-expense all require canActLedger. The legacy
+    // FEATURE_TREASURY_MANAGER_* per-action flags are still respected
+    // server-side for any MANAGER that ALSO carries a treasury tag, but
+    // for the UI we keep the model simple: if the caller can act on the
+    // ledger they see the buttons; otherwise they don't.
+    state.canApprove       = state.canActLedger;
+    state.canPay           = state.canActLedger;
+    state.canRecordExpense = state.canActLedger;
     state.canRaise         = !!root.Flags.on('FEATURE_TREASURY_RESIDENT_RAISE');
 
     // Categories from site.json (falls back to a sane default list).
@@ -199,10 +209,12 @@
     wireStaticEvents();
     applyRoleVisibility();
 
-    // Fetch reimbursements first (needed for every role); staff also get
-    // expenses + summary in parallel.
+    // Fetch reimbursements first (needed for every role). Ledger-authorized
+    // callers also fetch expenses + summary in parallel; residents and
+    // plain managers/committee members without treasury tags see only
+    // their own reimbursement history.
     await refreshRmb();
-    if (state.isStaff) {
+    if (state.canViewLedger) {
       await Promise.all([refreshExpenses(), refreshSummary()]);
     }
     computeKpis();
@@ -210,13 +222,21 @@
 
   // --------------- Role visibility ------------------------------------------
   // Anything marked data-tr-min-role="MANAGER"/"COMMITTEE" is revealed only
-  // for roles that clear the bar. Doing this once at init keeps the DOM
-  // consistent and avoids relying on inline handlers.
+  // for roles that clear the bar. The newer data-tr-treasury-view and
+  // data-tr-treasury-act attributes gate on the confidential-ledger
+  // capability model (Treasurer/Chairman/Admin, Secretary via flag,
+  // Committee via grandfather).
   function applyRoleVisibility() {
     const primary = (state.who && state.who.primary) || 'UNKNOWN';
     $$('[data-tr-min-role]').forEach((n) => {
       const min = n.getAttribute('data-tr-min-role');
       n.hidden = !root.Flags.isAtLeast(primary, min);
+    });
+    $$('[data-tr-treasury-view]').forEach((n) => {
+      n.hidden = !state.canViewLedger;
+    });
+    $$('[data-tr-treasury-act]').forEach((n) => {
+      n.hidden = !state.canActLedger;
     });
     // Hide "New request" if resident-raise flag is off AND user has no role
     // higher than resident. Committee/Admin can always create on behalf.
@@ -225,9 +245,9 @@
       const b = $(s);
       if (b) b.hidden = !canCreate;
     });
-    // Storage banner (only reveal for staff — residents don't need to see
-    // config drift).
-    if (state.isStaff) $('#trStorageWarn').hidden = state.storageConfigured;
+    // Storage banner (only reveal for ledger viewers — residents don't
+    // need to see config drift for a confidential storage repo).
+    if (state.canViewLedger) $('#trStorageWarn').hidden = state.storageConfigured;
   }
 
   // --------------- Filter dropdowns + month pickers -------------------------
@@ -570,12 +590,14 @@
     return g;
   }
   function showFileInfo(f) {
-    // Files live in the private treasury repo. Manager+ can view them
-    // via /treasury/file (RBAC + path validation on the worker); the
-    // link below fetches through the authenticated Api base so the JWT
-    // bearer is attached, then hands the browser an object URL so
-    // images/PDFs open inline in a new tab.
-    const canView = f.path && (state.isCommittee || state.canApprove || state.canPay || state.canRecordExpense);
+    // Files live in the private treasury repo. Confidential-ledger
+    // viewers (Treasurer/Chairman/Admin, Secretary via opt-in flag,
+    // grandfathered Committee) can view them via /treasury/file (RBAC
+    // + path validation on the worker); the link below fetches through
+    // the authenticated Api base so the JWT bearer is attached, then
+    // hands the browser an object URL so images/PDFs open inline in a
+    // new tab.
+    const canView = f.path && !!state.canViewLedger;
     const openBtn = canView ? el('button', {
       type: 'button', class: 'tsh-btn tsh-btn-secondary',
       style: 'margin-top:10px',

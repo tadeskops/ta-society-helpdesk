@@ -98,6 +98,12 @@ export const DEFAULT_CONFIG: SiteConfig = {
     FEATURE_TREASURY_MANAGER_PAY:            false,
     FEATURE_TREASURY_MANAGER_RECORD_EXPENSE: true,
     FEATURE_TREASURY_RESIDENT_RAISE:         true,
+    // When ON, users tagged in config/secretary.json can view the
+    // confidential treasury dashboard (ledger, all reimbursements,
+    // approve/pay actions). OFF by default so operators explicitly
+    // opt in. Treasurer + Chairman + Admin are always allowed;
+    // this flag is ONLY about Secretary.
+    FEATURE_TREASURY_SECRETARY_ACCESS:       false,
   },
   tunables: {
     // Auto-assign sweep: a `new` ticket older than this many hours is

@@ -291,11 +291,11 @@
           <i class="fas fa-hand-holding-dollar"></i> Reimbursements
           <span class="tr-tab-count" data-tr-count="reimbursements">0</span>
         </button>
-        <button type="button" class="tr-tab" role="tab" aria-selected="false" data-tr-tab="expenses" data-tr-min-role="MANAGER" hidden>
+        <button type="button" class="tr-tab" role="tab" aria-selected="false" data-tr-tab="expenses" data-tr-treasury-view hidden>
           <i class="fas fa-file-invoice-dollar"></i> Expenses
           <span class="tr-tab-count" data-tr-count="expenses">0</span>
         </button>
-        <button type="button" class="tr-tab" role="tab" aria-selected="false" data-tr-tab="summary" data-tr-min-role="MANAGER" hidden>
+        <button type="button" class="tr-tab" role="tab" aria-selected="false" data-tr-tab="summary" data-tr-treasury-view hidden>
           <i class="fas fa-chart-column"></i> Summary
         </button>
       </div>
@@ -319,7 +319,7 @@
           <select id="trCategoryFilter" aria-label="Filter by category">
             <option value="">All categories</option>
           </select>
-          <select id="trScopeFilter" aria-label="Scope" data-tr-min-role="MANAGER" hidden>
+          <select id="trScopeFilter" aria-label="Scope" data-tr-treasury-view hidden>
             <option value="all">All requests</option>
             <option value="mine">My requests only</option>
           </select>
@@ -368,7 +368,7 @@
           <select id="trExpCategory" aria-label="Category">
             <option value="">All categories</option>
           </select>
-          <button type="button" class="tsh-btn tsh-btn-ghost tsh-btn-sm" id="trAddExpenseBtn" data-tr-min-role="MANAGER" hidden>
+          <button type="button" class="tsh-btn tsh-btn-ghost tsh-btn-sm" id="trAddExpenseBtn" data-tr-treasury-act hidden>
             <i class="fas fa-plus"></i>Add expense
           </button>
         </div>
