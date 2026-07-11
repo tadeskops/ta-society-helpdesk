@@ -441,6 +441,16 @@
   <script>
     (async () => {
       try {
+        // Match the bootstrap sequence used by every other privileged page
+        // (manager-dashboard, committee-dashboard, reservations, etc.):
+        // 1. Mount partials so header / footer / toast / modal render.
+        // 2. Initialise Google Identity Services so Auth.signIn() works.
+        // 3. Bind the header (nav links, sign-in-top-right, user pill).
+        // Without steps 1 and 2, the page loaded with no header and the
+        // "Sign in with Google" button on the auth gate was a no-op.
+        await Partials.mount();
+        await Auth.init({ clientId: window.TSH_GOOGLE_CLIENT_ID });
+        UI.bindHeader();
         if (window.Treasury && typeof window.Treasury.init === 'function') {
           await window.Treasury.init();
         }
