@@ -5,7 +5,10 @@
 export interface SiteConfig {
   version: number;
   features: Record<string, boolean>;
-  tunables: Record<string, number>;
+  // Tunables are mostly numeric knobs (cache TTLs, sizes, quorums) but a
+  // few are string templates (e.g. TREASURY_RECEIPT_PATH). The `tunable()`
+  // helper below narrows via typeof at call sites.
+  tunables: Record<string, number | string>;
   lists: {
     towers: string[];
     categories: string[];

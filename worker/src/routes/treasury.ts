@@ -27,12 +27,11 @@
 import type { Router } from '../lib/router.ts';
 import type { Ctx } from '../lib/ctx.ts';
 import type { Env } from '../env.ts';
-import type { Role } from '../auth/roles.ts';
 import type { RepoTarget } from '../github/client.ts';
 import { ok } from '../lib/envelope.ts';
 import { ensureAllowed } from '../middleware/rbac.ts';
 import { BadRequest, NotFound, Forbidden, FeatureDisabled } from '../lib/errors.ts';
-import { parseJson, str, optStr, oneOf, num, optNum } from '../lib/validate.ts';
+import { parseJson, str, optStr, oneOf, num } from '../lib/validate.ts';
 import { getFile, putFile, putBinaryB64, getBinaryFile } from '../github/client.ts';
 import { writeAudit } from '../lib/audit.ts';
 import { isAtLeast, hasAny, canViewTreasuryLedger, canActOnTreasuryLedger } from '../auth/roles.ts';
