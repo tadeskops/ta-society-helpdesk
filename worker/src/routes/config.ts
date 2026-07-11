@@ -26,8 +26,20 @@ const validateSiteShape = (raw: unknown): SiteConfig => {
   for (const [k, v] of Object.entries(raw['features'] as Record<string, unknown>)) {
     if (typeof v !== 'boolean') throw new BadRequest(`features.${k} must be boolean`);
   }
+  // Tunables are typed `Record<string, number | string>` — most are numeric
+  // knobs (cache TTLs, quorums, sizes), but a few are string templates
+  // (e.g. TREASURY_RECEIPT_PATH). Reject anything that isn't a finite
+  // number or a non-empty string. Booleans/objects/arrays are still bad.
   for (const [k, v] of Object.entries(raw['tunables'] as Record<string, unknown>)) {
-    if (typeof v !== 'number' || !Number.isFinite(v)) throw new BadRequest(`tunables.${k} must be a number`);
+    if (typeof v === 'number') {
+      if (!Number.isFinite(v)) throw new BadRequest(`tunables.${k} must be a finite number`);
+      continue;
+    }
+    if (typeof v === 'string') {
+      // Allow empty strings so operators can clear an override.
+      continue;
+    }
+    throw new BadRequest(`tunables.${k} must be a number or string`);
   }
   // ui block is optional but, if present, must be a plain object. Scalar
   // entries (defaultTheme, defaultFontScale, etc.) must be strings. The
