@@ -213,7 +213,16 @@
       "sortOrder": 12
     }
   ],
-  "resources": [],
+  "resources": [
+    {
+      "id": "res-parking-wohr-411",
+      "name": "Parking Datasheet — Wöhr Parklift 411",
+      "createdAt": "2026-07-11T00:00:00.000Z",
+      "updatedAt": "2026-07-11T00:00:00.000Z",
+      "url": "https://www.wohrparking.in/dependent-stack-parking-mumbai-india-parklift411.html",
+      "description": "Manufacturer datasheet for the Wöhr Parklift 411 dependent stack parking system installed at The Address. Reference for dimensions, load ratings and operating notes."
+    }
+  ],
   "services": [
     {
       "id": "svc-1ea8ea5b65d796c7",
