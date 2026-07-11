@@ -74,3 +74,4 @@
 {"at":"2026-07-07T08:04:11.675Z","actor":"system","action":"receipts:archive-failed","target":"CH-0707261332","detail":"WinAnsi cannot encode \"₹\" (0x20b9)"}
 {"at":"2026-07-11T19:59:20.961Z","actor":"ta.deskops@gmail.com","action":"config:put","target":"config/site.json","detail":"version=1"}
 {"at":"2026-07-11T19:59:25.199Z","actor":"ta.deskops@gmail.com","action":"access-list:put","target":"config/admins.json","detail":"count=1"}
+{"at":"2026-07-11T19:59:29.107Z","actor":"ta.deskops@gmail.com","action":"access-list:put","target":"config/committee.json","detail":"count=7"}
