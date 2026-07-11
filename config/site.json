@@ -35,11 +35,15 @@
     "FEATURE_DAILY_USER_ROLE_BADGE": true,
     "FEATURE_DAILY_EXPORT_PDF": true,
     "FEATURE_BOOKINGS_REPORT": true,
+    "FEATURE_TSH_RESERVATIONS": true,
+    "FEATURE_TSH_NOTIFICATIONS": true,
+    "FEATURE_TSH_RESERVATIONS_CALENDAR": false,
     "FEATURE_TREASURY": true,
     "FEATURE_TREASURY_MANAGER_APPROVE": false,
     "FEATURE_TREASURY_MANAGER_PAY": false,
     "FEATURE_TREASURY_MANAGER_RECORD_EXPENSE": true,
-    "FEATURE_TREASURY_RESIDENT_RAISE": true
+    "FEATURE_TREASURY_RESIDENT_RAISE": true,
+    "FEATURE_TREASURY_SECRETARY_ACCESS": false
   },
   "tunables": {
     "DAILY_AUTO_ASSIGN_HOURS": 4,
@@ -62,6 +66,14 @@
     "POLLS_CACHE_SECONDS": 60,
     "POLLS_VOTES_CACHE_SECONDS": 30,
     "DAILY_NOTICE_TTL_DAYS": 7,
+    "RESERVATIONS_CACHE_SECONDS": 60,
+    "RESERVATION_PROOF_MAX_BYTES": 5242880,
+    "RESERVATION_MAX_PROOFS": 5,
+    "NOTIFICATIONS_CACHE_SECONDS": 30,
+    "NOTIFICATIONS_MAX_ITEMS": 2000,
+    "NOTIFICATIONS_PER_USER_CAP": 200,
+    "CALENDAR_RETRY_MAX": 5,
+    "CALENDAR_QUEUE_CACHE_SECONDS": 60,
     "TREASURY_CACHE_SECONDS": 60,
     "TREASURY_MAX_FILE_BYTES": 5242880,
     "TREASURY_MAX_FILES_PER_ITEM": 5,
@@ -302,7 +314,7 @@
     "issuesRepo": "tadeskops/ta-society-helpdesk",
     "backupBranch": "main",
     "workerUrl": "https://tsh-worker.tadeskops.workers.dev",
-    "handoverPortalUrl": "https://tadeskops.github.io/ta-issue-manager/",
+    "handoverPortalUrl": "https://script.google.com/macros/s/AKfycbwyrWVDKsSiXpTvBMlEj470MeH80DHGTGD44aYf0chVegZeEqEoZWmN_QSUAEHSG2Ib/exec",
     "photoStorage": "repo",
     "turnstileSiteKey": "REPLACE_ME_AT_DEPLOY",
     "logoUrl": "",
@@ -325,11 +337,21 @@
       "updatedAt": "2026-07-06T18:45:30.752Z"
     },
     "receiptSealLang": "en",
-    "receiptTheme": "default"
+    "receiptTheme": "default",
+    "receiptsArchive": {
+      "enabled": true,
+      "perReceiptPath": "{facilityCodeLower}/{id}.pdf",
+      "rollup": {
+        "enabled": true,
+        "period": "monthly",
+        "path": "{facilityCodeLower}/bckp/{period}/{periodKey}.pdf"
+      }
+    }
   },
   "ui": {
     "defaultTheme": "light",
-    "defaultFontScale": "md"
+    "defaultFontScale": "md",
+    "headerIconExpand": "never"
   },
   "_comment": "Single source of truth for runtime configuration. Edited from docs/settings.html (admin only); committed by the Worker. Defaults baked into DEFAULT_CONFIG in worker/src/config/defaults.ts."
 }
