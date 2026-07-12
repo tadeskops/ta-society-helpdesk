@@ -276,17 +276,21 @@ const sanitiseVehicle = (raw: unknown, ctx: Ctx, actor: string): Vehicle => {
   // silent duplicates: moving a vehicle between flats produces a new id and
   // is caught by the uniqueness check below.
   const id = `veh-${flat.toLowerCase()}-${regNo.toLowerCase()}`;
+  // regNoDisplay preserves the user's original spacing (e.g. "MH 11 JJ 0234")
+  // but is always uppercased so a lowercase entry stores as UPPERCASE.
+  // Search is case-insensitive anyway (normReg lowers + strips), but the
+  // display should read cleanly for anyone looking at the list.
   const out: Vehicle = {
     id,
     flat,
     regNo,
-    regNoDisplay: regNoRawStr.trim(),
+    regNoDisplay: regNoRawStr.trim().toUpperCase(),
     type,
     createdAt,
     updatedAt: now,
     updatedBy: actor,
   };
-  if (sticker) out.sticker = sticker;
+  if (sticker) out.sticker = sticker.toUpperCase();
   if (comments) out.comments = comments;
   if (emails.length) out.emails = emails;
   return out;

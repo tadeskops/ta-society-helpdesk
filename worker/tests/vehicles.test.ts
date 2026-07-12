@@ -199,6 +199,19 @@ describe('PUT /vehicles', () => {
     expect(r.status).toBe(400);
   });
 
+  it('uppercases regNoDisplay + sticker + flat even when entered lowercase', async () => {
+    await send('PUT', '/vehicles', {
+      vehicles: [{ flat: 'a201', regNo: 'mh 11 jj 0234', type: '4W', sticker: 'p-104' }],
+    }, 'mgr@x.com');
+    _resetVehiclesCacheForTests();
+    const g = await send('GET', '/vehicles', undefined, 'contrib@x.com');
+    const row = (await g.json() as any).data.vehicles[0];
+    expect(row.flat).toBe('A201');
+    expect(row.regNo).toBe('MH11JJ0234');
+    expect(row.regNoDisplay).toBe('MH 11 JJ 0234');
+    expect(row.sticker).toBe('P-104');
+  });
+
   it('preserves createdAt across a re-save', async () => {
     await send('PUT', '/vehicles', {
       vehicles: [{ flat: 'A201', regNo: 'MH11JJ0234', type: '4W' }],

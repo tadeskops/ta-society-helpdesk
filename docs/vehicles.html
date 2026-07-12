@@ -45,6 +45,85 @@
                  background: var(--tsh-accent-soft, #eee5d0); color: var(--tsh-accent-dark, #6f5320); }
     @media (max-width: 800px) { .veh-row { grid-template-columns: 1fr 1fr; } .veh-actions { grid-column: span 2; justify-content: flex-end; } }
     .veh-count { color: var(--tsh-muted, #667); font-size: .85em; margin-left: .5em; font-weight: 400; }
+
+    /* Tower schematic grids — one collapsible <details> per tower.
+       Rows = floors (top-down, like a building elevation).
+       Columns = flat units (like seat numbers on a floor). */
+    .veh-tower {
+      border: 1px solid var(--tsh-border, #e2e5ee); border-radius: 12px;
+      padding: .6rem 1rem 1rem; margin-bottom: 1rem;
+      background: var(--tsh-surface, #fff);
+    }
+    .veh-tower > summary {
+      cursor: pointer; font-weight: 700; font-size: 1.05rem;
+      padding: .3rem 0; letter-spacing: .03em;
+      display: flex; align-items: baseline; gap: .5rem; flex-wrap: wrap;
+    }
+    .veh-tower > summary::marker { color: var(--tsh-accent, #b48a3c); }
+    .veh-tower-count { color: var(--tsh-muted, #667); font-size: .82em; font-weight: 400; }
+    .veh-tower-grid {
+      display: grid;
+      grid-template-columns: 2.6rem repeat(var(--units, 4), minmax(4.4rem, 1fr));
+      gap: .4rem; margin-top: .8rem;
+    }
+    .veh-floor-label {
+      display: grid; place-items: center;
+      font-weight: 600; color: var(--tsh-muted, #667); font-size: .82em;
+    }
+    .veh-cell {
+      min-height: 3.6rem;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .15rem;
+      padding: .35rem .25rem; border-radius: 8px;
+      border: 1.5px dashed var(--tsh-border, #e2e5ee);
+      background: transparent; color: var(--tsh-muted, #778);
+      font-size: .78rem; cursor: pointer; font-family: inherit;
+      transition: border-color .12s, background .12s, transform .08s, color .12s;
+    }
+    .veh-cell:hover { border-color: var(--tsh-accent, #b48a3c); color: var(--tsh-text, #223); }
+    .veh-cell.has-veh { border-style: solid; color: var(--tsh-text, #223); }
+    .veh-cell.has-veh.four { border-color: #4a90e2; background: rgba(74,144,226,.10); }
+    .veh-cell.has-veh.two  { border-color: #6ab04c; background: rgba(106,176,76,.10); }
+    .veh-cell.has-veh.both { border-color: var(--tsh-accent, #b48a3c); background: var(--tsh-accent-soft, rgba(180,138,60,.14)); }
+    .veh-cell[aria-pressed="true"] {
+      outline: 2px solid var(--tsh-accent, #b48a3c); outline-offset: 2px;
+      transform: translateY(-1px);
+    }
+    .veh-cell-flat { font-weight: 700; letter-spacing: .03em; }
+    .veh-cell-badges { display: flex; gap: .4rem; font-size: .95em; line-height: 1; }
+    .veh-cell-b2w, .veh-cell-b4w { display: inline-flex; align-items: center; gap: .1em; }
+    .veh-tower-legend {
+      display: flex; gap: .8rem; flex-wrap: wrap; font-size: .8rem;
+      color: var(--tsh-muted, #667); margin: .5rem 0 0;
+    }
+    .veh-tower-legend span { display: inline-flex; align-items: center; gap: .3rem; }
+    .veh-legend-swatch { width: 14px; height: 14px; border-radius: 3px; border: 1.5px solid; display: inline-block; }
+    .veh-legend-swatch.four { border-color: #4a90e2; background: rgba(74,144,226,.15); }
+    .veh-legend-swatch.two  { border-color: #6ab04c; background: rgba(106,176,76,.15); }
+    .veh-legend-swatch.both { border-color: var(--tsh-accent, #b48a3c); background: var(--tsh-accent-soft, rgba(180,138,60,.20)); }
+    .veh-legend-swatch.empty { border-style: dashed; }
+
+    /* Per-tower "add flat outside the current grid" fallback. */
+    .veh-tower-tools { display: flex; gap: .4rem; margin-top: .6rem; align-items: center; flex-wrap: wrap; }
+    .veh-tower-tools input { max-width: 8rem; }
+
+    /* Flat detail panel — appears below the grids when a cell is picked. */
+    .veh-flat-detail { margin-top: 1rem; padding: 1rem 1.1rem; border-radius: 12px;
+      border: 1px solid var(--tsh-accent, #b48a3c);
+      background: var(--tsh-surface-2, #f6f7fb);
+    }
+    .veh-flat-detail[hidden] { display: none; }
+    .veh-flat-detail-head {
+      display: flex; align-items: center; justify-content: space-between; gap: .6rem; flex-wrap: wrap;
+      margin-bottom: .8rem;
+    }
+    .veh-flat-detail-head h3 { margin: 0; font-size: 1.15rem; letter-spacing: .03em; }
+    .veh-flat-empty { color: var(--tsh-muted, #667); font-style: italic; padding: .3rem 0; }
+
+    @media (max-width: 800px) {
+      .veh-tower-grid { grid-template-columns: 2.2rem repeat(var(--units, 4), minmax(3.4rem, 1fr)); gap: .3rem; }
+      .veh-cell { min-height: 3rem; font-size: .72rem; padding: .25rem .1rem; }
+      .veh-cell-badges { font-size: .82em; gap: .25rem; }
+    }
   </style>
 </head>
 <body class="tsh-page">
@@ -79,50 +158,30 @@
 
     <!-- Manage pane — only visible to callers on the editor allowlist
          (default: MANAGER / COMMITTEE / TREASURER / SECRETARY / CHAIRMAN / ADMIN).
-         The server also enforces the allowlist on every PUT/DELETE. -->
+         The server also enforces the allowlist on every PUT/DELETE.
+
+         Layout: tower-grouped seat-map style grids. Rows = floors (top-down
+         like a building elevation), columns = flat units on each floor.
+         Click a cell to select the flat; the detail panel below opens with
+         that flat's vehicles + inline add/edit/delete. -->
     <section class="tsh-card veh-manage" id="vehManage" hidden>
       <header class="tsh-card-head">
         <h2><i class="fas fa-pen-to-square gold-accent"></i> Manage vehicles
           <span class="veh-count" id="vehTotalCount"></span>
         </h2>
-        <p class="tsh-sub">Add, edit or remove vehicle entries. Vehicle numbers must be unique across the whole society.</p>
+        <p class="tsh-sub">Pick a flat below (like choosing a seat), then add or edit its vehicles. Vehicle numbers must be unique across the whole society.</p>
+        <div class="veh-tower-legend" aria-label="Cell colour key">
+          <span><span class="veh-legend-swatch empty"></span> Empty</span>
+          <span><span class="veh-legend-swatch four"></span> 4-wheeler</span>
+          <span><span class="veh-legend-swatch two"></span> 2-wheeler</span>
+          <span><span class="veh-legend-swatch both"></span> Both</span>
+        </div>
       </header>
 
-      <form id="vehAddForm" class="veh-add-grid" autocomplete="off">
-        <div class="tsh-field">
-          <label for="vehAddFlat">Flat *</label>
-          <input id="vehAddFlat" name="flat" required placeholder="A201" maxlength="8" pattern="[A-Za-z][0-9]{1,4}" />
-        </div>
-        <div class="tsh-field">
-          <label for="vehAddReg">Vehicle number *</label>
-          <input id="vehAddReg" name="regNo" required placeholder="MH11JJ0234" maxlength="20" />
-        </div>
-        <div class="tsh-field">
-          <label for="vehAddType">Type *</label>
-          <select id="vehAddType" name="type" required>
-            <option value="4W">4W</option>
-            <option value="2W">2W</option>
-          </select>
-        </div>
-        <div class="tsh-field">
-          <label for="vehAddSticker">Sticker</label>
-          <input id="vehAddSticker" name="sticker" placeholder="P-104" maxlength="20" />
-        </div>
-        <div class="tsh-field">
-          <label for="vehAddComments">Comments</label>
-          <input id="vehAddComments" name="comments" placeholder="White Honda City" maxlength="200" />
-        </div>
-        <button type="submit" class="tsh-btn tsh-btn-primary" id="vehAddBtn">
-          <i class="fas fa-plus"></i> Add
-        </button>
-      </form>
+      <div id="vehTowers" aria-label="Tower grids"></div>
 
-      <div class="tsh-field" style="margin-top:.6rem;">
-        <label for="vehAddEmails">Owner emails (optional, comma-separated, up to 5)</label>
-        <input id="vehAddEmails" name="emails" placeholder="owner1@example.com, owner2@example.com" maxlength="600" />
-      </div>
-
-      <div class="veh-list" id="vehList" aria-live="polite"></div>
+      <!-- Flat detail panel — appears when a cell is picked. -->
+      <div id="vehFlatDetail" class="veh-flat-detail" hidden aria-live="polite"></div>
     </section>
   </main>
 
@@ -248,20 +307,30 @@
     });
 
     // -----------------------------------------------------------------
-    // Manage pane (Add / Edit / Delete). Gated by canWrite so the
+    // Manage pane (tower-grouped seat-map). Gated by canWrite so the
     // markup is entirely hidden for callers who cannot mutate. Server
     // enforces the same allowlist on every PUT/DELETE anyway.
     // -----------------------------------------------------------------
     const manageEl = document.getElementById('vehManage');
-    const listEl = document.getElementById('vehList');
+    const towersEl = document.getElementById('vehTowers');
+    const detailEl = document.getElementById('vehFlatDetail');
     const totalEl = document.getElementById('vehTotalCount');
     const roleHintEl = document.getElementById('vehRoleHint');
+
+    // Minimum grid dimensions per tower. Real dims grow to fit observed
+    // vehicles automatically — e.g. adding a flat B1204 grows Tower B to
+    // 12 floors × ≥4 units.
+    const MIN_FLOORS = 10;
+    const MIN_UNITS  = 4;
+
+    // Selected flat for the detail panel. null = no selection (panel hidden).
+    let selectedFlat = null;
 
     function updateRoleHint() {
       if (canWrite) {
         roleHintEl.textContent =
           'Signed in as ' + (who.email || '') + ' (' + who.primary + ') · ' +
-          'You may add, edit, and delete entries.';
+          'You may add, edit, and delete entries. Pick a flat to manage its vehicles.';
       } else {
         roleHintEl.textContent =
           'Signed in as ' + (who.email || '') + ' (' + who.primary + ') · ' +
@@ -269,17 +338,127 @@
       }
     }
 
-    function groupByFlat(list) {
-      const groups = new Map();
-      for (const v of list) {
-        if (!groups.has(v.flat)) groups.set(v.flat, []);
-        groups.get(v.flat).push(v);
+    // -----------------------------------------------------------------
+    // Flat parsing. Convention:
+    //   Flat = <tower letter><digits>
+    //   digits ≤ 2 chars → floor 0 (ground), unit = digits
+    //   digits ≥ 3 chars → last 2 = unit, remaining prefix = floor
+    // Examples: A201 → A, floor 2, unit 01
+    //           A1004 → A, floor 10, unit 04
+    //           C12  → C, floor 0 (ground), unit 12
+    // -----------------------------------------------------------------
+    function parseFlat(flat) {
+      const m = /^([A-Z])([0-9]+)$/.exec(String(flat || '').toUpperCase());
+      if (!m) return null;
+      const tower = m[1];
+      const digits = m[2];
+      if (digits.length <= 2) {
+        return { tower, floor: 0, unit: parseInt(digits, 10) || 0, unitStr: digits.padStart(2, '0') };
       }
-      // Stable sort inside each flat by regNo, groups by flat name.
-      for (const g of groups.values()) g.sort((a, b) => a.regNo.localeCompare(b.regNo));
-      return new Map([...groups.entries()].sort((a, b) => a[0].localeCompare(b[0])));
+      const unitStr = digits.slice(-2);
+      const floorStr = digits.slice(0, -2);
+      return { tower, floor: parseInt(floorStr, 10), unit: parseInt(unitStr, 10), unitStr };
     }
 
+    function flatFromParts(tower, floor, unit) {
+      const u = String(unit).padStart(2, '0');
+      if (floor === 0) return tower + u;
+      return tower + String(floor) + u;
+    }
+
+    // Build per-tower schematics: dims + vehicles by flat.
+    function buildTowerSchematics() {
+      const cfgTowers = (Flags.raw && Flags.raw.lists && Array.isArray(Flags.raw.lists.towers))
+        ? Flags.raw.lists.towers : ['A', 'B', 'C'];
+      const spec = new Map();
+      const seed = (t) => {
+        if (!spec.has(t)) spec.set(t, {
+          minFloor: 1, maxFloor: MIN_FLOORS, maxUnit: MIN_UNITS,
+          byFlat: new Map(), totalVehicles: 0,
+        });
+        return spec.get(t);
+      };
+      // Seed known towers so empty grids still show.
+      for (const t of cfgTowers) {
+        const letter = String(t || '').trim().charAt(0).toUpperCase();
+        if (/^[A-Z]$/.test(letter)) seed(letter);
+      }
+      // Grow dims from observed vehicles.
+      for (const v of vehicles) {
+        const p = parseFlat(v.flat);
+        if (!p) continue;
+        const s = seed(p.tower);
+        if (p.floor > s.maxFloor) s.maxFloor = p.floor;
+        if (p.floor === 0) s.minFloor = 0;
+        if (p.unit > s.maxUnit) s.maxUnit = p.unit;
+        if (!s.byFlat.has(v.flat)) s.byFlat.set(v.flat, []);
+        s.byFlat.get(v.flat).push(v);
+        s.totalVehicles += 1;
+      }
+      return new Map([...spec.entries()].sort((a, b) => a[0].localeCompare(b[0])));
+    }
+
+    function cellBadges(rows) {
+      const n2w = rows.filter((r) => r.type === '2W').length;
+      const n4w = rows.filter((r) => r.type === '4W').length;
+      let s = '';
+      if (n4w) s += '<span class="veh-cell-b4w" title="' + n4w + ' four-wheeler(s)"><i class="fas fa-car"></i>' + n4w + '</span>';
+      if (n2w) s += '<span class="veh-cell-b2w" title="' + n2w + ' two-wheeler(s)"><i class="fas fa-motorcycle"></i>' + n2w + '</span>';
+      return s ? '<span class="veh-cell-badges">' + s + '</span>' : '';
+    }
+
+    function cellClass(rows) {
+      if (rows.length === 0) return 'veh-cell';
+      const has2 = rows.some((r) => r.type === '2W');
+      const has4 = rows.some((r) => r.type === '4W');
+      const kind = (has2 && has4) ? 'both' : (has4 ? 'four' : 'two');
+      return 'veh-cell has-veh ' + kind;
+    }
+
+    function renderTowerGrid(tower, s) {
+      const floors = [];
+      for (let f = s.maxFloor; f >= s.minFloor; f--) floors.push(f);
+      let cells = '';
+      for (const f of floors) {
+        cells += '<div class="veh-floor-label">' + (f === 0 ? 'GF' : f) + '</div>';
+        for (let u = 1; u <= s.maxUnit; u++) {
+          const flat = flatFromParts(tower, f, u);
+          const rows = s.byFlat.get(flat) || [];
+          const cls = cellClass(rows);
+          const pressed = (flat === selectedFlat) ? 'true' : 'false';
+          cells += '<button type="button" class="' + cls + '" data-flat="' + esc(flat) + '"' +
+                   ' aria-pressed="' + pressed + '" title="Flat ' + esc(flat) + ' — ' + rows.length + ' vehicle(s)">' +
+                   '<span class="veh-cell-flat">' + esc(flat) + '</span>' +
+                   cellBadges(rows) +
+                   '</button>';
+        }
+      }
+      const label = 'Tower ' + esc(tower);
+      const meta = s.totalVehicles + ' vehicle' + (s.totalVehicles === 1 ? '' : 's') +
+                   ' · ' + s.byFlat.size + ' flat' + (s.byFlat.size === 1 ? '' : 's');
+      return '<details class="veh-tower" data-tower="' + esc(tower) + '" open>' +
+        '<summary>' + label + ' <span class="veh-tower-count">(' + meta + ')</span></summary>' +
+        '<div class="veh-tower-grid" style="--units:' + s.maxUnit + '">' + cells + '</div>' +
+        '<div class="veh-tower-tools">' +
+          '<span style="color:var(--tsh-muted,#667);font-size:.85em;">Need a flat outside this grid?</span>' +
+          '<input type="text" class="veh-tower-add-flat" placeholder="' + esc(tower) + '1401" maxlength="8" aria-label="Custom flat number" />' +
+          '<button type="button" class="tsh-btn tsh-btn-ghost tsh-btn-sm" data-tower-add="' + esc(tower) + '"><i class="fas fa-plus"></i> Pick</button>' +
+        '</div>' +
+        '</details>';
+    }
+
+    function renderTowerGrids() {
+      const specs = buildTowerSchematics();
+      let html = '';
+      for (const [tower, s] of specs) html += renderTowerGrid(tower, s);
+      towersEl.innerHTML = html;
+    }
+
+    // -----------------------------------------------------------------
+    // Flat detail panel. Opens below the tower grids when a cell is
+    // clicked. Contains: header (with Close), list of vehicles for that
+    // flat, and an add form pre-filled with the selected flat.
+    // -----------------------------------------------------------------
     function renderRowRead(v) {
       const emailsTxt = Array.isArray(v.emails) && v.emails.length ? v.emails.join(', ') : '';
       return '<div class="veh-row" data-id="' + esc(v.id) + '">' +
@@ -300,14 +479,14 @@
       const emailsTxt = Array.isArray(v.emails) ? v.emails.join(', ') : '';
       return '<div class="veh-row" data-id="' + esc(v.id) + '" data-editing="1">' +
         '<div>' +
-        '<input class="veh-e-reg" value="' + esc(v.regNoDisplay || v.regNo) + '" maxlength="20" />' +
+        '<input class="veh-e-reg" value="' + esc(v.regNoDisplay || v.regNo) + '" maxlength="20" style="text-transform:uppercase" />' +
         '<input class="veh-e-emails" style="margin-top:.3rem" placeholder="Emails (comma-separated)" value="' + esc(emailsTxt) + '" maxlength="600" />' +
         '</div>' +
         '<div><select class="veh-e-type">' +
           '<option value="4W"' + (v.type === '4W' ? ' selected' : '') + '>4W</option>' +
           '<option value="2W"' + (v.type === '2W' ? ' selected' : '') + '>2W</option>' +
           '</select></div>' +
-        '<div><input class="veh-e-sticker" value="' + esc(v.sticker || '') + '" placeholder="Sticker" maxlength="20" /></div>' +
+        '<div><input class="veh-e-sticker" value="' + esc(v.sticker || '') + '" placeholder="Sticker" maxlength="20" style="text-transform:uppercase" /></div>' +
         '<div><input class="veh-e-comments" value="' + esc(v.comments || '') + '" placeholder="Comments" maxlength="200" /></div>' +
         '<div class="veh-actions">' +
         '<button type="button" class="tsh-btn tsh-btn-primary tsh-btn-icon" data-save title="Save"><i class="fas fa-check"></i></button>' +
@@ -316,40 +495,86 @@
         '</div>';
     }
 
+    function renderFlatDetail() {
+      if (!selectedFlat) { detailEl.hidden = true; detailEl.innerHTML = ''; return; }
+      const rows = vehicles.filter((v) => v.flat === selectedFlat).sort((a, b) => a.regNo.localeCompare(b.regNo));
+      const listHtml = rows.length
+        ? rows.map(renderRowRead).join('')
+        : '<p class="veh-flat-empty">No vehicles registered for this flat yet. Add the first one below.</p>';
+      detailEl.innerHTML =
+        '<div class="veh-flat-detail-head">' +
+          '<h3><i class="fas fa-house-chimney gold-accent"></i> Flat ' + esc(selectedFlat) +
+            ' <span class="veh-count">(' + rows.length + ')</span></h3>' +
+          '<button type="button" class="tsh-btn tsh-btn-ghost tsh-btn-sm" id="vehDetailClose">' +
+          '<i class="fas fa-xmark"></i> Close</button>' +
+        '</div>' +
+        '<div class="veh-list" id="vehDetailList">' + listHtml + '</div>' +
+        '<form id="vehDetailAdd" class="veh-add-grid" style="margin-top:1rem" autocomplete="off">' +
+          '<div class="tsh-field">' +
+            '<label for="vehDetailReg">Vehicle number *</label>' +
+            '<input id="vehDetailReg" required placeholder="MH11JJ0234" maxlength="20" style="text-transform:uppercase;letter-spacing:.04em" />' +
+          '</div>' +
+          '<div class="tsh-field">' +
+            '<label for="vehDetailType">Type *</label>' +
+            '<select id="vehDetailType" required>' +
+              '<option value="4W">4W</option><option value="2W">2W</option>' +
+            '</select>' +
+          '</div>' +
+          '<div class="tsh-field">' +
+            '<label for="vehDetailSticker">Sticker</label>' +
+            '<input id="vehDetailSticker" placeholder="P-104" maxlength="20" style="text-transform:uppercase" />' +
+          '</div>' +
+          '<div class="tsh-field">' +
+            '<label for="vehDetailComments">Comments</label>' +
+            '<input id="vehDetailComments" placeholder="White Honda City" maxlength="200" />' +
+          '</div>' +
+          '<div class="tsh-field" style="grid-column: 1 / -1">' +
+            '<label for="vehDetailEmails">Owner emails (optional, comma-separated, up to 5)</label>' +
+            '<input id="vehDetailEmails" placeholder="owner1@example.com, owner2@example.com" maxlength="600" />' +
+          '</div>' +
+          '<button type="submit" class="tsh-btn tsh-btn-primary" id="vehDetailAddBtn" style="grid-column: 1 / -1;justify-self:start">' +
+            '<i class="fas fa-plus"></i> Add to Flat ' + esc(selectedFlat) +
+          '</button>' +
+        '</form>';
+      detailEl.hidden = false;
+      // Focus regNo when the panel opens so the manager can start typing immediately.
+      const regInput = document.getElementById('vehDetailReg');
+      if (regInput) regInput.focus();
+    }
+
+    // Set the current flat, sync the aria-pressed state on the grid, and
+    // render the detail panel.
+    function selectFlat(flat, opts) {
+      selectedFlat = flat || null;
+      // Update aria-pressed on all cells in the current tower group.
+      for (const btn of towersEl.querySelectorAll('.veh-cell')) {
+        btn.setAttribute('aria-pressed', btn.getAttribute('data-flat') === selectedFlat ? 'true' : 'false');
+      }
+      renderFlatDetail();
+      if (selectedFlat && !(opts && opts.noScroll)) {
+        // Scroll the detail panel into view — nice on long tower lists.
+        detailEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }
+
     function renderManage() {
       updateRoleHint();
       manageEl.hidden = !canWrite;
       totalEl.textContent = '(' + vehicles.length + ')';
-      if (!canWrite) return;
-
-      const groups = groupByFlat(vehicles);
-      if (groups.size === 0) {
-        listEl.innerHTML = '<p style="color:var(--tsh-muted,#667);margin:.5rem 0;">' +
-          'No vehicles registered yet. Add the first one above.</p>';
-        return;
-      }
-      let html = '';
-      for (const [flat, rows] of groups) {
-        html += '<details class="veh-flat-group" open>' +
-          '<summary>Flat ' + esc(flat) + ' <span class="veh-count">(' + rows.length + ')</span></summary>' +
-          rows.map(renderRowRead).join('') +
-          '</details>';
-      }
-      listEl.innerHTML = html;
+      if (!canWrite) { detailEl.hidden = true; towersEl.innerHTML = ''; return; }
+      renderTowerGrids();
+      // Re-render the detail panel (list may have changed for the current flat).
+      renderFlatDetail();
     }
 
-    // Bulk PUT — replaces the whole list. Used by both add/edit/delete
-    // (delete-one has its own DELETE endpoint but we still refresh
-    // through GET afterwards to keep the client single-sourced).
+    // -----------------------------------------------------------------
+    // CRUD.
+    // -----------------------------------------------------------------
     async function saveAll(next) {
       await Api.put('/vehicles', { vehicles: next });
-      // Cheap: cache invalidation is server-side too, but pull fresh so
-      // updatedAt / createdAt reflect the persisted truth.
       await load();
     }
 
-    // Parse comma/space-separated emails, drop empties, cap MAX for
-    // client-side UX. Server re-validates and enforces the 5-max.
     function parseEmails(raw) {
       return String(raw || '')
         .split(/[,\s]+/)
@@ -357,38 +582,49 @@
         .filter(Boolean);
     }
 
-    // Add-form submit.
-    document.getElementById('vehAddForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const flat = document.getElementById('vehAddFlat').value.trim().toUpperCase();
-      const regNo = document.getElementById('vehAddReg').value.trim();
-      const type = document.getElementById('vehAddType').value;
-      const sticker = document.getElementById('vehAddSticker').value.trim();
-      const comments = document.getElementById('vehAddComments').value.trim();
-      const emails = parseEmails(document.getElementById('vehAddEmails').value);
-      const normalised = normReg(regNo);
-      if (!normalised) { UI.toast('Vehicle number is required.', { kind: 'danger' }); return; }
-      if (index.has(normalised)) {
-        const existing = index.get(normalised);
-        UI.toast('That vehicle is already registered to flat ' + existing.flat + '.', { kind: 'danger' });
+    // -----------------------------------------------------------------
+    // Delegated events.
+    // -----------------------------------------------------------------
+    // Tower grid: cell click → select flat; "Pick" button → jump to a
+    // custom flat outside the grid.
+    towersEl.addEventListener('click', (e) => {
+      const cell = e.target.closest('.veh-cell');
+      if (cell) {
+        selectFlat(cell.getAttribute('data-flat'));
         return;
       }
-      const btn = document.getElementById('vehAddBtn');
-      await UI.busyButton(btn, async () => {
-        const next = vehicles.concat([{ flat, regNo, type, sticker, comments, emails }]);
-        try {
-          await saveAll(next);
-          UI.toast('Vehicle added.', { kind: 'success' });
-          document.getElementById('vehAddForm').reset();
-          document.getElementById('vehAddEmails').value = '';
-        } catch (err) {
-          UI.toast(err.message || 'Add failed.', { kind: 'danger' });
+      const addBtn = e.target.closest('[data-tower-add]');
+      if (addBtn) {
+        const tower = addBtn.getAttribute('data-tower-add');
+        const input = addBtn.parentElement.querySelector('.veh-tower-add-flat');
+        const raw = (input && input.value || '').trim().toUpperCase();
+        if (!raw) { UI.toast('Enter a flat like ' + tower + '1401.', { kind: 'danger' }); return; }
+        if (!/^[A-Z][0-9]{1,4}$/.test(raw)) {
+          UI.toast('Flat must be a tower letter followed by 1–4 digits.', { kind: 'danger' });
+          return;
         }
-      }, { label: 'Adding…' });
+        if (raw.charAt(0) !== tower) {
+          UI.toast('Flat "' + raw + '" is not in Tower ' + tower + '.', { kind: 'danger' });
+          return;
+        }
+        input.value = '';
+        selectFlat(raw);
+      }
     });
 
-    // Delegated row actions (edit / delete / save / cancel).
-    listEl.addEventListener('click', async (e) => {
+    // Auto-uppercase the "custom flat" input as the user types.
+    towersEl.addEventListener('input', (e) => {
+      if (e.target.classList.contains('veh-tower-add-flat')) {
+        const p = e.target.selectionStart;
+        e.target.value = e.target.value.toUpperCase();
+        try { e.target.setSelectionRange(p, p); } catch (_x) { /* ignore */ }
+      }
+    });
+
+    // Detail panel: submit (add), delegated read-row actions.
+    detailEl.addEventListener('click', async (e) => {
+      const closeBtn = e.target.closest('#vehDetailClose');
+      if (closeBtn) { selectFlat(null); return; }
       const btn = e.target.closest('button');
       if (!btn) return;
       const row = btn.closest('.veh-row');
@@ -407,14 +643,13 @@
       }
       if (btn.hasAttribute('data-save')) {
         const r = row;
-        const newReg = r.querySelector('.veh-e-reg').value.trim();
+        const newReg = r.querySelector('.veh-e-reg').value.trim().toUpperCase();
         const newType = r.querySelector('.veh-e-type').value;
-        const newSticker = r.querySelector('.veh-e-sticker').value.trim();
+        const newSticker = r.querySelector('.veh-e-sticker').value.trim().toUpperCase();
         const newComments = r.querySelector('.veh-e-comments').value.trim();
         const newEmails = parseEmails(r.querySelector('.veh-e-emails').value);
         const normalised = normReg(newReg);
         if (!normalised) { UI.toast('Vehicle number is required.', { kind: 'danger' }); return; }
-        // Duplicate check against other rows (same regNo on a different id).
         const clash = vehicles.find((x) => x.id !== id && x.regNo === normalised);
         if (clash) {
           UI.toast('Another entry (flat ' + clash.flat + ') already uses that number.', { kind: 'danger' });
@@ -449,6 +684,49 @@
             UI.toast(err.message || 'Delete failed.', { kind: 'danger' });
           }
         }, { label: 'Deleting…' });
+      }
+    });
+
+    // Detail panel: add form submit + case-insensitive typing.
+    detailEl.addEventListener('input', (e) => {
+      // Auto-uppercase regNo + sticker as the user types.
+      if (e.target && (e.target.id === 'vehDetailReg' || e.target.id === 'vehDetailSticker' ||
+                       e.target.classList.contains('veh-e-reg') ||
+                       e.target.classList.contains('veh-e-sticker'))) {
+        const p = e.target.selectionStart;
+        e.target.value = e.target.value.toUpperCase();
+        try { e.target.setSelectionRange(p, p); } catch (_x) { /* ignore */ }
+      }
+    });
+
+    detailEl.addEventListener('submit', async (e) => {
+      if (e.target && e.target.id === 'vehDetailAdd') {
+        e.preventDefault();
+        if (!selectedFlat) { UI.toast('Pick a flat first.', { kind: 'danger' }); return; }
+        const regNo = document.getElementById('vehDetailReg').value.trim().toUpperCase();
+        const type = document.getElementById('vehDetailType').value;
+        const sticker = document.getElementById('vehDetailSticker').value.trim().toUpperCase();
+        const comments = document.getElementById('vehDetailComments').value.trim();
+        const emails = parseEmails(document.getElementById('vehDetailEmails').value);
+        const normalised = normReg(regNo);
+        if (!normalised) { UI.toast('Vehicle number is required.', { kind: 'danger' }); return; }
+        if (index.has(normalised)) {
+          const existing = index.get(normalised);
+          UI.toast('That vehicle is already registered to flat ' + existing.flat + '.', { kind: 'danger' });
+          return;
+        }
+        const btn = document.getElementById('vehDetailAddBtn');
+        await UI.busyButton(btn, async () => {
+          const next = vehicles.concat([{ flat: selectedFlat, regNo, type, sticker, comments, emails }]);
+          try {
+            await saveAll(next);
+            UI.toast('Vehicle added to ' + selectedFlat + '.', { kind: 'success' });
+            // Detail panel is re-rendered by load() → renderManage(); the
+            // add-form fields are recreated fresh so nothing to reset here.
+          } catch (err) {
+            UI.toast(err.message || 'Add failed.', { kind: 'danger' });
+          }
+        }, { label: 'Adding…' });
       }
     });
 
