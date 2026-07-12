@@ -44,6 +44,15 @@ export interface SiteConfig {
      * without touching the full site.json.
      */
     flagDelegation?: Record<string, string>;
+    /**
+     * Vehicle Registry (FEATURE_TSH_VEHICLES) settings. `editorRoles` is
+     * the set-membership allowlist for add/edit/delete on
+     * config/vehicles.json. If absent / empty, the route falls back to
+     * ['ADMIN','CHAIRMAN','SECRETARY','TREASURER','COMMITTEE','MANAGER'].
+     */
+    vehicles?: {
+      editorRoles?: string[];
+    };
   };
   ui?: {
     defaultTheme?: 'dark' | 'light' | 'medium';
@@ -112,6 +121,11 @@ export const DEFAULT_CONFIG: SiteConfig = {
     FEATURE_TREASURY_MANAGER_PAY:            false,
     FEATURE_TREASURY_MANAGER_RECORD_EXPENSE: true,
     FEATURE_TREASURY_RESIDENT_RAISE:         true,
+    // Vehicle Registry (§Vehicle Registry). Signed-in residents can search
+    // any vehicle by regNo to find the flat; add/edit/delete is gated by
+    // system.vehicles.editorRoles (default: MANAGER, COMMITTEE, TREASURER,
+    // SECRETARY, CHAIRMAN, ADMIN).
+    FEATURE_TSH_VEHICLES:                    true,
     // DEPRECATED (2026-07-12): under the new strict 8-tier hierarchy
     // SECRETARY sits ABOVE TREASURER in the precedence chain and
     // inherits treasury view naturally, so this flag is a no-op. It is
@@ -166,6 +180,9 @@ export const DEFAULT_CONFIG: SiteConfig = {
     // ('proof' | 'payment' | 'receipt'), {id} (RMB-* or EXP-*), {seq}
     // (2-digit index within the batch), {name} (sanitised original filename).
     TREASURY_RECEIPT_PATH:       'treasury/receipts/{yearMonth}/{kind}/{id}/{seq}-{name}',
+    // Vehicle Registry cache TTL. Small file (< 40 KB even for 500 rows)
+    // so 120 s is plenty for search-heavy read workloads.
+    VEHICLES_CACHE_SECONDS:      120,
   },
   lists: {
     towers:     ['A', 'B', 'C', 'Common Area'],
@@ -252,6 +269,13 @@ export const DEFAULT_CONFIG: SiteConfig = {
     backupEnabled:     true,
     backupTimes:       ['08:00', '14:00', '20:00'],
     backupRetentionDays: 90,
+    // Vehicle Registry — role allowlist for add/edit/delete on
+    // config/vehicles.json. Set-membership check (not hierarchy) so an
+    // admin can precisely include MANAGER (below CONTRIBUTOR in the
+    // strict chain) while excluding CONTRIBUTOR and RESIDENT.
+    vehicles: {
+      editorRoles: ['ADMIN', 'CHAIRMAN', 'SECRETARY', 'TREASURER', 'COMMITTEE', 'MANAGER'],
+    },
   },
   ui: {
     defaultTheme:     'light',

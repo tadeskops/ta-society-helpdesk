@@ -344,6 +344,9 @@ All write paths verify the Google JWT first, then check the role allow-list. Rea
 | `GET /polls/:id/votes` | JWT | Manager+ | `FEATURE_DAILY_POLLS` | Per-poll voter list for the manage-page audit panel. |
 | `GET /metrics/visit` | None | All | `FEATURE_DAILY_VISITOR_COUNTER` | Read the site-wide visit counter (`data/visitors.json`). |
 | `POST /metrics/visit` | None | All | `FEATURE_DAILY_VISITOR_COUNTER` | Atomic +1 to the visit counter (footer widget rate-limits per browser via localStorage). |
+| `GET /vehicles` | JWT | Any signed-in | `FEATURE_TSH_VEHICLES` | Read `config/vehicles.json`. Client builds an in-memory `regNo → vehicle` index for O(1) search. Response includes `canWrite` and the current `editorRoles` allowlist. §14.10. |
+| `PUT /vehicles` | JWT | `system.vehicles.editorRoles` (set membership; default MANAGER/COMMITTEE/TREASURER/SECRETARY/CHAIRMAN/ADMIN) | `FEATURE_TSH_VEHICLES` | Bulk replace with schema+uniqueness validation. Server enforces unique normalised `regNo` and one-flat-per-vehicle. |
+| `DELETE /vehicles/:id` | JWT | Same allowlist as PUT | `FEATURE_TSH_VEHICLES` | Remove one row by deterministic id (`veh-<flat>-<normalisedRegNo>`). |
 
 > **KPI dashboards.** There is no dedicated `/metrics` (or `/kpi`) endpoint. The manager + committee dashboards derive their counters client-side from `GET /issues` (server-side filtered by `status`/`tower`). `FEATURE_DAILY_KPI_DASHBOARD` gates the pages themselves; `FEATURE_DAILY_VISITOR_COUNTER` gates the tiny visit-counter widget in the footer.
 
@@ -875,6 +878,28 @@ Short opinion polls (e.g. "When should the pool reopen?") with one vote per sign
 | Editor  | `manage.html` exposes a polls editor (add/remove polls, edit question + options, mark closed, delete) and a voters panel (per-poll list of who voted). Editor uses one Save button via `UI.busyButton`. |
 | UI      | Landing-page card renders each open poll with a horizontal SVG bar chart (one bar per option, percentage + raw count). Optional alias + flat inputs sit below the options; the chosen option button is highlighted with a tick after voting. |
 | Flag    | `FEATURE_DAILY_POLLS` — **default `false`**. Admin must explicitly enable from Settings. |
+
+## 14.10 Vehicle Registry (`vehicles.html` + `/vehicles`)
+
+A society-wide vehicle-to-flat mapping so residents and society reps can identify **which flat a vehicle belongs to** by searching the registration number. Designed for day-to-day parking situations (blocked vehicle, headlights on, sticker verification, emergencies).
+
+| Aspect | Rule |
+|---|---|
+| Storage | Single file `config/vehicles.json` = `{ version: 1, vehicles: Vehicle[] }`. Small footprint (~40 KB even at 500 rows across 181 flats). |
+| Vehicle | `{ id, flat, regNo, regNoDisplay, type: '2W'\|'4W', sticker?, comments?, emails?: string[] (≤5), createdAt, updatedAt, updatedBy }`. `id` is deterministic `veh-<flatLower>-<normalisedRegNo>` — one row per (flat, regNo). |
+| RegNo   | Normalised at write time: uppercased, non-alphanumerics stripped, must match `[A-Z0-9]{4,12}`. The user-typed original is preserved as `regNoDisplay` for readable UI. |
+| Flat    | Must match `^[A-Z][0-9]{1,4}$` and its tower letter must appear in `cfg.lists.towers` (single-letter prefix check; falls open if the towers list is misconfigured). |
+| Emails  | Optional array of RFC-lite emails (≤5 per vehicle), lowercased + deduped. Populated only by editors — residents never edit their own record here in v1. |
+| Uniqueness | Normalised `regNo` is globally unique. Attempting to save two rows with the same `regNo` (same or different flat) returns 409 Conflict. |
+| Cache   | `VEHICLES_CACHE_SECONDS` (default 120 s) in-Worker. Invalidated by every PUT/DELETE. |
+| Read    | `GET /vehicles` — **sign-in required (any role including RESIDENT/CONTRIBUTOR)**. Returns `{ version, vehicles[], canWrite, editorRoles }`. Client builds an in-memory `Map<normalisedRegNo, Vehicle>` for O(1) search — no per-lookup round-trip. |
+| Write   | `PUT /vehicles` (bulk replace) and `DELETE /vehicles/:id` (single-row remove) — **set-membership check** against `system.vehicles.editorRoles` (Role[]). Defaults to `['ADMIN','CHAIRMAN','SECRETARY','TREASURER','COMMITTEE','MANAGER']`; `CONTRIBUTOR` and `RESIDENT` are excluded by default. Admins reconfigure the allowlist by editing `system.vehicles.editorRoles` in Settings — no code change. |
+| createdAt | Preserved across re-saves by matching incoming rows to existing rows by `id` and carrying over the original `createdAt`. `updatedAt` and `updatedBy` are stamped fresh every write. |
+| UI      | `docs/vehicles.html`: single search box (autofocus, uppercase, live 100 ms debounced filter, ≥3 chars). Result card shows the matched flat + type + optional sticker + comments. Editor pane below (hidden for non-editors) groups rows by flat with inline Edit / Delete controls and a single Add form (flat/regNo/type/sticker/comments + optional emails). All writes go through `PUT /vehicles` (whole-list) except one-shot deletes which use `DELETE /vehicles/:id`. |
+| Discovery | Quick-access tile on `index.html` ("Vehicle Registry → search vehicle → flat"), primary nav link in the header (gated by `FEATURE_TSH_VEHICLES`), and a row under the "Directory" services group on the home page. |
+| Audit   | Every write appends to `config/audit.log` as `vehicles:put` or `vehicles:delete` with `actor`, `count`, and (for deletes) `flat=…&regNo=…`. Picked up automatically by the daily backup workflow. |
+| Flag    | `FEATURE_TSH_VEHICLES` — **default `true`**. Admin may turn off from Settings; the nav link, home-page tile, and `/vehicles` routes all fail closed when off. |
+| Future v2 | Server-side per-caller filter: for non-editors, restrict the returned list to vehicles registered against flats whose email-map contains the caller's email. Schema already carries `emails[]` per vehicle, so no migration is needed to layer that on. |
 
 ## 15. Non-goals / out of scope
 
