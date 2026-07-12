@@ -45,18 +45,18 @@
     // "Report site bug" modal.
     //
     // Design notes:
-    //  - The report is dispatched to the maintainer via mailto: with a
-    //    "[Tool Issue]" subject prefix. It never touches the /issues API,
-    //    so tool bugs cannot leak into the society-helpdesk issues list.
-    //  - Uses the shared UI.modal + UI.PhotoTray helpers (already loaded
-    //    on every page) so the form gets client-side image resize and the
-    //    same modal chrome residents already know.
-    //  - Signed-in user's email is auto-included when available; anonymous
-    //    reports still work (mailto only, no server call required).
-    //  - Attachments cannot ride on a mailto:, so photos are shown in the
-    //    preview and referenced by filename in the body; a friendly toast
-    //    reminds the reporter to attach them in the mail client.
-    //  - All errors are swallowed — the footer must never break the page.
+    //  - Submits directly to the worker (POST /tool-issues) which files
+    //    the report as a GitHub issue with a dedicated `tool-issue` label.
+    //    Every resident-facing listing endpoint filters by the `daily`
+    //    label, so tool reports are invisible to the helpdesk UI.
+    //  - Requires a signed-in Google user (worker enforces this too).
+    //    A signed-out click prompts sign-in via window.Auth.signIn().
+    //  - Uses the shared UI.modal + UI.PhotoTray helpers so the form
+    //    inherits client-side image resize + the same modal chrome.
+    //  - Up to 3 screenshots, each ≤2 MB after resize, embedded in the
+    //    issue body as raw.githubusercontent.com URLs.
+    //  - All errors are surfaced via UI.toast; the footer must never
+    //    throw and break the page.
     (function () {
       try {
         const btn = document.querySelector('[data-tsh-report-open]');
@@ -64,16 +64,27 @@
 
         btn.addEventListener('click', async () => {
           const UI = window.UI;
+          const Api = window.Api;
+          const Auth = window.Auth;
 
-          // Fallback: no modal helper on this page → plain mailto so the
-          // affordance always does something.
-          if (!UI || !UI.modal) {
-            const t = '[Tool Issue] ' + (document.title || 'unknown page') + ' — <short description>';
-            const b = 'Where: ' + location.href + '\nWhen: ' + new Date().toISOString()
-                    + '\nBrowser: ' + (navigator.userAgent || '') + '\n\nDescription:\n';
-            window.location.href = 'mailto:ta.deskops@gmail.com'
-              + '?subject=' + encodeURIComponent(t)
-              + '&body='   + encodeURIComponent(b);
+          if (!UI || !UI.modal || !Api || !Api.post) {
+            // Should never happen — every page loads ui.js + api.js — but
+            // if it does, at least tell the user rather than doing nothing.
+            alert('The report tool is not available on this page. Please try again from another page or contact ta.deskops@gmail.com.');
+            return;
+          }
+
+          // Require sign-in up front so the user isn't asked to type a
+          // report and then rejected.
+          let who = null;
+          try {
+            if (window.Flags && window.Flags.whoami) {
+              who = await window.Flags.whoami();
+            }
+          } catch (_e) { /* fall through */ }
+          if (!who || !who.email) {
+            if (UI.toast) UI.toast('Please sign in with Google to report a site bug.', { kind: 'warn' });
+            if (Auth && Auth.signIn) { try { Auth.signIn(); } catch (_e) { /* noop */ } }
             return;
           }
 
@@ -84,7 +95,7 @@
           form.innerHTML = ''
             + '<p class="tsh-hint" style="margin-top:0">'
             +   'Report a problem with the <strong>website itself</strong> — a layout bug, a broken button, wrong data, etc. '
-            +   'This is sent to the maintainer and <strong>does not</strong> create a society helpdesk ticket.'
+            +   'This is filed as a GitHub issue for the maintainer and <strong>does not</strong> create a society helpdesk ticket.'
             + '</p>'
             + '<label class="tsh-field">'
             +   '<span class="tsh-label">What went wrong <span class="tsh-req">*</span></span>'
@@ -94,10 +105,7 @@
             + '<label class="tsh-field">'
             +   '<span class="tsh-label">Screenshots (optional, up to 3)</span>'
             +   '<input type="file" data-tool-files accept="image/*" multiple />'
-            +   '<span class="tsh-hint">'
-            +     'Resized in your browser for preview. Mail clients can\'t receive attachments '
-            +     'from web forms, so please re-attach them in your mail app before sending.'
-            +   '</span>'
+            +   '<span class="tsh-hint">Resized in your browser to keep uploads small.</span>'
             + '</label>'
             + '<div class="tsh-photo-tray" data-tool-tray hidden></div>';
 
@@ -130,57 +138,55 @@
           }
           const photos = (tray && tray.photos) ? tray.photos() : [];
 
-          // Pull signed-in identity when available (no prompt if signed out).
-          let who = '';
+          const payload = {
+            description: desc,
+            page: location.href,
+            pageTitle: (document.title || location.pathname || '').trim().slice(0, 200),
+            userAgent: (navigator.userAgent || 'unknown').slice(0, 500),
+            photos: photos.map((p, i) => ({
+              dataUrl: p.dataUrl,
+              name: p.name || 'screenshot-' + (i + 1) + '.jpg',
+            })),
+          };
+
+          let result;
           try {
-            if (window.Flags && window.Flags.whoami) {
-              const w = await window.Flags.whoami();
-              if (w && w.email) who = w.email;
+            result = await Api.post('/tool-issues', payload);
+          } catch (err) {
+            const status = err && err.status;
+            const msg = (err && (err.message || err.error)) || 'Something went wrong sending the report.';
+            if (status === 401 && Auth && Auth.signIn) {
+              if (UI.toast) UI.toast('Please sign in to send the report.', { kind: 'warn' });
+              try { Auth.signIn(); } catch (_e) { /* noop */ }
+              return;
             }
-          } catch (_e) { /* anonymous is fine */ }
-
-          const nl        = '\n';
-          const now       = new Date().toISOString();
-          const ua        = navigator.userAgent || 'unknown';
-          const url       = location.href;
-          const pageName  = (document.title || location.pathname || 'unknown page').trim();
-          const shortDesc = desc.split(/\r?\n/)[0].slice(0, 60);
-          const subject   = '[Tool Issue] ' + pageName + (shortDesc ? ' — ' + shortDesc : '');
-
-          const photoList = photos.length
-            ? photos.map((p, i) => '  ' + (i + 1) + '. ' + (p.name || 'photo-' + (i + 1) + '.jpg')).join(nl)
-            : '  (none)';
-
-          const body =
-              'Where:   ' + url + nl
-            + 'When:    ' + now + nl
-            + 'User:    ' + (who || '(not signed in)') + nl
-            + 'Browser: ' + ua + nl + nl
-            + 'Description:' + nl
-            + desc + nl + nl
-            + 'Screenshots (please attach these files from your device):' + nl
-            + photoList + nl;
-
-          // Try clipboard first so the reporter has a copy even if the
-          // mail client mangles the mailto: body length.
-          try {
-            if (UI.copy) UI.copy('Subject: ' + subject + nl + nl + body);
-          } catch (_e) { /* clipboard is best-effort */ }
-
-          const href = 'mailto:ta.deskops@gmail.com'
-            + '?subject=' + encodeURIComponent(subject)
-            + '&body='   + encodeURIComponent(body);
-          // Use location.href so mobile browsers hand off to the mail app.
-          window.location.href = href;
-
-          if (UI.toast) {
-            UI.toast(
-              photos.length
-                ? 'Report opened in your mail app — please attach the ' + photos.length + ' screenshot(s) and send.'
-                : 'Report opened in your mail app — please review and send.',
-              { kind: 'success' }
-            );
+            if (UI.toast) UI.toast(msg, { kind: 'error' });
+            return;
           }
+
+          const num = result && (result.number || (result.data && result.data.number));
+          const url = result && (result.url    || (result.data && result.data.url));
+          if (UI.toast) {
+            UI.toast('Report filed as #' + num + '. Thanks!', { kind: 'success' });
+          }
+
+          // Follow-up modal with a link to the issue.
+          try {
+            const body = document.createElement('div');
+            body.innerHTML = ''
+              + '<p style="margin-top:0">Thanks — your report was filed as '
+              +   '<strong>#' + num + '</strong>.</p>'
+              + '<p style="margin-bottom:0">'
+              +   '<a href="' + url + '" rel="noopener" target="_blank">'
+              +     'View on GitHub <i class="fas fa-arrow-up-right-from-square" aria-hidden="true"></i>'
+              +   '</a>'
+              + '</p>';
+            await UI.modal({
+              title: 'Report sent',
+              body,
+              actions: [{ label: 'Close', value: null, primary: true }],
+            });
+          } catch (_e) { /* confirmation modal is best-effort */ }
         });
       } catch (_e) { /* never break the footer */ }
     })();

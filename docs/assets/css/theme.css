@@ -453,35 +453,33 @@ html[data-theme="medium"] .tsh-user-role-manager {
 }
 .tsh-footer-ig:hover i { filter: brightness(1.15) saturate(1.1); transform: scale(1.06); }
 
-/* "Report site bug" button — the centered call-to-action in the footer.
-   Deliberately larger and pill-shaped so it reads as an actionable
-   button, not just decoration. Palette pulls the bug icon in the brand
-   gold so it stays discoverable against the muted footer background,
-   without shouting like a primary CTA. Hover/focus lifts it a hair for
-   affordance. */
+/* "Report site bug" button — the centered footer affordance.
+   Deliberately understated: ghost-style with no border and no fill at
+   rest, so it disappears into the footer typography. The bug icon in
+   brand gold provides the only chromatic anchor. On hover/focus we
+   reveal a subtle soft-primary tint (no lift, no shadow) — quiet
+   affordance for a rarely-used maintainer channel. */
 .tsh-footer-report-btn {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
+  gap: 6px;
+  padding: 4px 10px;
   border-radius: 999px;
-  border: 1px solid var(--c-border, rgba(0, 0, 0, 0.15));
-  background: var(--c-surface, #ffffff);
+  border: 1px solid transparent;
+  background: transparent;
   color: var(--c-text-muted);
   font: inherit;
-  font-size: 0.9rem;
-  font-weight: 600;
+  font-size: 0.78rem;
+  font-weight: 500;
   line-height: 1;
   cursor: pointer;
   transition:
     color 140ms ease,
     background 140ms ease,
-    border-color 140ms ease,
-    transform 140ms ease,
-    box-shadow 140ms ease;
+    border-color 140ms ease;
 }
 .tsh-footer-report-btn i {
-  font-size: 1.15rem;
+  font-size: 0.95rem;
   line-height: 1;
   color: var(--c-primary);
   transition: transform 160ms ease;
@@ -489,15 +487,13 @@ html[data-theme="medium"] .tsh-user-role-manager {
 .tsh-footer-report-btn:hover,
 .tsh-footer-report-btn:focus-visible {
   color: var(--c-primary);
-  border-color: var(--c-primary);
-  background: var(--c-primary-soft, rgba(0, 0, 0, 0.05));
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border-color: var(--c-primary-soft, rgba(0, 0, 0, 0.12));
+  background: var(--c-primary-soft, rgba(0, 0, 0, 0.04));
   outline: none;
 }
 .tsh-footer-report-btn:hover i,
 .tsh-footer-report-btn:focus-visible i {
-  transform: scale(1.1) rotate(-4deg);
+  transform: scale(1.08) rotate(-4deg);
 }
 
 /* Modal body for the "Report site bug" form — inherits generic modal
@@ -523,10 +519,10 @@ html[data-theme="medium"] .tsh-user-role-manager {
   .tsh-footer-meta { font-size: 0.7rem; }
   .tsh-footer-center { font-size: 0.7rem; flex-basis: 100%; }
   /* Compact icon-only report button on phones — keeps the tap target
-     comfortable (min 40px) while hiding the label so the footer stays
+     comfortable (min 36px) while hiding the label so the footer stays
      on a single line. */
-  .tsh-footer-report-btn { padding: 8px 12px; font-size: 0.8rem; gap: 6px; min-height: 40px; }
-  .tsh-footer-report-btn i { font-size: 1.05rem; }
+  .tsh-footer-report-btn { padding: 4px 8px; font-size: 0.72rem; gap: 4px; min-height: 36px; }
+  .tsh-footer-report-btn i { font-size: 0.9rem; }
   .tsh-footer-report-btn-label { display: none; }
 }
 .tsh-visitors {
