@@ -420,11 +420,13 @@ html[data-theme="medium"] .tsh-user-role-manager {
   display: inline-flex;
   justify-content: center;
   align-items: center;
-  gap: 4px;
+  gap: 12px;
   min-width: 0;
+  flex-wrap: wrap;
 }
-/* When the visitor counter is hidden, also drop it from the flex line
-   so meta still snaps to the right edge instead of leaving a gap. */
+/* Legacy safety net: previously the visitor pill *was* the center element
+   and carried [hidden]. It's now a child of this wrapper, but keep the
+   rule so any future usage that puts [hidden] on the wrapper still works. */
 .tsh-footer-center[hidden] { display: none; }
 .tsh-footer a { color: var(--c-text-muted); }
 .tsh-footer a:hover { color: var(--c-primary); }
@@ -451,41 +453,58 @@ html[data-theme="medium"] .tsh-user-role-manager {
 }
 .tsh-footer-ig:hover i { filter: brightness(1.15) saturate(1.1); transform: scale(1.06); }
 
-/* "Report tool issue" cluster in the meta strip: two tiny icon-only
-   links (GitHub bug + email envelope). Kept quiet so it doesn't compete
-   with the source/version text, but hoverable for discoverability.
-   Each link is a small tap target (padding + border-radius) so it's
-   usable on touch without visually shouting. */
-.tsh-footer-report {
+/* "Report site bug" button — the centered call-to-action in the footer.
+   Deliberately larger and pill-shaped so it reads as an actionable
+   button, not just decoration. Palette pulls the bug icon in the brand
+   gold so it stays discoverable against the muted footer background,
+   without shouting like a primary CTA. Hover/focus lifts it a hair for
+   affordance. */
+.tsh-footer-report-btn {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  vertical-align: middle;
-}
-.tsh-footer-report-label {
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--c-border, rgba(0, 0, 0, 0.15));
+  background: var(--c-surface, #ffffff);
   color: var(--c-text-muted);
-  opacity: 0.85;
-  margin-right: 2px;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    color 140ms ease,
+    background 140ms ease,
+    border-color 140ms ease,
+    transform 140ms ease,
+    box-shadow 140ms ease;
 }
-.tsh-footer-report-link {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 22px;
-  min-height: 22px;
-  padding: 2px 5px;
-  border-radius: 6px;
-  color: var(--c-text-muted);
-  text-decoration: none;
-  transition: color 140ms ease, background 140ms ease, transform 140ms ease;
-}
-.tsh-footer-report-link:hover,
-.tsh-footer-report-link:focus-visible {
+.tsh-footer-report-btn i {
+  font-size: 1.15rem;
+  line-height: 1;
   color: var(--c-primary);
+  transition: transform 160ms ease;
+}
+.tsh-footer-report-btn:hover,
+.tsh-footer-report-btn:focus-visible {
+  color: var(--c-primary);
+  border-color: var(--c-primary);
   background: var(--c-primary-soft, rgba(0, 0, 0, 0.05));
   transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  outline: none;
 }
-.tsh-footer-report-link i { font-size: 0.95em; line-height: 1; }
+.tsh-footer-report-btn:hover i,
+.tsh-footer-report-btn:focus-visible i {
+  transform: scale(1.1) rotate(-4deg);
+}
+
+/* Modal body for the "Report site bug" form — inherits generic modal
+   styling but tightens the hint text spacing so the form reads compact. */
+.tsh-tool-issue-form .tsh-hint { margin: 6px 0 0; }
+.tsh-tool-issue-form .tsh-field + .tsh-field { margin-top: 12px; }
+.tsh-tool-issue-form textarea { width: 100%; }
 
 /* Mobile (<=640px): keep the three-zone intent but tighten everything
    so the footer reads as a single sleek line. IG icon drops to 1.15
@@ -503,9 +522,12 @@ html[data-theme="medium"] .tsh-user-role-manager {
   .tsh-footer-ig i { font-size: 1.15rem; }
   .tsh-footer-meta { font-size: 0.7rem; }
   .tsh-footer-center { font-size: 0.7rem; flex-basis: 100%; }
-  .tsh-footer-report { gap: 2px; }
-  .tsh-footer-report-link { min-width: 24px; min-height: 24px; padding: 3px 5px; }
-  .tsh-footer-report-link i { font-size: 0.85rem; }
+  /* Compact icon-only report button on phones — keeps the tap target
+     comfortable (min 40px) while hiding the label so the footer stays
+     on a single line. */
+  .tsh-footer-report-btn { padding: 8px 12px; font-size: 0.8rem; gap: 6px; min-height: 40px; }
+  .tsh-footer-report-btn i { font-size: 1.05rem; }
+  .tsh-footer-report-btn-label { display: none; }
 }
 .tsh-visitors {
   display: inline-flex;
@@ -514,6 +536,11 @@ html[data-theme="medium"] .tsh-user-role-manager {
   color: var(--c-text-muted);
   white-space: nowrap;
 }
+/* Respect the HTML `hidden` attribute — the visitor counter starts
+   hidden and is only revealed once /metrics/visit resolves. Without
+   this rule, the `display: inline-flex` above wins and the "—" chip
+   flashes on every load. */
+.tsh-visitors[hidden] { display: none; }
 .tsh-visitors i { color: var(--c-primary); }
 .tsh-visitors [data-tsh-visitors-count] {
   font-variant-numeric: tabular-nums;

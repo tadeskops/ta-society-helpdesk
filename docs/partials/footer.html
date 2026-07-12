@@ -9,93 +9,180 @@
     <i class="fab fa-instagram" aria-hidden="true"></i>
     <span>@theaddress_society</span>
   </a>
-  <span class="tsh-footer-center tsh-visitors" data-tsh-visitors hidden>
-    <i class="fas fa-eye" aria-hidden="true"></i>
-    <span data-tsh-visitors-count>—</span> visitors
-  </span>
+
+  <!--
+    Centre zone. Holds the "Report site bug" call-to-action plus the
+    (usually-hidden) visitor counter. The report button is intentionally
+    NOT a link to GitHub: reports are captured in a modal and dispatched
+    via the user's mail client to the maintainer, so they never mix with
+    resident helpdesk issues. See the inline script at the bottom of this
+    partial for the wiring.
+  -->
+  <div class="tsh-footer-center">
+    <button type="button"
+            class="tsh-footer-report-btn"
+            data-tsh-report-open
+            aria-haspopup="dialog"
+            aria-label="Report a bug or issue with this website"
+            title="Report a bug or issue with this website (does not create a helpdesk ticket)">
+      <i class="fas fa-bug" aria-hidden="true"></i>
+      <span class="tsh-footer-report-btn-label">Report site bug</span>
+    </button>
+    <span class="tsh-visitors" data-tsh-visitors hidden>
+      <i class="fas fa-eye" aria-hidden="true"></i>
+      <span data-tsh-visitors-count>—</span> visitors
+    </span>
+  </div>
+
   <small class="tsh-footer-meta">
     <i class="fas fa-shield-halved" aria-hidden="true"></i>
     The Address · Society Help Desk ·
     <a href="https://github.com/tadeskops/ta-society-helpdesk" rel="noopener" target="_blank"><i class="fab fa-github"></i> source</a> ·
-    <!--
-      Report a page/tool bug. Two channels so residents can pick whichever
-      is convenient: GitHub (bug icon) opens a prefilled new-issue form,
-      email (envelope icon) opens the user's mail client. Both carry the
-      "[Tool Issue]" prefix as required. The inline script below enriches
-      each href with the current page URL, timestamp and user-agent so the
-      maintainer gets context without the reporter having to type it.
-    -->
-    <span class="tsh-footer-report" data-tsh-report>
-      <span class="tsh-footer-report-label" aria-hidden="true">report:</span>
-      <a class="tsh-footer-report-link"
-         data-tsh-report-github
-         href="https://github.com/tadeskops/ta-society-helpdesk/issues/new?title=%5BTool%20Issue%5D%20&amp;labels=tool-issue"
-         rel="noopener"
-         target="_blank"
-         aria-label="Report a website issue on GitHub (prefixed with [Tool Issue])"
-         title="Report a website issue on GitHub (opens a new tab with a prefilled issue)">
-        <i class="fas fa-bug" aria-hidden="true"></i>
-      </a>
-      <a class="tsh-footer-report-link"
-         data-tsh-report-email
-         href="mailto:ta.deskops@gmail.com?subject=%5BTool%20Issue%5D%20"
-         rel="noopener"
-         aria-label="Report a website issue by email (subject prefixed with [Tool Issue])"
-         title="Report a website issue by email (opens your mail client with subject prefilled)">
-        <i class="fas fa-envelope" aria-hidden="true"></i>
-      </a>
-    </span> ·
     <span data-tsh-build>v1</span>
   </small>
+
   <script>
-    // Enrich the "report tool issue" links with page context. Runs from
-    // the footer partial after Partials.mount() re-inserts scripts. All
-    // errors are swallowed — footer must never break the page. Static
-    // hrefs above act as a safe fallback if this script fails to run.
+    // "Report site bug" modal.
+    //
+    // Design notes:
+    //  - The report is dispatched to the maintainer via mailto: with a
+    //    "[Tool Issue]" subject prefix. It never touches the /issues API,
+    //    so tool bugs cannot leak into the society-helpdesk issues list.
+    //  - Uses the shared UI.modal + UI.PhotoTray helpers (already loaded
+    //    on every page) so the form gets client-side image resize and the
+    //    same modal chrome residents already know.
+    //  - Signed-in user's email is auto-included when available; anonymous
+    //    reports still work (mailto only, no server call required).
+    //  - Attachments cannot ride on a mailto:, so photos are shown in the
+    //    preview and referenced by filename in the body; a friendly toast
+    //    reminds the reporter to attach them in the mail client.
+    //  - All errors are swallowed — the footer must never break the page.
     (function () {
       try {
-        const ghEl   = document.querySelector('[data-tsh-report-github]');
-        const mailEl = document.querySelector('[data-tsh-report-email]');
-        if (!ghEl && !mailEl) return;
+        const btn = document.querySelector('[data-tsh-report-open]');
+        if (!btn) return;
 
-        const nl       = '\n';
-        const pageUrl  = location.href;
-        const pageName = (document.title || location.pathname || 'unknown page').trim();
-        const stamp    = new Date().toISOString();
-        const ua       = navigator.userAgent || 'unknown';
-        const title    = '[Tool Issue] ' + pageName + ' — <short description>';
+        btn.addEventListener('click', async () => {
+          const UI = window.UI;
 
-        const bodyMd =
-          '**Where:** [' + pageName + '](' + pageUrl + ')' + nl +
-          '**When:** ' + stamp + nl +
-          '**Browser:** `' + ua + '`' + nl + nl +
-          '### What went wrong' + nl +
-          '<!-- Describe the problem, expected vs actual, and any steps to reproduce. -->' + nl;
+          // Fallback: no modal helper on this page → plain mailto so the
+          // affordance always does something.
+          if (!UI || !UI.modal) {
+            const t = '[Tool Issue] ' + (document.title || 'unknown page') + ' — <short description>';
+            const b = 'Where: ' + location.href + '\nWhen: ' + new Date().toISOString()
+                    + '\nBrowser: ' + (navigator.userAgent || '') + '\n\nDescription:\n';
+            window.location.href = 'mailto:ta.deskops@gmail.com'
+              + '?subject=' + encodeURIComponent(t)
+              + '&body='   + encodeURIComponent(b);
+            return;
+          }
 
-        const bodyTxt =
-          'Where: ' + pageUrl + nl +
-          'When:  ' + stamp + nl +
-          'Browser: ' + ua + nl + nl +
-          'What went wrong:' + nl +
-          '(Describe the problem, expected vs actual, and any steps to reproduce.)' + nl;
+          // Build the form.
+          const form = document.createElement('form');
+          form.className = 'tsh-tool-issue-form';
+          form.noValidate = true;
+          form.innerHTML = ''
+            + '<p class="tsh-hint" style="margin-top:0">'
+            +   'Report a problem with the <strong>website itself</strong> — a layout bug, a broken button, wrong data, etc. '
+            +   'This is sent to the maintainer and <strong>does not</strong> create a society helpdesk ticket.'
+            + '</p>'
+            + '<label class="tsh-field">'
+            +   '<span class="tsh-label">What went wrong <span class="tsh-req">*</span></span>'
+            +   '<textarea data-tool-desc rows="5" required minlength="10" maxlength="2000" '
+            +             'placeholder="Describe the problem, what you expected, and any steps to reproduce."></textarea>'
+            + '</label>'
+            + '<label class="tsh-field">'
+            +   '<span class="tsh-label">Screenshots (optional, up to 3)</span>'
+            +   '<input type="file" data-tool-files accept="image/*" multiple />'
+            +   '<span class="tsh-hint">'
+            +     'Resized in your browser for preview. Mail clients can\'t receive attachments '
+            +     'from web forms, so please re-attach them in your mail app before sending.'
+            +   '</span>'
+            + '</label>'
+            + '<div class="tsh-photo-tray" data-tool-tray hidden></div>';
 
-        if (ghEl) {
+          // Wire the photo tray (uses the same helper as daily-report).
+          let tray = null;
+          if (UI.PhotoTray && UI.PhotoTray.create) {
+            try {
+              const input  = form.querySelector('[data-tool-files]');
+              const trayEl = form.querySelector('[data-tool-tray]');
+              tray = UI.PhotoTray.create({ input, tray: trayEl, max: 3, maxDim: 1400, quality: 0.8 });
+              input.addEventListener('change', (e) => { tray.add(e.target.files); });
+            } catch (_e) { /* photo tray optional */ }
+          }
+
+          const choice = await UI.modal({
+            title: 'Report site bug',
+            body: form,
+            actions: [
+              { label: 'Cancel', value: null },
+              { label: 'Send report', value: 'send', primary: true },
+            ],
+          });
+          if (choice !== 'send') return;
+
+          const descEl = form.querySelector('[data-tool-desc]');
+          const desc   = (descEl && descEl.value || '').trim();
+          if (desc.length < 10) {
+            if (UI.toast) UI.toast('Please describe the problem in at least 10 characters.', { kind: 'warn' });
+            return;
+          }
+          const photos = (tray && tray.photos) ? tray.photos() : [];
+
+          // Pull signed-in identity when available (no prompt if signed out).
+          let who = '';
           try {
-            const u = new URL(ghEl.href);
-            u.searchParams.set('title', title);
-            u.searchParams.set('body', bodyMd);
-            u.searchParams.set('labels', 'tool-issue');
-            ghEl.href = u.toString();
-          } catch (_e) { /* leave static href in place */ }
-        }
-        if (mailEl) {
-          mailEl.href =
-            'mailto:ta.deskops@gmail.com'
-            + '?subject=' + encodeURIComponent(title)
-            + '&body='   + encodeURIComponent(bodyTxt);
-        }
+            if (window.Flags && window.Flags.whoami) {
+              const w = await window.Flags.whoami();
+              if (w && w.email) who = w.email;
+            }
+          } catch (_e) { /* anonymous is fine */ }
+
+          const nl        = '\n';
+          const now       = new Date().toISOString();
+          const ua        = navigator.userAgent || 'unknown';
+          const url       = location.href;
+          const pageName  = (document.title || location.pathname || 'unknown page').trim();
+          const shortDesc = desc.split(/\r?\n/)[0].slice(0, 60);
+          const subject   = '[Tool Issue] ' + pageName + (shortDesc ? ' — ' + shortDesc : '');
+
+          const photoList = photos.length
+            ? photos.map((p, i) => '  ' + (i + 1) + '. ' + (p.name || 'photo-' + (i + 1) + '.jpg')).join(nl)
+            : '  (none)';
+
+          const body =
+              'Where:   ' + url + nl
+            + 'When:    ' + now + nl
+            + 'User:    ' + (who || '(not signed in)') + nl
+            + 'Browser: ' + ua + nl + nl
+            + 'Description:' + nl
+            + desc + nl + nl
+            + 'Screenshots (please attach these files from your device):' + nl
+            + photoList + nl;
+
+          // Try clipboard first so the reporter has a copy even if the
+          // mail client mangles the mailto: body length.
+          try {
+            if (UI.copy) UI.copy('Subject: ' + subject + nl + nl + body);
+          } catch (_e) { /* clipboard is best-effort */ }
+
+          const href = 'mailto:ta.deskops@gmail.com'
+            + '?subject=' + encodeURIComponent(subject)
+            + '&body='   + encodeURIComponent(body);
+          // Use location.href so mobile browsers hand off to the mail app.
+          window.location.href = href;
+
+          if (UI.toast) {
+            UI.toast(
+              photos.length
+                ? 'Report opened in your mail app — please attach the ' + photos.length + ' screenshot(s) and send.'
+                : 'Report opened in your mail app — please review and send.',
+              { kind: 'success' }
+            );
+          }
+        });
       } catch (_e) { /* never break the footer */ }
     })();
   </script>
 </footer>
-
