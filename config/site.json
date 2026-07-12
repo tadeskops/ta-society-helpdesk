@@ -48,7 +48,8 @@
     "FEATURE_TSH_VEHICLES_STICKER_PATCH": false,
     "FEATURE_TSH_VEHICLES_BULK_EMAILS": false,
     "FEATURE_TSH_VEHICLES_RESIDENT_ADD": false,
-    "FEATURE_TREASURY_SECRETARY_ACCESS": false
+    "FEATURE_TREASURY_SECRETARY_ACCESS": false,
+    "FEATURE_MAINTENANCE_MODE": true
   },
   "tunables": {
     "DAILY_AUTO_ASSIGN_HOURS": 4,
@@ -382,7 +383,8 @@
         "period": "monthly",
         "path": "{facilityCodeLower}/bckp/{period}/{periodKey}.pdf"
       }
-    }
+    },
+    "maintenance": {}
   },
   "ui": {
     "defaultTheme": "light",
