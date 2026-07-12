@@ -118,8 +118,8 @@ No shared code, assets, builds, secrets, schemas, or workflows. See §0 of `.git
 
 ## 2. Roles
 
-Four roles. Precedence (highest wins for landing-page routing):
-`ADMIN > COMMITTEE > MANAGER > UNKNOWN`. Capabilities are additive — an email on multiple lists gets the union.
+Four precedence roles plus three additive capability tags. Precedence (highest wins for landing-page routing / displayed badge):
+`ADMIN > COMMITTEE > MANAGER > RESIDENT > UNKNOWN`. Capabilities are additive — an email on multiple lists gets the union.
 
 | Role | How identified | Capabilities |
 |---|---|---|
@@ -127,6 +127,16 @@ Four roles. Precedence (highest wins for landing-page routing):
 | **Society Manager** | Email in `config/managers.json` | Assign vendor + severity / mark in progress / resolve / reject / reopen. Can add photos to existing issues. **Can archive** an issue via `POST /issues/:id/delete` **with a mandatory non-empty reason** — the audit log tags this flow with an `[archive]` prefix (see §6.5). **Cannot** redact bodies, bulk-archive, edit historical fields, or change settings. |
 | **Technical Committee** | Email in `config/committee.json` | Everything a manager can do, **plus** edit/redact issue body, overwrite resolution notes after the fact, soft-delete (lock + tombstone), bulk archive, view audit log. **Read-only** access to settings (can see what's configured, cannot change it). |
 | **Admin** | Email in `config/admins.json` (legacy: `config/developers.json`) | Everything committee can do, **plus** edit `config/site.json` (feature flags, visibility, lists), manage all three allow-lists from the settings page, edit system bindings (repo, branch, Worker URL, photo-storage strategy). |
+
+**Additive capability tags** (implemented in [worker/src/auth/roles.ts](worker/src/auth/roles.ts); NOT part of the precedence chain, never change the displayed primary badge):
+
+| Tag | Source list | Purpose |
+|---|---|---|
+| `TREASURER` | `config/treasurer.json` | Full read + act on the confidential treasury ledger (§21). |
+| `CHAIRMAN`  | `config/chairman.json`  | Same treasury view+act rights as TREASURER. |
+| `SECRETARY` | `config/secretary.json` | Read-only treasury access when `FEATURE_TREASURY_SECRETARY_ACCESS` is on. Never acts. |
+
+> Presence in any of the three additive lists does NOT elevate `roles.primary` — residents who are treasurer stay `RESIDENT` on the badge but gain treasury access. A **grandfather clause** in `isTreasuryGrandfatherActive(access)` keeps the legacy COMMITTEE+ADMIN gate on the treasury dashboard as long as ALL three additive lists are empty; the first email seeded into any of them flips the strict gate on.
 
 > Allow-lists are runtime-editable from the settings page (admin only). Each list is a JSON file in this repo; every change is a commit, so audit history is free. There is a one-admin-minimum guard so an empty admin list is impossible.
 
@@ -143,9 +153,9 @@ Four roles. Precedence (highest wins for landing-page routing):
 
 ### 3.2 Role resolution
 
-- Worker reads `config/managers.json`, `config/committee.json`, and `config/admins.json` (legacy fallback: `config/developers.json`) (cached 60 s).
-- Computes role(s) for the verified email; precedence rule above for the displayed badge; capabilities are additive for action allow-lists.
-- Anonymous (no JWT) is allowed for: `POST /issues`, `GET /issues/public`, `GET /issues/:id/public`. All other endpoints require a verified JWT, and most require a privileged role.
+- Worker reads `config/managers.json`, `config/committee.json`, and `config/admins.json` (legacy fallback: `config/developers.json`) and the additive tag lists `config/treasurer.json`, `config/chairman.json`, `config/secretary.json` (cached 60 s).
+- Computes role(s) for the verified email; precedence rule above for the displayed badge; capabilities are additive for action allow-lists. The three tag lists never affect `roles.primary`.
+- Anonymous (no JWT) is allowed for: `POST /issues` (when `FEATURE_DAILY_ANONYMOUS_SUBMIT` is on), `GET /issues/public`, `GET /issues/:id/public`, `GET /config`, and the anonymous-safe community readers (`GET /directory`, `/banner`, `/announcements`, `/events`, `/polls`, `/metrics/visit`). All other endpoints require a verified JWT, and most require a privileged role.
 
 ### 3.3 What is forbidden
 
@@ -267,6 +277,7 @@ All write paths verify the Google JWT first, then check the role allow-list. Rea
 | `POST /issues/bulk-archive` | JWT | Committee, Admin | Manual retention sweep — soft-deletes `resolved` / `rejected` issues older than `DAILY_ARCHIVE_AFTER_DAYS`. |
 | `POST /issues/auto-assign-sweep` | JWT | Admin | Promote `new` tickets older than `DAILY_AUTO_ASSIGN_HOURS` to `assigned`. Also invoked from the Worker `scheduled()` cron. |
 | `POST /issues/backfill-tkt-ids` | JWT | Admin | One-shot migration helper: back-fills `tkt:` labels on legacy `DLY-*` issues. Safe to remove once no un-tagged legacy issues remain. |
+| `POST /tool-issues` | JWT | Resident+ | Site-bug report from the footer widget. Filed as a GitHub Issue with a dedicated `tool-issue` label (deliberately NO `daily` label) so it never surfaces in resident-facing helpdesk listings. Per-user throttle: 3 reports per 10 minutes. Photos capped at 3 files / 2 MB each and stored under `photos/tool-issues/`. |
 
 ### 5.b Identity, config, audit
 
@@ -285,6 +296,7 @@ All write paths verify the Google JWT first, then check the role allow-list. Rea
 |---|---|---|---|---|
 | `GET /directory` | None | All | `FEATURE_DAILY_DIRECTORY` | Read `config/directory.json` (vendors, committee, resources). §14.5. |
 | `PUT /directory` | JWT | Admin | `FEATURE_DAILY_DIRECTORY` | Overwrite directory JSON. |
+| `POST /directory/photo` | JWT | Manager, Committee, Admin | `FEATURE_DAILY_DIRECTORY` | Upload a per-entry avatar/image; stored under `photos/directory/` and referenced by the entry's `photoUrl`. |
 | `GET /banner` | None | All | `FEATURE_DAILY_BANNER` | Read `config/banner.json` (site-wide notice). |
 | `PUT /banner` | JWT | Admin | `FEATURE_DAILY_BANNER` | Overwrite banner content. |
 | `GET /announcements` | None | All | `FEATURE_DAILY_ANNOUNCEMENTS` | Read `config/announcements.json`. |
@@ -294,7 +306,11 @@ All write paths verify the Google JWT first, then check the role allow-list. Rea
 | `GET /polls` | None | All | `FEATURE_DAILY_POLLS` | Read `config/polls.json`. |
 | `PUT /polls` | JWT | Admin | `FEATURE_DAILY_POLLS` | Overwrite polls list. |
 | `POST /polls/:id/vote` | JWT | Resident+ | `FEATURE_DAILY_POLLS` | Cast one vote; aggregated into `poll-votes.json`. |
-| `GET /metrics` | JWT | Manager, Committee, Admin | `FEATURE_DAILY_KPI_DASHBOARD` | KPI counters + trend series for the dashboard pages. |
+| `GET /polls/:id/votes` | JWT | Manager+ | `FEATURE_DAILY_POLLS` | Per-poll voter list for the manage-page audit panel. |
+| `GET /metrics/visit` | None | All | `FEATURE_DAILY_VISITOR_COUNTER` | Read the site-wide visit counter (`data/visitors.json`). |
+| `POST /metrics/visit` | None | All | `FEATURE_DAILY_VISITOR_COUNTER` | Atomic +1 to the visit counter (footer widget rate-limits per browser via localStorage). |
+
+> **KPI dashboards.** There is no dedicated `/metrics` (or `/kpi`) endpoint. The manager + committee dashboards derive their counters client-side from `GET /issues` (server-side filtered by `status`/`tower`). `FEATURE_DAILY_KPI_DASHBOARD` gates the pages themselves; `FEATURE_DAILY_VISITOR_COUNTER` gates the tiny visit-counter widget in the footer.
 
 ### 5.d Reports & backups
 
@@ -513,7 +529,7 @@ Read-only landing pages for the operator roles — they show live counters (open
 - **Manager dashboard**: counters for the manager's own workload — open by status, tower breakdown, age buckets.
 - **Committee dashboard**: superset — same counters plus weekly trend and top-N categories. Flag: `FEATURE_DAILY_COMMITTEE_VIEW`.
 
-Both pages are flag-gated by `FEATURE_DAILY_KPI_DASHBOARD`. Data comes from `GET /metrics`.
+Both pages are flag-gated by `FEATURE_DAILY_KPI_DASHBOARD`. Data is derived client-side from `GET /issues` (server-side filtered by status / tower) — there is no dedicated KPI endpoint.
 
 ### 8.6 Public board (`docs/public-board.html`)
 
@@ -595,7 +611,16 @@ The file below is a **complete inventory** of every flag and tunable the Worker 
     // Reservation engine + related features
     "FEATURE_TSH_RESERVATIONS":            true,   // §18
     "FEATURE_TSH_NOTIFICATIONS":           true,   // §19
-    "FEATURE_TSH_RESERVATIONS_CALENDAR":   false   // §20 — off until admin sets GOOGLE_CAL_* secrets
+    "FEATURE_TSH_RESERVATIONS_CALENDAR":   false,  // §20 — off until admin sets GOOGLE_CAL_* secrets
+    "FEATURE_BOOKINGS_REPORT":             true,   // scheduled PDF export of confirmed bookings (§11)
+    // Treasury & Reimbursements (§21) — all default OFF for manager add-on
+    // capabilities so a committee has to explicitly grant each one.
+    "FEATURE_TREASURY":                        true,   // master switch for the treasury subsystem
+    "FEATURE_TREASURY_MANAGER_APPROVE":        false,  // manager may approve reimbursements
+    "FEATURE_TREASURY_MANAGER_PAY":            false,  // manager may mark reimbursements paid
+    "FEATURE_TREASURY_MANAGER_RECORD_EXPENSE": true,   // manager may record direct expenses
+    "FEATURE_TREASURY_RESIDENT_RAISE":         true,   // resident may raise a reimbursement claim
+    "FEATURE_TREASURY_SECRETARY_ACCESS":       false   // opt-in: SECRETARY tag may VIEW treasury (never act)
   },
   "tunables": {
     "DAILY_AUTO_ASSIGN_HOURS":    4,          // cron auto-promotes `new` after this many hours
@@ -938,7 +963,20 @@ All routes: JWT-required, gated by `FEATURE_TSH_RESERVATIONS`.
 | GET | `/reservations?scope=&status=&facilityId=&q=` | RESIDENT+ | Residents are always scoped to their own; MANAGER+ can request `scope=all`. |
 | GET | `/reservations/:id` | owner or MANAGER+ | 403 otherwise. |
 | PATCH | `/reservations/:id` | see below | Body: `status, note?`. Approve/under-review requires MANAGER+; reject requires MANAGER+ **and** a `note` (reason); cancel is allowed by the owner or MANAGER+. Terminal states (`rejected`, `cancelled`) are one-way. |
+| DELETE | `/reservations/:id` | MANAGER+ | Hard-remove a reservation record from `config/reservations.json` after it has terminated (rejected / cancelled). Used by operators to prune spam / test bookings; audit line `reservation:delete`. |
 | POST | `/reservations/:id/comments` | owner or MANAGER+ | Appends a timeline entry with `event=commented`. |
+
+**Receipts subsystem** (payment-receipt PDFs generated after `payment.status = verified`; all routes gated by `FEATURE_TSH_RESERVATIONS`):
+
+| Method | Path | Roles | Notes |
+|---|---|---|---|
+| GET | `/receipts/template` | MANAGER+ | Current receipt-template JSON (header text, tokens, layout) used to render receipt PDFs. |
+| POST | `/receipts/template` | ADMIN | Overwrite the template JSON. |
+| PUT | `/receipts/settings` | ADMIN | Update the receipts settings blob (issuer name, GSTIN, sequence counters). |
+| GET | `/receipts/archive/config` | MANAGER+ | Current archival config (retention window, storage path). |
+| PATCH | `/receipts/archive/config` | ADMIN | Update archival config. |
+| GET | `/receipts/archive/:id` | owner or MANAGER+ | Stream a stored receipt PDF via the worker (never a public raw URL) — mirrors the payment-proof access pattern (§18.6). |
+| POST | `/receipts/archive/:id/rebuild` | MANAGER+ | Regenerate the receipt PDF from the current template + reservation snapshot; audit line `receipt:rebuild`. |
 
 ### 18.3 UI
 
@@ -1163,4 +1201,72 @@ All optional. Missing = mirror silently queues instead of calling Google.
 |---|---|---|
 | `CALENDAR_RETRY_MAX`          | `5`  | Per-item attempt cap. Beyond this a queued op is dropped by `drain`. |
 | `CALENDAR_QUEUE_CACHE_SECONDS`| `60` | In-memory cache TTL for the queue file. |
+
+## 21. Treasury & Reimbursements
+
+Confidential ledger for society expenses and resident reimbursement claims. Implemented in [worker/src/routes/treasury.ts](worker/src/routes/treasury.ts). Master switch: `FEATURE_TREASURY` (§9). Fine-grained manager capabilities are opt-in flags: `FEATURE_TREASURY_MANAGER_APPROVE`, `FEATURE_TREASURY_MANAGER_PAY`, `FEATURE_TREASURY_MANAGER_RECORD_EXPENSE`. Resident claims are gated by `FEATURE_TREASURY_RESIDENT_RAISE`.
+
+### 21.1 Role gating
+
+The primary role chain (`RESIDENT / MANAGER / COMMITTEE / ADMIN`) does not by itself grant treasury access. Access is decided by two predicates in [worker/src/auth/roles.ts](worker/src/auth/roles.ts):
+
+- `canViewTreasuryLedger(access, roles)` — true for COMMITTEE, ADMIN, or anyone tagged TREASURER or CHAIRMAN. Also true for SECRETARY when `FEATURE_TREASURY_SECRETARY_ACCESS` is on. MANAGER may view iff any of the three manager flags above is on.
+- `canActOnTreasuryLedger(access, roles)` — same list minus SECRETARY (secretary is read-only). MANAGER may act iff the specific per-action flag is on (approve / pay / record-expense).
+- `isTreasuryGrandfatherActive(access)` — true when `treasurer.json`, `chairman.json`, and `secretary.json` are all empty. While active, legacy COMMITTEE + ADMIN behaviour is preserved so a fresh install keeps working before any T/C/S seeding.
+
+### 21.2 Data model
+
+Two config files, both PII-sensitive (never surfaced on any public/anonymous route):
+
+- **`config/treasury-reimbursements.json`** — resident-raised claims. Record shape:
+  ```
+  {
+    "id": "REI-DDMMYYHHMM",
+    "raisedBy": { "email", "name?", "flat?" },
+    "amount":    number,          // INR paise or rupees per site convention
+    "category":  string,          // free-text tag from Treasury settings
+    "purpose":   string,
+    "receiptRef?": "photos/receipts/REI-.../<uuid>.jpg",  // uploaded proof
+    "status":    "requested" | "under-review" | "approved" | "paid" | "rejected" | "closed",
+    "paymentMode?": "cash" | "upi" | "card" | "cheque" | "bank" | "auto-debit" | "other",
+    "paymentRef?":  string,
+    "createdAt", "updatedAt",
+    "timeline":  [ { at, by:{email,name?,role}, event, note? } ]
+  }
+  ```
+- **`config/treasury-expenses.json`** — direct expenses recorded by managers / committee. Same envelope minus the resident-raise fields, plus `vendor?`, `bill?` (invoice number).
+
+Binary receipts are pushed to a separate GitHub repo when `GH_TREASURY_REPO` is set (keeps large PDF/photo blobs out of the public helpdesk repo); when unset they fall back to the main repo under `photos/receipts/`.
+
+### 21.3 Routes
+
+Base path: `/treasury/*`. All routes require a JWT and pass `canViewTreasuryLedger` (read) or `canActOnTreasuryLedger` (mutate).
+
+| Method | Path | Roles | Notes |
+|---|---|---|---|
+| GET  | `/treasury/reimbursements`             | View  | List claims (paginated). Residents see only their own; view-privileged see all. |
+| POST | `/treasury/reimbursements`             | Resident+ *(flag)* | Raise a new claim. Requires `FEATURE_TREASURY_RESIDENT_RAISE`. |
+| PATCH| `/treasury/reimbursements/:id`         | Act   | Transition status (`requested → under-review → approved / rejected → closed`). Approve requires `canActOnTreasuryLedger` **and** for MANAGER `FEATURE_TREASURY_MANAGER_APPROVE`. |
+| POST | `/treasury/reimbursements/:id/payment` | Act   | Mark paid; body `{ paymentMode, paymentRef?, note? }`. MANAGER requires `FEATURE_TREASURY_MANAGER_PAY`. |
+| GET  | `/treasury/expenses`                   | View  | List direct expenses. |
+| POST | `/treasury/expenses`                   | Act   | Record a direct expense. MANAGER requires `FEATURE_TREASURY_MANAGER_RECORD_EXPENSE`. |
+| PATCH| `/treasury/expenses/:id`               | Act   | Edit expense fields (vendor, amount, category, note). |
+| POST | `/treasury/expenses/:id/delete`        | ADMIN or COMMITTEE | Soft-delete an expense (tombstone in timeline). |
+| GET  | `/treasury/summary`                    | View  | Aggregates: totals by category / status / month; used by `treasury.html`. |
+| GET  | `/treasury/file`                       | View  | Proxy-stream a stored receipt file (never exposes a public raw URL). Mirrors the payment-proof pattern from §18.6. |
+
+### 21.4 Audit
+
+Every mutating call appends to the same `audit-log.json` as the rest of the system, with an `area: "treasury"` tag so audit consumers can filter. Reason strings are mandatory on `reject` and `delete`.
+
+## 22. Tool-Issues (self-service site bug reports)
+
+Small "report a problem with this site" widget shipped in the global footer / help drawer. Implemented in [worker/src/routes/tool-issues.ts](worker/src/routes/tool-issues.ts).
+
+- **Route**: `POST /tool-issues` — signed-in only (JWT). No dedicated feature flag; presence of the widget is a frontend decision.
+- **Storage**: filed straight to GitHub Issues in the same repo, but with the label **`tool-issue`** and **without** the `daily` label. Resident-facing helpdesk listings filter by `daily`, so tool-issues are invisible to residents by design.
+- **Throttle**: 3 submissions per rolling 10-minute window per verified email. Excess returns HTTP 429.
+- **Attachments**: up to **3 photos**, each ≤ **2 MB**. Stored under `photos/tool-issues/<issue-number>/` and referenced from the GitHub issue body. Non-image uploads and oversize files are rejected at the worker.
+- **Body**: free-text description + optional current page URL, current user-agent (already known to the worker), and a client-supplied context blob (route, feature flags snapshot). Body is written as plain markdown into the GitHub issue.
+- **Access to results**: whoever can see repo issues with the `tool-issue` label — i.e. committee/admin via GitHub, not via any helpdesk page.
 
