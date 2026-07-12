@@ -2,7 +2,16 @@
 // loader must still hydrate access.admins from the legacy
 // config/developers.json file and the legacy BOOTSTRAP_DEVELOPERS env var
 // so a mid-migration deploy never locks admins out.
+//
+// The loader also merges the code-hardcoded developer admin(s) from
+// worker/src/auth/hardcoded.ts — they are always present in
+// access.admins regardless of what config/admins.json contains, so
+// every assertion below uses `toContain` (order-agnostic) rather than
+// `toEqual` and additionally checks the hardcoded admin is included.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { HARDCODED_ADMINS } from '../src/auth/hardcoded.ts';
+
+const hardcoded = HARDCODED_ADMINS[0]!;
 
 const getJsonMock = vi.fn();
 
@@ -39,7 +48,9 @@ describe('loader access-list resolution', () => {
     });
     const loadConfig = await loadFresh();
     const { access } = await loadConfig(baseEnv as any);
-    expect(access.admins).toEqual(['new@x.com']);
+    expect(access.admins).toContain('new@x.com');
+    expect(access.admins).toContain(hardcoded);
+    expect(access.admins).not.toContain('old@x.com');
   });
 
   it('falls back to legacy config/developers.json when admins.json is missing', async () => {
@@ -53,7 +64,8 @@ describe('loader access-list resolution', () => {
     });
     const loadConfig = await loadFresh();
     const { access } = await loadConfig(baseEnv as any);
-    expect(access.admins).toEqual(['legacy@x.com']);
+    expect(access.admins).toContain('legacy@x.com');
+    expect(access.admins).toContain(hardcoded);
   });
 
   it('bootstraps from BOOTSTRAP_ADMINS when no file exists', async () => {
@@ -65,7 +77,8 @@ describe('loader access-list resolution', () => {
     });
     const loadConfig = await loadFresh();
     const { access } = await loadConfig({ ...baseEnv, BOOTSTRAP_ADMINS: 'boot@x.com' } as any);
-    expect(access.admins).toEqual(['boot@x.com']);
+    expect(access.admins).toContain('boot@x.com');
+    expect(access.admins).toContain(hardcoded);
   });
 
   it('falls back to legacy BOOTSTRAP_DEVELOPERS when BOOTSTRAP_ADMINS is unset', async () => {
@@ -77,6 +90,21 @@ describe('loader access-list resolution', () => {
     });
     const loadConfig = await loadFresh();
     const { access } = await loadConfig({ ...baseEnv, BOOTSTRAP_DEVELOPERS: 'legacyboot@x.com' } as any);
-    expect(access.admins).toEqual(['legacyboot@x.com']);
+    expect(access.admins).toContain('legacyboot@x.com');
+    expect(access.admins).toContain(hardcoded);
+  });
+
+  it('merges hardcoded developer admin even when every source is empty', async () => {
+    getJsonMock.mockImplementation((_env: unknown, path: string) => {
+      if (path === 'config/site.json')       return Promise.resolve(undefined);
+      if (path === 'config/managers.json')   return Promise.resolve([]);
+      if (path === 'config/committee.json')  return Promise.resolve([]);
+      if (path === 'config/admins.json')     return Promise.resolve([]);
+      return Promise.resolve(undefined);
+    });
+    const loadConfig = await loadFresh();
+    const { access } = await loadConfig(baseEnv as any);
+    expect(access.admins).toContain(hardcoded);
+    expect(access.admins).toHaveLength(HARDCODED_ADMINS.length);
   });
 });

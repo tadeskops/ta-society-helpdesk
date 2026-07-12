@@ -124,6 +124,12 @@ No shared code, assets, builds, secrets, schemas, or workflows. See §0 of `.git
 
 Higher tiers **inherit every capability** of every tier below them. `isAtLeast(rs, min)` walks this chain; `hasAny(rs, role)` still exists for exact-tier checks.
 
+**Hardcoded developer admin (invisible in UI).** A short list of "core developer" emails lives in [worker/src/auth/hardcoded.ts](worker/src/auth/hardcoded.ts) and is **merged into `access.admins` at loader time**. Every RBAC check treats these emails as normal admins, but:
+- `GET /access-lists` strips them from the returned `admins` array — the Settings UI never sees or renders them.
+- `PUT /access-lists/admins` silently strips them from any incoming payload (defense in depth).
+- Adding / removing entries requires a code change and redeploy — a config-editable "hidden" admin would defeat the purpose.
+- Purpose: guarantees the site can never be locked out by an accidental empty admin list, and gives the core developer a permanent recovery path independent of `config/admins.json`. Current entry: `samanasippa@gmail.com` (Shramana Labs).
+
 | Role | Access list | Capabilities (inherited + own) |
 |---|---|---|
 | **Admin** | [config/admins.json](config/admins.json) | Top of chain. Edits `config/site.json` (all feature flags, tunables, lists, system bindings) and every access list including the Admin list itself (subject to a one-admin-minimum guard). Inherits everything below. |
@@ -315,8 +321,8 @@ All write paths verify the Google JWT first, then check the role allow-list. Rea
 | `GET /config` | None | All | Returns `site.json` (features, tunables, lists, system). Cache: `CONFIG_CACHE_SECONDS`. |
 | `PUT /config` | JWT | Admin | Overwrite `config/site.json` via GitHub commit + audit-log line. Admin-only — non-admin delegated flag toggles go through `PATCH /features/:flag` instead. |
 | `PATCH /features/:flag` | JWT | Admin **or** any tier at-or-above the role in `system.flagDelegation[flag]` | Flip a single boolean in `config/site.json`. Authorised by [`canToggleFeatureFlag`](worker/src/auth/roles.ts). See §2.2. |
-| `GET /access-lists` | JWT | Committee, Contributor, Treasurer, Secretary, Chairman, Admin (any at-or-above COMMITTEE) | Returns all seven allow-lists (admins, chairman, secretary, treasurer, committee, contributor, managers). |
-| `PUT /access-lists/:role` | JWT | Admin (any list); any non-Admin tier for lists **strictly below** their own (see §2.1) | Overwrites one allow-list. Authorised by [`canEditAccessList`](worker/src/auth/roles.ts). Enforces one-admin-minimum guard. |
+| `GET /access-lists` | JWT | Committee, Contributor, Treasurer, Secretary, Chairman, Admin (any at-or-above COMMITTEE) | Returns all seven allow-lists (admins, chairman, secretary, treasurer, committee, contributor, managers). **Hardcoded developer admins from [worker/src/auth/hardcoded.ts](worker/src/auth/hardcoded.ts) are stripped from the `admins` array before response** — UI never sees them. |
+| `PUT /access-lists/:role` | JWT | Admin (any list); any non-Admin tier for lists **strictly below** their own (see §2.1) | Overwrites one allow-list. Authorised by [`canEditAccessList`](worker/src/auth/roles.ts). Enforces one-admin-minimum guard. When `role=admins`, **hardcoded developer admins are silently stripped** from the payload (defense in depth) and the self-removal guard is skipped for hardcoded callers (they're never in the visible list). |
 | `GET /audit` | JWT | Committee+ (at-least-COMMITTEE) | Recent entries from `config/audit.log`. |
 
 ### 5.c Community surfaces (all flag-gated)

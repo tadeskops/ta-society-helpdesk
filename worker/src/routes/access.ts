@@ -25,6 +25,7 @@ import { getFile, putFile } from '../github/client.ts';
 import { writeAudit } from '../lib/audit.ts';
 import { invalidateCache } from '../config/loader.ts';
 import { canEditAccessList, type EditableAccessRole } from '../auth/roles.ts';
+import { stripHardcodedAdmins, isHardcodedAdmin } from '../auth/hardcoded.ts';
 
 const PATHS: Record<EditableAccessRole, string> = {
   admins:      'config/admins.json',
@@ -59,9 +60,14 @@ export const mountAccess = (r: Router): void => {
   // Anyone at COMMITTEE-or-above may read the full snapshot (needed by
   // the Settings page to render the delegation UI). Below-committee
   // tiers get 403; they wouldn't be able to edit anything anyway.
+  //
+  // Hardcoded developer admin(s) are stripped from `admins` before the
+  // response leaves the Worker — see worker/src/auth/hardcoded.ts. The
+  // Settings UI never sees them, so it can't render or edit them.
   r.get('/access-lists', (ctx: Ctx) => {
     ensureAllowed(ctx, { roles: ['COMMITTEE', 'TREASURER', 'SECRETARY', 'CHAIRMAN', 'ADMIN'], requireIdentity: true });
-    return ok(ctx.env, ctx.req, ctx.access);
+    const visible = { ...ctx.access, admins: stripHardcodedAdmins(ctx.access.admins) };
+    return ok(ctx.env, ctx.req, visible);
   });
 
   // ---- PUT /access-lists/:role ----
@@ -81,15 +87,23 @@ export const mountAccess = (r: Router): void => {
 
     const path = PATHS[target];
     const body = await parseJson<Record<string, unknown>>(ctx.req);
-    const next = normaliseList(body['emails']);
+    // Silently strip hardcoded developer admins from the incoming list.
+    // The UI never renders them, so a well-behaved client can't send
+    // them; this is defense in depth for hand-crafted requests. The
+    // loader will re-merge them on the next read either way.
+    const next = target === 'admins'
+      ? stripHardcodedAdmins(normaliseList(body['emails']))
+      : normaliseList(body['emails']);
 
     // One-admin-minimum guard — never let the admin list go empty,
     // and never allow the caller to remove themselves from it. The
     // second clause prevents an admin from accidentally locking
-    // themselves out via the Settings UI.
+    // themselves out via the Settings UI. Hardcoded developer admins
+    // never appear in `next` (stripped above) so they're exempt from
+    // the self-check; their presence is guaranteed by the loader merge.
     if (target === 'admins') {
       if (next.length === 0) throw new Conflict('Admin list cannot be empty');
-      if (!next.includes(ctx.identity!.email)) {
+      if (!isHardcodedAdmin(ctx.identity!.email) && !next.includes(ctx.identity!.email)) {
         throw new Conflict('You cannot remove yourself from the admin list');
       }
     }

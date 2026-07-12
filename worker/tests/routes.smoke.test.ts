@@ -304,6 +304,57 @@ describe('RBAC denials', () => {
   });
 });
 
+describe('hardcoded developer admin (worker/src/auth/hardcoded.ts)', () => {
+  // The hardcoded admin is invisible in Settings UI: it must never
+  // leak through GET /access-lists, and PUT payloads containing it
+  // must silently strip it (defense in depth for hand-crafted
+  // requests). The loader-merge test lives in tests/loader.test.ts.
+  it('GET /access-lists strips the hardcoded developer from the admins array', async () => {
+    // Force the mocked loadConfig to include the hardcoded email in the
+    // admins list (simulating a real loader run where merge has happened).
+    const loaderMod = await import('../src/config/loader.ts');
+    const { HARDCODED_ADMINS } = await import('../src/auth/hardcoded.ts');
+    const hardcoded = HARDCODED_ADMINS[0]!;
+    const { DEFAULT_CONFIG } = await import('../src/config/defaults.ts');
+    (loaderMod.loadConfig as any).mockResolvedValueOnce({
+      config: { ...DEFAULT_CONFIG, features: { ...DEFAULT_CONFIG.features, FEATURE_DAILY_TURNSTILE: false } },
+      access: {
+        managers:    ['mgr@x.com'],
+        committee:   ['cmt@x.com'],
+        admins:      ['dev@x.com', hardcoded],
+        treasurer:   [],
+        chairman:    [],
+        secretary:   [],
+        contributor: [],
+      },
+    });
+    const r = await send('GET', '/access-lists', undefined, 'dev@x.com');
+    expect(r.status).toBe(200);
+    const j = await r.json() as any;
+    expect(j.data.admins).toContain('dev@x.com');
+    expect(j.data.admins).not.toContain(hardcoded);
+  });
+
+  it('PUT /access-lists/admins silently strips the hardcoded email from the payload', async () => {
+    const { HARDCODED_ADMINS } = await import('../src/auth/hardcoded.ts');
+    const hardcoded = HARDCODED_ADMINS[0]!;
+    // Payload includes both a real admin (dev@x.com) and the hardcoded
+    // email. The route must accept the payload (200), strip hardcoded
+    // before writing, but keep dev@x.com so the self-removal guard
+    // doesn't trip.
+    const gh = await import('../src/github/client.ts') as any;
+    gh.putFile.mockClear();
+    const r = await send('PUT', '/access-lists/admins', { emails: ['dev@x.com', hardcoded] }, 'dev@x.com');
+    expect(r.status).toBe(200);
+    // Inspect the JSON that was serialised to putFile.
+    const putFileCall = gh.putFile.mock.calls.find((c: any[]) => c[1] === 'config/admins.json');
+    expect(putFileCall).toBeTruthy();
+    const written = JSON.parse(putFileCall[2] as string);
+    expect(written).toEqual(['dev@x.com']);
+    expect(written).not.toContain(hardcoded);
+  });
+});
+
 describe('GET /metrics/visit (anonymous)', () => {
   it('returns zero when no data file exists', async () => {
     const { _resetMetricsCacheForTests } = await import('../src/routes/metrics.ts');
