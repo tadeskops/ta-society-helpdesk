@@ -45,13 +45,46 @@ export interface SiteConfig {
      */
     flagDelegation?: Record<string, string>;
     /**
-     * Vehicle Registry (FEATURE_TSH_VEHICLES) settings. `editorRoles` is
-     * the set-membership allowlist for add/edit/delete on
-     * config/vehicles.json. If absent / empty, the route falls back to
-     * ['ADMIN','CHAIRMAN','SECRETARY','TREASURER','COMMITTEE','MANAGER'].
+     * Vehicle Registry (FEATURE_TSH_VEHICLES) settings.
+     *
+     * `editorRoles` is the set-membership allowlist for full add/edit/
+     * delete on config/vehicles.json. If absent / empty, the route falls
+     * back to ['ADMIN','CHAIRMAN','SECRETARY','TREASURER','COMMITTEE',
+     * 'MANAGER'].
+     *
+     * The remaining keys are RESERVED for v2 features (all gated by
+     * their own FEATURE_* flag — default off — so present-day behaviour
+     * is unchanged):
+     *   • stickerRoles  — narrow PATCH /vehicles/:id/sticker path.
+     *                     Meant for a future SECURITY_GUARD role that
+     *                     may only update the sticker (and read the
+     *                     flat) without touching the full record. Any
+     *                     role name is valid here; admin adds
+     *                     'SECURITY_GUARD' once that role exists in the
+     *                     auth chain. Default = editorRoles.
+     *   • bulkEmailRoles — POST /vehicles/emails/import. Manager-and-
+     *                     above by default. Parses a pasted / uploaded
+     *                     block of text (up to `maxBulkEmails` addresses)
+     *                     and returns the extracted list for the admin
+     *                     to attach to flats / vehicles.
+     *   • residentAddRoles — POST /vehicles/mine. Path for residents to
+     *                     self-register their own vehicle. Off until an
+     *                     id-validation flow exists; when on, it also
+     *                     honours `residentAddRequiresIdCheck` and
+     *                     writes with `pending=true` when the caller has
+     *                     not been verified.
+     *   • residentAddRequiresIdCheck — fail-closed gate. When true (default),
+     *                     resident self-add is rejected unless the caller's
+     *                     identity has been validated against a flat.
+     *   • maxBulkEmails — soft cap for the bulk import parser. Default 300.
      */
     vehicles?: {
       editorRoles?: string[];
+      stickerRoles?: string[];
+      bulkEmailRoles?: string[];
+      residentAddRoles?: string[];
+      residentAddRequiresIdCheck?: boolean;
+      maxBulkEmails?: number;
     };
   };
   ui?: {
@@ -126,6 +159,22 @@ export const DEFAULT_CONFIG: SiteConfig = {
     // system.vehicles.editorRoles (default: MANAGER, COMMITTEE, TREASURER,
     // SECRETARY, CHAIRMAN, ADMIN).
     FEATURE_TSH_VEHICLES:                    true,
+    // Vehicle Registry v2 hooks (design-in, wire-later).
+    // All default OFF — flipping them on in site.json activates the
+    // corresponding narrow path without any code change.
+    //  • EMAIL_FILTER: server-side per-caller filter — non-editors only
+    //    see rows whose emails[] contains their signed-in email.
+    //  • STICKER_PATCH: PATCH /vehicles/:id/sticker for a security-guard
+    //    style role that may only touch the sticker field.
+    //  • BULK_EMAILS: POST /vehicles/emails/import to accept a pasted /
+    //    uploaded block of up to ~300 addresses; parser extracts and
+    //    returns them for admin attachment.
+    //  • RESIDENT_ADD: POST /vehicles/mine — resident self-registration.
+    //    Gated by residentAddRequiresIdCheck (default true = fail closed).
+    FEATURE_TSH_VEHICLES_EMAIL_FILTER:        false,
+    FEATURE_TSH_VEHICLES_STICKER_PATCH:       false,
+    FEATURE_TSH_VEHICLES_BULK_EMAILS:         false,
+    FEATURE_TSH_VEHICLES_RESIDENT_ADD:        false,
     // DEPRECATED (2026-07-12): under the new strict 8-tier hierarchy
     // SECRETARY sits ABOVE TREASURER in the precedence chain and
     // inherits treasury view naturally, so this flag is a no-op. It is
@@ -273,8 +322,26 @@ export const DEFAULT_CONFIG: SiteConfig = {
     // config/vehicles.json. Set-membership check (not hierarchy) so an
     // admin can precisely include MANAGER (below CONTRIBUTOR in the
     // strict chain) while excluding CONTRIBUTOR and RESIDENT.
+    //
+    // The remaining keys are RESERVED hooks for the v2 features listed
+    // above under FEATURE_TSH_VEHICLES_*. They default sensibly so that
+    // when an admin flips the matching feature flag on, the endpoint
+    // gains the right allowlist without a second Settings edit.
     vehicles: {
-      editorRoles: ['ADMIN', 'CHAIRMAN', 'SECRETARY', 'TREASURER', 'COMMITTEE', 'MANAGER'],
+      editorRoles:                ['ADMIN', 'CHAIRMAN', 'SECRETARY', 'TREASURER', 'COMMITTEE', 'MANAGER'],
+      // Includes 'SECURITY_GUARD' as a future-facing hint — even though
+      // the role does not yet exist in the auth chain, the set-membership
+      // check treats it as inert until an admin adds it to a caller's
+      // access list. Manager and above already have full edit, so their
+      // presence here is redundant-but-harmless.
+      stickerRoles:               ['ADMIN', 'CHAIRMAN', 'SECRETARY', 'TREASURER', 'COMMITTEE', 'MANAGER', 'SECURITY_GUARD'],
+      bulkEmailRoles:             ['ADMIN', 'CHAIRMAN', 'SECRETARY', 'TREASURER', 'COMMITTEE', 'MANAGER'],
+      // Empty by default. When FEATURE_TSH_VEHICLES_RESIDENT_ADD is
+      // enabled, admin adds 'RESIDENT' here (plus any editor roles that
+      // should also be able to self-add on someone's behalf).
+      residentAddRoles:           [],
+      residentAddRequiresIdCheck: true,
+      maxBulkEmails:              300,
     },
   },
   ui: {

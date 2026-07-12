@@ -14,6 +14,11 @@ vi.mock('../src/auth/jwt.ts', () => ({
 
 let storedFile: { sha: string; content: string } | undefined;
 const putCalls: Array<{ path: string; body: string }> = [];
+// Per-test overlay for features / system.vehicles so we can flip v2
+// flags (e.g. FEATURE_TSH_VEHICLES_EMAIL_FILTER) without re-mocking the
+// whole config loader.
+let featureOverrides: Record<string, boolean> = {};
+let systemOverrides: Record<string, unknown> = {};
 
 vi.mock('../src/github/client.ts', () => ({
   getFile: vi.fn(async (_env: any, path: string) => {
@@ -42,7 +47,8 @@ vi.mock('../src/config/loader.ts', async () => {
     loadConfig: vi.fn(async () => ({
       config: {
         ...DEFAULT_CONFIG,
-        features: { ...DEFAULT_CONFIG.features, FEATURE_DAILY_TURNSTILE: false, FEATURE_TSH_VEHICLES: true },
+        features: { ...DEFAULT_CONFIG.features, FEATURE_DAILY_TURNSTILE: false, FEATURE_TSH_VEHICLES: true, ...featureOverrides },
+        system: { ...DEFAULT_CONFIG.system, ...systemOverrides },
       },
       access: {
         managers:    ['mgr@x.com'],
@@ -87,6 +93,8 @@ const send = (method: string, path: string, body?: any, identity?: string) => {
 beforeEach(() => {
   storedFile = undefined;
   putCalls.length = 0;
+  featureOverrides = {};
+  systemOverrides = {};
   _resetVehiclesCacheForTests();
 });
 
@@ -241,5 +249,58 @@ describe('DELETE /vehicles/:id', () => {
   it('returns 400 for a missing id', async () => {
     const r = await send('DELETE', '/vehicles/veh-does-not-exist', undefined, 'mgr@x.com');
     expect(r.status).toBe(400);
+  });
+});
+
+// v2 hook: server-side per-caller email filter.
+describe('GET /vehicles (v2 email-filter hook)', () => {
+  const seed = async () => {
+    await send('PUT', '/vehicles', {
+      vehicles: [
+        { flat: 'A201', regNo: 'MH11JJ0234', type: '4W', emails: ['resident.a@x.com'] },
+        { flat: 'B102', regNo: 'MH12AB4567', type: '2W', emails: ['resident.b@x.com', 'shared@x.com'] },
+        { flat: 'C303', regNo: 'MH13CD8888', type: '4W' },  // no emails
+      ],
+    }, 'mgr@x.com');
+    _resetVehiclesCacheForTests();
+  };
+
+  it('flag OFF (default): every signed-in user sees the full list', async () => {
+    await seed();
+    const r = await send('GET', '/vehicles', undefined, 'contrib@x.com');
+    const j = await r.json() as any;
+    expect(j.data.vehicles).toHaveLength(3);
+    expect(j.data.filtered).toBe(false);
+  });
+
+  it('flag ON: non-editor only sees rows whose emails[] contains their address', async () => {
+    await seed();
+    featureOverrides = { FEATURE_TSH_VEHICLES_EMAIL_FILTER: true };
+    _resetVehiclesCacheForTests();
+    const r = await send('GET', '/vehicles', undefined, 'resident.b@x.com');
+    const j = await r.json() as any;
+    expect(j.data.filtered).toBe(true);
+    expect(j.data.vehicles).toHaveLength(1);
+    expect(j.data.vehicles[0].flat).toBe('B102');
+  });
+
+  it('flag ON: editor (manager) still sees the full list', async () => {
+    await seed();
+    featureOverrides = { FEATURE_TSH_VEHICLES_EMAIL_FILTER: true };
+    _resetVehiclesCacheForTests();
+    const r = await send('GET', '/vehicles', undefined, 'mgr@x.com');
+    const j = await r.json() as any;
+    expect(j.data.vehicles).toHaveLength(3);
+    expect(j.data.filtered).toBe(false);   // canWrite=true ⇒ no filter advertised
+  });
+
+  it('flag ON: non-editor with no matching email sees an empty list', async () => {
+    await seed();
+    featureOverrides = { FEATURE_TSH_VEHICLES_EMAIL_FILTER: true };
+    _resetVehiclesCacheForTests();
+    const r = await send('GET', '/vehicles', undefined, 'stranger@x.com');
+    const j = await r.json() as any;
+    expect(j.data.filtered).toBe(true);
+    expect(j.data.vehicles).toEqual([]);
   });
 });

@@ -899,7 +899,42 @@ A society-wide vehicle-to-flat mapping so residents and society reps can identif
 | Discovery | Quick-access tile on `index.html` ("Vehicle Registry → search vehicle → flat"), primary nav link in the header (gated by `FEATURE_TSH_VEHICLES`), and a row under the "Directory" services group on the home page. |
 | Audit   | Every write appends to `config/audit.log` as `vehicles:put` or `vehicles:delete` with `actor`, `count`, and (for deletes) `flat=…&regNo=…`. Picked up automatically by the daily backup workflow. |
 | Flag    | `FEATURE_TSH_VEHICLES` — **default `true`**. Admin may turn off from Settings; the nav link, home-page tile, and `/vehicles` routes all fail closed when off. |
-| Future v2 | Server-side per-caller filter: for non-editors, restrict the returned list to vehicles registered against flats whose email-map contains the caller's email. Schema already carries `emails[]` per vehicle, so no migration is needed to layer that on. |
+| Future v2 | See §14.10a below. Four capabilities are pre-designed: per-caller email filter, sticker-only PATCH for a future SECURITY_GUARD role, bulk email upload/parser, and resident self-registration (post id-validation). All four have reserved feature flags (default `false`) and reserved typed config under `system.vehicles` so activation is a Settings toggle, not a code change. |
+
+## 14.10a Vehicle Registry — v2 hooks (design-in, wire-later)
+
+Four future capabilities are reserved *at the schema + flag layer* so the current v1 behaviour is unchanged today but each can be activated without a redesign. The email-filter hook is wired end-to-end already (behind an OFF flag) and covered by unit tests in both flag states; the other three have route stubs documented in-code so a future implementer only writes handlers + tests, not new API shapes.
+
+| Capability | Feature flag (default) | Endpoint | Roles source | Status |
+|---|---|---|---|---|
+| Per-caller email filter | `FEATURE_TSH_VEHICLES_EMAIL_FILTER` (`false`) | `GET /vehicles` (transparent) | `system.vehicles.editorRoles` (editors bypass filter) | **Wired.** `GET /vehicles` payload gains a `filtered: boolean` field advertising the state. When on, non-editors receive only rows whose `emails[]` contains their signed-in email. Editors always see the full list. |
+| Sticker-only PATCH | `FEATURE_TSH_VEHICLES_STICKER_PATCH` (`false`) | `PATCH /vehicles/:id/sticker` | `system.vehicles.stickerRoles` (default: editors + `'SECURITY_GUARD'`) | **Stub documented in code.** Narrow body `{ sticker: string }` (≤ 20 chars, empty = clear). Preserves every other field verbatim, no uniqueness recheck (nothing changes that would affect it). Audit: `vehicles:patch-sticker`. Intended for a future `SECURITY_GUARD` role on the gate. |
+| Bulk email upload | `FEATURE_TSH_VEHICLES_BULK_EMAILS` (`false`) | `POST /vehicles/emails/import` | `system.vehicles.bulkEmailRoles` (default: manager+, residents excluded) | **Stub documented in code.** Body is `{ text: string }` or a `multipart/form-data` text upload. Parser extracts, lowercases, dedupes, caps at `system.vehicles.maxBulkEmails` (default 300). Returns `{ emails, skipped, count }` **without** persisting — client attaches to specific vehicles via the existing `PUT /vehicles`. Idempotent + auditable (`vehicles:emails-import count=N`). |
+| Resident self-registration | `FEATURE_TSH_VEHICLES_RESIDENT_ADD` (`false`) | `POST /vehicles/mine` | `system.vehicles.residentAddRoles` (default: `[]` — empty until id-validation ships) | **Stub documented in code.** Gated by `system.vehicles.residentAddRequiresIdCheck` (default `true` = fail-closed). Caller's `flat` is derived from their verified flat-mapping, not from the request body. New rows are marked `pending: true` until an editor re-saves them via `PUT /vehicles`. Audit: `vehicles:resident-add`. |
+
+Reserved keys under `system.vehicles` (all optional, safe defaults in `worker/src/config/defaults.ts`):
+
+```jsonc
+{
+  "system": {
+    "vehicles": {
+      "editorRoles":                ["ADMIN","CHAIRMAN","SECRETARY","TREASURER","COMMITTEE","MANAGER"],
+      "stickerRoles":               ["ADMIN","CHAIRMAN","SECRETARY","TREASURER","COMMITTEE","MANAGER","SECURITY_GUARD"],
+      "bulkEmailRoles":             ["ADMIN","CHAIRMAN","SECRETARY","TREASURER","COMMITTEE","MANAGER"],
+      "residentAddRoles":           [],
+      "residentAddRequiresIdCheck": true,
+      "maxBulkEmails":              300
+    }
+  }
+}
+```
+
+Design guarantees:
+
+- **Set membership, not hierarchy.** Every allowlist uses set membership so admins can include a specific role (e.g. `SECURITY_GUARD`) without also granting everyone above it in the chain. Unknown role names are inert until the role appears in the auth chain — safe to reference `SECURITY_GUARD` today.
+- **No migration on activation.** All schema is present today; the flip is one boolean per capability.
+- **Fail closed.** Resident self-add requires both the feature flag AND `residentAddRequiresIdCheck = false` (once the id-validation flow lands) AND `residentAddRoles` to include `RESIDENT`. Any missing piece keeps the endpoint dark.
+- **Bulk parser is idempotent.** `POST /vehicles/emails/import` returns extracted emails without persisting; the admin reviews, then attaches via the existing `PUT /vehicles`. This keeps a single write path (`PUT /vehicles`) and a single audit line style.
 
 ## 15. Non-goals / out of scope
 

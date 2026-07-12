@@ -17,12 +17,22 @@
 //    society representatives (such as the Manager or Secretary)."
 //   Admin edits site.json to change the allowlist; no code change needed.
 //
-// Search-side (future): the payload will one day be filtered per-caller so
-// a resident only sees vehicles registered to their own flat, based on a
-// separate email→flat map. For v1 the whole list ships to any signed-in
-// user (matches emergency use cases: "whose car is blocking me?").
+// v2 hooks (design-in, feature-flagged — all default OFF):
+//   • FEATURE_TSH_VEHICLES_EMAIL_FILTER — wired here. When on, GET
+//     filters the returned list for non-editors so the caller only sees
+//     vehicles whose `emails[]` contains their signed-in email. Editors
+//     always see the full list.
+//   • FEATURE_TSH_VEHICLES_STICKER_PATCH — stub only. See the comment
+//     block near the bottom of mountVehicles() for the intended shape
+//     of PATCH /vehicles/:id/sticker (used by a future SECURITY_GUARD).
+//   • FEATURE_TSH_VEHICLES_BULK_EMAILS — stub only. See the comment block
+//     for POST /vehicles/emails/import (manager+ uploads a paste/file,
+//     parser extracts ≤ maxBulkEmails addresses).
+//   • FEATURE_TSH_VEHICLES_RESIDENT_ADD — stub only. Gated by
+//     `system.vehicles.residentAddRequiresIdCheck` (default true =
+//     fail-closed); designed for a future id-validation flow.
 //
-// Spec: tsh_requirement.md §Vehicle Registry.
+// Spec: tsh_requirement.md §Vehicle Registry (§14.10).
 
 import type { Router } from '../lib/router.ts';
 import type { Ctx } from '../lib/ctx.ts';
@@ -32,11 +42,17 @@ import { parseJson, str, optStr, oneOf, isObj } from '../lib/validate.ts';
 import { BadRequest, Forbidden, Conflict } from '../lib/errors.ts';
 import { getFile, putFile } from '../github/client.ts';
 import { writeAudit } from '../lib/audit.ts';
-import { tunable } from '../config/defaults.ts';
+import { tunable, isFeatureOn } from '../config/defaults.ts';
 import type { Role } from '../auth/roles.ts';
 
 const VEHICLES_PATH = 'config/vehicles.json';
 const FEATURE = 'FEATURE_TSH_VEHICLES';
+
+// v2 feature-flag names — exported for tests / documentation.
+export const FEATURE_EMAIL_FILTER   = 'FEATURE_TSH_VEHICLES_EMAIL_FILTER';
+export const FEATURE_STICKER_PATCH  = 'FEATURE_TSH_VEHICLES_STICKER_PATCH';
+export const FEATURE_BULK_EMAILS    = 'FEATURE_TSH_VEHICLES_BULK_EMAILS';
+export const FEATURE_RESIDENT_ADD   = 'FEATURE_TSH_VEHICLES_RESIDENT_ADD';
 
 // Default editor allowlist. Overridden by site.json → system.vehicles.editorRoles.
 // Includes MANAGER (parking-sticker workflow) and every tier at or above
@@ -44,6 +60,21 @@ const FEATURE = 'FEATURE_TSH_VEHICLES';
 const DEFAULT_EDITOR_ROLES: readonly Role[] = [
   'ADMIN', 'CHAIRMAN', 'SECRETARY', 'TREASURER', 'COMMITTEE', 'MANAGER',
 ];
+
+// v2 defaults — mirror the editor allowlist plus one future-facing hint.
+// `stickerRoles` includes the string 'SECURITY_GUARD' even though that role
+// does not yet exist in the auth chain: set-membership treats unknown
+// role strings as inert, so this is safe and makes the extension point
+// obvious to a future admin without a code change.
+const DEFAULT_STICKER_ROLES: readonly string[] = [
+  'ADMIN', 'CHAIRMAN', 'SECRETARY', 'TREASURER', 'COMMITTEE', 'MANAGER', 'SECURITY_GUARD',
+];
+const DEFAULT_BULK_EMAIL_ROLES: readonly string[] = [
+  'ADMIN', 'CHAIRMAN', 'SECRETARY', 'TREASURER', 'COMMITTEE', 'MANAGER',
+];
+const DEFAULT_RESIDENT_ADD_ROLES: readonly string[] = [];
+const DEFAULT_RESIDENT_ADD_REQUIRES_ID_CHECK = true;
+const DEFAULT_MAX_BULK_EMAILS = 300;
 
 const VEHICLE_TYPES = ['2W', '4W'] as const;
 type VehicleType = typeof VEHICLE_TYPES[number];
@@ -108,31 +139,74 @@ const loadVehicles = async (ctx: Ctx): Promise<VehicleFile> => {
 };
 
 // ---- Editor allowlist -------------------------------------------------------
-const getEditorRoles = (ctx: Ctx): readonly Role[] => {
+const readRoleList = (raw: unknown): string[] | undefined => {
+  if (!Array.isArray(raw)) return undefined;
+  const filtered = raw
+    .filter((r): r is string => typeof r === 'string')
+    .map((r) => r.toUpperCase());
+  return filtered.length > 0 ? filtered : undefined;
+};
+
+const getVehiclesCfg = (ctx: Ctx): Record<string, unknown> => {
   const sys = (ctx.config.system ?? {}) as Record<string, unknown>;
-  const vehiclesCfg = sys['vehicles'];
-  if (isObj(vehiclesCfg)) {
-    const raw = vehiclesCfg['editorRoles'];
-    if (Array.isArray(raw)) {
-      const filtered = raw
-        .filter((r): r is string => typeof r === 'string')
-        .map((r) => r.toUpperCase() as Role);
-      // Drop obvious junk. Fall back to defaults if the config is empty.
-      if (filtered.length > 0) return filtered;
-    }
-  }
-  return DEFAULT_EDITOR_ROLES;
+  const v = sys['vehicles'];
+  return isObj(v) ? v : {};
+};
+
+const getEditorRoles = (ctx: Ctx): readonly Role[] => {
+  const list = readRoleList(getVehiclesCfg(ctx)['editorRoles']);
+  return (list as Role[] | undefined) ?? DEFAULT_EDITOR_ROLES;
+};
+
+// v2 hooks — exported for use once the matching feature flag is enabled.
+// Each falls back to a sensible default so admins do not have to edit
+// site.json twice (feature toggle + allowlist).
+export const getStickerRoles = (ctx: Ctx): readonly string[] =>
+  readRoleList(getVehiclesCfg(ctx)['stickerRoles']) ?? DEFAULT_STICKER_ROLES;
+
+export const getBulkEmailRoles = (ctx: Ctx): readonly string[] =>
+  readRoleList(getVehiclesCfg(ctx)['bulkEmailRoles']) ?? DEFAULT_BULK_EMAIL_ROLES;
+
+export const getResidentAddRoles = (ctx: Ctx): readonly string[] =>
+  readRoleList(getVehiclesCfg(ctx)['residentAddRoles']) ?? DEFAULT_RESIDENT_ADD_ROLES;
+
+export const requiresIdCheckForResidentAdd = (ctx: Ctx): boolean => {
+  const v = getVehiclesCfg(ctx)['residentAddRequiresIdCheck'];
+  return typeof v === 'boolean' ? v : DEFAULT_RESIDENT_ADD_REQUIRES_ID_CHECK;
+};
+
+export const getMaxBulkEmails = (ctx: Ctx): number => {
+  const v = getVehiclesCfg(ctx)['maxBulkEmails'];
+  return typeof v === 'number' && v > 0 ? Math.floor(v) : DEFAULT_MAX_BULK_EMAILS;
+};
+
+const isEditor = (ctx: Ctx): boolean => {
+  const allowed = new Set(getEditorRoles(ctx));
+  return ctx.roles.all.some((r) => allowed.has(r));
 };
 
 const ensureEditor = (ctx: Ctx): void => {
-  const allowed = new Set(getEditorRoles(ctx));
-  const has = ctx.roles.all.some((r) => allowed.has(r));
-  if (!has) {
+  if (!isEditor(ctx)) {
+    const allowed = getEditorRoles(ctx);
     throw new Forbidden(
       `Role ${ctx.roles.primary} is not permitted to edit the vehicle registry ` +
       `(allowed: ${Array.from(allowed).join(', ')})`,
     );
   }
+};
+
+// v2: per-caller filter. When FEATURE_TSH_VEHICLES_EMAIL_FILTER is on and
+// the caller is not an editor, restrict the returned list to rows whose
+// emails[] contains the caller's signed-in email. Editors always see the
+// full list (they curate the emails[] mapping).
+//
+// Off by default → no-op → v1 behaviour preserved.
+const filterVehiclesForCaller = (ctx: Ctx, vehicles: Vehicle[]): Vehicle[] => {
+  if (!isFeatureOn(ctx.config, FEATURE_EMAIL_FILTER)) return vehicles;
+  if (isEditor(ctx)) return vehicles;
+  const email = ctx.identity?.email?.toLowerCase();
+  if (!email) return [];
+  return vehicles.filter((v) => (v.emails ?? []).some((e) => e.toLowerCase() === email));
 };
 
 // ---- Validation -------------------------------------------------------------
@@ -241,16 +315,21 @@ export const mountVehicles = (r: Router): void => {
   r.get('/vehicles', async (ctx: Ctx) => {
     ensureAllowed(ctx, { flags: [FEATURE], requireIdentity: true });
     const file = await loadVehicles(ctx);
-    // Advertise the caller's write permission and (for the future v2 filter)
+    // Advertise the caller's write permission and (for the v2 filter)
     // the current allowlist so the client can hide manage-controls without a
     // second request.
-    const allowed = new Set(getEditorRoles(ctx));
-    const canWrite = ctx.roles.all.some((r) => allowed.has(r));
+    const canWrite = isEditor(ctx);
+    const editorRoles = getEditorRoles(ctx);
+    // v2 hook: per-caller email filter. No-op when the flag is off.
+    const vehicles = filterVehiclesForCaller(ctx, file.vehicles);
     return ok(ctx.env, ctx.req, {
       version: file.version,
-      vehicles: file.vehicles,
+      vehicles,
       canWrite,
-      editorRoles: Array.from(allowed),
+      editorRoles: Array.from(editorRoles),
+      // Tell the client whether the server-side filter is currently
+      // active so it can render a hint ("showing only your vehicles").
+      filtered: isFeatureOn(ctx.config, FEATURE_EMAIL_FILTER) && !canWrite,
     });
   });
 
@@ -336,4 +415,58 @@ export const mountVehicles = (r: Router): void => {
     invalidate();
     return ok(ctx.env, ctx.req, { saved: true, count: next.vehicles.length, removed: { id, flat: removed.flat, regNo: removed.regNo } });
   });
+
+  // ---------------------------------------------------------------------------
+  // v2 STUBS — endpoints below are intentionally NOT mounted yet. They are
+  // documented in code so future implementation is a matter of un-commenting
+  // + adding tests, not redesigning the API surface.
+  // ---------------------------------------------------------------------------
+  //
+  // PATCH /vehicles/:id/sticker
+  //   Flag:   FEATURE_TSH_VEHICLES_STICKER_PATCH
+  //   Roles:  set membership against system.vehicles.stickerRoles.
+  //           Default allowlist adds 'SECURITY_GUARD' (a role that will
+  //           exist in a future auth-chain revision) so the guard on the
+  //           gate can update stickers without touching the rest of the
+  //           record.
+  //   Body:   { sticker: string }              // ≤20 chars, trim, empty = clear
+  //   Effect: Loads the row by id, replaces ONLY the sticker field,
+  //           stamps updatedAt / updatedBy, persists via putFile, writes
+  //           audit `vehicles:patch-sticker id=<id> flat=<flat>`. Every
+  //           other field is preserved verbatim.
+  //   Notes:  Cache invalidated. Uniqueness / flat / regNo checks are
+  //           unnecessary because they cannot change on this path.
+  //
+  // POST /vehicles/emails/import
+  //   Flag:   FEATURE_TSH_VEHICLES_BULK_EMAILS
+  //   Roles:  set membership against system.vehicles.bulkEmailRoles.
+  //           Default = editor allowlist (manager+). Residents cannot upload.
+  //   Body:   { text: string }                 // pasted CSV / TXT / whatever
+  //           OR multipart/form-data with a text/plain / text/csv file.
+  //   Effect: Parses `text` with a permissive regex (see EMAIL_RE + word
+  //           boundaries), lowercases + dedupes, caps at
+  //           system.vehicles.maxBulkEmails (default 300). Returns
+  //           `{ emails: string[], skipped: string[], count: number }`
+  //           WITHOUT persisting — the client attaches the extracted
+  //           addresses to specific vehicles or flats via the existing
+  //           PUT /vehicles. Keeps this endpoint idempotent and lets the
+  //           admin review before commit.
+  //   Audit:  `vehicles:emails-import count=<n> actor=<email>` on parse.
+  //
+  // POST /vehicles/mine
+  //   Flag:   FEATURE_TSH_VEHICLES_RESIDENT_ADD
+  //   Roles:  set membership against system.vehicles.residentAddRoles
+  //           (typically ['RESIDENT'] once id-validation exists).
+  //   Gate:   If system.vehicles.residentAddRequiresIdCheck === true
+  //           (default), the caller's identity must be linked to a flat
+  //           via an out-of-band id-verification flow (planned separately).
+  //           Fails 403 with `id_check_pending` until then.
+  //   Body:   Same shape as one vehicle in PUT /vehicles, but the `flat`
+  //           is derived from the caller's verified flat mapping —
+  //           client-supplied `flat` is ignored / cross-checked.
+  //   Effect: Appends a single row. `updatedBy` is the resident's email;
+  //           the row is marked `pending: true` until an editor re-saves
+  //           it via PUT /vehicles (which strips the pending flag). Same
+  //           uniqueness guarantees as PUT.
+  //   Audit:  `vehicles:resident-add flat=<flat> regNo=<regNo>`.
 };
