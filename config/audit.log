@@ -122,3 +122,4 @@
 {"at":"2026-07-12T19:42:15.873Z","actor":"ta.deskops@gmail.com","action":"access-list:put","target":"config/contributor.json","detail":"count=2 by=ADMIN"}
 {"at":"2026-07-12T19:42:24.777Z","actor":"ta.deskops@gmail.com","action":"access-list:put","target":"config/managers.json","detail":"count=1 by=ADMIN"}
 {"at":"2026-07-12T19:54:13.929Z","actor":"ta.deskops@gmail.com","action":"vehicles:put","target":"config/vehicles.json","detail":"count=1"}
+{"at":"2026-07-12T20:23:11.143Z","actor":"ta.deskops@gmail.com","action":"config:put","target":"config/site.json","detail":"version=1"}
