@@ -582,6 +582,11 @@
           }
           UI.toast('Saved. Changes will reach all users within 60 s.', { kind: 'success' });
           Flags.invalidate();
+          // Re-warm the cache immediately so a subsequent Save click has
+          // a live baseline in collect() → JSON.parse(JSON.stringify(Flags.raw)).
+          // Without this, the second consecutive Save throws
+          // "Cannot read properties of null (reading 'features')".
+          try { await Flags.ready(); } catch (_e) { /* non-fatal */ }
         } catch (e) {
           UI.toast(e.message || 'Save failed.', { kind: 'danger' });
           throw e;
@@ -628,6 +633,9 @@
           if (!failures) {
             UI.toast('Delegated access lists saved. Changes reach all users within 60 s.', { kind: 'success' });
             Flags.invalidate();
+            // Re-warm so the page keeps a live Flags.raw baseline for any
+            // subsequent form interaction that reads it.
+            try { await Flags.ready(); } catch (_e) { /* non-fatal */ }
           }
         }, { label: 'Saving\u2026' });
       });
@@ -681,6 +689,8 @@
             UI.toast(`${flag} is now ${cb.checked ? 'ON' : 'OFF'}. Changes reach all users within 60 s.`,
               { kind: 'success' });
             Flags.invalidate();
+            // Re-warm to avoid stranding Flags.raw at null.
+            try { await Flags.ready(); } catch (_e) { /* non-fatal */ }
           } catch (e) {
             cb.checked = before;   // revert on failure
             UI.toast(`${flag}: ${e.message || 'toggle failed'}`, { kind: 'danger' });
@@ -1013,7 +1023,16 @@
 
     function collect() {
       const form = document.getElementById('settingsForm');
-      const cfg = JSON.parse(JSON.stringify(Flags.raw)); // start from current to preserve unknown keys
+      // Start from the current in-memory config to preserve unknown keys.
+      // Flags.raw can go null after a Flags.invalidate() call (e.g. after a
+      // previous successful save, or after api.js auto-invalidates on 401);
+      // defend so we don't crash with "Cannot read properties of null
+      // (reading 'features')" and give a clear, actionable error instead.
+      const _baseline = Flags.raw;
+      if (!_baseline || typeof _baseline !== 'object') {
+        throw new Error('Site config not loaded yet. Please reload the page and try again.');
+      }
+      const cfg = JSON.parse(JSON.stringify(_baseline));
 
       // Features
       cfg.features = cfg.features || {};
