@@ -43,6 +43,7 @@
     "FEATURE_TREASURY_MANAGER_PAY": false,
     "FEATURE_TREASURY_MANAGER_RECORD_EXPENSE": true,
     "FEATURE_TREASURY_RESIDENT_RAISE": true,
+    "FEATURE_TSH_VEHICLES": true,
     "FEATURE_TREASURY_SECRETARY_ACCESS": false
   },
   "tunables": {
@@ -79,7 +80,8 @@
     "TREASURY_MAX_FILES_PER_ITEM": 5,
     "TREASURY_ARCHIVE_AFTER_DAYS": 120,
     "TREASURY_APPROVAL_QUORUM": 1,
-    "TREASURY_RECEIPT_PATH": "treasury/receipts/{yearMonth}/{kind}/{id}/{seq}-{name}"
+    "TREASURY_RECEIPT_PATH": "treasury/receipts/{yearMonth}/{kind}/{id}/{seq}-{name}",
+    "VEHICLES_CACHE_SECONDS": 120
   },
   "lists": {
     "towers": [
@@ -329,6 +331,16 @@
       "20:00"
     ],
     "backupRetentionDays": 90,
+    "vehicles": {
+      "editorRoles": [
+        "ADMIN",
+        "CHAIRMAN",
+        "SECRETARY",
+        "TREASURER",
+        "COMMITTEE",
+        "MANAGER"
+      ]
+    },
     "receiptTemplate": {
       "url": "https://raw.githubusercontent.com/tadeskops/ta-society-helpdesk/main/photos/receipts/template-0a4c072925b3c73d.pdf",
       "mime": "application/pdf",
