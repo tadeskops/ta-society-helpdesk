@@ -63,20 +63,20 @@
     .veh-tower-count { color: var(--tsh-muted, #667); font-size: .82em; font-weight: 400; }
     .veh-tower-grid {
       display: grid;
-      grid-template-columns: 2.6rem repeat(var(--units, 4), minmax(4.4rem, 1fr));
-      gap: .4rem; margin-top: .8rem;
+      grid-template-columns: 2.2rem repeat(var(--units, 4), minmax(2.9rem, 1fr));
+      gap: .3rem; margin-top: .8rem;
     }
     .veh-floor-label {
       display: grid; place-items: center;
-      font-weight: 600; color: var(--tsh-muted, #667); font-size: .82em;
+      font-weight: 600; color: var(--tsh-muted, #667); font-size: .78em;
     }
     .veh-cell {
-      min-height: 3.6rem;
-      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .15rem;
-      padding: .35rem .25rem; border-radius: 8px;
+      min-height: 2.8rem;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .1rem;
+      padding: .2rem .15rem; border-radius: 7px;
       border: 1.5px dashed var(--tsh-border, #e2e5ee);
       background: transparent; color: var(--tsh-muted, #778);
-      font-size: .78rem; cursor: pointer; font-family: inherit;
+      font-size: .72rem; cursor: pointer; font-family: inherit;
       transition: border-color .12s, background .12s, transform .08s, color .12s;
     }
     .veh-cell:hover { border-color: var(--tsh-accent, #b48a3c); color: var(--tsh-text, #223); }
@@ -88,8 +88,8 @@
       outline: 2px solid var(--tsh-accent, #b48a3c); outline-offset: 2px;
       transform: translateY(-1px);
     }
-    .veh-cell-flat { font-weight: 700; letter-spacing: .03em; }
-    .veh-cell-badges { display: flex; gap: .4rem; font-size: .95em; line-height: 1; }
+    .veh-cell-flat { font-weight: 700; letter-spacing: .02em; font-size: .74rem; }
+    .veh-cell-badges { display: flex; gap: .25rem; font-size: .78em; line-height: 1; }
     .veh-cell-b2w, .veh-cell-b4w { display: inline-flex; align-items: center; gap: .1em; }
     .veh-tower-legend {
       display: flex; gap: .8rem; flex-wrap: wrap; font-size: .8rem;
@@ -120,9 +120,10 @@
     .veh-flat-empty { color: var(--tsh-muted, #667); font-style: italic; padding: .3rem 0; }
 
     @media (max-width: 800px) {
-      .veh-tower-grid { grid-template-columns: 2.2rem repeat(var(--units, 4), minmax(3.4rem, 1fr)); gap: .3rem; }
-      .veh-cell { min-height: 3rem; font-size: .72rem; padding: .25rem .1rem; }
-      .veh-cell-badges { font-size: .82em; gap: .25rem; }
+      .veh-tower-grid { grid-template-columns: 1.8rem repeat(var(--units, 4), minmax(2.5rem, 1fr)); gap: .22rem; }
+      .veh-cell { min-height: 2.4rem; font-size: .66rem; padding: .15rem .08rem; }
+      .veh-cell-flat { font-size: .68rem; }
+      .veh-cell-badges { font-size: .7em; gap: .18rem; }
     }
   </style>
 </head>
@@ -191,7 +192,7 @@
   <script src="./assets/js/partials.js?v=22"></script>
   <script src="./assets/js/api.js?v=12"></script>
   <script src="./assets/js/auth.js?v=11"></script>
-  <script src="./assets/js/flags.js?v=14"></script>
+  <script src="./assets/js/flags.js?v=15"></script>
   <script src="./assets/js/collapse-registry.js?v=1"></script>
   <script src="./assets/js/ui.js?v=53"></script>
   <script src="./assets/js/notify.js?v=1"></script>
@@ -227,6 +228,7 @@
     let vehicles = [];
     let canWrite = false;
     let editorRoles = [];
+    let towerLayouts = null; // { A: { floors:13, unitsPerFloor:4 }, ... } from GET /vehicles
     let index = new Map();
 
     const normReg = (raw) => String(raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -241,6 +243,7 @@
       vehicles = Array.isArray(data.vehicles) ? data.vehicles : [];
       canWrite = !!data.canWrite;
       editorRoles = Array.isArray(data.editorRoles) ? data.editorRoles : [];
+      towerLayouts = (data && typeof data.towerLayouts === 'object' && data.towerLayouts) ? data.towerLayouts : null;
       rebuildIndex();
       renderManage();
       // Keep any live search in sync.
@@ -317,9 +320,9 @@
     const totalEl = document.getElementById('vehTotalCount');
     const roleHintEl = document.getElementById('vehRoleHint');
 
-    // Minimum grid dimensions per tower. Real dims grow to fit observed
-    // vehicles automatically — e.g. adding a flat B1204 grows Tower B to
-    // 12 floors × ≥4 units.
+    // Minimum grid dimensions for towers not covered by `towerLayouts`
+    // (server-side default). Used only as a fallback so unknown towers
+    // still render a walkable grid.
     const MIN_FLOORS = 10;
     const MIN_UNITS  = 4;
 
@@ -367,30 +370,49 @@
     }
 
     // Build per-tower schematics: dims + vehicles by flat.
+    // Dims are FIXED per tower from server config (system.vehicles.towerLayouts)
+    // so the grid is a predictable seat-map, not a data-driven approximation.
+    // Falls back to derived dims (MIN_FLOORS × MIN_UNITS grown by observed
+    // vehicles) when the tower is missing from the config map.
     function buildTowerSchematics() {
       const cfgTowers = (Flags.raw && Flags.raw.lists && Array.isArray(Flags.raw.lists.towers))
         ? Flags.raw.lists.towers : ['A', 'B', 'C'];
+      const layouts = towerLayouts || {};
       const spec = new Map();
       const seed = (t) => {
-        if (!spec.has(t)) spec.set(t, {
-          minFloor: 1, maxFloor: MIN_FLOORS, maxUnit: MIN_UNITS,
-          byFlat: new Map(), totalVehicles: 0,
-        });
+        if (!spec.has(t)) {
+          const layout = layouts[t] || null;
+          const floors = (layout && Number.isFinite(layout.floors) && layout.floors > 0) ? layout.floors : null;
+          const units  = (layout && Number.isFinite(layout.unitsPerFloor) && layout.unitsPerFloor > 0) ? layout.unitsPerFloor : null;
+          spec.set(t, {
+            fixed: !!(floors && units),
+            minFloor: 1,
+            maxFloor: floors || MIN_FLOORS,
+            maxUnit:  units  || MIN_UNITS,
+            byFlat: new Map(),
+            totalVehicles: 0,
+          });
+        }
         return spec.get(t);
       };
-      // Seed known towers so empty grids still show.
+      // Seed known towers so empty grids still show at the configured size.
       for (const t of cfgTowers) {
         const letter = String(t || '').trim().charAt(0).toUpperCase();
         if (/^[A-Z]$/.test(letter)) seed(letter);
       }
-      // Grow dims from observed vehicles.
+      // Attach observed vehicles. Grow dims ONLY for towers without a
+      // fixed layout — fixed towers keep server-side dimensions and any
+      // flat outside those bounds still appears via the "Need a flat
+      // outside this grid?" tool.
       for (const v of vehicles) {
         const p = parseFlat(v.flat);
         if (!p) continue;
         const s = seed(p.tower);
-        if (p.floor > s.maxFloor) s.maxFloor = p.floor;
-        if (p.floor === 0) s.minFloor = 0;
-        if (p.unit > s.maxUnit) s.maxUnit = p.unit;
+        if (!s.fixed) {
+          if (p.floor > s.maxFloor) s.maxFloor = p.floor;
+          if (p.floor === 0) s.minFloor = 0;
+          if (p.unit > s.maxUnit) s.maxUnit = p.unit;
+        }
         if (!s.byFlat.has(v.flat)) s.byFlat.set(v.flat, []);
         s.byFlat.get(v.flat).push(v);
         s.totalVehicles += 1;

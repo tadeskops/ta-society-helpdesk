@@ -85,6 +85,26 @@ export interface SiteConfig {
       residentAddRoles?: string[];
       residentAddRequiresIdCheck?: boolean;
       maxBulkEmails?: number;
+      /**
+       * Per-tower schematic used by the seat-map UI on docs/vehicles.html.
+       * Keys are single-letter tower codes (must exist in `lists.towers`).
+       * `floors` = number of floors starting from 1 (top-down in the UI).
+       * `unitsPerFloor` = number of flats on each floor (columns in the grid).
+       *
+       * The client falls back to `floors=10, unitsPerFloor=4` for any
+       * tower missing from this map, so it is safe to omit for smaller
+       * tenants and add only for the ones that differ.
+       */
+      towerLayouts?: Record<string, { floors: number; unitsPerFloor: number }>;
+    };
+    /**
+     * Optional per-site maintenance-mode copy. When FEATURE_MAINTENANCE_MODE
+     * is on, non-admin visitors see a full-page card with the society name
+     * (system.logoNameUrl if set) plus this message. If message is absent
+     * a sensible default is used.
+     */
+    maintenance?: {
+      message?: string;
     };
   };
   ui?: {
@@ -154,6 +174,12 @@ export const DEFAULT_CONFIG: SiteConfig = {
     FEATURE_TREASURY_MANAGER_PAY:            false,
     FEATURE_TREASURY_MANAGER_RECORD_EXPENSE: true,
     FEATURE_TREASURY_RESIDENT_RAISE:         true,
+    // Site-wide maintenance / "back soon" gate. When ON, non-admin
+    // visitors see a full-page maintenance card on every page except
+    // settings.html (so admins can still turn it off). Renders via
+    // `Flags.ready()` in docs/assets/js/flags.js; audits + copy come
+    // from system.maintenance.message. Default OFF.
+    FEATURE_MAINTENANCE_MODE:                false,
     // Vehicle Registry (§Vehicle Registry). Signed-in residents can search
     // any vehicle by regNo to find the flat; add/edit/delete is gated by
     // system.vehicles.editorRoles (default: MANAGER, COMMITTEE, TREASURER,
@@ -342,6 +368,17 @@ export const DEFAULT_CONFIG: SiteConfig = {
       residentAddRoles:           [],
       residentAddRequiresIdCheck: true,
       maxBulkEmails:              300,
+      // Seat-map schematics for The Address (181 flats across 3 towers).
+      // Tenants with a different layout override this from site.json.
+      // Client falls back to floors=10, unitsPerFloor=4 for unknown towers.
+      towerLayouts: {
+        A: { floors: 13, unitsPerFloor: 4 },
+        B: { floors: 13, unitsPerFloor: 6 },
+        C: { floors: 13, unitsPerFloor: 4 },
+      },
+    },
+    maintenance: {
+      message: 'We are deploying new features and improvements. Please check back shortly.',
     },
   },
   ui: {

@@ -326,6 +326,11 @@ export const mountVehicles = (r: Router): void => {
     const editorRoles = getEditorRoles(ctx);
     // v2 hook: per-caller email filter. No-op when the flag is off.
     const vehicles = filterVehiclesForCaller(ctx, file.vehicles);
+    // Seat-map schematics for the client-side grid. Falls through to the
+    // baked-in defaults when site.json omits it.
+    const sys = (ctx.config.system ?? {}) as Record<string, unknown>;
+    const vCfg = isObj(sys['vehicles']) ? (sys['vehicles'] as Record<string, unknown>) : {};
+    const towerLayouts = isObj(vCfg['towerLayouts']) ? vCfg['towerLayouts'] : undefined;
     return ok(ctx.env, ctx.req, {
       version: file.version,
       vehicles,
@@ -334,6 +339,9 @@ export const mountVehicles = (r: Router): void => {
       // Tell the client whether the server-side filter is currently
       // active so it can render a hint ("showing only your vehicles").
       filtered: isFeatureOn(ctx.config, FEATURE_EMAIL_FILTER) && !canWrite,
+      // Per-tower floors × unitsPerFloor. Client falls back to
+      // 10 × 4 for towers absent from this map.
+      towerLayouts,
     });
   });
 
