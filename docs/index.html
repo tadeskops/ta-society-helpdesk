@@ -421,9 +421,12 @@
       }
 
       // Reveal staff strip if the visitor has any elevated role.
+      // Uses isAtLeast(MANAGER) so the new higher tiers (CHAIRMAN,
+      // SECRETARY, TREASURER, COMMITTEE, CONTRIBUTOR) also qualify
+      // under the strict 8-tier hierarchy.
       const who = await Flags.whoami().catch(() => null);
       const role = who && who.primary;
-      if (role && ['MANAGER', 'COMMITTEE', 'ADMIN'].includes(role)) {
+      if (role && Flags.isAtLeast(role, 'MANAGER')) {
         const staff = document.querySelector('[data-tsh-staff]');
         if (staff) staff.hidden = false;
         document.querySelectorAll('[data-tsh-role-link]').forEach((el) => {

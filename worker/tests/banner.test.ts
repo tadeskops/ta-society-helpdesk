@@ -42,9 +42,13 @@ vi.mock('../src/config/loader.ts', async () => {
     loadConfig: vi.fn(async () => ({
       config: { ...DEFAULT_CONFIG, features: { ...DEFAULT_CONFIG.features, FEATURE_DAILY_TURNSTILE: false } },
       access: {
-        managers:   ['mgr@x.com'],
-        committee:  ['cmt@x.com'],
-        admins: ['dev@x.com'],
+        managers:    ['mgr@x.com'],
+        committee:   ['cmt@x.com'],
+        admins:      ['dev@x.com'],
+        treasurer:   [],
+        chairman:    [],
+        secretary:   [],
+        contributor: [],
       },
     })),
     invalidateCache: vi.fn(),

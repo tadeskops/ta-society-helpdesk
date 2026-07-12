@@ -118,27 +118,51 @@ No shared code, assets, builds, secrets, schemas, or workflows. See §0 of `.git
 
 ## 2. Roles
 
-Four precedence roles plus three additive capability tags. Precedence (highest wins for landing-page routing / displayed badge):
-`ADMIN > COMMITTEE > MANAGER > RESIDENT > UNKNOWN`. Capabilities are additive — an email on multiple lists gets the union.
+**Strict linear 8-tier hierarchy** (implemented in [worker/src/auth/roles.ts](worker/src/auth/roles.ts) — refactored 2026-07-12 from a 4-tier chain + 3 additive tags):
 
-| Role | How identified | Capabilities |
+`ADMIN > CHAIRMAN > SECRETARY > TREASURER > COMMITTEE > CONTRIBUTOR > MANAGER > RESIDENT > UNKNOWN`
+
+Higher tiers **inherit every capability** of every tier below them. `isAtLeast(rs, min)` walks this chain; `hasAny(rs, role)` still exists for exact-tier checks.
+
+| Role | Access list | Capabilities (inherited + own) |
 |---|---|---|
-| **Resident** | Anonymous Google sign-in (any Gmail) | Submit a daily issue; read the public board (PII redacted); look up own ticket by id. **Cannot** call any privileged action. |
-| **Society Manager** | Email in `config/managers.json` | Assign vendor + severity / mark in progress / resolve / reject / reopen. Can add photos to existing issues. **Can archive** an issue via `POST /issues/:id/delete` **with a mandatory non-empty reason** — the audit log tags this flow with an `[archive]` prefix (see §6.5). **Cannot** redact bodies, bulk-archive, edit historical fields, or change settings. |
-| **Technical Committee** | Email in `config/committee.json` | Everything a manager can do, **plus** edit/redact issue body, overwrite resolution notes after the fact, soft-delete (lock + tombstone), bulk archive, view audit log. **Read-only** access to settings (can see what's configured, cannot change it). |
-| **Admin** | Email in `config/admins.json` (legacy: `config/developers.json`) | Everything committee can do, **plus** edit `config/site.json` (feature flags, visibility, lists), manage all three allow-lists from the settings page, edit system bindings (repo, branch, Worker URL, photo-storage strategy). |
+| **Admin** | [config/admins.json](config/admins.json) | Top of chain. Edits `config/site.json` (all feature flags, tunables, lists, system bindings) and every access list including the Admin list itself (subject to a one-admin-minimum guard). Inherits everything below. |
+| **Chairman** | [config/chairman.json](config/chairman.json) | Full treasury view+act, all committee capabilities, delegated editing of every access list below (secretary, treasurer, committee, contributor, managers). May toggle feature flags delegated to `CHAIRMAN` via `system.flagDelegation`. |
+| **Secretary** | [config/secretary.json](config/secretary.json) | Full treasury view+act (inherits from being above TREASURER), all committee capabilities, delegated editing of treasurer/committee/contributor/managers lists. |
+| **Treasurer** | [config/treasurer.json](config/treasurer.json) | Full treasury view+act (approve/reject/pay/record expense), all committee capabilities, delegated editing of committee/contributor/managers lists. |
+| **Committee** | [config/committee.json](config/committee.json) | Everything a Manager can do plus edit/redact issue body, overwrite resolution notes, soft-delete, bulk archive, view audit log, delegated editing of contributor/managers lists. Grandfathered treasury access while chairman/secretary/treasurer lists are all empty. |
+| **Contributor** | [config/contributor.json](config/contributor.json) | **New tier (2026-07-12)**. Narrow revocable grant slotted between Committee and Manager. Inherits Manager capabilities. Delegated editing of managers list. **No treasury access.** |
+| **Manager** | [config/managers.json](config/managers.json) | Assign vendor + severity / mark in progress / resolve / reject / reopen. Can add photos to existing issues. Archive with mandatory non-empty reason via `POST /issues/:id/delete` (audit log tags with `[archive]`). Treasury only via opt-in per-action flags (`FEATURE_TREASURY_MANAGER_APPROVE`, `_PAY`, `_RECORD_EXPENSE`). |
+| **Resident** | *(none — any signed-in Gmail)* | Submit a daily issue; read the public board (PII redacted); look up own ticket; RSVP events; vote polls; raise a reimbursement (gated by `FEATURE_TREASURY_RESIDENT_RAISE`). Cannot call any privileged action. |
+| **Unknown** | *(anonymous — no JWT)* | Restricted to `POST /issues` (when `FEATURE_DAILY_ANONYMOUS_SUBMIT` is on), `/issues/public`, `/issues/:id/public`, `/config`, `/directory`, `/banner`, `/announcements`, `/events`, `/polls`, `/metrics/visit`. |
 
-**Additive capability tags** (implemented in [worker/src/auth/roles.ts](worker/src/auth/roles.ts); NOT part of the precedence chain, never change the displayed primary badge):
+### 2.1 Delegated access-list editing
 
-| Tag | Source list | Purpose |
-|---|---|---|
-| `TREASURER` | `config/treasurer.json` | Full read + act on the confidential treasury ledger (§21). |
-| `CHAIRMAN`  | `config/chairman.json`  | Same treasury view+act rights as TREASURER. |
-| `SECRETARY` | `config/secretary.json` | Read-only treasury access when `FEATURE_TREASURY_SECRETARY_ACCESS` is on. Never acts. |
+`PUT /access-lists/:role` is authorised via [`canEditAccessList(callerRoleSet, targetRole)`](worker/src/auth/roles.ts). A caller may edit any list **strictly below** their own primary tier. Admin edits every list. Effective per-role edit rights:
 
-> Presence in any of the three additive lists does NOT elevate `roles.primary` — residents who are treasurer stay `RESIDENT` on the badge but gain treasury access. A **grandfather clause** in `isTreasuryGrandfatherActive(access)` keeps the legacy COMMITTEE+ADMIN gate on the treasury dashboard as long as ALL three additive lists are empty; the first email seeded into any of them flips the strict gate on.
+| Caller | May edit |
+|---|---|
+| ADMIN | admins, chairman, secretary, treasurer, committee, contributor, managers |
+| CHAIRMAN | secretary, treasurer, committee, contributor, managers |
+| SECRETARY | treasurer, committee, contributor, managers |
+| TREASURER | committee, contributor, managers |
+| COMMITTEE | contributor, managers |
+| CONTRIBUTOR | managers |
+| MANAGER / RESIDENT | *(none — 403)* |
 
-> Allow-lists are runtime-editable from the settings page (admin only). Each list is a JSON file in this repo; every change is a commit, so audit history is free. There is a one-admin-minimum guard so an empty admin list is impossible.
+### 2.2 Delegated feature-flag toggling
+
+`PATCH /features/:flag { on: boolean }` — a narrow endpoint that flips one boolean in `config/site.json` without requiring a full `PUT /config`. Authorised via [`canToggleFeatureFlag(rs, flag, config)`](worker/src/auth/roles.ts): ADMIN may always toggle any flag; non-admins qualify iff `system.flagDelegation[flag]` names a tier the caller is **at-or-above** in the strict hierarchy. Example: `{ "FEATURE_TREASURY_MANAGER_APPROVE": "CHAIRMAN" }` grants toggle rights to Chairman and Admin (nothing below Chairman qualifies). A flag with no entry in the map remains admin-only.
+
+The delegation map is edited from [`docs/settings.html`](docs/settings.html) under the **Flag delegation** section (visible + writable to Admin only; hidden entirely for other tiers). Non-admin callers who have been delegated one or more flags see those specific checkboxes live-enabled inside the existing **Feature flags** section, each tagged with a small "delegated to you" chip; flipping a checkbox calls `PATCH /features/:flag` immediately with no full-page save. All other flag checkboxes stay disabled. The Worker re-checks the flag delegation on every PATCH, so a stale client render cannot bypass the rule.
+
+### 2.3 Treasury access
+
+[`canViewTreasuryLedger`](worker/src/auth/roles.ts) and [`canActOnTreasuryLedger`](worker/src/auth/roles.ts) both delegate to `isAtLeast(rs, 'TREASURER')`, so ADMIN / CHAIRMAN / SECRETARY / TREASURER all inherit treasury access under the strict hierarchy. **Grandfather clause**: while `chairman.json`, `secretary.json`, and `treasurer.json` are all empty, plain COMMITTEE also gets treasury view+act (`isTreasuryGrandfatherActive`). The first email seeded into any of the three flips the strict gate on and grandfather off.
+
+`FEATURE_TREASURY_SECRETARY_ACCESS` is **deprecated** (no-op) — SECRETARY inherits treasury view from being above TREASURER in the hierarchy. Kept in defaults for backward compatibility with existing `site.json` files.
+
+> Allow-lists are runtime-editable from the settings page under the delegation rules above. Each list is a JSON file in this repo; every change is a commit, so audit history is free. There is a one-admin-minimum guard so an empty admin list is impossible.
 
 > The admin list is **bootstrapped from a Cloudflare Worker secret** the first time. After that, the file in the repo is canonical.
 
@@ -153,9 +177,13 @@ Four precedence roles plus three additive capability tags. Precedence (highest w
 
 ### 3.2 Role resolution
 
-- Worker reads `config/managers.json`, `config/committee.json`, and `config/admins.json` (legacy fallback: `config/developers.json`) and the additive tag lists `config/treasurer.json`, `config/chairman.json`, `config/secretary.json` (cached 60 s).
-- Computes role(s) for the verified email; precedence rule above for the displayed badge; capabilities are additive for action allow-lists. The three tag lists never affect `roles.primary`.
+- Worker reads all seven access lists (`config/admins.json` — legacy fallback `config/developers.json`, `config/chairman.json`, `config/secretary.json`, `config/treasurer.json`, `config/committee.json`, `config/contributor.json`, `config/managers.json`) cached 60 s.
+- Computes role(s) for the verified email; the **strict 8-tier hierarchy** rule (§2) determines both the displayed badge and inherited capabilities.
 - Anonymous (no JWT) is allowed for: `POST /issues` (when `FEATURE_DAILY_ANONYMOUS_SUBMIT` is on), `GET /issues/public`, `GET /issues/:id/public`, `GET /config`, and the anonymous-safe community readers (`GET /directory`, `/banner`, `/announcements`, `/events`, `/polls`, `/metrics/visit`). All other endpoints require a verified JWT, and most require a privileged role.
+
+### 3.2.1 Route-guard semantics
+
+Every route calls [`ensureAllowed(ctx, { roles?: Role[], flags?: string[], requireIdentity? })`](worker/src/middleware/rbac.ts). Under the strict 8-tier hierarchy the `roles: [...]` list is interpreted as **"at least the WEAKEST tier listed"** (i.e. the caller passes iff `isAtLeast(rs, min(roles))`). This is what every existing callsite has always meant — routes listed the minimum tier plus (redundantly) every tier above it — and it lets CHAIRMAN / SECRETARY / TREASURER / CONTRIBUTOR inherit access transitively without every route file having to enumerate them. `hasAny(rs, ...)` is still exported for the (rare) cases that need an exact-tier check.
 
 ### 3.3 What is forbidden
 
@@ -285,10 +313,11 @@ All write paths verify the Google JWT first, then check the role allow-list. Rea
 |---|---|---|---|
 | `GET /whoami` | JWT | All | Returns `{ email, roles[] }` for the verified caller. Cache: `WHOAMI_CACHE_SECONDS`. |
 | `GET /config` | None | All | Returns `site.json` (features, tunables, lists, system). Cache: `CONFIG_CACHE_SECONDS`. |
-| `PUT /config` | JWT | Admin | Overwrite `config/site.json` via GitHub commit + audit-log line. |
-| `GET /access-lists` | JWT | Committee (read), Admin (read) | Returns the three allow-lists. |
-| `PUT /access-lists/:role` | JWT | Admin | Overwrites one allow-list. Enforces one-admin-minimum guard. |
-| `GET /audit` | JWT | Committee, Admin | Recent entries from `config/audit.log`. |
+| `PUT /config` | JWT | Admin | Overwrite `config/site.json` via GitHub commit + audit-log line. Admin-only — non-admin delegated flag toggles go through `PATCH /features/:flag` instead. |
+| `PATCH /features/:flag` | JWT | Admin **or** any tier at-or-above the role in `system.flagDelegation[flag]` | Flip a single boolean in `config/site.json`. Authorised by [`canToggleFeatureFlag`](worker/src/auth/roles.ts). See §2.2. |
+| `GET /access-lists` | JWT | Committee, Contributor, Treasurer, Secretary, Chairman, Admin (any at-or-above COMMITTEE) | Returns all seven allow-lists (admins, chairman, secretary, treasurer, committee, contributor, managers). |
+| `PUT /access-lists/:role` | JWT | Admin (any list); any non-Admin tier for lists **strictly below** their own (see §2.1) | Overwrites one allow-list. Authorised by [`canEditAccessList`](worker/src/auth/roles.ts). Enforces one-admin-minimum guard. |
+| `GET /audit` | JWT | Committee+ (at-least-COMMITTEE) | Recent entries from `config/audit.log`. |
 
 ### 5.c Community surfaces (all flag-gated)
 
@@ -462,7 +491,7 @@ All pages reuse the visual tokens, header, and footer of the handover portal so 
 
 One page per role surface. Routes never branch by role inside a single HTML; the wrong-role redirect happens in the page's `ensureAuthorized()` IIFE before any data is rendered.
 
-| Page | Anonymous | Resident (signed-in) | Manager | Committee | Admin |
+| Page | Anonymous | Resident (signed-in) | Manager | Committee+ | Admin |
 |---|:---:|:---:|:---:|:---:|:---:|
 | `index.html` (landing) | full | full | full | full | full |
 | `daily-report.html` (intake) | when `FEATURE_DAILY_ANONYMOUS_SUBMIT` | full | full | full | full |
@@ -472,9 +501,9 @@ One page per role surface. Routes never branch by role inside a single HTML; the
 | `manage.html` (triage queue) | denied | denied | full | full (Archive→Delete, plus redact + bulk-archive) | full |
 | `manager-dashboard.html` (KPI) | denied | denied | full | full | full |
 | `committee-dashboard.html` (KPI + weekly trend) | denied | denied | denied | full | full |
-| `settings.html` | denied | denied | denied | read-only | full write |
+| `settings.html` | denied | denied | denied | read-only + delegated writes (§8.7) | full write |
 
-Denied = redirect to `index.html` with a one-line toast. Read-only = page renders, every input/button is `disabled`, server-side `PUT`s would be rejected anyway.
+Denied = redirect to `index.html` with a one-line toast. **"Committee+"** = every tier at-or-above COMMITTEE in the strict hierarchy (Committee, Treasurer, Secretary, Chairman, Admin). CONTRIBUTOR is **below** COMMITTEE (§2) and does not qualify for settings-page reachability. "Delegated writes" = the narrow slots described in §8.7 (access lists strictly below the caller, delegated flag toggles, receipt presentation defaults). Server-side `PUT`s / `PATCH`es are always re-checked against `canEditAccessList` / `canToggleFeatureFlag` / `isAtLeast`.
 
 ### UI principles (apply to every page)
 
@@ -482,7 +511,7 @@ Denied = redirect to `index.html` with a one-line toast. Read-only = page render
 - **Plain English copy.** No jargon in resident-facing surfaces. Manager/committee/admin pages may use product terms (status, severity, allow-list, audit log) only after they appear in `tsh_requirement.md`.
 - **Responsive across three breakpoints — mandatory.** See §14.1.
 - **Every interactive affordance is flag-gated.** See §14.2.
-- **Settings-page reachability.** Every flag, list, and tunable surfaced in any page's behaviour MUST be editable from `settings.html` (admin write, committee read). No CONFIG-only knobs that require a redeploy.
+- **Settings-page reachability.** Every flag, list, and tunable surfaced in any page's behaviour MUST be editable from `settings.html`. Write access is either **Admin** (top-of-page Save via `PUT /config`) or, for the narrow delegated slots, whichever tier is authorised per §2.1 / §2.2 / §8.7. No CONFIG-only knobs that require a redeploy.
 
 ### 8.1 Landing (`docs/index.html`)
 
@@ -539,16 +568,29 @@ Read-only. PII redacted. Filter pill: `All / New / In Progress / Resolved`. Sear
 
 ### 8.7 Settings (`docs/settings.html`)
 
-Admin-only (committee can view but every input is disabled). Sections:
+Admin write / delegated-write / role-scoped-read. Reachable to any tier at-or-above COMMITTEE (`ensureAuthorized('COMMITTEE')`); everyone below is redirected. Under the strict-hierarchy delegated-administration model:
 
-- **Access lists** — three editable email lists (admin / committee / manager). One-admin-minimum guard.
-- **Feature flags** — toggles for the master switch, anonymous submit, photo upload, WhatsApp share, cost field, public-board visibility of resolved/rejected.
-- **Visibility** — public board: show photos / severity / PDF export.
+- **Admin** — full write. Top-of-page **Save settings** button posts the whole `site.json` via `PUT /config` and every access list via `PUT /access-lists/:role`.
+- **Non-admin (Chairman / Secretary / Treasurer / Committee / Contributor)** — read-only view with three narrow write slots layered on top:
+  1. **Access lists strictly below their tier** — see §2.1 for the exact matrix. Editable textareas + a dedicated **Save delegated access lists** button that PUTs each changed list independently.
+  2. **Delegated feature flags** — every flag in `system.flagDelegation` mapped to their tier (or a tier below theirs) is live-toggleable via `PATCH /features/:flag`. Flipping a checkbox saves instantly; no page-level Save.
+  3. **Receipt presentation defaults** (Manager+) — the receipt theme and seal-language selects are enabled via `PUT /receipts/settings`.
+- **Manager / Resident** — not authorised; redirected before render.
+
+Sections on the page:
+
+- **Access lists** — seven editable email lists (admins / chairman / secretary / treasurer / committee / contributor / managers). One-admin-minimum guard. Each list is per-caller unlocked or locked via the delegation matrix.
+- **Treasury** — treasury flags, tunables, private receipt-storage repo pointers.
+- **Feature flags** — grouped by product area (Daily / Reservations / Handover / Other). Admin edits every checkbox; non-admin delegated callers get live per-flag toggles for the flags mapped to their tier via `system.flagDelegation`.
+- **Flag delegation** — admin-only editor for `system.flagDelegation` (one `<select>` per flag). Hidden entirely for non-admins.
+- **Tunables** — numeric knobs (cache TTLs, rate limits, etc.).
 - **Lists** — towers, categories, sub-categories.
-- **System** — `issuesRepo` (default `tadeskops/ta-society-helpdesk`), `backupBranch` (default `main`), `workerUrl`, photo-storage strategy. Hidden from committee read-only view.
+- **Booking receipt archive** — private-repo path templates, seal language, receipt theme.
+- **System** — `issuesRepo`, `backupBranch`, `workerUrl`, photo-storage strategy. Marked `data-tsh-dev-only`; hidden entirely for non-admins.
 - **Audit log** — recent entries from `config/audit.log` (read-only).
+- **Collapsible-section registry** — per-section collapse defaults.
 
-Save → `PUT /config` (and/or `PUT /access-lists/:role`) → Worker commits the change(s) to the repo. Pages re-fetch `/config` on next load (cache 60 s).
+Save flow — Admin: **Save settings** → `PUT /config` + `PUT /access-lists/:role` (×7). Non-admin: **Save delegated access lists** → per-list `PUT /access-lists/:role` (only changed lists). Per-flag delegated toggle → `PATCH /features/:flag`. Pages re-fetch `/config` on next load (cache 60 s).
 
 ### 8.8 Reservations (`docs/reservations.html`)
 
@@ -747,8 +789,9 @@ For every flag in `config/site.json`:
 1. The flag has a row in `tsh_requirement.md` §9.
 2. The page reads the flag from the cached `/config` response and hides / disables the affordance when the flag is `false`.
 3. The Worker re-checks the flag inside the action handler (defence in depth).
-4. The `settings.html` page exposes the flag as a labelled toggle in the **Feature flags** section, editable by admins, visible read-only to committee.
+4. The `settings.html` page exposes the flag as a labelled toggle in the **Feature flags** section. Admin has write access via the top-of-page Save button (`PUT /config`). Non-admin delegated callers see the same checkbox live-enabled if the flag is mapped to their tier via `system.flagDelegation` (see §2.2) — flipping it calls `PATCH /features/:flag` immediately. All other flags remain read-only for non-admins.
 5. Toggling the flag takes effect for all users within the 60 s `/config` cache window. **No redeploy.**
+6. Admins can delegate any flag to a lower tier from the **Flag delegation** section on the same page. That section is hidden for non-admins.
 
 If a admin wants to ship a feature "hidden by default", they ship it with the flag default `false` and flip it from the Settings page when ready. There is no other deployment ceremony.
 

@@ -47,6 +47,7 @@ let tunableOverrides: Record<string, number | string> = {};
 let accessOverrides: Partial<{
   managers: string[]; committee: string[]; admins: string[];
   treasurer: string[]; chairman: string[]; secretary: string[];
+  contributor: string[];
 }> = {};
 
 vi.mock('../src/config/loader.ts', async () => {
@@ -78,9 +79,10 @@ vi.mock('../src/config/loader.ts', async () => {
         // Committee+Admin retain ledger access, matching pre-migration
         // behaviour. Individual tests set these via `accessOverrides`
         // to exercise the additive Treasurer/Chairman/Secretary tags.
-        treasurer: accessOverrides.treasurer ?? [],
-        chairman:  accessOverrides.chairman  ?? [],
-        secretary: accessOverrides.secretary ?? [],
+        treasurer:   accessOverrides.treasurer   ?? [],
+        chairman:    accessOverrides.chairman    ?? [],
+        secretary:   accessOverrides.secretary   ?? [],
+        contributor: accessOverrides.contributor ?? [],
       },
     })),
     invalidateCache: vi.fn(),

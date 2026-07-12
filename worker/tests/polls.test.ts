@@ -44,9 +44,13 @@ vi.mock('../src/config/loader.ts', async () => {
       // Force POLLS flag on for the suite.
       config: { ...DEFAULT_CONFIG, features: { ...DEFAULT_CONFIG.features, FEATURE_DAILY_TURNSTILE: false, FEATURE_DAILY_POLLS: true } },
       access: {
-        managers:   ['mgr@x.com'],
-        committee:  ['cmt@x.com'],
-        admins: ['dev@x.com'],
+        managers:    ['mgr@x.com'],
+        committee:   ['cmt@x.com'],
+        admins:      ['dev@x.com'],
+        treasurer:   [],
+        chairman:    [],
+        secretary:   [],
+        contributor: [],
       },
     })),
     invalidateCache: vi.fn(),

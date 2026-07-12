@@ -158,55 +158,57 @@
       <form id="settingsForm" novalidate>
         <details class="tsh-section" open>
           <summary><h2>Access lists</h2></summary>
-          <div class="tsh-grid-3">
-            <div class="tsh-field">
-              <span class="tsh-label">Admins <span class="tsh-hint">(at least one)</span></span>
-              <textarea name="admins" rows="4" placeholder="one email per line"></textarea>
-            </div>
-            <div class="tsh-field">
-              <span class="tsh-label">Committee</span>
-              <textarea name="committee" rows="4" placeholder="one email per line"></textarea>
-            </div>
-            <div class="tsh-field">
-              <span class="tsh-label">Managers</span>
-              <textarea name="managers" rows="4" placeholder="one email per line"></textarea>
-            </div>
-          </div>
-        </details>
-
-        <details class="tsh-section" id="treasuryAccessSection" open>
-          <summary><h2><i class="fas fa-user-shield gold-accent"></i> Treasury access (above committee)</h2></summary>
-          <p class="tsh-hint">
-            The confidential Treasury dashboard (full ledger, all reimbursements, monthly summary,
-            receipt viewer, approve/pay actions) is restricted to <strong>Treasurer / Chairman /
-            Admin</strong>. Secretary is an <em>opt-in</em> read-only tier (enable the
-            <code>FEATURE_TREASURY_SECRETARY_ACCESS</code> flag below to grant secretary view
-            without action rights).
+          <p class="tsh-hint" style="margin-top:.2rem;margin-bottom:.6rem">
+            Society uses a strict linear hierarchy — <strong>Admin &gt; Chairman &gt; Secretary
+            &gt; Treasurer &gt; Committee &gt; Contributor &gt; Manager &gt; Resident</strong>.
+            Each role may edit the roster of any tier <em>strictly below</em> their own; Admin
+            edits every list (including the Admin list itself, subject to a one-admin-minimum
+            guard). Lists you are not allowed to edit are shown but disabled.
           </p>
-          <div id="treasuryGrandfatherBanner" class="tsh-hint" style="border:1px solid var(--tsh-warn, #d4a017);background:rgba(212,160,23,0.08);padding:.6rem .8rem;border-radius:6px;margin-bottom:.6rem;display:none;">
-            <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
-            <strong>Grandfather clause active.</strong> None of the three lists below are seeded yet,
-            so the legacy Committee+Admin gate is still granting access to the treasury dashboard.
-            Seed at least one of the three (Treasurer/Chairman/Secretary) to lock down access to the
-            new capability model. Once seeded, plain committee members will no longer see the ledger
-            unless they are also listed here.
-          </div>
-          <div class="tsh-grid-3">
-            <div class="tsh-field">
-              <span class="tsh-label">Treasurer</span>
-              <textarea name="treasurer" rows="4" placeholder="one email per line"></textarea>
-              <small class="tsh-field-desc">Full view + all actions (approve / reject / pay / record expense).</small>
+          <div class="tsh-grid-3" id="accessListsGrid">
+            <div class="tsh-field" data-role-list="admins">
+              <span class="tsh-label">Admins <span class="tsh-hint">(top of hierarchy · at least one)</span></span>
+              <textarea name="admins" rows="4" placeholder="one email per line"></textarea>
+              <small class="tsh-field-desc" data-role-hint></small>
             </div>
-            <div class="tsh-field">
+            <div class="tsh-field" data-role-list="chairman">
               <span class="tsh-label">Chairman</span>
               <textarea name="chairman" rows="4" placeholder="one email per line"></textarea>
-              <small class="tsh-field-desc">Full view + all actions (same as Treasurer).</small>
+              <small class="tsh-field-desc" data-role-hint>Full view + all treasury actions (inherits every tier below).</small>
             </div>
-            <div class="tsh-field">
-              <span class="tsh-label">Secretary <span class="tsh-hint">(view-only, opt-in flag)</span></span>
+            <div class="tsh-field" data-role-list="secretary">
+              <span class="tsh-label">Secretary</span>
               <textarea name="secretary" rows="4" placeholder="one email per line"></textarea>
-              <small class="tsh-field-desc">Read-only view of the ledger. Requires <code>FEATURE_TREASURY_SECRETARY_ACCESS</code>.</small>
+              <small class="tsh-field-desc" data-role-hint>Full view + all treasury actions (above Treasurer in the hierarchy).</small>
             </div>
+            <div class="tsh-field" data-role-list="treasurer">
+              <span class="tsh-label">Treasurer</span>
+              <textarea name="treasurer" rows="4" placeholder="one email per line"></textarea>
+              <small class="tsh-field-desc" data-role-hint>Full view + all actions (approve / reject / pay / record expense).</small>
+            </div>
+            <div class="tsh-field" data-role-list="committee">
+              <span class="tsh-label">Committee</span>
+              <textarea name="committee" rows="4" placeholder="one email per line"></textarea>
+              <small class="tsh-field-desc" data-role-hint>Triage + issue-body edits; treasury only via grandfather clause.</small>
+            </div>
+            <div class="tsh-field" data-role-list="contributor">
+              <span class="tsh-label">Contributor <span class="tsh-hint">(new · below Committee)</span></span>
+              <textarea name="contributor" rows="4" placeholder="one email per line"></textarea>
+              <small class="tsh-field-desc" data-role-hint>Narrow revocable grant above Manager. No treasury access.</small>
+            </div>
+            <div class="tsh-field" data-role-list="managers">
+              <span class="tsh-label">Managers</span>
+              <textarea name="managers" rows="4" placeholder="one email per line"></textarea>
+              <small class="tsh-field-desc" data-role-hint>Assign / resolve / photo; treasury per-flag opt-in.</small>
+            </div>
+          </div>
+          <div id="treasuryGrandfatherBanner" class="tsh-hint" style="border:1px solid var(--tsh-warn, #d4a017);background:rgba(212,160,23,0.08);padding:.6rem .8rem;border-radius:6px;margin-top:.8rem;display:none;">
+            <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
+            <strong>Grandfather clause active.</strong> None of Chairman / Secretary / Treasurer
+            lists are seeded yet, so the legacy Committee+Admin gate is still granting access to
+            the treasury dashboard. Seed at least one of the three to lock down access to the
+            new capability model. Once seeded, plain committee members will no longer see the
+            ledger unless they are also listed above.
           </div>
         </details>
 
@@ -228,6 +230,19 @@
         <details class="tsh-section" open>
           <summary><h2>Feature flags</h2></summary>
           <div class="tsh-flag-groups" id="flagsGrid"></div>
+        </details>
+
+        <details class="tsh-section" id="flagDelegationSection">
+          <summary><h2>Flag delegation <span class="tsh-hint">(admin only)</span></h2></summary>
+          <p class="tsh-hint">
+            Delegate one or more feature flags to a non-admin tier.
+            That tier <em>and every tier above it</em> can then flip the
+            flag from their own settings page without needing full
+            admin write access. Admins can always toggle any flag.
+            Leave a flag at <code>&mdash; not delegated</code> to keep
+            it admin-only.
+          </p>
+          <div class="tsh-grid-2" id="flagDelegationGrid"></div>
         </details>
 
         <details class="tsh-section">
@@ -463,15 +478,43 @@
     // seal-language selects — via the dedicated PUT /receipts/settings
     // endpoint. Everything else stays admin-only.
     const canEditReceiptSettings = Flags.isAtLeast(who.primary, 'MANAGER');
+
+    // Delegated access-list editing (strict-linear-hierarchy rule).
+    // Mirrors worker/src/auth/roles.ts → canEditAccessList so the UI
+    // can enable exactly the textareas the caller may PUT. A role
+    // may edit any list STRICTLY BELOW its own; Admin also edits Admin.
+    // Client rank list must match worker/src/auth/roles.ts PRECEDENCE.
+    const ACCESS_RANK = {
+      ADMIN: 0, CHAIRMAN: 1, SECRETARY: 2, TREASURER: 3,
+      COMMITTEE: 4, CONTRIBUTOR: 5, MANAGER: 6,
+    };
+    const LIST_TO_ROLE = {
+      admins: 'ADMIN', chairman: 'CHAIRMAN', secretary: 'SECRETARY',
+      treasurer: 'TREASURER', committee: 'COMMITTEE',
+      contributor: 'CONTRIBUTOR', managers: 'MANAGER',
+    };
+    const ACCESS_LIST_ROLES = Object.keys(LIST_TO_ROLE);
+    function canEditList(role) {
+      const callerRank = ACCESS_RANK[who.primary];
+      const targetRank = ACCESS_RANK[LIST_TO_ROLE[role]];
+      if (callerRank === undefined) return false;
+      if (who.primary === 'ADMIN') return true;   // Admin edits everything
+      return callerRank < targetRank;             // strictly-above
+    }
+    const editableLists = ACCESS_LIST_ROLES.filter(canEditList);
+    const canEditAnyList = editableLists.length > 0;
+
     document.getElementById('roleHint').textContent =
       readOnly
-        ? (canEditReceiptSettings
-            ? 'Read-only view. You can still change the receipt theme and seal language below (Save receipt settings button).'
-            : 'Committee read-only view. Ask an admin to make changes.')
+        ? (canEditAnyList
+            ? `${who.primary} write access — you may edit these lists: ${editableLists.join(', ')}. Other settings are read-only.`
+            : (canEditReceiptSettings
+                ? 'Read-only view. You can still change the receipt theme and seal language below (Save receipt settings button).'
+                : 'Read-only view. Ask a higher-tier role to make changes.'))
         : 'Admin write access. Changes apply within 60 s for all users.';
 
     const cfg = await Flags.ready();
-    const access = await Api.get('/access-lists').catch(() => ({ managers: [], committee: [], admins: [], treasurer: [], chairman: [], secretary: [] }));
+    const access = await Api.get('/access-lists').catch(() => ({ managers: [], committee: [], admins: [], treasurer: [], chairman: [], secretary: [], contributor: [] }));
 
     fill(cfg, access);
 
@@ -481,6 +524,42 @@
         el.disabled = true;
       }
       for (const el of document.querySelectorAll('[data-tsh-dev-only]')) el.hidden = true;
+
+      // Flag delegation editor is admin-only. Hide the whole section
+      // rather than showing it disabled — non-admins shouldn't even see
+      // the map of who-may-toggle-what.
+      const flagDelSec = document.getElementById('flagDelegationSection');
+      if (flagDelSec) flagDelSec.hidden = true;
+
+      // Re-enable ONLY the access-list textareas the caller is
+      // delegated to edit under the strict-linear-hierarchy rule.
+      // Tag each field with a small chip that explains why it's
+      // enabled or locked, and mount a per-list "Save delegated
+      // access lists" button that only PUTs the enabled subset.
+      for (const role of ACCESS_LIST_ROLES) {
+        const wrap = document.querySelector(`[data-role-list="${role}"]`);
+        if (!wrap) continue;
+        const ta = wrap.querySelector('textarea');
+        if (!ta) continue;
+        const hint = wrap.querySelector('[data-role-hint]');
+        if (canEditList(role)) {
+          ta.disabled = false;
+          if (hint) hint.innerHTML =
+            `<span class="tsh-hint" style="color:var(--tsh-success,#2c7)"><i class="fas fa-unlock" aria-hidden="true"></i> Editable by ${who.primary}.</span>`;
+        } else {
+          if (hint) hint.innerHTML =
+            `<span class="tsh-hint"><i class="fas fa-lock" aria-hidden="true"></i> Locked — only a role strictly above ${LIST_TO_ROLE[role]} may edit.</span>`;
+        }
+      }
+
+      if (canEditAnyList) mountDelegatedAccessSaveButton(editableLists, access);
+
+      // Delegated feature-flag toggles. For every flag the caller is
+      // delegated to toggle under cfg.system.flagDelegation, re-enable
+      // that flag's checkbox in-place and wire a change handler that
+      // calls PATCH /features/:flag { on }. Everything else in the
+      // Feature-flags section stays disabled. Server has final say.
+      mountDelegatedFlagToggles(who, cfg);
 
       // Manager+/Committee: re-enable the two receipt presentation
       // selects and mount a dedicated per-section Save button that goes
@@ -498,7 +577,7 @@
           const payload = collect();
           await Api.put('/config', { config: payload.config });
           // Access lists are saved separately.
-          for (const role of ['admins', 'committee', 'managers', 'treasurer', 'chairman', 'secretary']) {
+          for (const role of ['admins', 'chairman', 'secretary', 'treasurer', 'committee', 'contributor', 'managers']) {
             await Api.put(`/access-lists/${role}`, { emails: payload.access[role] });
           }
           UI.toast('Saved. Changes will reach all users within 60 s.', { kind: 'success' });
@@ -511,14 +590,123 @@
     });
 
     // ------------------------------------------------------------------
+    // Delegated access-list editor (non-admin). Mounted only when
+    // `editableLists` has at least one entry. Adds a dedicated Save
+    // button next to the Access-lists section that PUTs each editable
+    // list independently via PUT /access-lists/:role, honouring the
+    // strict-hierarchy rule enforced server-side. Lists locked for the
+    // caller are read-only textareas and are skipped by this button.
+    function mountDelegatedAccessSaveButton(editable, baseline) {
+      const grid = document.getElementById('accessListsGrid');
+      if (!grid) return;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'tsh-btn tsh-btn-primary';
+      btn.style.marginTop = '12px';
+      btn.innerHTML = '<i class="fas fa-floppy-disk"></i> Save delegated access lists';
+      btn.disabled = false;
+      grid.parentNode.insertBefore(btn, grid.nextSibling);
+
+      const form = document.getElementById('settingsForm');
+      btn.addEventListener('click', async () => {
+        await UI.busyButton(btn, async () => {
+          let failures = 0;
+          for (const role of editable) {
+            const raw = form.elements[role].value || '';
+            const emails = raw.split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+            const before = (baseline[role] || []).slice().sort().join('\n');
+            const after  = emails.slice().sort().join('\n');
+            if (before === after) continue;   // no change → skip PUT
+            try {
+              await Api.put(`/access-lists/${role}`, { emails });
+              baseline[role] = emails;
+            } catch (e) {
+              failures++;
+              UI.toast(`${role}: ${e.message || 'save failed'}`, { kind: 'danger' });
+            }
+          }
+          if (!failures) {
+            UI.toast('Delegated access lists saved. Changes reach all users within 60 s.', { kind: 'success' });
+            Flags.invalidate();
+          }
+        }, { label: 'Saving\u2026' });
+      });
+    }
+
+    // ------------------------------------------------------------------
+    // Delegated feature-flag toggles (non-admin readOnly path). Mirrors
+    // worker/src/auth/roles.ts → canToggleFeatureFlag: a non-admin may
+    // toggle a flag iff `system.flagDelegation[flag]` names their tier
+    // OR a tier below them. We iterate `cfg.system.flagDelegation`,
+    // re-enable the matching feature checkboxes in place, and wire each
+    // to PATCH /features/:flag on change. The Worker re-checks
+    // authorisation, so a stale client render is safe.
+    function mountDelegatedFlagToggles(who, cfg) {
+      const sys = (cfg.system && typeof cfg.system === 'object') ? cfg.system : {};
+      const delegation = (sys.flagDelegation && typeof sys.flagDelegation === 'object')
+        ? sys.flagDelegation : {};
+      const callerRank = ACCESS_RANK[who && who.primary];
+      if (callerRank === undefined) return;   // unknown tier → nothing to enable
+
+      const form = document.getElementById('settingsForm');
+      let enabledCount = 0;
+      const enabledFlags = [];
+      for (const [flag, minRole] of Object.entries(delegation)) {
+        const minRank = ACCESS_RANK[minRole];
+        if (minRank === undefined) continue;    // unknown role → skip
+        if (callerRank > minRank) continue;     // caller below minimum → skip
+        const cb = form.elements[`features.${flag}`];
+        if (!cb || cb.type !== 'checkbox') continue;
+        cb.disabled = false;
+        enabledCount++;
+        enabledFlags.push(flag);
+        // Small chip next to the flag name so the caller knows this
+        // one is live-toggleable (everything else stays greyed out).
+        const head = cb.closest('.tsh-field-head');
+        if (head && !head.querySelector('[data-flag-delegated]')) {
+          head.appendChild(UI.el('span', {
+            'data-flag-delegated': '1',
+            class: 'tsh-hint',
+            style: 'margin-left:.5em;color:var(--tsh-success,#2c7);font-size:.78em',
+          },
+            UI.el('i', { class: 'fas fa-unlock', 'aria-hidden': 'true' }),
+            ' delegated to you',
+          ));
+        }
+        cb.addEventListener('change', async () => {
+          const before = !cb.checked;   // pre-change value
+          cb.disabled = true;
+          try {
+            await Api.patch(`/features/${encodeURIComponent(flag)}`, { on: !!cb.checked });
+            UI.toast(`${flag} is now ${cb.checked ? 'ON' : 'OFF'}. Changes reach all users within 60 s.`,
+              { kind: 'success' });
+            Flags.invalidate();
+          } catch (e) {
+            cb.checked = before;   // revert on failure
+            UI.toast(`${flag}: ${e.message || 'toggle failed'}`, { kind: 'danger' });
+          } finally {
+            cb.disabled = false;
+          }
+        });
+      }
+      // Update the roleHint copy so the caller knows what they can do.
+      if (enabledCount > 0) {
+        const hint = document.getElementById('roleHint');
+        if (hint) {
+          const cur = hint.textContent || '';
+          hint.textContent = `${cur} You may also toggle ${enabledCount} delegated feature flag${enabledCount === 1 ? '' : 's'}: ${enabledFlags.join(', ')}.`;
+        }
+      }
+    }
+
+    // ------------------------------------------------------------------
     // Manager+ / Committee editor for the receipt presentation defaults.
     // Re-enables just the two selects inside #receiptArchiveSection and
     // mounts a dedicated Save button that goes through the narrow
     // PUT /receipts/settings worker endpoint. Called only in readOnly
     // mode; admin uses the top-level Save button (which writes the
     // whole site.json through PUT /config) instead.
-    function mountReceiptSettingsEditor() {
-      const form = document.getElementById('settingsForm');
+    function mountReceiptSettingsEditor() {      const form = document.getElementById('settingsForm');
       const themeSel = form.elements['system.receiptTheme'];
       const langSel  = form.elements['system.receiptSealLang'];
       if (!themeSel || !langSel) return;
@@ -567,12 +755,13 @@
 
     function fill(cfg, access) {
       const form = document.getElementById('settingsForm');
-      form.elements['admins'].value = (access.admins || []).join('\n');
-      form.elements['committee'].value  = (access.committee || []).join('\n');
-      form.elements['managers'].value   = (access.managers || []).join('\n');
-      form.elements['treasurer'].value  = (access.treasurer || []).join('\n');
-      form.elements['chairman'].value   = (access.chairman  || []).join('\n');
-      form.elements['secretary'].value  = (access.secretary || []).join('\n');
+      form.elements['admins'].value       = (access.admins       || []).join('\n');
+      form.elements['chairman'].value     = (access.chairman     || []).join('\n');
+      form.elements['secretary'].value    = (access.secretary    || []).join('\n');
+      form.elements['treasurer'].value    = (access.treasurer    || []).join('\n');
+      form.elements['committee'].value    = (access.committee    || []).join('\n');
+      form.elements['contributor'].value  = (access.contributor  || []).join('\n');
+      form.elements['managers'].value     = (access.managers     || []).join('\n');
 
       // Grandfather banner — visible only while none of the three new
       // treasury lists are seeded (matches worker's
@@ -672,6 +861,47 @@
           UI.el('input', { type: 'text', name: `tunables.${name}`, value: String(val) }),
         );
         tunGrid.appendChild(row);
+      }
+
+      // ---- Flag delegation ---------------------------------------------
+      // Mirrors worker/src/auth/roles.ts → canToggleFeatureFlag. Each row
+      // is one flag; the select value is the minimum tier that may toggle
+      // it (that tier and every tier above). ADMIN can always toggle.
+      // Kept in cfg.system.flagDelegation as { [flag]: 'CHAIRMAN' | ... }.
+      // Rendered for every flag so an admin can see every delegable knob
+      // in one place. Non-admins never see this section (hidden in the
+      // readOnly branch below); their view is a live per-flag toggle on
+      // the Feature flags section itself.
+      const flagDelGrid = document.getElementById('flagDelegationGrid');
+      if (flagDelGrid) {
+        flagDelGrid.innerHTML = '';
+        const _sys0 = (cfg.system && typeof cfg.system === 'object') ? cfg.system : {};
+        const currentDelegation = (_sys0.flagDelegation && typeof _sys0.flagDelegation === 'object')
+          ? _sys0.flagDelegation : {};
+        const delegableRoles = [
+          { value: '',            label: '— not delegated (admin only)' },
+          { value: 'CHAIRMAN',    label: 'Chairman (and Admin)' },
+          { value: 'SECRETARY',   label: 'Secretary + above' },
+          { value: 'TREASURER',   label: 'Treasurer + above' },
+          { value: 'COMMITTEE',   label: 'Committee + above' },
+          { value: 'CONTRIBUTOR', label: 'Contributor + above' },
+          { value: 'MANAGER',     label: 'Manager + above' },
+        ];
+        const flagNames = Object.keys(cfg.features || {}).sort();
+        for (const flag of flagNames) {
+          const cur = currentDelegation[flag] || '';
+          const sel = UI.el('select', { name: `delegation.${flag}` });
+          for (const opt of delegableRoles) {
+            sel.appendChild(UI.el('option', {
+              value: opt.value,
+              ...(opt.value === cur ? { selected: '' } : {}),
+            }, opt.label));
+          }
+          flagDelGrid.appendChild(UI.el('div', { class: 'tsh-field tsh-field-card' },
+            UI.el('span', { class: 'tsh-label' }, flag),
+            sel,
+          ));
+        }
       }
 
       const lists = cfg.lists || {};
@@ -829,6 +1059,20 @@
       const _ret = form.elements['system.backupRetentionDays'].value.trim();
       cfg.system.backupRetentionDays = _ret ? Math.max(7, Math.min(3650, Number(_ret) || 90)) : 90;
 
+      // Flag delegation (admin-only editor). Empty select value = "not
+      // delegated" → drop the key from the output so the persisted map
+      // stays minimal. Mirrors worker/src/auth/roles.ts →
+      // canToggleFeatureFlag (only tiers in the strict PRECEDENCE chain
+      // are accepted; other values are ignored server-side).
+      const _delegation = {};
+      for (const sel of form.querySelectorAll('select[name^="delegation."]')) {
+        const flag = sel.name.slice('delegation.'.length);
+        const role = String(sel.value || '').trim();
+        if (role) _delegation[flag] = role;
+      }
+      if (Object.keys(_delegation).length > 0) cfg.system.flagDelegation = _delegation;
+      else if ('flagDelegation' in cfg.system) delete cfg.system.flagDelegation;
+
       // Receipt archive
       const raPerPath = form.elements['system.receiptsArchive.perReceiptPath'].value.trim();
       const raRollPath = form.elements['system.receiptsArchive.rollup.path'].value.trim();
@@ -875,12 +1119,13 @@
       else if (cfg.ui && 'collapse' in cfg.ui) delete cfg.ui.collapse;
 
       const access = {
-        admins:     lines(form.elements['admins'].value),
-        committee:  lines(form.elements['committee'].value),
-        managers:   lines(form.elements['managers'].value),
-        treasurer:  lines(form.elements['treasurer'].value),
-        chairman:   lines(form.elements['chairman'].value),
-        secretary:  lines(form.elements['secretary'].value),
+        admins:      lines(form.elements['admins'].value),
+        chairman:    lines(form.elements['chairman'].value),
+        secretary:   lines(form.elements['secretary'].value),
+        treasurer:   lines(form.elements['treasurer'].value),
+        committee:   lines(form.elements['committee'].value),
+        contributor: lines(form.elements['contributor'].value),
+        managers:    lines(form.elements['managers'].value),
       };
       return { config: cfg, access };
     }

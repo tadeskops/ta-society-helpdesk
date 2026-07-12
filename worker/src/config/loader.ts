@@ -13,12 +13,17 @@ export interface AccessLists {
   managers: string[];
   committee: string[];
   admins: string[];
-  // Additive capability tags for treasury access. Empty by default —
-  // when ALL three are empty the roles.ts grandfather clause keeps
-  // the legacy Committee+Admin gate on the treasury ledger.
+  // Strict-hierarchy tiers between COMMITTEE and MANAGER, and above
+  // COMMITTEE. See worker/src/auth/roles.ts for the 8-tier chain:
+  // ADMIN > CHAIRMAN > SECRETARY > TREASURER > COMMITTEE >
+  //   CONTRIBUTOR > MANAGER > RESIDENT.
+  // While all three of chairman/secretary/treasurer are empty the
+  // grandfather clause in roles.ts keeps the legacy Committee+Admin
+  // gate on the treasury ledger.
   treasurer: string[];
   chairman: string[];
   secretary: string[];
+  contributor: string[];
 }
 
 interface Cache {
@@ -86,7 +91,7 @@ const deepMerge = <T>(base: T, override: Partial<T> | undefined): T => {
 };
 
 const loadFromGithub = async (env: Env): Promise<{ config: SiteConfig; access: AccessLists }> => {
-  const [siteRaw, mgrRaw, comRaw, adminRaw, devLegacyRaw, treasurerRaw, chairmanRaw, secretaryRaw] = await Promise.all([
+  const [siteRaw, mgrRaw, comRaw, adminRaw, devLegacyRaw, treasurerRaw, chairmanRaw, secretaryRaw, contributorRaw] = await Promise.all([
     loadOptional<Partial<SiteConfig>>(env, 'config/site.json'),
     loadOptional<unknown>(env, 'config/managers.json'),
     loadOptional<unknown>(env, 'config/committee.json'),
@@ -95,6 +100,7 @@ const loadFromGithub = async (env: Env): Promise<{ config: SiteConfig; access: A
     loadOptional<unknown>(env, 'config/treasurer.json'),
     loadOptional<unknown>(env, 'config/chairman.json'),
     loadOptional<unknown>(env, 'config/secretary.json'),
+    loadOptional<unknown>(env, 'config/contributor.json'),
   ]);
 
   const config = deepMerge(DEFAULT_CONFIG, siteRaw);
@@ -107,20 +113,22 @@ const loadFromGithub = async (env: Env): Promise<{ config: SiteConfig; access: A
     : normaliseEmails(rawAdmins);
 
   const access: AccessLists = {
-    managers:  normaliseEmails(mgrRaw),
-    committee: normaliseEmails(comRaw),
+    managers:    normaliseEmails(mgrRaw),
+    committee:   normaliseEmails(comRaw),
     admins,
-    treasurer: normaliseEmails(treasurerRaw),
-    chairman:  normaliseEmails(chairmanRaw),
-    secretary: normaliseEmails(secretaryRaw),
+    treasurer:   normaliseEmails(treasurerRaw),
+    chairman:    normaliseEmails(chairmanRaw),
+    secretary:   normaliseEmails(secretaryRaw),
+    contributor: normaliseEmails(contributorRaw),
   };
 
-  warnSuspiciousEmails(env, 'managers',  access.managers);
-  warnSuspiciousEmails(env, 'committee', access.committee);
-  warnSuspiciousEmails(env, 'admins',    access.admins);
-  warnSuspiciousEmails(env, 'treasurer', access.treasurer);
-  warnSuspiciousEmails(env, 'chairman',  access.chairman);
-  warnSuspiciousEmails(env, 'secretary', access.secretary);
+  warnSuspiciousEmails(env, 'managers',    access.managers);
+  warnSuspiciousEmails(env, 'committee',   access.committee);
+  warnSuspiciousEmails(env, 'admins',      access.admins);
+  warnSuspiciousEmails(env, 'treasurer',   access.treasurer);
+  warnSuspiciousEmails(env, 'chairman',    access.chairman);
+  warnSuspiciousEmails(env, 'secretary',   access.secretary);
+  warnSuspiciousEmails(env, 'contributor', access.contributor);
 
   return { config, access };
 };
@@ -140,7 +148,7 @@ export const loadConfig = async (env: Env): Promise<{ config: SiteConfig; access
     if (cache) return { config: cache.config, access: cache.access };
     return {
       config: DEFAULT_CONFIG,
-      access: { managers: [], committee: [], admins: [], treasurer: [], chairman: [], secretary: [] },
+      access: { managers: [], committee: [], admins: [], treasurer: [], chairman: [], secretary: [], contributor: [] },
     };
   }
 };

@@ -9,7 +9,22 @@
 (function (root) {
   'use strict';
 
-  const RANK = { UNKNOWN: 0, RESIDENT: 1, MANAGER: 2, COMMITTEE: 3, ADMIN: 4 };
+  // Strict 8-tier hierarchy (matches worker/src/auth/roles.ts PRECEDENCE).
+  // Higher NUMBER = higher authority. UNKNOWN sits at 0 (anonymous).
+  // Kept as numeric ranks so `isAtLeast(actual, minimum)` is a simple >=.
+  //   ADMIN > CHAIRMAN > SECRETARY > TREASURER > COMMITTEE
+  //     > CONTRIBUTOR > MANAGER > RESIDENT > UNKNOWN
+  const RANK = {
+    UNKNOWN:     0,
+    RESIDENT:    1,
+    MANAGER:     2,
+    CONTRIBUTOR: 3,
+    COMMITTEE:   4,
+    TREASURER:   5,
+    SECRETARY:   6,
+    CHAIRMAN:    7,
+    ADMIN:       8,
+  };
 
   let cfg = null;
   let cfgPromise = null;
@@ -229,41 +244,49 @@
 
   // ---- Treasury access helpers (mirror worker/src/auth/roles.ts) ----
   //
-  // The confidential treasury dashboard (ledger, all reimbursements,
-  // expenses, summary, receipt viewer, approve/pay actions) is
-  // restricted to the additive Treasurer / Chairman / Secretary tags
-  // plus Admin. Secretary is opt-in via FEATURE_TREASURY_SECRETARY_ACCESS.
-  // Committee+Admin retain access via a grandfather clause as long as
-  // none of the three new lists is seeded — the SETTINGS page shows a
-  // banner while grandfather is active. The worker is the authoritative
-  // enforcer; these client helpers just decide what to render.
+  // Under the strict 8-tier hierarchy (2026-07-12 refactor):
+  //   ADMIN > CHAIRMAN > SECRETARY > TREASURER > COMMITTEE > CONTRIBUTOR
+  //     > MANAGER > RESIDENT
+  // treasury view + act inherit down from TREASURER-and-above, i.e.
+  // ADMIN / CHAIRMAN / SECRETARY / TREASURER all see and act on the
+  // ledger. COMMITTEE is included here as a client-side grandfather
+  // fallback (the client can't tell whether the three treasury lists
+  // are seeded — only /access-lists returns that, and only committee+
+  // can read it). The Worker is the authoritative enforcer; if a plain
+  // committee member on a seeded install clicks through, their API
+  // calls will 403 and treasury.js surfaces the error.
+  //
+  // FEATURE_TREASURY_SECRETARY_ACCESS is deprecated (secretary
+  // inherits view via the hierarchy) but the flag is left in defaults
+  // for backward compatibility with legacy site.json files.
   function _rolesOf(who) {
     if (!who) return [];
     if (Array.isArray(who.roles)) return who.roles;
     return [];
   }
 
-  function canViewTreasury(who) {
+  function _hasTreasuryTier(who) {
+    // ADMIN / CHAIRMAN / SECRETARY / TREASURER — any of these grants
+    // treasury access under the strict hierarchy. Membership in one of
+    // these lists is reflected in `who.roles[]`; the primary tier
+    // (highest match) also appears there.
     const roles = _rolesOf(who);
-    if (roles.includes('ADMIN') || roles.includes('CHAIRMAN') || roles.includes('TREASURER')) return true;
-    if (roles.includes('SECRETARY') && on('FEATURE_TREASURY_SECRETARY_ACCESS')) return true;
-    // Client can't know the three access lists directly (only admins
-    // see /access-lists), so we DO NOT try to compute the grandfather
-    // fallback here — instead we fail open on the safer side by also
-    // treating COMMITTEE as a view-candidate. The server still enforces
-    // the strict rule; if the caller is a plain committee member on a
-    // seeded install, their API calls will 403 and treasury.js will
-    // surface that with a clear message.
-    if (roles.includes('COMMITTEE')) return true;
-    return false;
+    return roles.includes('ADMIN')
+        || roles.includes('CHAIRMAN')
+        || roles.includes('SECRETARY')
+        || roles.includes('TREASURER');
+  }
+
+  function canViewTreasury(who) {
+    if (_hasTreasuryTier(who)) return true;
+    // Client-side grandfather fallback — server has the last word.
+    return _rolesOf(who).includes('COMMITTEE');
   }
 
   function canActOnTreasury(who) {
-    const roles = _rolesOf(who);
-    if (roles.includes('ADMIN') || roles.includes('CHAIRMAN') || roles.includes('TREASURER')) return true;
-    // COMMITTEE for grandfather (see above); server has the last word.
-    if (roles.includes('COMMITTEE')) return true;
-    return false;
+    if (_hasTreasuryTier(who)) return true;
+    // Client-side grandfather fallback — server has the last word.
+    return _rolesOf(who).includes('COMMITTEE');
   }
 
   root.Flags = {

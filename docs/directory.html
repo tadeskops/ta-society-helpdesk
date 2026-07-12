@@ -166,7 +166,10 @@
 
     let who = { primary: 'PUBLIC' };
     try { who = await Flags.whoami(true); } catch (_e) {}
-    const canEdit = ['MANAGER', 'COMMITTEE', 'ADMIN'].includes(who.primary);
+    // Under the strict 8-tier hierarchy any tier at MANAGER-or-above
+    // may edit the directory. Using isAtLeast keeps CHAIRMAN, SECRETARY,
+    // TREASURER, COMMITTEE, CONTRIBUTOR and MANAGER all correctly gated.
+    const canEdit = !!Flags.isAtLeast && Flags.isAtLeast(who.primary, 'MANAGER');
 
     // Directory.init is async (it fetches /directory) and binds tab click
     // handlers only after that resolves. Await it before firing the hash

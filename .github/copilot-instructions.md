@@ -113,43 +113,68 @@ This workspace contains **two sibling repos** under `C:\CR7\TAMC\IRP_Repo\`:
 
 ## 0.1 Spec-first workflow — mandatory loop for every task
 
-Every task in this repo follows this three-step loop, in order. No
+Every task in this repo follows this **four-step** loop, in order. No
 step is optional and no step may be skipped because the user didn't
-restate it.
+restate it. Steps 1 and 4 are the "bookends" that keep spec and code
+in lockstep; steps 2 and 3 are the actual work.
 
-**Step 1 — Read `tsh_requirement.md` BEFORE writing code.**
+**Step 1 — Read `tsh_requirement.md` AND reconcile it against the
+current implementation BEFORE writing code.**
 
 - At the start of every task that could touch observable behavior
   (roles, Worker API, GitHub Issue conventions, config keys, feature
   flags, pages, setup runbook), open `tsh_requirement.md` and read
   the section(s) relevant to the request. Use the §1 trigger list
   below to identify which sections apply.
-- For pure-cosmetic / pure-refactor / local-tooling-only tasks, this
-  read can be skipped — but the agent must explicitly note in its
-  plan that the change is non-observable and therefore exempt.
-- If the request contradicts the spec, **stop and surface the
-  conflict to the user** before coding. Do not silently "implement
-  what the user asked" if the spec says otherwise — either the spec
-  is wrong (update it first, then implement) or the request is wrong
-  (confirm the deviation, then implement).
+- **Then verify those sections still match the code.** Do NOT trust
+  the spec on faith — earlier drift may already exist. For each
+  relevant section, spot-check the implementation:
+  - Roles / capabilities → `worker/src/auth/roles.ts`,
+    `worker/src/middleware/rbac.ts`, `docs/assets/js/flags.js`.
+  - Worker API actions → `worker/src/routes/*.ts` and the router
+    mounts in `worker/src/index.ts`.
+  - Config keys / feature flags → `worker/src/config/defaults.ts`
+    (`DEFAULT_CONFIG`) and `config/site.json`.
+  - Access lists → `config/*.json` filenames vs the `AccessLists`
+    interface in `worker/src/config/loader.ts`.
+  - Page routes / affordances → files under `docs/` and the flags
+    they read.
+- If spec and code disagree, **the code is (usually) the ground
+  truth** and the spec is stale. State the drift plainly to the user
+  in the plan, propose the spec correction, then proceed. The rare
+  exception — spec is right, code is wrong — is a bug: state it,
+  fix the code, and keep the spec.
+- For pure-cosmetic / pure-refactor / local-tooling-only tasks, both
+  the read and the reconciliation can be skipped — but the agent
+  must explicitly note in its plan that the change is non-observable
+  and therefore exempt.
+- If the request contradicts the (already-reconciled) spec, **stop
+  and surface the conflict to the user** before coding. Do not
+  silently "implement what the user asked" if the spec says
+  otherwise.
 - If the spec is silent on what the user is asking for, treat it as
   a spec gap. State the gap, propose the smallest spec addition that
   would cover it, get user confirmation, then implement against the
   updated spec.
 
-**Step 2 — Implement against the spec.**
+**Step 2 — Implement the user's request against the reconciled spec.**
 
 - Code, tests, and config changes must match the spec section(s) you
-  just read. If during implementation you discover the spec is
-  ambiguous, incomplete, or wrong, pause and resolve the spec first
+  just read and reconciled. If during implementation you discover
+  further ambiguity or a new drift, pause and resolve the spec first
   (loop back to Step 1) — do not push code that diverges from the
   spec with a "will fix the doc later" note.
 
-**Step 3 — Update `tsh_requirement.md` IN THE SAME COMMIT.**
+**Step 3 — Update `tsh_requirement.md` so it matches the
+implementation, IN THE SAME COMMIT.**
 
 - Every commit that changes observable behavior must include the
   matching `tsh_requirement.md` edit. Never split spec updates into
   a follow-up commit; never push code that leaves the spec stale.
+- Both new behavior introduced in Step 2 **and** any pre-existing
+  drift discovered in Step 1's reconciliation must be reflected in
+  this update. Do not leave "known drift, will fix later" TODOs in
+  the spec.
 - The full update rules — what to update, what to skip, how to edit
   in place, README runbook cross-check, and the pre-finish
   verification checklist — live in §1 below. Step 3 of this loop
@@ -158,10 +183,28 @@ restate it.
   local tooling), the spec stays untouched — and the commit message
   must say so explicitly (`refactor: …, no spec change`).
 
+**Step 4 — Post-implementation parity check.**
+
+- Before reporting the task complete, re-open the spec section(s)
+  touched in Step 3 and confirm every statement in them is now true
+  of the code. If any bullet references a role, endpoint, flag, or
+  config key that no longer exists (or exists but behaves
+  differently), fix the spec — even if that fix is unrelated to the
+  user's original request. The rule is: **when the loop ends, spec
+  and code agree, full stop.**
+- Explicitly mention in the final chat reply which spec section(s)
+  were updated (or "no spec change — refactor only").
+
 The loop applies to every turn, including small follow-ups ("also
 fix this typo", "now add a column", "rename the button"). Re-read
-the affected section each time — do not rely on a stale mental model
-from an earlier turn.
+and re-reconcile the affected section each time — do not rely on a
+stale mental model from an earlier turn.
+
+**The user does not need to re-state this loop.** Treat every
+incoming request as if it were prefixed with:
+_"analyze the currently implemented `tsh_requirement.md` against the
+code, then implement the request, then make sure the requirement
+file is aligned with the implementation."_
 
 ## 1. `tsh_requirement.md` is the spec — keep it in sync
 
@@ -231,6 +274,12 @@ checklist:
       convention, a `config/*.json` schema, a page route, a feature
       flag, or a setup step?
 - [ ] If yes → is `tsh_requirement.md` updated in the same commit?
+- [ ] Was any **pre-existing drift** discovered during Step 1's
+      spec-vs-implementation reconciliation? → Was it also fixed in
+      the same spec update (not deferred)?
+- [ ] Do the spec sections touched this turn now describe the code
+      **exactly** as it behaves (roles, endpoints, flags, defaults,
+      list names)? Post-implementation parity check per §0.1 Step 4.
 - [ ] If a new operator-run step exists → is the **README runbook
       table** updated too?
 

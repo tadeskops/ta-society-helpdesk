@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   resolveRoles, hasAny, isAtLeast,
   canViewTreasuryLedger, canActOnTreasuryLedger, isTreasuryGrandfatherActive,
+  canEditAccessList, canToggleFeatureFlag, rankOf,
 } from '../src/auth/roles.ts';
 import { ensureAllowed } from '../src/middleware/rbac.ts';
 import { Forbidden, FeatureDisabled, Unauthorized } from '../src/lib/errors.ts';
@@ -9,12 +10,13 @@ import { DEFAULT_CONFIG } from '../src/config/defaults.ts';
 import type { Ctx } from '../src/lib/ctx.ts';
 
 const access = {
-  managers:   ['mgr@x.com'],
-  committee:  ['cmt@x.com', 'mgr@x.com'], // committee also on managers — additive
-  admins: ['dev@x.com'],
-  treasurer: [] as string[],
-  chairman:  [] as string[],
-  secretary: [] as string[],
+  managers:    ['mgr@x.com'],
+  committee:   ['cmt@x.com', 'mgr@x.com'], // committee also on managers — additive
+  admins:      ['dev@x.com'],
+  treasurer:   [] as string[],
+  chairman:    [] as string[],
+  secretary:   [] as string[],
+  contributor: [] as string[],
 };
 
 describe('resolveRoles', () => {
@@ -43,7 +45,7 @@ describe('resolveRoles', () => {
   });
 });
 
-describe('hasAny / isAtLeast', () => {
+describe('hasAny / isAtLeast (strict 8-tier hierarchy)', () => {
   const dev = resolveRoles(access, 'dev@x.com');
   const mgr = resolveRoles(access, 'mgr@x.com'); // also committee
   const anon = resolveRoles(access, null);
@@ -54,23 +56,36 @@ describe('hasAny / isAtLeast', () => {
     expect(hasAny(anon, 'ADMIN', 'MANAGER')).toBe(false);
     expect(hasAny(res, 'RESIDENT')).toBe(true);
   });
-  it('isAtLeast walks the precedence chain', () => {
+  it('isAtLeast walks the 8-tier precedence chain', () => {
     expect(isAtLeast(dev, 'MANAGER')).toBe(true);
+    expect(isAtLeast(dev, 'CHAIRMAN')).toBe(true);   // ADMIN > CHAIRMAN
     expect(isAtLeast(mgr, 'ADMIN')).toBe(false);
+    expect(isAtLeast(mgr, 'COMMITTEE')).toBe(true);
+    expect(isAtLeast(mgr, 'TREASURER')).toBe(false); // COMMITTEE < TREASURER
     expect(isAtLeast(anon, 'UNKNOWN')).toBe(true);
     expect(isAtLeast(anon, 'RESIDENT')).toBe(false);
     expect(isAtLeast(res, 'RESIDENT')).toBe(true);
     expect(isAtLeast(res, 'MANAGER')).toBe(false);
   });
+  it('ADMIN inherits every capability below (strict linear chain)', () => {
+    expect(isAtLeast(dev, 'ADMIN')).toBe(true);
+    expect(isAtLeast(dev, 'CHAIRMAN')).toBe(true);
+    expect(isAtLeast(dev, 'SECRETARY')).toBe(true);
+    expect(isAtLeast(dev, 'TREASURER')).toBe(true);
+    expect(isAtLeast(dev, 'COMMITTEE')).toBe(true);
+    expect(isAtLeast(dev, 'CONTRIBUTOR')).toBe(true);
+    expect(isAtLeast(dev, 'MANAGER')).toBe(true);
+    expect(isAtLeast(dev, 'RESIDENT')).toBe(true);
+  });
 });
 
-const mkCtx = (email: string | null, opts: { config?: any; identity?: any } = {}): Ctx => ({
+const mkCtx = (email: string | null, opts: { config?: any; identity?: any; access?: any } = {}): Ctx => ({
   env: {} as any,
   req: new Request('https://x/'),
   url: new URL('https://x/'),
-  roles: resolveRoles(access, email),
+  roles: resolveRoles(opts.access ?? access, email),
   config: opts.config ?? DEFAULT_CONFIG,
-  access,
+  access: opts.access ?? access,
   ip: '127.0.0.1',
   ...(opts.identity ? { identity: opts.identity } : {}),
 });
@@ -99,45 +114,45 @@ describe('ensureAllowed', () => {
   });
 });
 
-// ------------------------------------------------------------ treasury tags
+// ------------------------------------------------------------ hierarchy tags
 
-describe('additive treasury tags (TREASURER / CHAIRMAN / SECRETARY)', () => {
-  it('appends TREASURER/CHAIRMAN/SECRETARY to roles.all without changing primary', () => {
-    const tagged = {
+describe('strict 8-tier hierarchy — CHAIRMAN/SECRETARY/TREASURER as first-class tiers', () => {
+  it('primary becomes CHAIRMAN/SECRETARY/TREASURER when the email is on that list only', () => {
+    const seeded = {
       ...access,
-      treasurer: ['cmt@x.com'],
-      chairman:  ['cmt@x.com'],
-      secretary: ['random@x.com'],
+      chairman:  ['chr@x.com'],
+      secretary: ['sec@x.com'],
+      treasurer: ['tre@x.com'],
     };
-    const cmt = resolveRoles(tagged, 'cmt@x.com');
-    // Primary stays COMMITTEE (highest precedence), tags appear in `all`.
-    expect(cmt.primary).toBe('COMMITTEE');
-    expect(cmt.all).toContain('TREASURER');
-    expect(cmt.all).toContain('CHAIRMAN');
-    expect(cmt.all).not.toContain('SECRETARY');
-
-    const rand = resolveRoles(tagged, 'random@x.com');
-    expect(rand.primary).toBe('RESIDENT'); // secretary is NOT in precedence
-    expect(rand.all).toContain('SECRETARY');
+    expect(resolveRoles(seeded, 'chr@x.com').primary).toBe('CHAIRMAN');
+    expect(resolveRoles(seeded, 'sec@x.com').primary).toBe('SECRETARY');
+    expect(resolveRoles(seeded, 'tre@x.com').primary).toBe('TREASURER');
   });
-
-  it('resolveRoles matches new tag lists case-insensitively', () => {
-    const tagged = { ...access, treasurer: ['Foo@X.COM'] };
-    const foo = resolveRoles(tagged, 'FOO@x.COM');
+  it('CHAIRMAN outranks SECRETARY outranks TREASURER outranks COMMITTEE', () => {
+    expect(rankOf('CHAIRMAN')).toBeLessThan(rankOf('SECRETARY'));
+    expect(rankOf('SECRETARY')).toBeLessThan(rankOf('TREASURER'));
+    expect(rankOf('TREASURER')).toBeLessThan(rankOf('COMMITTEE'));
+    expect(rankOf('COMMITTEE')).toBeLessThan(rankOf('CONTRIBUTOR'));
+    expect(rankOf('CONTRIBUTOR')).toBeLessThan(rankOf('MANAGER'));
+    expect(rankOf('MANAGER')).toBeLessThan(rankOf('RESIDENT'));
+  });
+  it('CONTRIBUTOR sits strictly between COMMITTEE and MANAGER', () => {
+    const seeded = { ...access, contributor: ['con@x.com'] };
+    const con = resolveRoles(seeded, 'con@x.com');
+    expect(con.primary).toBe('CONTRIBUTOR');
+    expect(isAtLeast(con, 'MANAGER')).toBe(true);
+    expect(isAtLeast(con, 'COMMITTEE')).toBe(false);
+  });
+  it('resolveRoles matches new tier lists case-insensitively', () => {
+    const seeded = { ...access, treasurer: ['Foo@X.COM'] };
+    const foo = resolveRoles(seeded, 'FOO@x.COM');
     expect(foo.all).toContain('TREASURER');
-  });
-
-  it('isAtLeast ignores additive tags (must use hasAny)', () => {
-    const tagged = { ...access, treasurer: ['t@x.com'] };
-    const t = resolveRoles(tagged, 't@x.com');
-    // Treasurer isn't in the precedence chain — user is just RESIDENT+TREASURER
-    expect(isAtLeast(t, 'MANAGER')).toBe(false);
-    expect(hasAny(t, 'TREASURER')).toBe(true);
+    expect(foo.primary).toBe('TREASURER');
   });
 });
 
 describe('isTreasuryGrandfatherActive', () => {
-  it('true when all three lists empty', () => {
+  it('true when chairman/secretary/treasurer all empty', () => {
     expect(isTreasuryGrandfatherActive(access)).toBe(true);
   });
   it('false as soon as ANY of the three is seeded', () => {
@@ -147,32 +162,26 @@ describe('isTreasuryGrandfatherActive', () => {
   });
 });
 
-describe('canViewTreasuryLedger', () => {
+describe('canViewTreasuryLedger (post-hierarchy: inherits via isAtLeast TREASURER)', () => {
   const cfgOff = DEFAULT_CONFIG;
-  const cfgSecOn = {
-    ...DEFAULT_CONFIG,
-    features: { ...DEFAULT_CONFIG.features, FEATURE_TREASURY_SECRETARY_ACCESS: true },
-  };
 
   it('ADMIN always allowed', () => {
     const dev = resolveRoles(access, 'dev@x.com');
     expect(canViewTreasuryLedger(dev, access, cfgOff)).toBe(true);
-    // ADMIN unaffected by grandfather off/on
     const seeded = { ...access, treasurer: ['t@x.com'] };
     expect(canViewTreasuryLedger(dev, seeded, cfgOff)).toBe(true);
   });
 
-  it('CHAIRMAN/TREASURER always allowed regardless of secretary flag', () => {
-    const seeded = { ...access, treasurer: ['tre@x.com'], chairman: ['chr@x.com'] };
-    expect(canViewTreasuryLedger(resolveRoles(seeded, 'tre@x.com'), seeded, cfgOff)).toBe(true);
+  it('CHAIRMAN / SECRETARY / TREASURER always allowed (strict-hierarchy inheritance)', () => {
+    const seeded = {
+      ...access,
+      chairman:  ['chr@x.com'],
+      secretary: ['sec@x.com'],
+      treasurer: ['tre@x.com'],
+    };
     expect(canViewTreasuryLedger(resolveRoles(seeded, 'chr@x.com'), seeded, cfgOff)).toBe(true);
-  });
-
-  it('SECRETARY denied when flag OFF, allowed when flag ON', () => {
-    const seeded = { ...access, secretary: ['sec@x.com'], treasurer: ['tre@x.com'] };
-    const sec = resolveRoles(seeded, 'sec@x.com');
-    expect(canViewTreasuryLedger(sec, seeded, cfgOff)).toBe(false);
-    expect(canViewTreasuryLedger(sec, seeded, cfgSecOn)).toBe(true);
+    expect(canViewTreasuryLedger(resolveRoles(seeded, 'sec@x.com'), seeded, cfgOff)).toBe(true);
+    expect(canViewTreasuryLedger(resolveRoles(seeded, 'tre@x.com'), seeded, cfgOff)).toBe(true);
   });
 
   it('grandfather: plain COMMITTEE allowed while all three lists empty', () => {
@@ -189,8 +198,13 @@ describe('canViewTreasuryLedger', () => {
   it('MANAGER (non-committee) is NEVER covered by grandfather', () => {
     const mgrOnly = { ...access, managers: ['just-mgr@x.com'], committee: [] };
     const m = resolveRoles(mgrOnly, 'just-mgr@x.com');
-    // Grandfather covers COMMITTEE+ADMIN, not MANAGER.
     expect(canViewTreasuryLedger(m, mgrOnly, cfgOff)).toBe(false);
+  });
+
+  it('CONTRIBUTOR is denied (below COMMITTEE in the chain)', () => {
+    const seeded = { ...access, contributor: ['con@x.com'] };
+    const con = resolveRoles(seeded, 'con@x.com');
+    expect(canViewTreasuryLedger(con, seeded, cfgOff)).toBe(false);
   });
 
   it('RESIDENT / anonymous always denied', () => {
@@ -200,17 +214,17 @@ describe('canViewTreasuryLedger', () => {
 });
 
 describe('canActOnTreasuryLedger', () => {
-  it('ADMIN/CHAIRMAN/TREASURER always allowed', () => {
-    const seeded = { ...access, treasurer: ['tre@x.com'], chairman: ['chr@x.com'] };
+  it('ADMIN / CHAIRMAN / SECRETARY / TREASURER all allowed under strict hierarchy', () => {
+    const seeded = {
+      ...access,
+      chairman:  ['chr@x.com'],
+      secretary: ['sec@x.com'],
+      treasurer: ['tre@x.com'],
+    };
     expect(canActOnTreasuryLedger(resolveRoles(access, 'dev@x.com'), access)).toBe(true);
-    expect(canActOnTreasuryLedger(resolveRoles(seeded, 'tre@x.com'), seeded)).toBe(true);
     expect(canActOnTreasuryLedger(resolveRoles(seeded, 'chr@x.com'), seeded)).toBe(true);
-  });
-
-  it('SECRETARY is NEVER allowed to act (view-only, even with flag on)', () => {
-    const seeded = { ...access, secretary: ['sec@x.com'], treasurer: ['tre@x.com'] };
-    const sec = resolveRoles(seeded, 'sec@x.com');
-    expect(canActOnTreasuryLedger(sec, seeded)).toBe(false);
+    expect(canActOnTreasuryLedger(resolveRoles(seeded, 'sec@x.com'), seeded)).toBe(true);
+    expect(canActOnTreasuryLedger(resolveRoles(seeded, 'tre@x.com'), seeded)).toBe(true);
   });
 
   it('grandfather: COMMITTEE can act until any list is seeded', () => {
@@ -218,5 +232,126 @@ describe('canActOnTreasuryLedger', () => {
     expect(canActOnTreasuryLedger(cmt, access)).toBe(true);
     const seeded = { ...access, treasurer: ['tre@x.com'] };
     expect(canActOnTreasuryLedger(resolveRoles(seeded, 'cmt@x.com'), seeded)).toBe(false);
+  });
+
+  it('CONTRIBUTOR / MANAGER / RESIDENT never act via this helper', () => {
+    const seeded = { ...access, contributor: ['con@x.com'], treasurer: ['tre@x.com'] };
+    expect(canActOnTreasuryLedger(resolveRoles(seeded, 'con@x.com'), seeded)).toBe(false);
+    expect(canActOnTreasuryLedger(resolveRoles(seeded, 'mgr@x.com'), seeded)).toBe(false);
+    expect(canActOnTreasuryLedger(resolveRoles(seeded, 'random@x.com'), seeded)).toBe(false);
+  });
+});
+
+describe('canEditAccessList (delegated editing rule)', () => {
+  const seeded = {
+    ...access,
+    chairman:    ['chr@x.com'],
+    secretary:   ['sec@x.com'],
+    treasurer:   ['tre@x.com'],
+    contributor: ['con@x.com'],
+  };
+  const admin      = resolveRoles(seeded, 'dev@x.com');
+  const chairman   = resolveRoles(seeded, 'chr@x.com');
+  const secretary  = resolveRoles(seeded, 'sec@x.com');
+  const treasurer  = resolveRoles(seeded, 'tre@x.com');
+  const committee  = resolveRoles(seeded, 'cmt@x.com');
+  const contributor = resolveRoles(seeded, 'con@x.com');
+  const manager    = resolveRoles(seeded, 'mgr@x.com'); // also on committee → primary=COMMITTEE
+  const resident   = resolveRoles(seeded, 'random@x.com');
+
+  it('ADMIN may edit every list including admins', () => {
+    for (const r of ['admins','chairman','secretary','treasurer','committee','contributor','managers'] as const) {
+      expect(canEditAccessList(admin, r)).toBe(true);
+    }
+  });
+  it('CHAIRMAN may edit secretary/treasurer/committee/contributor/managers but NOT admins or self', () => {
+    expect(canEditAccessList(chairman, 'admins')).toBe(false);
+    expect(canEditAccessList(chairman, 'chairman')).toBe(false);
+    expect(canEditAccessList(chairman, 'secretary')).toBe(true);
+    expect(canEditAccessList(chairman, 'treasurer')).toBe(true);
+    expect(canEditAccessList(chairman, 'committee')).toBe(true);
+    expect(canEditAccessList(chairman, 'contributor')).toBe(true);
+    expect(canEditAccessList(chairman, 'managers')).toBe(true);
+  });
+  it('SECRETARY may edit treasurer/committee/contributor/managers only', () => {
+    expect(canEditAccessList(secretary, 'chairman')).toBe(false);
+    expect(canEditAccessList(secretary, 'secretary')).toBe(false);
+    expect(canEditAccessList(secretary, 'treasurer')).toBe(true);
+    expect(canEditAccessList(secretary, 'committee')).toBe(true);
+    expect(canEditAccessList(secretary, 'contributor')).toBe(true);
+    expect(canEditAccessList(secretary, 'managers')).toBe(true);
+  });
+  it('TREASURER may edit committee/contributor/managers only', () => {
+    expect(canEditAccessList(treasurer, 'secretary')).toBe(false);
+    expect(canEditAccessList(treasurer, 'treasurer')).toBe(false);
+    expect(canEditAccessList(treasurer, 'committee')).toBe(true);
+    expect(canEditAccessList(treasurer, 'contributor')).toBe(true);
+    expect(canEditAccessList(treasurer, 'managers')).toBe(true);
+  });
+  it('COMMITTEE may edit contributor/managers only', () => {
+    expect(canEditAccessList(committee, 'treasurer')).toBe(false);
+    expect(canEditAccessList(committee, 'committee')).toBe(false);
+    expect(canEditAccessList(committee, 'contributor')).toBe(true);
+    expect(canEditAccessList(committee, 'managers')).toBe(true);
+  });
+  it('CONTRIBUTOR may edit managers only', () => {
+    expect(canEditAccessList(contributor, 'committee')).toBe(false);
+    expect(canEditAccessList(contributor, 'contributor')).toBe(false);
+    expect(canEditAccessList(contributor, 'managers')).toBe(true);
+  });
+  it('MANAGER / RESIDENT may edit nothing', () => {
+    // manager fixture is actually promoted to COMMITTEE via additive
+    // list membership above; test the pure MANAGER case explicitly.
+    const mgrOnly = { ...seeded, committee: ['cmt@x.com'], managers: ['pure-mgr@x.com'] };
+    const pureMgr = resolveRoles(mgrOnly, 'pure-mgr@x.com');
+    for (const r of ['admins','chairman','secretary','treasurer','committee','contributor','managers'] as const) {
+      expect(canEditAccessList(pureMgr, r)).toBe(false);
+      expect(canEditAccessList(resident, r)).toBe(false);
+    }
+    // manager fixture's real primary is COMMITTEE (multi-list membership),
+    // so it CAN edit contributor + managers — assert that separately:
+    expect(manager.primary).toBe('COMMITTEE');
+    expect(canEditAccessList(manager, 'managers')).toBe(true);
+  });
+});
+
+describe('canToggleFeatureFlag (delegated flag toggle)', () => {
+  const cfgAdminOnly = DEFAULT_CONFIG;
+  const cfgDelegated = {
+    ...DEFAULT_CONFIG,
+    system: {
+      ...DEFAULT_CONFIG.system,
+      flagDelegation: {
+        FEATURE_TREASURY_MANAGER_APPROVE: 'CHAIRMAN',
+        FEATURE_DAILY_COST_FIELD:          'COMMITTEE',
+      },
+    },
+  };
+  const seeded = { ...access, chairman: ['chr@x.com'], secretary: ['sec@x.com'] };
+
+  it('ADMIN may toggle every flag regardless of delegation', () => {
+    const admin = resolveRoles(seeded, 'dev@x.com');
+    expect(canToggleFeatureFlag(admin, 'FEATURE_DAILY_TRACK', cfgAdminOnly)).toBe(true);
+    expect(canToggleFeatureFlag(admin, 'FEATURE_TREASURY_MANAGER_APPROVE', cfgDelegated)).toBe(true);
+  });
+  it('non-admin cannot toggle when no delegation configured', () => {
+    const chr = resolveRoles(seeded, 'chr@x.com');
+    expect(canToggleFeatureFlag(chr, 'FEATURE_DAILY_TRACK', cfgAdminOnly)).toBe(false);
+  });
+  it('CHAIRMAN may toggle a flag delegated to CHAIRMAN', () => {
+    const chr = resolveRoles(seeded, 'chr@x.com');
+    expect(canToggleFeatureFlag(chr, 'FEATURE_TREASURY_MANAGER_APPROVE', cfgDelegated)).toBe(true);
+  });
+  it('SECRETARY (below CHAIRMAN) may NOT toggle a flag delegated to CHAIRMAN', () => {
+    const sec = resolveRoles(seeded, 'sec@x.com');
+    expect(canToggleFeatureFlag(sec, 'FEATURE_TREASURY_MANAGER_APPROVE', cfgDelegated)).toBe(false);
+  });
+  it('CHAIRMAN inherits COMMITTEE-delegated flags (higher tier)', () => {
+    const chr = resolveRoles(seeded, 'chr@x.com');
+    expect(canToggleFeatureFlag(chr, 'FEATURE_DAILY_COST_FIELD', cfgDelegated)).toBe(true);
+  });
+  it('MANAGER cannot toggle a COMMITTEE-delegated flag (lower tier)', () => {
+    const mgr = resolveRoles({ ...seeded, managers: ['pure-mgr@x.com'], committee: [] }, 'pure-mgr@x.com');
+    expect(canToggleFeatureFlag(mgr, 'FEATURE_DAILY_COST_FIELD', cfgDelegated)).toBe(false);
   });
 });

@@ -42,9 +42,13 @@ vi.mock('../src/config/loader.ts', async () => {
       // Force the announcements flag ON for the suite (default is off).
       config: { ...DEFAULT_CONFIG, features: { ...DEFAULT_CONFIG.features, FEATURE_DAILY_TURNSTILE: false, FEATURE_DAILY_ANNOUNCEMENTS: true } },
       access: {
-        managers:   ['mgr@x.com'],
-        committee:  ['cmt@x.com'],
-        admins: ['dev@x.com'],
+        managers:    ['mgr@x.com'],
+        committee:   ['cmt@x.com'],
+        admins:      ['dev@x.com'],
+        treasurer:   [],
+        chairman:    [],
+        secretary:   [],
+        contributor: [],
       },
     })),
     invalidateCache: vi.fn(),

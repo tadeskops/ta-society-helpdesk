@@ -33,6 +33,17 @@ export interface SiteConfig {
     backupTimes?: string[];
     /** Days to retain backups under /backups (informational; cleanup is manual today). */
     backupRetentionDays?: number;
+    /**
+     * Feature-flag delegation map. Keys are FEATURE_* names, values are
+     * the MINIMUM role (in the 8-tier hierarchy) permitted to toggle
+     * that flag via `PATCH /features/:flag`. ADMIN may always toggle
+     * every flag through PUT /config. Omit / empty = admin-only.
+     *
+     * Example: `{ "FEATURE_TREASURY_MANAGER_APPROVE": "CHAIRMAN" }` grants
+     * chairman-and-above (chairman, admin) the right to flip that flag
+     * without touching the full site.json.
+     */
+    flagDelegation?: Record<string, string>;
   };
   ui?: {
     defaultTheme?: 'dark' | 'light' | 'medium';
@@ -101,11 +112,12 @@ export const DEFAULT_CONFIG: SiteConfig = {
     FEATURE_TREASURY_MANAGER_PAY:            false,
     FEATURE_TREASURY_MANAGER_RECORD_EXPENSE: true,
     FEATURE_TREASURY_RESIDENT_RAISE:         true,
-    // When ON, users tagged in config/secretary.json can view the
-    // confidential treasury dashboard (ledger, all reimbursements,
-    // approve/pay actions). OFF by default so operators explicitly
-    // opt in. Treasurer + Chairman + Admin are always allowed;
-    // this flag is ONLY about Secretary.
+    // DEPRECATED (2026-07-12): under the new strict 8-tier hierarchy
+    // SECRETARY sits ABOVE TREASURER in the precedence chain and
+    // inherits treasury view naturally, so this flag is a no-op. It is
+    // retained in defaults for backward compatibility with existing
+    // site.json files that reference it and will be removed once all
+    // tenants have migrated. Do NOT rely on it in new code.
     FEATURE_TREASURY_SECRETARY_ACCESS:       false,
   },
   tunables: {
