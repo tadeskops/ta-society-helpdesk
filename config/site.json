@@ -43,13 +43,13 @@
     "FEATURE_TREASURY_MANAGER_PAY": false,
     "FEATURE_TREASURY_MANAGER_RECORD_EXPENSE": true,
     "FEATURE_TREASURY_RESIDENT_RAISE": true,
+    "FEATURE_MAINTENANCE_MODE": false,
     "FEATURE_TSH_VEHICLES": true,
     "FEATURE_TSH_VEHICLES_EMAIL_FILTER": false,
     "FEATURE_TSH_VEHICLES_STICKER_PATCH": false,
     "FEATURE_TSH_VEHICLES_BULK_EMAILS": false,
     "FEATURE_TSH_VEHICLES_RESIDENT_ADD": false,
-    "FEATURE_TREASURY_SECRETARY_ACCESS": false,
-    "FEATURE_MAINTENANCE_MODE": true
+    "FEATURE_TREASURY_SECRETARY_ACCESS": false
   },
   "tunables": {
     "DAILY_AUTO_ASSIGN_HOURS": 4,
@@ -364,7 +364,24 @@
       ],
       "residentAddRoles": [],
       "residentAddRequiresIdCheck": true,
-      "maxBulkEmails": 300
+      "maxBulkEmails": 300,
+      "towerLayouts": {
+        "A": {
+          "floors": 13,
+          "unitsPerFloor": 4
+        },
+        "B": {
+          "floors": 13,
+          "unitsPerFloor": 6
+        },
+        "C": {
+          "floors": 13,
+          "unitsPerFloor": 4
+        }
+      }
+    },
+    "maintenance": {
+      "message": "We are deploying new features and improvements. Please check back shortly."
     },
     "receiptTemplate": {
       "url": "https://raw.githubusercontent.com/tadeskops/ta-society-helpdesk/main/photos/receipts/template-0a4c072925b3c73d.pdf",
@@ -383,8 +400,7 @@
         "period": "monthly",
         "path": "{facilityCodeLower}/bckp/{period}/{periodKey}.pdf"
       }
-    },
-    "maintenance": {}
+    }
   },
   "ui": {
     "defaultTheme": "light",
