@@ -87,3 +87,4 @@
 {"at":"2026-07-11T20:12:46.612Z","actor":"ta.deskops@gmail.com","action":"access-list:put","target":"config/chairman.json","detail":"count=1"}
 {"at":"2026-07-11T20:12:57.844Z","actor":"ta.deskops@gmail.com","action":"access-list:put","target":"config/secretary.json","detail":"count=1"}
 {"at":"2026-07-12T06:32:43.740Z","actor":"ta.deskops@gmail.com","action":"issue:delete","target":"TKT-1207261201","detail":"sample"}
+{"at":"2026-07-12T06:44:31.499Z","actor":"ta.deskops@gmail.com","action":"directory:put","target":"config/directory.json","detail":"vendors=1 contacts=12 resources=1 services=33 emergency=0"}
