@@ -1,4 +1,18 @@
 {
   "version": 1,
-  "vehicles": []
+  "vehicles": [
+    {
+      "id": "veh-b805-mh12jr6119",
+      "flat": "B805",
+      "regNo": "MH12JR6119",
+      "regNoDisplay": "MH12JR6119",
+      "type": "2W",
+      "createdAt": "2026-07-12T19:54:10.590Z",
+      "updatedAt": "2026-07-12T19:54:10.590Z",
+      "updatedBy": "ta.deskops@gmail.com",
+      "emails": [
+        "vibhumaitreya@gmail.com"
+      ]
+    }
+  ]
 }
