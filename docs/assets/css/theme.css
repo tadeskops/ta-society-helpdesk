@@ -451,6 +451,42 @@ html[data-theme="medium"] .tsh-user-role-manager {
 }
 .tsh-footer-ig:hover i { filter: brightness(1.15) saturate(1.1); transform: scale(1.06); }
 
+/* "Report tool issue" cluster in the meta strip: two tiny icon-only
+   links (GitHub bug + email envelope). Kept quiet so it doesn't compete
+   with the source/version text, but hoverable for discoverability.
+   Each link is a small tap target (padding + border-radius) so it's
+   usable on touch without visually shouting. */
+.tsh-footer-report {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  vertical-align: middle;
+}
+.tsh-footer-report-label {
+  color: var(--c-text-muted);
+  opacity: 0.85;
+  margin-right: 2px;
+}
+.tsh-footer-report-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  min-height: 22px;
+  padding: 2px 5px;
+  border-radius: 6px;
+  color: var(--c-text-muted);
+  text-decoration: none;
+  transition: color 140ms ease, background 140ms ease, transform 140ms ease;
+}
+.tsh-footer-report-link:hover,
+.tsh-footer-report-link:focus-visible {
+  color: var(--c-primary);
+  background: var(--c-primary-soft, rgba(0, 0, 0, 0.05));
+  transform: translateY(-1px);
+}
+.tsh-footer-report-link i { font-size: 0.95em; line-height: 1; }
+
 /* Mobile (<=640px): keep the three-zone intent but tighten everything
    so the footer reads as a single sleek line. IG icon drops to 1.15
    rem, handle text to 0.82rem; meta drops to 0.7rem and stays on the
@@ -467,6 +503,9 @@ html[data-theme="medium"] .tsh-user-role-manager {
   .tsh-footer-ig i { font-size: 1.15rem; }
   .tsh-footer-meta { font-size: 0.7rem; }
   .tsh-footer-center { font-size: 0.7rem; flex-basis: 100%; }
+  .tsh-footer-report { gap: 2px; }
+  .tsh-footer-report-link { min-width: 24px; min-height: 24px; padding: 3px 5px; }
+  .tsh-footer-report-link i { font-size: 0.85rem; }
 }
 .tsh-visitors {
   display: inline-flex;

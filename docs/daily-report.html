@@ -73,7 +73,14 @@
           <legend>Photos (optional)</legend>
           <label class="tsh-field">
             <span class="tsh-label">Up to 5 photos</span>
-            <input type="file" name="photos" accept="image/*" multiple capture="environment" />
+            <!--
+              Intentionally NO `capture` attribute: on mobile that forces the
+              camera to open directly and blocks gallery/file selection. Omitting
+              it lets iOS/Android show the native chooser (Photo Library / Take
+              Photo / Choose File), which is what residents expect for proof
+              attachments. Desktop behaviour is unchanged.
+            -->
+            <input type="file" name="photos" accept="image/*" multiple />
           </label>
           <div id="photoTray" class="tsh-photo-tray" hidden></div>
           <p class="tsh-hint">Photos are resized in your browser before upload &mdash; saves data on mobile.</p>

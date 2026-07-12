@@ -17,7 +17,85 @@
     <i class="fas fa-shield-halved" aria-hidden="true"></i>
     The Address · Society Help Desk ·
     <a href="https://github.com/tadeskops/ta-society-helpdesk" rel="noopener" target="_blank"><i class="fab fa-github"></i> source</a> ·
+    <!--
+      Report a page/tool bug. Two channels so residents can pick whichever
+      is convenient: GitHub (bug icon) opens a prefilled new-issue form,
+      email (envelope icon) opens the user's mail client. Both carry the
+      "[Tool Issue]" prefix as required. The inline script below enriches
+      each href with the current page URL, timestamp and user-agent so the
+      maintainer gets context without the reporter having to type it.
+    -->
+    <span class="tsh-footer-report" data-tsh-report>
+      <span class="tsh-footer-report-label" aria-hidden="true">report:</span>
+      <a class="tsh-footer-report-link"
+         data-tsh-report-github
+         href="https://github.com/tadeskops/ta-society-helpdesk/issues/new?title=%5BTool%20Issue%5D%20&amp;labels=tool-issue"
+         rel="noopener"
+         target="_blank"
+         aria-label="Report a website issue on GitHub (prefixed with [Tool Issue])"
+         title="Report a website issue on GitHub (opens a new tab with a prefilled issue)">
+        <i class="fas fa-bug" aria-hidden="true"></i>
+      </a>
+      <a class="tsh-footer-report-link"
+         data-tsh-report-email
+         href="mailto:ta.deskops@gmail.com?subject=%5BTool%20Issue%5D%20"
+         rel="noopener"
+         aria-label="Report a website issue by email (subject prefixed with [Tool Issue])"
+         title="Report a website issue by email (opens your mail client with subject prefilled)">
+        <i class="fas fa-envelope" aria-hidden="true"></i>
+      </a>
+    </span> ·
     <span data-tsh-build>v1</span>
   </small>
+  <script>
+    // Enrich the "report tool issue" links with page context. Runs from
+    // the footer partial after Partials.mount() re-inserts scripts. All
+    // errors are swallowed — footer must never break the page. Static
+    // hrefs above act as a safe fallback if this script fails to run.
+    (function () {
+      try {
+        const ghEl   = document.querySelector('[data-tsh-report-github]');
+        const mailEl = document.querySelector('[data-tsh-report-email]');
+        if (!ghEl && !mailEl) return;
+
+        const nl       = '\n';
+        const pageUrl  = location.href;
+        const pageName = (document.title || location.pathname || 'unknown page').trim();
+        const stamp    = new Date().toISOString();
+        const ua       = navigator.userAgent || 'unknown';
+        const title    = '[Tool Issue] ' + pageName + ' — <short description>';
+
+        const bodyMd =
+          '**Where:** [' + pageName + '](' + pageUrl + ')' + nl +
+          '**When:** ' + stamp + nl +
+          '**Browser:** `' + ua + '`' + nl + nl +
+          '### What went wrong' + nl +
+          '<!-- Describe the problem, expected vs actual, and any steps to reproduce. -->' + nl;
+
+        const bodyTxt =
+          'Where: ' + pageUrl + nl +
+          'When:  ' + stamp + nl +
+          'Browser: ' + ua + nl + nl +
+          'What went wrong:' + nl +
+          '(Describe the problem, expected vs actual, and any steps to reproduce.)' + nl;
+
+        if (ghEl) {
+          try {
+            const u = new URL(ghEl.href);
+            u.searchParams.set('title', title);
+            u.searchParams.set('body', bodyMd);
+            u.searchParams.set('labels', 'tool-issue');
+            ghEl.href = u.toString();
+          } catch (_e) { /* leave static href in place */ }
+        }
+        if (mailEl) {
+          mailEl.href =
+            'mailto:ta.deskops@gmail.com'
+            + '?subject=' + encodeURIComponent(title)
+            + '&body='   + encodeURIComponent(bodyTxt);
+        }
+      } catch (_e) { /* never break the footer */ }
+    })();
+  </script>
 </footer>
 
