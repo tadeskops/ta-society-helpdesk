@@ -156,6 +156,42 @@
       </header>
 
       <form id="settingsForm" novalidate>
+        <!--
+          Maintenance mode. Admin-only edit. When ON, docs/assets/js/flags.js
+          renders a full-page "under maintenance" card for non-admin visitors
+          on every page except settings.html (so admins can still turn it off).
+        -->
+        <details class="tsh-section" id="maintenanceSection" open data-admin-only="true">
+          <summary><h2><i class="fas fa-hammer gold-accent"></i> Maintenance mode <span class="tsh-hint">(admin only)</span></h2></summary>
+          <p class="tsh-hint" style="margin-top:.2rem;margin-bottom:.7rem">
+            Show a site-wide <strong>“Under maintenance / new features under deployment”</strong>
+            page to every visitor <em>except administrators</em>. Admins keep full access from
+            every page and see a small banner reminding them the site is gated. Turn this OFF
+            once the deployment is complete.
+          </p>
+          <div class="tsh-grid-2">
+            <div class="tsh-field tsh-field-card">
+              <label class="tsh-field-inline" style="margin:0">
+                <input type="checkbox" id="maintenanceModeToggle" name="features.FEATURE_MAINTENANCE_MODE" />
+                <span class="tsh-label">Enable maintenance mode</span>
+              </label>
+              <small class="tsh-field-desc">
+                When ON, only admins can browse the site. All other roles see the maintenance
+                card. Feature flag: <code>FEATURE_MAINTENANCE_MODE</code>.
+              </small>
+            </div>
+            <div class="tsh-field tsh-field-card">
+              <span class="tsh-label" for="maintenanceMessage">Message shown on the maintenance page</span>
+              <input type="text" id="maintenanceMessage" name="system.maintenance.message"
+                     maxlength="240" placeholder="We are deploying new features and improvements. Please check back shortly." />
+              <small class="tsh-field-desc">
+                Optional. Up to 240 characters. Falls back to the default copy when blank.
+                Path: <code>system.maintenance.message</code>.
+              </small>
+            </div>
+          </div>
+        </details>
+
         <details class="tsh-section" open>
           <summary><h2>Access lists</h2></summary>
           <p class="tsh-hint" style="margin-top:.2rem;margin-bottom:.6rem">
@@ -456,7 +492,7 @@
   <script src="./assets/js/partials.js?v=22"></script>
   <script src="./assets/js/api.js?v=12"></script>
   <script src="./assets/js/auth.js?v=11"></script>
-  <script src="./assets/js/flags.js?v=14"></script>
+  <script src="./assets/js/flags.js?v=15"></script>
   <script src="./assets/js/collapse-registry.js?v=1"></script>
   <script src="./assets/js/ui.js?v=53"></script>
   <script src="./assets/js/notify.js?v=1"></script>
@@ -530,6 +566,10 @@
       // the map of who-may-toggle-what.
       const flagDelSec = document.getElementById('flagDelegationSection');
       if (flagDelSec) flagDelSec.hidden = true;
+
+      // Maintenance mode is also admin-only — hide the section entirely
+      // so non-admins never see the "flip the whole site" toggle.
+      for (const el of document.querySelectorAll('[data-admin-only="true"]')) el.hidden = true;
 
       // Re-enable ONLY the access-list textareas the caller is
       // delegated to edit under the strict-linear-hierarchy rule.
@@ -793,6 +833,10 @@
       // so we filter them out of the generic grid to avoid duplication.
       const isTreasuryFlag = (n) => n === 'FEATURE_TREASURY' || n.startsWith('FEATURE_TREASURY_');
       const isTreasuryTunable = (n) => n.startsWith('TREASURY_');
+      // Maintenance mode has its own dedicated section at the top of the
+      // page — filter it out of the generic feature-flags grid so the
+      // same checkbox doesn't render twice under two different names.
+      const isMaintenanceFlag = (n) => n === 'FEATURE_MAINTENANCE_MODE';
       const FLAG_GROUPS = [
         { key: 'DAILY',        label: 'Daily issues & reporting',  match: (n) => n === 'FEATURE_DAILY_TRACK' || n.startsWith('FEATURE_DAILY_') },
         { key: 'RESERVATIONS', label: 'Reservations',              match: (n) => n === 'FEATURE_TSH_RESERVATIONS' || n.startsWith('FEATURE_TSH_RESERVATIONS_') },
@@ -803,6 +847,7 @@
       const flagsByGroup = new Map(FLAG_GROUPS.map((g) => [g.key, []]));
       for (const [name, val] of Object.entries(cfg.features || {})) {
         if (isTreasuryFlag(name)) continue;
+        if (isMaintenanceFlag(name)) continue;
         const grp = FLAG_GROUPS.find((g) => g.match(name)) || FLAG_GROUPS[FLAG_GROUPS.length - 1];
         flagsByGroup.get(grp.key).push([name, val]);
       }
@@ -928,6 +973,16 @@
       if (sys.photoStorage) form.elements['system.photoStorage'].value = sys.photoStorage;
       form.elements['system.logoUrl'].value           = sys.logoUrl || '';
       form.elements['system.logoNameUrl'].value       = sys.logoNameUrl || '';
+      // Maintenance mode. Checkbox binds to features.FEATURE_MAINTENANCE_MODE
+      // (already populated above via the generic features.* pass); message
+      // lives under system.maintenance.message.
+      {
+        const _mnt = (sys.maintenance && typeof sys.maintenance === 'object') ? sys.maintenance : {};
+        const _msg = form.elements['system.maintenance.message'];
+        if (_msg) _msg.value = (typeof _mnt.message === 'string') ? _mnt.message : '';
+        const _chk = form.elements['features.FEATURE_MAINTENANCE_MODE'];
+        if (_chk) _chk.checked = !!(cfg.features && cfg.features.FEATURE_MAINTENANCE_MODE);
+      }
       form.elements['system.weeklyReportUrl'].value   = sys.weeklyReportUrl || '';
       form.elements['system.fullReportUrl'].value     = sys.fullReportUrl || '';
       if (sys.reportBackupFreq) form.elements['system.reportBackupFreq'].value = sys.reportBackupFreq;
@@ -1063,6 +1118,17 @@
       cfg.system.photoStorage      = form.elements['system.photoStorage'].value;
       cfg.system.logoUrl           = form.elements['system.logoUrl'].value.trim();
       cfg.system.logoNameUrl       = form.elements['system.logoNameUrl'].value.trim();
+      // Maintenance-mode message (top-of-form section). Empty string
+      // clears the custom copy so the client falls back to the default.
+      {
+        const _msgEl = form.elements['system.maintenance.message'];
+        if (_msgEl) {
+          const _msg = String(_msgEl.value || '').trim().slice(0, 240);
+          cfg.system.maintenance = cfg.system.maintenance || {};
+          if (_msg) cfg.system.maintenance.message = _msg;
+          else if (cfg.system.maintenance) delete cfg.system.maintenance.message;
+        }
+      }
       cfg.system.weeklyReportUrl   = form.elements['system.weeklyReportUrl'].value.trim();
       cfg.system.fullReportUrl     = form.elements['system.fullReportUrl'].value.trim();
       cfg.system.reportBackupFreq  = form.elements['system.reportBackupFreq'].value;

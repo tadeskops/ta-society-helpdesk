@@ -30,6 +30,101 @@
   let cfgPromise = null;
   let whoamiCache = null;
   let whoamiAt = 0;
+  // Maintenance gate — see maybeApplyMaintenance() below. Rendered as a
+  // fixed overlay so header sign-in stays clickable for admins.
+  let maintenanceApplied = false;
+
+  // -----------------------------------------------------------------
+  // Maintenance mode.
+  // Feature flag: FEATURE_MAINTENANCE_MODE. When ON, non-ADMIN visitors
+  // see a full-page card ("Under maintenance / new features under
+  // deployment") on every page except settings.html (so admins can
+  // still switch it off). Admins see a small banner but the site runs
+  // normally.
+  // -----------------------------------------------------------------
+  function _currentPageIsSettings() {
+    try {
+      const p = String(location.pathname || '').toLowerCase();
+      return /(^|\/)settings\.html$/.test(p) || p.endsWith('/settings');
+    } catch (_e) { return false; }
+  }
+
+  function _renderMaintenanceOverlay(cfg2) {
+    if (document.getElementById('tshMaintenanceOverlay')) return;
+    const sys = (cfg2 && cfg2.system) || {};
+    const site = (cfg2 && cfg2.site) || {};
+    const message = (sys.maintenance && typeof sys.maintenance.message === 'string' && sys.maintenance.message.trim())
+      ? sys.maintenance.message.trim()
+      : 'We are deploying new features and improvements. Please check back shortly.';
+    const societyName = String(site.name || sys.societyName || 'Society Help Desk');
+    const logoUrl = String(sys.logoUrl || './assets/images/TaLogo.png');
+    const style = document.createElement('style');
+    style.id = 'tshMaintenanceOverlayStyle';
+    style.textContent = ''
+      + '#tshMaintenanceOverlay{position:fixed;inset:0;z-index:900;'
+      + 'background:rgba(15,20,30,.94);display:flex;align-items:center;justify-content:center;'
+      + 'padding:1.5rem;font-family:inherit;overflow-y:auto;}'
+      + '#tshMaintenanceOverlay .tsh-mnt-card{max-width:520px;width:100%;background:var(--tsh-surface,#fff);'
+      + 'border-radius:16px;padding:2.2rem 1.8rem;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.35);'
+      + 'border:1px solid var(--tsh-accent,#b48a3c);}'
+      + '#tshMaintenanceOverlay img.tsh-mnt-logo{max-width:120px;max-height:120px;margin:0 auto .8rem;display:block;}'
+      + '#tshMaintenanceOverlay h1{margin:.2rem 0 .3rem;font-size:1.5rem;letter-spacing:.02em;color:var(--tsh-text,#223);}'
+      + '#tshMaintenanceOverlay h2{margin:0 0 1rem;font-size:1.05rem;font-weight:600;'
+      + 'color:var(--tsh-accent,#b48a3c);letter-spacing:.05em;text-transform:uppercase;}'
+      + '#tshMaintenanceOverlay p{margin:.4rem 0;line-height:1.55;color:var(--tsh-text,#223);}'
+      + '#tshMaintenanceOverlay .tsh-mnt-hint{font-size:.85rem;color:var(--tsh-muted,#667);margin-top:1.1rem;}'
+      + '#tshMaintenanceOverlay .tsh-mnt-hint a{color:var(--tsh-accent,#b48a3c);text-decoration:underline;}'
+      + '.tsh-mnt-admin-banner{position:fixed;top:0;left:0;right:0;z-index:1100;'
+      + 'background:var(--tsh-accent,#b48a3c);color:#1a1f2e;text-align:center;'
+      + 'padding:.35rem .8rem;font-size:.85rem;font-weight:600;letter-spacing:.03em;'
+      + 'box-shadow:0 2px 8px rgba(0,0,0,.25);}'
+      + '.tsh-mnt-admin-banner a{color:#1a1f2e;text-decoration:underline;margin-left:.6rem;}';
+    document.head.appendChild(style);
+    const overlay = document.createElement('div');
+    overlay.id = 'tshMaintenanceOverlay';
+    overlay.setAttribute('role', 'alert');
+    overlay.setAttribute('aria-live', 'polite');
+    overlay.innerHTML = ''
+      + '<div class="tsh-mnt-card">'
+      +   '<img class="tsh-mnt-logo" src="' + logoUrl.replace(/"/g, '&quot;') + '" alt="Society logo" />'
+      +   '<h1>' + societyName.replace(/</g, '&lt;') + '</h1>'
+      +   '<h2><i class="fas fa-hammer" aria-hidden="true"></i> Under Maintenance</h2>'
+      +   '<p>' + message.replace(/</g, '&lt;') + '</p>'
+      +   '<p class="tsh-mnt-hint">If you are an administrator, please sign in from the top-right menu to continue.</p>'
+      + '</div>';
+    document.body.appendChild(overlay);
+  }
+
+  function _renderMaintenanceAdminBanner(cfg2) {
+    if (document.getElementById('tshMaintenanceAdminBanner')) return;
+    const sys = (cfg2 && cfg2.system) || {};
+    const customMsg = (sys.maintenance && typeof sys.maintenance.message === 'string' && sys.maintenance.message.trim()) || '';
+    const banner = document.createElement('div');
+    banner.id = 'tshMaintenanceAdminBanner';
+    banner.className = 'tsh-mnt-admin-banner';
+    banner.innerHTML = ''
+      + '<i class="fas fa-triangle-exclamation" aria-hidden="true"></i> '
+      + 'Maintenance mode is ON — visitors see the "under maintenance" page. '
+      + (customMsg ? '<span style="opacity:.85">Message: ' + customMsg.replace(/</g, '&lt;').slice(0, 90) + '</span> ' : '')
+      + '<a href="./settings.html">Open Settings</a>';
+    document.body.appendChild(banner);
+  }
+
+  async function maybeApplyMaintenance(cfg2) {
+    if (maintenanceApplied) return;
+    if (!cfg2 || !cfg2.features || cfg2.features.FEATURE_MAINTENANCE_MODE !== true) return;
+    if (_currentPageIsSettings()) return; // Admin's escape hatch — never gate settings.
+    maintenanceApplied = true;
+    // Resolve identity so admins can bypass. Anonymous / non-admin get the overlay.
+    let who = null;
+    try { who = await whoami(); } catch (_e) { who = null; }
+    const roles = _rolesOf(who);
+    if (roles.includes('ADMIN')) {
+      _renderMaintenanceAdminBanner(cfg2);
+      return;
+    }
+    _renderMaintenanceOverlay(cfg2);
+  }
 
   async function ready() {
     if (cfg) return cfg;
@@ -66,6 +161,11 @@
               brand.classList.add('has-bitmap-wordmark');
             }
           }
+          // Maintenance mode gate. Non-blocking — the promise resolves as
+          // usual so callers keep their normal flow. If maintenance is ON
+          // and the visitor is not an ADMIN, the overlay renders on top of
+          // whatever the page ends up showing.
+          try { maybeApplyMaintenance(c); } catch (_e) { /* never block */ }
           return c;
         })
         .catch((e) => { cfgPromise = null; throw e; });
