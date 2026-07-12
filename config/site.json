@@ -44,6 +44,10 @@
     "FEATURE_TREASURY_MANAGER_RECORD_EXPENSE": true,
     "FEATURE_TREASURY_RESIDENT_RAISE": true,
     "FEATURE_TSH_VEHICLES": true,
+    "FEATURE_TSH_VEHICLES_EMAIL_FILTER": false,
+    "FEATURE_TSH_VEHICLES_STICKER_PATCH": false,
+    "FEATURE_TSH_VEHICLES_BULK_EMAILS": false,
+    "FEATURE_TSH_VEHICLES_RESIDENT_ADD": false,
     "FEATURE_TREASURY_SECRETARY_ACCESS": false
   },
   "tunables": {
@@ -339,7 +343,27 @@
         "TREASURER",
         "COMMITTEE",
         "MANAGER"
-      ]
+      ],
+      "stickerRoles": [
+        "ADMIN",
+        "CHAIRMAN",
+        "SECRETARY",
+        "TREASURER",
+        "COMMITTEE",
+        "MANAGER",
+        "SECURITY_GUARD"
+      ],
+      "bulkEmailRoles": [
+        "ADMIN",
+        "CHAIRMAN",
+        "SECRETARY",
+        "TREASURER",
+        "COMMITTEE",
+        "MANAGER"
+      ],
+      "residentAddRoles": [],
+      "residentAddRequiresIdCheck": true,
+      "maxBulkEmails": 300
     },
     "receiptTemplate": {
       "url": "https://raw.githubusercontent.com/tadeskops/ta-society-helpdesk/main/photos/receipts/template-0a4c072925b3c73d.pdf",
