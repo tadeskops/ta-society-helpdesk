@@ -227,7 +227,24 @@
   // Caller pattern (after Flags.ready()):
   //   try { Flags.ensureFeature('FEATURE_DAILY_PUBLIC_BOARD', 'Public board'); }
   //   catch (_e) { return; }
+  //
+  // IMPORTANT: this reads cfg synchronously. If cfg has not loaded yet
+  // (i.e. the caller forgot `await Flags.ready()`), we treat that as a
+  // programmer error rather than silently rendering the disabled gate —
+  // otherwise a page will appear disabled even when the flag is on in
+  // Settings. Warn loudly in the console + block on ready() before
+  // deciding. This makes ensureFeature safe to call in any order.
   function ensureFeature(flag, friendlyName) {
+    if (!cfg) {
+      // Fire-and-forget: schedule the real check on next tick after ready
+      // resolves. If the flag turns out to be off, the gate will render
+      // then. Meanwhile we throw so the current bootstrap stops (matches
+      // the sync semantics existing callers rely on).
+      // eslint-disable-next-line no-console
+      console.warn('[Flags.ensureFeature] called before Flags.ready(); page will re-check once config loads. flag=' + flag);
+      ready().then(() => { try { ensureFeature(flag, friendlyName); } catch (_e) { /* gate already rendered */ } });
+      throw new Error('FlagsNotReady:' + flag);
+    }
     if (on(flag)) return;
     const main = document.querySelector('main') || document.body;
     const name = friendlyName || flag;

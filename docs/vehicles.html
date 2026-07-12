@@ -132,7 +132,7 @@
   <script src="./assets/js/partials.js?v=22"></script>
   <script src="./assets/js/api.js?v=12"></script>
   <script src="./assets/js/auth.js?v=11"></script>
-  <script src="./assets/js/flags.js?v=13"></script>
+  <script src="./assets/js/flags.js?v=14"></script>
   <script src="./assets/js/collapse-registry.js?v=1"></script>
   <script src="./assets/js/ui.js?v=53"></script>
   <script src="./assets/js/notify.js?v=1"></script>
@@ -146,8 +146,14 @@
     // Page-level guards: feature flag + sign-in. The server also enforces
     // both on every /vehicles call, but rendering the gate client-side is
     // faster than round-tripping only to be redirected.
+    //
+    // IMPORTANT: Flags.ensureFeature() reads cfg synchronously and returns
+    // false-and-renders-the-gate if the config hasn't loaded yet. We MUST
+    // await Flags.ready() first, otherwise the disabled-gate is shown even
+    // when the flag is actually ON in Settings.
     try {
-      await Flags.ensureFeature('FEATURE_TSH_VEHICLES');
+      await Flags.ready();
+      Flags.ensureFeature('FEATURE_TSH_VEHICLES', 'Vehicle registry');
     } catch (_e) { return; }
     let who;
     try { who = await Flags.ensureAuthorized('RESIDENT'); }
