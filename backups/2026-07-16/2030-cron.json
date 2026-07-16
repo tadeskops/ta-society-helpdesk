@@ -1,0 +1,142 @@
+{
+  "generatedAt": "2026-07-16T15:00:58.844Z",
+  "generatedBy": "cron@tsh-worker",
+  "slot": "20:00",
+  "title": "Society Help Desk — Scheduled Snapshot",
+  "source": "cron",
+  "itemCount": 9,
+  "items": [
+    {
+      "id": "TKT-1207261201",
+      "number": 9,
+      "title": "TKT-[redacted] · Lift · A",
+      "status": "deleted",
+      "description": "",
+      "photoUrls": [],
+      "createdAt": "2026-07-12T06:31:09Z",
+      "updatedAt": "2026-07-12T06:32:43Z",
+      "url": "https://github.com/tadeskops/ta-society-helpdesk/issues/9",
+      "tower": "A",
+      "category": "lift"
+    },
+    {
+      "id": "TKT-1207261025",
+      "number": 8,
+      "title": "TKT-[redacted] · Building & Civil · Common Area",
+      "status": "assigned",
+      "description": "* Poor finishing around the door frame Large gaps, chipped plaster, and uneven edges are visible around the frame.\n* Improper frame installation finish  Frame-to-wall joints are not properly sealed, and fixing holes remain exposed.\n* Wall surface defects : Visible damage, dents, and unfinished patches require repair and touch-up.",
+      "photoUrls": [
+        "https://raw.githubusercontent.com/tadeskops/ta-society-helpdesk/main/photos/DLY-00008/01.jpg"
+      ],
+      "createdAt": "2026-07-12T04:55:26Z",
+      "updatedAt": "2026-07-12T09:00:45Z",
+      "url": "https://github.com/tadeskops/ta-society-helpdesk/issues/8",
+      "tower": "Common Area",
+      "category": "Building & Civil",
+      "location": "B-Wing Lift lobby (Basement floor)"
+    },
+    {
+      "id": "TKT-0607261640",
+      "number": 7,
+      "title": "TKT-[redacted] · Lift · Common Area",
+      "status": "assigned",
+      "description": "Are required to be swept and moped (walls with wet cloth)  on daily basis",
+      "photoUrls": [],
+      "createdAt": "2026-07-06T11:10:07Z",
+      "updatedAt": "2026-07-06T16:00:29Z",
+      "url": "https://github.com/tadeskops/ta-society-helpdesk/issues/7",
+      "tower": "Common Area",
+      "category": "Lift",
+      "location": "All Lifts"
+    },
+    {
+      "id": "TKT-3006260952",
+      "number": 6,
+      "title": "TKT-[redacted] · Cleaning · Common Area",
+      "status": "in-progress",
+      "description": "Floors must be Sweeped (cleaned) on regular basis. It may lead to 2 wheeler getting slipped due to debris deposit.\nAlso ask builder to clear the debris on regular basis as this is all builder dump only.",
+      "photoUrls": [
+        "https://raw.githubusercontent.com/tadeskops/ta-society-helpdesk/main/photos/DLY-00006/01.jpg"
+      ],
+      "createdAt": "2026-06-30T04:22:20Z",
+      "updatedAt": "2026-07-06T11:07:24Z",
+      "url": "https://github.com/tadeskops/ta-society-helpdesk/issues/6",
+      "tower": "Common Area",
+      "category": "Cleaning",
+      "location": "Exit Driveway from basement near charging station"
+    },
+    {
+      "id": "TKT-3006260802",
+      "number": 5,
+      "title": "TKT-[redacted] · Lift · B",
+      "status": "resolved",
+      "description": "Not operational sign being displayed since two days.",
+      "photoUrls": [],
+      "createdAt": "2026-06-30T02:32:48Z",
+      "updatedAt": "2026-06-30T04:51:05Z",
+      "url": "https://github.com/tadeskops/ta-society-helpdesk/issues/5",
+      "tower": "B",
+      "category": "Lift",
+      "severity": "critical",
+      "location": "Not Operation Lift 2",
+      "resolutionNotes": "Fixed"
+    },
+    {
+      "id": "TKT-2806261510",
+      "number": 4,
+      "title": "DLY-00004 · Other · Common Area",
+      "status": "assigned",
+      "description": "For Community Hall:\n- Water Filter would be good to have: (Since Society Manager Sir shall be there during day time and apart from that security people and facility staff.\n- ⁠We as a society must provide basic necessities to people providing services.",
+      "photoUrls": [
+        "https://raw.githubusercontent.com/tadeskops/ta-society-helpdesk/main/photos/DLY-00004/01.jpg"
+      ],
+      "createdAt": "2026-06-28T09:40:25Z",
+      "updatedAt": "2026-07-06T11:00:44Z",
+      "url": "https://github.com/tadeskops/ta-society-helpdesk/issues/4",
+      "tower": "Common Area",
+      "category": "Other",
+      "location": "Water Purifier Needed"
+    },
+    {
+      "id": "TKT-2206260105",
+      "number": 3,
+      "title": "DLY-00003 · Lift · A",
+      "status": "deleted",
+      "description": "",
+      "photoUrls": [],
+      "createdAt": "2026-06-21T19:35:34Z",
+      "updatedAt": "2026-06-28T10:14:21Z",
+      "url": "https://github.com/tadeskops/ta-society-helpdesk/issues/3",
+      "tower": "A",
+      "category": "lift",
+      "severity": "critical"
+    },
+    {
+      "id": "TKT-2206260037",
+      "number": 2,
+      "title": "DLY-00002 · Cleaning · B",
+      "status": "deleted",
+      "description": "",
+      "photoUrls": [],
+      "createdAt": "2026-06-21T19:07:38Z",
+      "updatedAt": "2026-06-28T10:14:09Z",
+      "url": "https://github.com/tadeskops/ta-society-helpdesk/issues/2",
+      "tower": "B",
+      "category": "cleaning"
+    },
+    {
+      "id": "TKT-2206260012",
+      "number": 1,
+      "title": "DLY-00001 · Lift · A",
+      "status": "deleted",
+      "description": "",
+      "photoUrls": [],
+      "createdAt": "2026-06-21T18:42:46Z",
+      "updatedAt": "2026-06-28T09:49:28Z",
+      "url": "https://github.com/tadeskops/ta-society-helpdesk/issues/1",
+      "tower": "A",
+      "category": "lift",
+      "severity": "critical"
+    }
+  ]
+}
