@@ -142,3 +142,4 @@
 {"at":"2026-07-18T07:21:36.210Z","actor":"ta.deskops@gmail.com","action":"access-list:put","target":"config/admins.json","detail":"count=1 by=ADMIN"}
 {"at":"2026-07-18T07:21:40.175Z","actor":"ta.deskops@gmail.com","action":"access-list:put","target":"config/chairman.json","detail":"count=1 by=ADMIN"}
 {"at":"2026-07-18T07:21:43.790Z","actor":"ta.deskops@gmail.com","action":"access-list:put","target":"config/secretary.json","detail":"count=1 by=ADMIN"}
+{"at":"2026-07-18T07:21:48.318Z","actor":"ta.deskops@gmail.com","action":"access-list:put","target":"config/treasurer.json","detail":"count=2 by=ADMIN"}
