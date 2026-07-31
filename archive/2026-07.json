@@ -1,0 +1,50 @@
+{
+  "archivedAt": "2026-07-31T21:00:18.696Z",
+  "month": "2026-07",
+  "itemCount": 3,
+  "items": [
+    {
+      "id": "TKT-1207261201",
+      "number": 9,
+      "title": "TKT-[redacted] · Lift · A",
+      "status": "deleted",
+      "description": "",
+      "photoUrls": [],
+      "createdAt": "2026-07-12T06:31:09Z",
+      "updatedAt": "2026-07-12T06:32:43Z",
+      "url": "https://github.com/tadeskops/ta-society-helpdesk/issues/9",
+      "tower": "A",
+      "category": "lift"
+    },
+    {
+      "id": "TKT-1207261025",
+      "number": 8,
+      "title": "TKT-[redacted] · Building & Civil · Common Area",
+      "status": "assigned",
+      "description": "* Poor finishing around the door frame Large gaps, chipped plaster, and uneven edges are visible around the frame.\n* Improper frame installation finish  Frame-to-wall joints are not properly sealed, and fixing holes remain exposed.\n* Wall surface defects : Visible damage, dents, and unfinished patches require repair and touch-up.",
+      "photoUrls": [
+        "https://raw.githubusercontent.com/tadeskops/ta-society-helpdesk/main/photos/DLY-00008/01.jpg"
+      ],
+      "createdAt": "2026-07-12T04:55:26Z",
+      "updatedAt": "2026-07-12T09:00:45Z",
+      "url": "https://github.com/tadeskops/ta-society-helpdesk/issues/8",
+      "tower": "Common Area",
+      "category": "Building & Civil",
+      "location": "B-Wing Lift lobby (Basement floor)"
+    },
+    {
+      "id": "TKT-0607261640",
+      "number": 7,
+      "title": "TKT-[redacted] · Lift · Common Area",
+      "status": "assigned",
+      "description": "Are required to be swept and moped (walls with wet cloth)  on daily basis",
+      "photoUrls": [],
+      "createdAt": "2026-07-06T11:10:07Z",
+      "updatedAt": "2026-07-06T16:00:29Z",
+      "url": "https://github.com/tadeskops/ta-society-helpdesk/issues/7",
+      "tower": "Common Area",
+      "category": "Lift",
+      "location": "All Lifts"
+    }
+  ]
+}
