@@ -2744,19 +2744,19 @@
       });
     }
 
-    // Result-card interactions:
-    //   Editor → jump into the manage seat map + open the flat detail.
-    //   Resident → re-run the search as a flat lookup (roster view).
+    // Result-card interactions: open the flat detail sidepanel for
+    // BOTH roles. Editor sees the same panel with add/edit/delete
+    // controls; resident sees the identical layout with all write
+    // controls hidden via the body.veh-mode-resident CSS suppression
+    // block. Only editors get scrolled to the manage seat map because
+    // the manage section is hidden for residents.
     resultEl.addEventListener('click', (e) => {
       const b = e.target.closest('[data-open-flat]');
       if (!b) return;
       const flat = b.getAttribute('data-open-flat');
+      selectFlat(flat);
       if (canWrite) {
-        selectFlat(flat);
         manageEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      } else {
-        searchEl.value = flat;
-        doSearch(flat);
       }
     });
 
