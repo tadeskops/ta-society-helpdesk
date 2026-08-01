@@ -1108,7 +1108,7 @@
         const canRemove = initial.length > 1;
         return '<div class="veh-flat-parking-input-row" data-idx="' + i + '">' +
                  '<input type="text" class="veh-flat-parking-input" ' +
-                        'value="' + esc(bay) + '" placeholder="P-104" ' +
+                        'value="' + esc(bay) + '" placeholder="mention parking number here" ' +
                         'maxlength="20" autocomplete="off" required />' +
                  (canRemove
                    ? '<button type="button" class="veh-flat-parking-remove" ' +
@@ -1188,7 +1188,7 @@
       row.setAttribute('data-idx', String(rows.length));
       row.innerHTML =
         '<input type="text" class="veh-flat-parking-input" value="" ' +
-               'placeholder="P-104" maxlength="20" autocomplete="off" required />' +
+               'placeholder="mention parking number here" maxlength="20" autocomplete="off" required />' +
         '<button type="button" class="veh-flat-parking-remove" ' +
                 'data-act="remove-bay" title="Remove this bay" aria-label="Remove bay">' +
           '<i class="fas fa-xmark"></i></button>';
