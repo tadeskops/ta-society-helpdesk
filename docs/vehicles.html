@@ -127,6 +127,14 @@
       text-transform: uppercase; font-size: .78rem; letter-spacing: .05em;
     }
     .veh-result-list { margin-top: .5rem; display: flex; flex-direction: column; gap: .4rem; }
+    /* Modifier: for the digit-only flat-picker (kind='flatChoices'), swap
+       the vertical stack for a responsive auto-fit grid so 2-3 tower
+       tiles line up side-by-side on desktop and stack on mobile. */
+    .veh-result-list.veh-result-list-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: .55rem;
+    }
     .veh-result-list button {
       display: block; width: 100%; background: var(--tsh-surface, #fff);
       border: 1px solid var(--tsh-border, #e2e5ee); border-radius: 10px;
@@ -1091,7 +1099,7 @@
             '<div><div class="veh-result-headline">Flat ' + esc(res.digits) + ' in ' + res.options.length + ' towers</div>' +
             '<div class="veh-result-sub">Pick the tower to open that flat.</div></div>' +
           '</div>' +
-          '<div class="veh-result-list">' + list + '</div>';
+          '<div class="veh-result-list veh-result-list-grid">' + list + '</div>';
         resultEl.hidden = false;
         return;
       }
