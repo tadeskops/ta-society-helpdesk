@@ -1677,6 +1677,14 @@
       if (raw && String(raw).trim() && document.getElementById('vehSearch').value !== raw) {
         document.getElementById('vehSearch').value = raw;
       }
+      // For residents (inline flat detail rendered below the search
+      // result), close the previously-opened detail whenever the query
+      // changes — otherwise a stale Flat card lingers under the new
+      // search result. Editors use the SidePanel so this doesn't
+      // apply to them.
+      if (!canWrite && selectedFlat) {
+        selectFlat(null);
+      }
       const res = classifyQuery(raw);
       renderResult(res, raw);
     }
@@ -2300,6 +2308,22 @@
         return;
       }
       renderFlatDetail();
+      // Residents don't get the SidePanel — the flat detail is rendered
+      // inline directly below the search result card so the whole flow
+      // stays on one page. detailEl is re-parked next to resultEl the
+      // first time we hit this path; subsequent selects just refresh
+      // its content in place.
+      if (!canWrite) {
+        try {
+          if (resultEl && detailEl.parentElement !== resultEl.parentElement) {
+            resultEl.insertAdjacentElement('afterend', detailEl);
+          }
+          detailEl.classList.add('in-inline');
+        } catch (_e) { /* ignore */ }
+        detailEl.hidden = false;
+        if (!(opts && opts.noScroll)) detailEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        return;
+      }
       // If SidePanel isn't loaded (defensive), fall back to inline render
       // and scroll into view — original behaviour.
       if (!(window.UI && UI.SidePanel && typeof UI.SidePanel.open === 'function')) {
