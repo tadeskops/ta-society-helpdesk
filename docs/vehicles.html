@@ -127,14 +127,6 @@
       text-transform: uppercase; font-size: .78rem; letter-spacing: .05em;
     }
     .veh-result-list { margin-top: .5rem; display: flex; flex-direction: column; gap: .4rem; }
-    /* Modifier: for the digit-only flat-picker (kind='flatChoices'), swap
-       the vertical stack for a responsive auto-fit grid so 2-3 tower
-       tiles line up side-by-side on desktop and stack on mobile. */
-    .veh-result-list.veh-result-list-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: .55rem;
-    }
     .veh-result-list button {
       display: block; width: 100%; background: var(--tsh-surface, #fff);
       border: 1px solid var(--tsh-border, #e2e5ee); border-radius: 10px;
@@ -172,11 +164,6 @@
     .veh-form-grid .tsh-field label {
       font-weight: 600; font-size: .85rem;
       color: var(--tsh-text, #223); letter-spacing: .01em;
-    }
-    /* Small muted "(optional)" note beside a field label. */
-    .veh-form-grid .tsh-field label .tsh-field-hint {
-      font-weight: 400; font-size: .78rem;
-      color: var(--tsh-muted, #667); margin-left: .25rem;
     }
     .veh-form-grid .tsh-field input,
     .veh-form-grid .tsh-field select,
@@ -1104,7 +1091,7 @@
             '<div><div class="veh-result-headline">Flat ' + esc(res.digits) + ' in ' + res.options.length + ' towers</div>' +
             '<div class="veh-result-sub">Pick the tower to open that flat.</div></div>' +
           '</div>' +
-          '<div class="veh-result-list veh-result-list-grid">' + list + '</div>';
+          '<div class="veh-result-list">' + list + '</div>';
         resultEl.hidden = false;
         return;
       }
@@ -1647,17 +1634,17 @@
               '</select>' +
             '</div>' +
             '<div class="tsh-field">' +
-              '<label for="vehEditParking">Parking No. <span class="tsh-field-hint">(optional)</span></label>' +
-              '<input id="vehEditParking" name="parkingNo" value="' + esc(v.parkingNo || '') + '" placeholder="e.g. P-104" maxlength="20" style="text-transform:uppercase" />' +
+              '<label for="vehEditParking">Parking No.</label>' +
+              '<input id="vehEditParking" name="parkingNo" value="' + esc(v.parkingNo || '') + '" placeholder="P-104" maxlength="20" style="text-transform:uppercase" />' +
             '</div>' +
             '<div class="tsh-field">' +
-              '<label for="vehEditSticker">Vehicle Sticker No. <span class="tsh-field-hint">(optional)</span></label>' +
-              '<input id="vehEditSticker" name="sticker" value="' + esc(v.sticker || '') + '" placeholder="e.g. S-22" maxlength="20" style="text-transform:uppercase" />' +
+              '<label for="vehEditSticker">Vehicle Sticker No.</label>' +
+              '<input id="vehEditSticker" name="sticker" value="' + esc(v.sticker || '') + '" placeholder="S-22" maxlength="20" style="text-transform:uppercase" />' +
             '</div>' +
           '</div>' +
           '<div class="tsh-field veh-full">' +
-            '<label for="vehEditComments">Vehicle name &amp; notes <span class="tsh-field-hint">(optional)</span></label>' +
-            '<input id="vehEditComments" name="comments" value="' + esc(v.comments || '') + '" placeholder="e.g. White Honda City" maxlength="200" />' +
+            '<label for="vehEditComments">Comments</label>' +
+            '<input id="vehEditComments" name="comments" value="' + esc(v.comments || '') + '" placeholder="White Honda City" maxlength="200" />' +
           '</div>' +
           '<div class="tsh-field veh-full">' +
             '<label for="vehEditEmails">Owner emails (optional, comma-separated, up to 5)</label>' +
@@ -1776,17 +1763,17 @@
                 '</select>' +
               '</div>' +
               '<div class="tsh-field">' +
-                '<label for="vehDetailParking">Parking No. <span class="tsh-field-hint">(optional)</span></label>' +
-                '<input id="vehDetailParking" placeholder="e.g. P-104" maxlength="20" style="text-transform:uppercase" />' +
+                '<label for="vehDetailParking">Parking No.</label>' +
+                '<input id="vehDetailParking" placeholder="P-104" maxlength="20" style="text-transform:uppercase" />' +
               '</div>' +
               '<div class="tsh-field">' +
-                '<label for="vehDetailSticker">Vehicle Sticker No. <span class="tsh-field-hint">(optional)</span></label>' +
-                '<input id="vehDetailSticker" placeholder="e.g. S-22" maxlength="20" style="text-transform:uppercase" />' +
+                '<label for="vehDetailSticker">Vehicle Sticker No.</label>' +
+                '<input id="vehDetailSticker" placeholder="S-22" maxlength="20" style="text-transform:uppercase" />' +
               '</div>' +
             '</div>' +
             '<div class="tsh-field veh-full">' +
-              '<label for="vehDetailComments">Vehicle name &amp; notes <span class="tsh-field-hint">(optional)</span></label>' +
-              '<input id="vehDetailComments" placeholder="e.g. White Honda City" maxlength="200" />' +
+              '<label for="vehDetailComments">Comments</label>' +
+              '<input id="vehDetailComments" placeholder="White Honda City" maxlength="200" />' +
             '</div>' +
             '<div class="tsh-field veh-full">' +
               '<label for="vehDetailEmails">Owner emails (optional, comma-separated, up to 5)</label>' +
