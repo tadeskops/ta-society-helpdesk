@@ -148,20 +148,128 @@
     .veh-manage { margin-top: 1.5rem; }
     .veh-manage[hidden] { display: none; }
     .veh-count { color: var(--tsh-muted, #667); font-size: .85em; margin-left: .5em; font-weight: 400; }
-    .veh-add-grid { display: grid; grid-template-columns: 1fr 1.5fr .6fr .6fr 2fr auto; gap: .5rem; align-items: end; }
-    @media (max-width: 800px) { .veh-add-grid { grid-template-columns: 1fr 1fr; } .veh-add-grid button { grid-column: span 2; } }
-    .veh-list { margin-top: 1rem; display: flex; flex-direction: column; gap: .5rem; }
+
+    /* Two-column responsive form used by both the flat-detail add form
+       and the edit-vehicle drawer. Short fields (Type + Sticker) sit
+       side-by-side; longer / free-text fields (Vehicle number,
+       Comments, Emails) opt in with .veh-full and span the whole row.
+       Collapses to a single column on very narrow drawers. */
+    .veh-form-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: .95rem .8rem; align-items: end;
+    }
+    .veh-form-grid .tsh-field {
+      display: flex; flex-direction: column; gap: .3rem; margin: 0; min-width: 0;
+    }
+    .veh-form-grid .tsh-field label {
+      font-weight: 600; font-size: .85rem;
+      color: var(--tsh-text, #223); letter-spacing: .01em;
+    }
+    .veh-form-grid .tsh-field input,
+    .veh-form-grid .tsh-field select,
+    .veh-form-grid .tsh-field textarea {
+      width: 100%; box-sizing: border-box;
+      padding: .55rem .7rem; font: inherit;
+      border: 1px solid var(--tsh-border, #e2e5ee); border-radius: 8px;
+      background: var(--tsh-surface, #fff); color: var(--tsh-text, #223);
+      transition: border-color .12s, box-shadow .12s;
+    }
+    .veh-form-grid .tsh-field input:focus,
+    .veh-form-grid .tsh-field select:focus,
+    .veh-form-grid .tsh-field textarea:focus {
+      outline: none;
+      border-color: var(--tsh-accent, #b48a3c);
+      box-shadow: 0 0 0 3px rgba(180, 138, 60, .18);
+    }
+    .veh-form-grid .veh-full { grid-column: 1 / -1; }
+    .veh-form-grid > button[type="submit"] {
+      grid-column: 1 / -1; justify-self: stretch;
+      margin-top: .2rem;
+    }
+    @media (max-width: 420px) { .veh-form-grid { grid-template-columns: 1fr; } }
+
+    .veh-list { margin-top: 1rem; display: flex; flex-direction: column; gap: .55rem; }
     .veh-flat-group { border: 1px solid var(--tsh-border, #e2e5ee); border-radius: 10px; padding: .6rem .9rem; background: var(--tsh-surface, #fff); }
     .veh-flat-group summary { cursor: pointer; font-weight: 700; letter-spacing: .04em; padding: .2rem 0; }
     .veh-flat-group summary::marker { color: var(--tsh-accent, #b48a3c); }
-    .veh-row { display: grid; grid-template-columns: 1.4fr .6fr .8fr 2fr auto; gap: .5rem; align-items: center; padding: .4rem 0; border-top: 1px dashed var(--tsh-border, #e2e5ee); }
-    .veh-row:first-of-type { border-top: none; }
-    .veh-row .veh-reg { font-family: ui-monospace, "SF Mono", Menlo, monospace; letter-spacing: .05em; font-weight: 600; }
-    .veh-row .veh-emails { font-size: .85em; color: var(--tsh-muted, #667); word-break: break-all; }
+
+    /* Vehicle attribute card. Grid areas keep the reg + type badge on
+       the header row, actions pinned top-right, then a meta line for
+       sticker + comments, and finally an optional emails row. Much
+       roomier than the old 5-column table row inside a 560px drawer. */
+    .veh-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      grid-template-areas:
+        "head badge acts"
+        "meta meta meta"
+        "mails mails mails";
+      gap: .35rem .6rem;
+      padding: .7rem .85rem;
+      border: 1px solid var(--tsh-border, #e2e5ee);
+      border-radius: 10px;
+      background: var(--tsh-surface, #fff);
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .veh-row:hover { border-color: var(--tsh-accent, #b48a3c); box-shadow: 0 2px 8px rgba(0,0,0,.05); }
+    .veh-row .veh-reg-cell { grid-area: head; display: flex; align-items: center; gap: .45rem; min-width: 0; }
+    .veh-row .veh-reg {
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      letter-spacing: .05em; font-weight: 700; font-size: 1.02rem;
+      color: var(--tsh-accent-dark, #6f5320);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .veh-row .veh-type-slot { grid-area: badge; align-self: center; }
+    .veh-row .veh-actions { grid-area: acts; align-self: center; gap: .15rem; }
+    .veh-row .veh-meta {
+      grid-area: meta; display: flex; gap: .5rem; flex-wrap: wrap;
+      align-items: center; font-size: .85em; color: var(--tsh-muted, #667);
+    }
+    .veh-row .veh-meta:empty { display: none; }
+    .veh-row .veh-emails {
+      grid-area: mails; display: flex; align-items: baseline; gap: .35rem;
+      font-size: .82em; color: var(--tsh-muted, #667); word-break: break-all;
+    }
+    .veh-row .veh-emails i { color: var(--tsh-accent, #b48a3c); font-size: .82em; }
+    .veh-row .veh-empty-dash { color: var(--tsh-muted, #667); }
+
+    /* Chipped sticker inside meta row — same visual family as the type
+       badge but with a parking icon so the two chips are quickly
+       distinguishable at a glance. */
+    .veh-sticker-chip {
+      display: inline-flex; align-items: center; gap: .3rem;
+      padding: .12rem .55rem; border-radius: 999px;
+      background: rgba(180, 138, 60, .12); color: var(--tsh-accent-dark, #6f5320);
+      font-weight: 600; font-size: .78rem; letter-spacing: .04em;
+    }
+    .veh-sticker-chip i { font-size: .72rem; }
+
     .veh-actions { display: flex; gap: .3rem; }
-    .veh-badge { display: inline-block; padding: .1rem .5rem; border-radius: 999px; font-size: .75rem; font-weight: 600;
-                 background: var(--tsh-accent-soft, #eee5d0); color: var(--tsh-accent-dark, #6f5320); }
-    @media (max-width: 800px) { .veh-row { grid-template-columns: 1fr 1fr; } .veh-actions { grid-column: span 2; justify-content: flex-end; } }
+    /* Type badge chip. Includes the vehicle icon (car / motorcycle) and
+       an optional EV bolt so the whole vehicle class reads in one
+       glance without a separate legend hit. */
+    .veh-badge {
+      display: inline-flex; align-items: center; gap: .32rem;
+      padding: .15rem .55rem; border-radius: 999px;
+      font-size: .75rem; font-weight: 700; letter-spacing: .04em;
+      background: var(--tsh-accent-soft, #eee5d0);
+      color: var(--tsh-accent-dark, #6f5320);
+      white-space: nowrap;
+    }
+    .veh-badge i.veh-badge-type { font-size: .78rem; }
+    .veh-badge i.veh-badge-ev { color: #f0a020; font-size: .72rem; }
+    .veh-badge.veh-badge-4W { background: rgba(74, 144, 226, .14); color: #2a5687; }
+    .veh-badge.veh-badge-2W { background: rgba(106, 176, 76, .16); color: #3f6e2a; }
+
+    /* Narrow drawer — let the meta wrap under the header cleanly. */
+    @media (max-width: 480px) {
+      .veh-row { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas:
+        "head acts"
+        "badge badge"
+        "meta meta"
+        "mails mails"; }
+      .veh-row .veh-type-slot { justify-self: start; }
+    }
 
     /* ------- Design 1 tower cabin ------- */
     .veh-tower {
@@ -761,8 +869,15 @@
     }
     function typeIcon(t)  { return typeWheels(t) === '4W' ? 'fa-car' : 'fa-motorcycle'; }
     function typeBadge(t) {
-      // Compact chip suitable for the pill-tag next to a headline.
-      return '<span class="veh-badge">' + esc(t.replace('_EV', ' EV')) + '</span>';
+      // Chip that fuses the wheel-type icon + short label + optional EV
+      // bolt, so the whole vehicle class reads in a single glance.
+      const wheels = typeWheels(t);
+      const label  = wheels;
+      const ev = typeIsEv(t) ? '<i class="fas fa-bolt veh-badge-ev" title="EV"></i>' : '';
+      return '<span class="veh-badge veh-badge-' + wheels + '" title="' + esc(typeLabel(t)) + '">' +
+        '<i class="fas ' + typeIcon(t) + ' veh-badge-type" aria-hidden="true"></i>' +
+        esc(label) + ev +
+        '</span>';
     }
 
     // Render the search result in the Design-5 "rich card" format:
@@ -1268,17 +1383,32 @@
     // -----------------------------------------------------------------
     function renderRowRead(v) {
       const emailsTxt = Array.isArray(v.emails) && v.emails.length ? v.emails.join(', ') : '';
+      const parts = [];
+      if (v.sticker) {
+        parts.push('<span class="veh-sticker-chip"><i class="fas fa-parking" aria-hidden="true"></i>' + esc(v.sticker) + '</span>');
+      }
+      if (v.comments) {
+        parts.push('<span class="veh-comments">' + esc(v.comments) + '</span>');
+      }
+      if (!parts.length) {
+        parts.push('<span class="veh-empty-dash">No sticker or notes yet</span>');
+      }
+      const emailsHtml = emailsTxt
+        ? '<div class="veh-emails"><i class="fas fa-envelope" aria-hidden="true"></i>' +
+          '<span>' + esc(emailsTxt) + '</span></div>'
+        : '';
       return '<div class="veh-row" data-id="' + esc(v.id) + '">' +
-        '<div><div class="veh-reg">' + esc(v.regNoDisplay || v.regNo) + '</div>' +
-        (emailsTxt ? '<div class="veh-emails">' + esc(emailsTxt) + '</div>' : '') +
+        '<div class="veh-reg-cell">' +
+          '<span class="veh-reg" title="' + esc(v.regNoDisplay || v.regNo) + '">' +
+            esc(v.regNoDisplay || v.regNo) + '</span>' +
         '</div>' +
-        '<div>' + typeBadge(v.type) + '</div>' +
-        '<div>' + (v.sticker ? 'Sticker ' + esc(v.sticker) : '<span style="color:var(--tsh-muted,#667)">—</span>') + '</div>' +
-        '<div>' + (v.comments ? esc(v.comments) : '<span style="color:var(--tsh-muted,#667)">—</span>') + '</div>' +
+        '<div class="veh-type-slot">' + typeBadge(v.type) + '</div>' +
         '<div class="veh-actions">' +
-        '<button type="button" class="tsh-btn tsh-btn-ghost tsh-btn-icon" data-edit title="Edit"><i class="fas fa-pen"></i></button>' +
-        '<button type="button" class="tsh-btn tsh-btn-ghost tsh-btn-icon" data-del title="Delete"><i class="fas fa-trash"></i></button>' +
+          '<button type="button" class="tsh-btn tsh-btn-ghost tsh-btn-icon" data-edit title="Edit" aria-label="Edit vehicle"><i class="fas fa-pen"></i></button>' +
+          '<button type="button" class="tsh-btn tsh-btn-ghost tsh-btn-icon" data-del title="Delete" aria-label="Delete vehicle"><i class="fas fa-trash"></i></button>' +
         '</div>' +
+        '<div class="veh-meta">' + parts.join('') + '</div>' +
+        emailsHtml +
         '</div>';
     }
 
@@ -1290,8 +1420,8 @@
       if (!v) return;
       const emailsTxt = Array.isArray(v.emails) ? v.emails.join(', ') : '';
       const bodyHtml =
-        '<form id="vehEditForm" autocomplete="off">' +
-          '<div class="tsh-field">' +
+        '<form id="vehEditForm" class="veh-form-grid" autocomplete="off">' +
+          '<div class="tsh-field veh-full">' +
             '<label for="vehEditReg">Vehicle number *</label>' +
             '<input id="vehEditReg" name="regNo" required value="' + esc(v.regNoDisplay || v.regNo) + '" maxlength="20" style="text-transform:uppercase;letter-spacing:.04em" />' +
           '</div>' +
@@ -1308,11 +1438,11 @@
             '<label for="vehEditSticker">Sticker</label>' +
             '<input id="vehEditSticker" name="sticker" value="' + esc(v.sticker || '') + '" placeholder="P-104" maxlength="20" style="text-transform:uppercase" />' +
           '</div>' +
-          '<div class="tsh-field">' +
+          '<div class="tsh-field veh-full">' +
             '<label for="vehEditComments">Comments</label>' +
             '<input id="vehEditComments" name="comments" value="' + esc(v.comments || '') + '" placeholder="White Honda City" maxlength="200" />' +
           '</div>' +
-          '<div class="tsh-field">' +
+          '<div class="tsh-field veh-full">' +
             '<label for="vehEditEmails">Owner emails (optional, comma-separated, up to 5)</label>' +
             '<input id="vehEditEmails" name="emails" value="' + esc(emailsTxt) + '" placeholder="owner1@example.com, owner2@example.com" maxlength="600" />' +
           '</div>' +
@@ -1398,8 +1528,8 @@
           '<i class="fas fa-xmark"></i> Close</button>' +
         '</div>' +
         '<div class="veh-list" id="vehDetailList">' + listHtml + '</div>' +
-        '<form id="vehDetailAdd" class="veh-add-grid" style="margin-top:1rem" autocomplete="off">' +
-          '<div class="tsh-field">' +
+        '<form id="vehDetailAdd" class="veh-form-grid" style="margin-top:1.1rem" autocomplete="off">' +
+          '<div class="tsh-field veh-full">' +
             '<label for="vehDetailReg">Vehicle number *</label>' +
             '<input id="vehDetailReg" required placeholder="MH11JJ0234" maxlength="20" style="text-transform:uppercase;letter-spacing:.04em" />' +
           '</div>' +
@@ -1416,15 +1546,15 @@
             '<label for="vehDetailSticker">Sticker</label>' +
             '<input id="vehDetailSticker" placeholder="P-104" maxlength="20" style="text-transform:uppercase" />' +
           '</div>' +
-          '<div class="tsh-field">' +
+          '<div class="tsh-field veh-full">' +
             '<label for="vehDetailComments">Comments</label>' +
             '<input id="vehDetailComments" placeholder="White Honda City" maxlength="200" />' +
           '</div>' +
-          '<div class="tsh-field" style="grid-column: 1 / -1">' +
+          '<div class="tsh-field veh-full">' +
             '<label for="vehDetailEmails">Owner emails (optional, comma-separated, up to 5)</label>' +
             '<input id="vehDetailEmails" placeholder="owner1@example.com, owner2@example.com" maxlength="600" />' +
           '</div>' +
-          '<button type="submit" class="tsh-btn tsh-btn-primary" id="vehDetailAddBtn" style="grid-column: 1 / -1;justify-self:start">' +
+          '<button type="submit" class="tsh-btn tsh-btn-primary" id="vehDetailAddBtn">' +
             '<i class="fas fa-plus"></i> Add to Flat ' + esc(selectedFlat) +
           '</button>' +
         '</form>';
