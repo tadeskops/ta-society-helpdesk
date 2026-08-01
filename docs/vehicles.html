@@ -196,6 +196,28 @@
     }
     @media (max-width: 420px) { .veh-form-grid { grid-template-columns: 1fr; } }
 
+    /* When .veh-form-grid renders inside the SidePanel drawer (edit
+       vehicle) the drawer forces `display: flex; flex-direction: column`
+       on the form, which nullifies the grid columns. The grid's
+       `align-items: end` then maps to flex's `align-items: flex-end`,
+       which collapses every child to intrinsic width and pushes it
+       against the right edge — labels and inputs drift out of
+       alignment. Reset alignment so children stretch back to the full
+       drawer width; also give the trio row an explicit 2-column grid
+       so Type and Sticker sit side by side. */
+    .tsh-sidepanel-body .veh-form-grid { align-items: stretch; }
+    .tsh-sidepanel-body .veh-form-grid > .tsh-field,
+    .tsh-sidepanel-body .veh-form-grid > .veh-form-trio { width: 100%; }
+    .tsh-sidepanel-body .veh-form-trio {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: .95rem .8rem;
+      align-items: end;
+    }
+    @media (max-width: 380px) {
+      .tsh-sidepanel-body .veh-form-trio { grid-template-columns: 1fr; }
+    }
+
     .veh-list { margin-top: 1rem; display: flex; flex-direction: column; gap: .55rem; }
     .veh-flat-group { border: 1px solid var(--tsh-border, #e2e5ee); border-radius: 10px; padding: .6rem .9rem; background: var(--tsh-surface, #fff); }
     .veh-flat-group summary { cursor: pointer; font-weight: 700; letter-spacing: .04em; padding: .2rem 0; }
@@ -614,6 +636,23 @@
       filter: drop-shadow(0 0 1px rgba(0,0,0,.35));
     }
     .veh-cell { position: relative; }
+
+    /* Parking indicator on the top-left corner of a seat cell. Shown
+       whenever the flat has one or more parking bays assigned. The
+       icon uses the gold accent so it reads as "flat-level property"
+       (distinct from the EV bolt which is orange). When the flat holds
+       more than one bay the badge shows the count too. Full bay list
+       is available via the button's tooltip. */
+    .veh-cell-parking {
+      position: absolute; top: 3px; left: 4px;
+      display: inline-flex; align-items: center; gap: 1px;
+      color: var(--tsh-accent, #b48a3c);
+      font-size: .55rem; font-weight: 700; line-height: 1;
+      filter: drop-shadow(0 0 1px rgba(0,0,0,.28));
+      pointer-events: none;
+    }
+    .veh-cell-parking i { font-size: .7rem; }
+    body.tsh-tone-dark .veh-cell-parking { color: #e6c78a; }
 
     /* Editor-only action row (Print report etc.). */
     .veh-manage-actions {
@@ -1812,9 +1851,20 @@
           const rows = s.byFlat.get(flat) || [];
           const cls = cellClass(rows);
           const pressed = (flat === selectedFlat) ? 'true' : 'false';
+          const bays = getFlatParking(flat);
+          const parkTitle = bays.length
+            ? ' · Parking ' + bays.join(', ')
+            : '';
+          const parkChip = bays.length
+            ? '<span class="veh-cell-parking" aria-hidden="true">' +
+                '<i class="fas fa-square-parking"></i>' +
+                (bays.length > 1 ? String(bays.length) : '') +
+              '</span>'
+            : '';
           cells += '<button type="button" class="' + cls + '" data-flat="' + esc(flat) + '"' +
-                   ' aria-pressed="' + pressed + '" title="Flat ' + esc(flat) + ' — ' + rows.length + ' vehicle(s)">' +
+                   ' aria-pressed="' + pressed + '" title="Flat ' + esc(flat) + ' — ' + rows.length + ' vehicle(s)' + esc(parkTitle) + '">' +
                    '<span class="veh-cell-flat">' + esc(flat) + '</span>' +
+                   parkChip +
                    cellBar(rows) +
                    '</button>';
         }
