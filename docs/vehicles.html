@@ -1073,6 +1073,28 @@
         resultEl.hidden = false;
         return;
       }
+      if (res.kind === 'flatChoices') {
+        // Digit-only query fanned out across every tower where the flat
+        // exists. Present one card per tower so the user can pick.
+        const list = res.options.map((o) => {
+          const meta = o.count
+            ? o.count + ' vehicle' + (o.count === 1 ? '' : 's') + ' registered'
+            : 'No vehicles registered yet';
+          return '<button type="button" data-open-flat="' + esc(o.flat) + '">' +
+                 '<b>Flat ' + esc(o.flat) + '</b>' +
+                 '<span style="color:var(--tsh-muted,#667)">&middot;</span> Tower ' + esc(o.tower) +
+                 '<span class="meta">' + esc(meta) + '</span></button>';
+        }).join('');
+        resultEl.innerHTML =
+          '<div class="veh-result-top">' +
+            '<div class="veh-result-icon"><i class="fas fa-building" aria-hidden="true"></i></div>' +
+            '<div><div class="veh-result-headline">Flat ' + esc(res.digits) + ' in ' + res.options.length + ' towers</div>' +
+            '<div class="veh-result-sub">Pick the tower to open that flat.</div></div>' +
+          '</div>' +
+          '<div class="veh-result-list">' + list + '</div>';
+        resultEl.hidden = false;
+        return;
+      }
       if (res.kind === 'flat') {
         const rows = res.rows || [];
         const list = rows.length
@@ -1124,6 +1146,50 @@
     function classifyQuery(raw) {
       const q = normReg(raw);
       if (!q || q.length < 2) return null;
+
+      // Digit-only query (e.g. "805", "1204") — the user knows the flat
+      // number but hasn't picked a tower. Fan out across every configured
+      // tower and surface the matching flats so they can click through.
+      // A flat "exists" if it has any registered vehicle OR (when the
+      // tower has a fixed server-side layout) the floor+unit fall inside
+      // the schematic's bounds.
+      if (/^[0-9]{1,4}$/.test(q)) {
+        const unitStr  = q.length >= 2 ? q.slice(-2) : q.padStart(2, '0');
+        const floorStr = q.length >= 3 ? q.slice(0, -2) : '0';
+        const floor    = parseInt(floorStr, 10) || 0;
+        const unit     = parseInt(unitStr, 10) || 0;
+        const cfgTowers = (Flags.raw && Flags.raw.lists && Array.isArray(Flags.raw.lists.towers))
+          ? Flags.raw.lists.towers : ['A', 'B', 'C'];
+        const layouts = towerLayouts || {};
+        const options = [];
+        for (const t of cfgTowers) {
+          const letter = String(t || '').trim().charAt(0).toUpperCase();
+          if (!/^[A-Z]$/.test(letter)) continue;
+          const flat = flatFromParts(letter, floor, unit);
+          const rows = vehicles.filter((v) => v.flat === flat);
+          // Trust the tower layout when present: only include the flat
+          // if the floor+unit actually fit inside the tower. Without a
+          // layout, fall back to "include if any vehicle is registered".
+          const layout = layouts[letter];
+          const hasLayout = layout && Number.isFinite(layout.floors) && Number.isFinite(layout.unitsPerFloor);
+          const inLayout = hasLayout
+            ? (floor >= 1 && floor <= layout.floors && unit >= 1 && unit <= layout.unitsPerFloor)
+            : rows.length > 0;
+          if (inLayout || rows.length) {
+            options.push({ tower: letter, flat, count: rows.length });
+          }
+        }
+        if (options.length === 1) {
+          const only = options[0];
+          const rows = vehicles.filter((v) => v.flat === only.flat);
+          return { kind: 'flat', flat: only.flat, rows };
+        }
+        if (options.length > 1) {
+          return { kind: 'flatChoices', digits: q, options };
+        }
+        // No tower has that flat — fall through to the vehicle-substring
+        // pass below so a stray digit sequence in a plate can still match.
+      }
 
       // Is this shaped like a flat? (letter + 1-4 digits)
       const flatShaped = /^[A-Z][0-9]{1,4}$/.test(q);
