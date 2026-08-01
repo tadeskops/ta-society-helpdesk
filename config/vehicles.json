@@ -13,16 +13,6 @@
       "emails": [
         "vibhumaitreya@gmail.com"
       ]
-    },
-    {
-      "id": "veh-b805-mhxxab1234",
-      "flat": "B805",
-      "regNo": "MHXXAB1234",
-      "regNoDisplay": "MHXXAB1234",
-      "type": "4W",
-      "createdAt": "2026-08-01T09:40:55.475Z",
-      "updatedAt": "2026-08-01T09:40:55.475Z",
-      "updatedBy": "ta.deskops@gmail.com"
     }
   ]
 }
