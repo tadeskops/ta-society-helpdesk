@@ -22,6 +22,7 @@ import { mountCalendar } from './calendar.ts';
 import { mountTreasury } from './treasury.ts';
 import { mountToolIssues } from './tool-issues.ts';
 import { mountVehicles } from './vehicles.ts';
+import { mountEvCharging } from './ev-charging.ts';
 
 export const buildRouter = (): Router => {
   const r = new Router();
@@ -44,6 +45,7 @@ export const buildRouter = (): Router => {
   mountTreasury(r);
   mountToolIssues(r);
   mountVehicles(r);
+  mountEvCharging(r);
   return r;
 };
 

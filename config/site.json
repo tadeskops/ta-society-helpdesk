@@ -50,6 +50,14 @@
     "FEATURE_TSH_VEHICLES_BULK_EMAILS": false,
     "FEATURE_TSH_VEHICLES_RESIDENT_ADD": false,
     "FEATURE_TSH_VEHICLES_RESIDENT_GRID": false,
+    "FEATURE_TSH_EV_CHARGING": false,
+    "FEATURE_TSH_EV_BOOKING": true,
+    "FEATURE_TSH_EV_RECEIPT": true,
+    "FEATURE_TSH_EV_ADMIN_DASHBOARD": true,
+    "FEATURE_TSH_EV_AUTO_REPORTS": false,
+    "FEATURE_TSH_EV_RFID": false,
+    "FEATURE_TSH_EV_REGISTRATION": false,
+    "FEATURE_TSH_EV_SUPPORT": false,
     "FEATURE_TREASURY_SECRETARY_ACCESS": false
   },
   "tunables": {
@@ -383,6 +391,48 @@
     },
     "maintenance": {
       "message": "We are deploying new features and improvements. Please check back shortly."
+    },
+    "ev": {
+      "station": {
+        "id": "ev-1",
+        "name": "EV Charger #1",
+        "location": "Basement 1",
+        "capacityKw": 7.4,
+        "enabled": true
+      },
+      "booking": {
+        "stepMinutes": 30,
+        "minDurationMinutes": 30,
+        "maxDurationMinutes": 180,
+        "bufferMinutes": 5,
+        "advanceWindowDays": 7,
+        "maxActivePerFlat": 1,
+        "openMin": 360,
+        "closeMin": 1380,
+        "requiresApproval": false,
+        "blackoutDates": []
+      },
+      "usageGuidelines": [
+        "Book a slot before you plug in. Walk-ups are not guaranteed.",
+        "Sessions auto-end at your booked end-time. Please unplug promptly.",
+        "Report faults via the Support tab so the next resident is not blocked."
+      ],
+      "provider": {
+        "name": "",
+        "androidUrl": "",
+        "iosUrl": "",
+        "website": "",
+        "email": "",
+        "tollFree": ""
+      },
+      "faqs": [],
+      "helpline": {
+        "directoryEntryId": ""
+      },
+      "reports": {
+        "template": "",
+        "mirrorCron": "monthly"
+      }
     },
     "receiptTemplate": {
       "url": "https://raw.githubusercontent.com/tadeskops/ta-society-helpdesk/main/photos/receipts/template-0a4c072925b3c73d.pdf",

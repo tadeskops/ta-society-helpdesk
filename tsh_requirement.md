@@ -1,4 +1,4 @@
-﻿# TA Society Helpdesk (TSH) — Requirements
+# TA Society Helpdesk (TSH) — Requirements
 
 > Day-to-day society issue tracker. Anonymous-friendly intake, manager triage, vendor/maintenance fix, resolution.
 > **GitHub-only stack.** No Google Sheet, no Apps Script, no Google Form, no Drive.
@@ -1515,3 +1515,143 @@ Small "report a problem with this site" widget shipped in the global footer / he
 - **Body**: free-text description + optional current page URL, current user-agent (already known to the worker), and a client-supplied context blob (route, feature flags snapshot). Body is written as plain markdown into the GitHub issue.
 - **Access to results**: whoever can see repo issues with the `tool-issue` label — i.e. committee/admin via GitHub, not via any helpdesk page.
 
+
+## 23. EV Charging Services (Phase 1: foundation)
+
+Resident-facing charging-slot booking + editor analytics + private-repo mirror for records and reports. Follows the same auth / role / feature-flag chassis as Reservations and Vehicles. Society tracks time-slot usage only — payment is between the resident and the provider (RFID / app). Data is partitioned from the rest of the public repo and history is mirrored to a private repo (see §23.9).
+
+### 23.1 Roll-out phases (locked)
+
+| Phase | Ships | Feature flags added | Status |
+|---|---|---|---|
+| 1 | Foundation: master flag, config schema, `/ev/config` endpoint, resident page shell (Design 1), Settings flag group, mobile-sheet entry, tests | `FEATURE_TSH_EV_CHARGING` (master, default off), all sub-flags seeded | **shipped** |
+| 2 | Booking core: data model + storage, availability grid, book/cancel, booking history | `FEATURE_TSH_EV_BOOKING` (default on when master on) | planned |
+| 3 | Digital receipt: view / print / PDF / save-to-device, QR payload | `FEATURE_TSH_EV_RECEIPT` (default on) | planned |
+| 4 | Editor analytics dashboard (Design 5): KPI, bar chart, heatmap, top-flat ranking, CSV / PDF export | `FEATURE_TSH_EV_ADMIN_DASHBOARD` (default on) | planned |
+| 5 | Private-repo mirror + auto reports (cron, monthly by default) | `FEATURE_TSH_EV_AUTO_REPORTS` (default off) | planned |
+| 6 | RFID lifecycle (6 request types), pre-registration workflow, support-ticket taxonomy (12 categories) | `FEATURE_TSH_EV_RFID`, `FEATURE_TSH_EV_REGISTRATION`, `FEATURE_TSH_EV_SUPPORT` (all default off) | planned |
+
+### 23.2 Feature-flag surface
+
+All flags gate their own sub-feature. Master flag `FEATURE_TSH_EV_CHARGING` gates everything — when off every sub-flag becomes a no-op regardless of its own value. Route handlers each call `isFeatureOn(cfg, flag)` at the top; a disabled sub-flag returns a `feature-disabled` envelope, never 500 or "not implemented".
+
+- `FEATURE_TSH_EV_CHARGING` — master
+- `FEATURE_TSH_EV_BOOKING`
+- `FEATURE_TSH_EV_RECEIPT`
+- `FEATURE_TSH_EV_ADMIN_DASHBOARD`
+- `FEATURE_TSH_EV_AUTO_REPORTS`
+- `FEATURE_TSH_EV_RFID`
+- `FEATURE_TSH_EV_REGISTRATION`
+- `FEATURE_TSH_EV_SUPPORT`
+
+Settings page renders one group per sub-flag with ON/OFF summary copy (existing `FLAG_GROUPS` convention, group key `EV_CHARGING`).
+
+### 23.3 Config surface
+
+`config/site.json` grows an `ev` object under `system` (all keys optional; worker fills defaults):
+
+```jsonc
+{
+  "system": {
+    "ev": {
+      "station":         { "id": "ev-1", "name": "EV Charger #1", "location": "Basement 1", "capacityKw": 7.4, "enabled": true },
+      "booking":         { "stepMinutes": 30, "minDurationMinutes": 30, "maxDurationMinutes": 180,
+                           "bufferMinutes": 5, "advanceWindowDays": 7, "maxActivePerFlat": 1,
+                           "openMin": 360, "closeMin": 1380, "requiresApproval": false, "blackoutDates": [] },
+      "usageGuidelines": [ "Book a slot before you plug in.", "…" ],
+      "provider":        { "name": "", "androidUrl": "", "iosUrl": "", "website": "", "email": "", "tollFree": "" },
+      "faqs":            [ /* { q, a } */ ],
+      "helpline":        { "directoryEntryId": "" },
+      "reports":         { "template": "", "mirrorCron": "monthly" }
+    }
+  }
+}
+```
+
+Editors (MANAGER+) can tune every field via the Settings page (Phase 4). No `ev.*` field is required for the master flag to flip on — worker fills defaults from `DEFAULT_CONFIG.system.ev` (see `worker/src/config/defaults.ts`).
+
+Data files added incrementally across phases: `config/ev-bookings.json` (Phase 2), `config/ev-registrations.json` (Phase 6), `config/ev-rfid-requests.json` (Phase 6). Same bounded-file + private-repo-mirror pattern as reservations.
+
+### 23.4 API surface
+
+All routes live under `/ev/*`. Master flag guards each.
+
+| Method | Path | Phase | Role | Purpose |
+|---|---|---|---|---|
+| GET  | `/ev/config`                              | 1 | any signed-in | Returns `ev` block + summary (booking count, registered vehicles) |
+| GET  | `/ev/availability?from=&to=&stationId=`  | 2 | RESIDENT+ | Slot availability per day |
+| GET  | `/ev/bookings?scope=own\|all`             | 2 | RESIDENT (own) / MANAGER+ (all) | List bookings |
+| GET  | `/ev/bookings/:id`                        | 2 | owner / MANAGER+ | Details |
+| POST | `/ev/bookings`                            | 2 | RESIDENT+ | Create booking |
+| PATCH| `/ev/bookings/:id`                        | 2 | owner (cancel) / MANAGER+ (any status) | Status transition |
+| GET  | `/ev/receipt/:id`                         | 3 | owner / MANAGER+ | Receipt data (JSON) |
+| GET  | `/ev/admin/dashboard?period=w\|m\|q\|y`   | 4 | MANAGER+ | Aggregate KPIs |
+| GET  | `/ev/admin/export?period=&format=csv\|pdf`| 4 | MANAGER+ | Download report |
+| POST | `/ev/admin/mirror`                        | 5 | ADMIN | Manual sync-now |
+| POST | `/ev/rfid`                                | 6 | RESIDENT+ | Create RFID request |
+| POST | `/ev/support`                             | 6 | RESIDENT+ | Create support ticket |
+
+### 23.5 Frontend surface
+
+- **Resident**: `docs/ev-charging.html` — Design 1 layout (Reservations parity). Header + subnav pills + station bar + availability grid + booking cards + digital-receipt preview + guidelines strip. Feature-gated via `Flags.ensureFeature("FEATURE_TSH_EV_CHARGING")` inside `docs/assets/js/ev-charging.js`.
+- **Editor**: `docs/ev-admin.html` — Design 5 layout (analytics dashboard). Gated by both `FEATURE_TSH_EV_CHARGING` and `FEATURE_TSH_EV_ADMIN_DASHBOARD`, and `Flags.ensureAuthorized("MANAGER")` role gate.
+- **Shared CSS**: `docs/assets/css/ev-charging.css` — used by both pages.
+- **Landing tile + mobile sheet**: EV entry gated by `FEATURE_TSH_EV_CHARGING` via `data-tsh-feature`.
+
+### 23.6 Sub-feature configurability contract
+
+Per society-agreed rule: sub-features within a feature are admin-configurable; sub-features can be flipped on/off by editors. Every phase MUST:
+
+1. Have its own `FEATURE_TSH_EV_<AREA>` flag.
+2. Return `feature-disabled` on server-side when its flag is off (never 500).
+3. Collapse invisibly on the client when its flag is off (never render a "coming soon" placeholder unless explicitly documented).
+4. Ship a Settings help-dictionary entry summarising ON/OFF impact.
+
+### 23.7 Files added / modified per phase
+
+**Phase 1** (this ship):
+
+- `worker/src/config/defaults.ts` — `ev` block on `SiteConfig.system` (typed), 8 feature-flag rows in `DEFAULT_CONFIG.features`.
+- `worker/src/routes/ev-charging.ts` — `GET /ev/config` handler + `mountEvCharging()`.
+- `worker/src/routes/index.ts` — wires `mountEvCharging`.
+- `worker/tests/ev-charging.test.ts` — flag-off + flag-on + signed-in + anonymous coverage.
+- `config/site.json` — `ev` block + 8 flags seeded (master off).
+- `docs/ev-charging.html` — resident page shell (Design 1).
+- `docs/assets/css/ev-charging.css` — shared styles.
+- `docs/assets/js/ev-charging.js` — page controller (auth + flag gate + station bar + guidelines render).
+- `docs/settings.html` — `EV_CHARGING` flag group + 8 HELP dictionary entries.
+
+**Phase 2+** — see §23.1 for the ship queue.
+
+### 23.8 Test invariants
+
+- Baseline test count moves forward each phase; no test removed.
+- Every route file has ≥ 1 flag-off assertion (`feature-disabled` envelope).
+- Every route file has ≥ 1 anonymous-caller assertion (401).
+- Every route file has ≥ 1 happy-path assertion for the intended role.
+
+### 23.9 External configuration required — private data repo
+
+Records + reports mirror to a dedicated private repo `tadeskops/tsh-ev-charging-data`. Phase 1 does NOT touch this repo (the mirror ships in Phase 5), but the setup must happen before Phase 5 goes live.
+
+**One-time grant** (before Phase 5 mirror job can succeed):
+
+1. Add the same GitHub App / PAT the worker uses for the public repo to the private repo's install scope, with `Contents: Write` permission.
+2. Create top-level folders (mirror job creates them lazily if missing): `data/{bookings,rfid,support}/`, `reports/{weekly,monthly,quarterly,yearly}/`, `templates/`.
+3. (Optional) Copy `worker/src/templates/ev-default-report.md` into the private repo's `templates/default-report.md` so editors can view / fork it in-repo.
+4. No new secret is required — reuses `GITHUB_APP_*` / `GITHUB_TOKEN`.
+
+**Fail-safe**: mirror job catches `403 Forbidden` and surfaces "Last sync failed: repo access denied" on the admin dashboard. Booking data stays in the public repo `config/ev-*.json` until the next successful sync — nothing is lost.
+
+### 23.10 Decisions locked with user (2026-08-02)
+
+| # | Question | Answer |
+|---|---|---|
+| 1 | Resident IA | Design 1 (Reservations Parity) |
+| 2 | Editor IA | Design 5 (Admin Dashboard), separate `docs/ev-admin.html` |
+| 3 | RFID lifecycle | Phase 6 (flag off by default) |
+| 4 | Registration workflow | Optional / open-book in Phase 1 |
+| 5 | Mirror cadence default | Monthly (cron `0 3 1 * *` — 03:00 IST-equivalent UTC) |
+| 6 | Report template ownership | Default only in Phase 1; upload UI in Phase 4 |
+| 7 | Helpline block on PDF | Single directory-entry id via `ev.helpline.directoryEntryId` |
+| 8 | Private-repo access | External grant required — see §23.9 |

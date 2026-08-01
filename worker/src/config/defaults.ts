@@ -124,6 +124,67 @@ export interface SiteConfig {
     maintenance?: {
       message?: string;
     };
+    /**
+     * EV Charging Services (FEATURE_TSH_EV_CHARGING) config.
+     *
+     * All keys are optional; the worker treats every leaf as advisory
+     * and falls back to the baked-in defaults from DEFAULT_CONFIG.system.ev
+     * when site.json omits them. Editors (MANAGER+) may tune every field
+     * via the Settings page (Phase 4). See tsh_requirement.md §23.
+     *
+     * Sub-features (each with its own FEATURE_TSH_EV_* flag) that read
+     * from this block: booking (§23.4 Phase 2), receipt (Phase 3),
+     * admin dashboard (Phase 4), auto reports (Phase 5), RFID + support
+     * + registration (Phase 6). Phase 1 only reads `station`, `booking`,
+     * `usageGuidelines`, `provider`, `helpline` and `faqs` for the
+     * GET /ev/config surface.
+     *
+     * `openMin` / `closeMin` are minutes-since-midnight IST (0..1440).
+     * `mirrorCron` is a friendly cadence label consumed by the scheduled
+     * handler in Phase 5 — 'off' disables the auto-mirror entirely.
+     */
+    ev?: {
+      station?: {
+        id?: string;
+        name?: string;
+        location?: string;
+        capacityKw?: number;
+        enabled?: boolean;
+      };
+      booking?: {
+        stepMinutes?: number;
+        minDurationMinutes?: number;
+        maxDurationMinutes?: number;
+        bufferMinutes?: number;
+        advanceWindowDays?: number;
+        maxActivePerFlat?: number;
+        openMin?: number;
+        closeMin?: number;
+        requiresApproval?: boolean;
+        /** Whole-day blackouts (YYYY-MM-DD, IST). */
+        blackoutDates?: string[];
+      };
+      usageGuidelines?: string[];
+      provider?: {
+        name?: string;
+        androidUrl?: string;
+        iosUrl?: string;
+        website?: string;
+        email?: string;
+        tollFree?: string;
+      };
+      faqs?: Array<{ q: string; a: string }>;
+      /** Directory-entry id shown as the "helpline" on receipts / PDFs. */
+      helpline?: {
+        directoryEntryId?: string;
+      };
+      reports?: {
+        /** Markdown template used by report generation (Phase 5). Empty = default. */
+        template?: string;
+        /** How often the scheduled mirror runs. Default 'monthly'. */
+        mirrorCron?: 'off' | 'weekly' | 'monthly' | 'quarterly' | 'yearly';
+      };
+    };
   };
   ui?: {
     defaultTheme?: 'dark' | 'light' | 'medium';
@@ -266,6 +327,34 @@ export const DEFAULT_CONFIG: SiteConfig = {
     FEATURE_TSH_VEHICLES_MEMBER_ALLOWLIST:    false,
     FEATURE_TSH_VEHICLES_REPORT_PRINT:        false,
     FEATURE_TSH_VEHICLES_RESIDENT_GRID:       false,
+    // EV Charging Services (§23). Master flag off by default so the
+    // resident page hides itself and every /ev/* route returns the
+    // feature-disabled envelope until an admin opts in. Sub-flags are
+    // seeded with the values they should take once the corresponding
+    // phase ships — flipping the master ON is enough to activate the
+    // Phase 2 booking core and the Phase 3 receipt without touching
+    // individual sub-flags. Auto-reports + RFID + registration + support
+    // (Phase 5–6 features) stay OFF even after master flips on, so an
+    // admin explicitly opts into each.
+    //  • CHARGING          — master. Gates every /ev/* route and the
+    //                        landing tile / mobile-sheet entry. When OFF
+    //                        every sub-flag becomes a no-op.
+    //  • BOOKING           — Phase 2. Availability grid + create / cancel.
+    //  • RECEIPT           — Phase 3. Digital receipt view / print / PDF.
+    //  • ADMIN_DASHBOARD   — Phase 4. Editor analytics (Design 5).
+    //  • AUTO_REPORTS      — Phase 5. Scheduled mirror + report generation
+    //                        to `tadeskops/tsh-ev-charging-data`.
+    //  • RFID              — Phase 6. RFID request lifecycle.
+    //  • REGISTRATION      — Phase 6. Pre-registration workflow.
+    //  • SUPPORT           — Phase 6. Support ticket taxonomy (12 cats).
+    FEATURE_TSH_EV_CHARGING:                 false,
+    FEATURE_TSH_EV_BOOKING:                  true,
+    FEATURE_TSH_EV_RECEIPT:                  true,
+    FEATURE_TSH_EV_ADMIN_DASHBOARD:          true,
+    FEATURE_TSH_EV_AUTO_REPORTS:             false,
+    FEATURE_TSH_EV_RFID:                     false,
+    FEATURE_TSH_EV_REGISTRATION:             false,
+    FEATURE_TSH_EV_SUPPORT:                  false,
     // DEPRECATED (2026-07-12): under the new strict 8-tier hierarchy
     // SECRETARY sits ABOVE TREASURER in the precedence chain and
     // inherits treasury view naturally, so this flag is a no-op. It is
@@ -456,6 +545,54 @@ export const DEFAULT_CONFIG: SiteConfig = {
     },
     maintenance: {
       message: 'We are deploying new features and improvements. Please check back shortly.',
+    },
+    // EV Charging Services defaults. Every field is overridable from
+    // site.json → system.ev; the resolver merges shallowly per sub-block.
+    // Phase 1 only reads `station`, `booking`, `usageGuidelines`,
+    // `provider`, `helpline` and `faqs`. Later phases add data files
+    // (config/ev-bookings.json etc.) and the private-repo mirror.
+    ev: {
+      station: {
+        id:         'ev-1',
+        name:       'EV Charger #1',
+        location:   'Basement 1',
+        capacityKw: 7.4,
+        enabled:    true,
+      },
+      booking: {
+        stepMinutes:        30,
+        minDurationMinutes: 30,
+        maxDurationMinutes: 180,
+        bufferMinutes:      5,
+        advanceWindowDays:  7,
+        maxActivePerFlat:   1,
+        // 06:00 – 23:00 IST charging window. Minutes-since-midnight.
+        openMin:            360,
+        closeMin:           1380,
+        requiresApproval:   false,
+        blackoutDates:      [],
+      },
+      usageGuidelines: [
+        'Book a slot before you plug in. Walk-ups are not guaranteed.',
+        'Sessions auto-end at your booked end-time. Please unplug promptly.',
+        'Report faults via the Support tab so the next resident is not blocked.',
+      ],
+      provider: {
+        name:      '',
+        androidUrl: '',
+        iosUrl:    '',
+        website:   '',
+        email:     '',
+        tollFree:  '',
+      },
+      faqs: [],
+      helpline: {
+        directoryEntryId: '',
+      },
+      reports: {
+        template:   '',
+        mirrorCron: 'monthly',
+      },
     },
   },
   ui: {

@@ -1,0 +1,163 @@
+/* EV Charging Services — shared styles for docs/ev-charging.html and
+   docs/ev-admin.html (Phase 4). Kept intentionally minimal in Phase 1 —
+   the availability grid, receipt preview and admin heatmap ship in
+   later phases with their own additive rules. */
+
+/* ---- Subnav pills (Book / History / RFID / Support / FAQ) --------- */
+.tsh-ev-subnav {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 8px 0 14px;
+  padding: 4px;
+  background: var(--tsh-card-alt, #f9fafb);
+  border-radius: 999px;
+  border: 1px solid var(--tsh-border, #e5e7eb);
+  width: fit-content;
+  max-width: 100%;
+}
+.tsh-ev-pill {
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 0;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--tsh-text, #111827);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: background .12s, color .12s;
+}
+.tsh-ev-pill:hover { background: color-mix(in srgb, var(--tsh-primary, #2563eb) 8%, transparent); }
+.tsh-ev-pill-active,
+.tsh-ev-pill[aria-selected="true"] {
+  background: var(--tsh-primary, #2563eb);
+  color: #fff;
+}
+.tsh-ev-pill i { font-size: 12px; }
+
+/* ---- Station bar (name / location / capacity / status) ------------ */
+.tsh-ev-station-bar {
+  display: grid;
+  grid-template-columns: 48px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border: 1px solid var(--tsh-border, #e5e7eb);
+  border-radius: 12px;
+  background: var(--tsh-card, #fff);
+  margin-bottom: 14px;
+}
+.tsh-ev-station-icon {
+  width: 48px; height: 48px;
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--tsh-primary, #2563eb) 12%, transparent);
+  color: var(--tsh-primary, #2563eb);
+  font-size: 22px;
+}
+.tsh-ev-station-info { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.tsh-ev-station-name { font-weight: 600; font-size: 16px; }
+.tsh-ev-station-meta { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; opacity: .8; }
+.tsh-ev-station-meta i { margin-right: 4px; opacity: .7; }
+.tsh-ev-status-pill {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  background: #f3f4f6;
+  color: #4b5563;
+}
+.tsh-ev-status-pill.tsh-ev-status-online   { background: #d1fae5; color: #065f46; }
+.tsh-ev-status-pill.tsh-ev-status-offline  { background: #fee2e2; color: #991b1b; }
+.tsh-ev-status-pill.tsh-ev-status-blackout { background: #fef3c7; color: #92400e; }
+
+/* ---- Tab panels ---------------------------------------------------- */
+.tsh-ev-tab-panel { margin-top: 8px; }
+
+.tsh-ev-placeholder {
+  padding: 32px 20px;
+  border: 1px dashed var(--tsh-border, #d1d5db);
+  border-radius: 12px;
+  text-align: center;
+  background: var(--tsh-card-alt, #f9fafb);
+}
+.tsh-ev-placeholder i {
+  font-size: 32px;
+  color: color-mix(in srgb, var(--tsh-primary, #2563eb) 60%, #6b7280);
+  margin-bottom: 8px;
+  display: block;
+}
+.tsh-ev-placeholder p { margin: 6px 0; }
+.tsh-ev-placeholder .tsh-sub { max-width: 520px; margin: 4px auto 0; }
+
+/* ---- FAQ list ------------------------------------------------------ */
+.tsh-ev-faq-list { display: flex; flex-direction: column; gap: 8px; }
+.tsh-ev-faq-item {
+  border: 1px solid var(--tsh-border, #e5e7eb);
+  border-radius: 10px;
+  padding: 10px 14px;
+  background: var(--tsh-card, #fff);
+}
+.tsh-ev-faq-q { font-weight: 600; font-size: 14px; margin: 0 0 4px; }
+.tsh-ev-faq-a { font-size: 13px; opacity: .85; line-height: 1.5; margin: 0; }
+
+/* ---- Guidelines strip (always at the bottom) ---------------------- */
+.tsh-ev-guidelines {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--tsh-border, #e5e7eb);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--tsh-primary, #2563eb) 4%, var(--tsh-card, #fff));
+}
+.tsh-ev-guidelines-head {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .04em;
+  opacity: .75; margin-bottom: 6px;
+}
+.tsh-ev-guidelines-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
+.tsh-ev-guidelines-list li {
+  font-size: 13px; line-height: 1.5;
+  padding-left: 20px; position: relative;
+}
+.tsh-ev-guidelines-list li::before {
+  content: '\f105';
+  font-family: 'Font Awesome 6 Free';
+  font-weight: 900;
+  position: absolute; left: 4px; top: 1px;
+  color: var(--tsh-primary, #2563eb);
+  font-size: 12px;
+}
+
+/* ---- Feature-disabled gate (rendered when the master flag is off) - */
+.tsh-ev-disabled-gate {
+  padding: 32px 24px;
+  border-radius: 12px;
+  border: 1px dashed var(--tsh-border, #d1d5db);
+  background: var(--tsh-card-alt, #f9fafb);
+  text-align: center;
+}
+.tsh-ev-disabled-gate i {
+  font-size: 32px;
+  color: #9ca3af;
+  margin-bottom: 8px;
+  display: block;
+}
+.tsh-ev-disabled-gate p { margin: 6px 0; }
+
+/* ---- Small-screen tuning ------------------------------------------ */
+@media (max-width: 640px) {
+  .tsh-ev-subnav { width: 100%; overflow-x: auto; flex-wrap: nowrap; }
+  .tsh-ev-pill { flex-shrink: 0; }
+  .tsh-ev-station-bar {
+    grid-template-columns: 40px 1fr;
+    grid-template-rows: auto auto;
+  }
+  .tsh-ev-station-status { grid-column: 1 / -1; justify-self: start; }
+}

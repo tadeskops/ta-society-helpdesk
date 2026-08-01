@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>EV Charging · TSH</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#1a1f2e" />
+  <meta name="description" content="Book a community EV charging slot at The Address." />
+  <link rel="icon" href="./assets/images/TaLogo.png" type="image/png" />
+  <script>(function(){try{var t=localStorage.getItem('tsh_theme');if(t!=='dark'&&t!=='light'&&t!=='medium')t='light';if(t!=='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="./assets/css/theme.css?v=87" />
+  <link rel="stylesheet" href="./assets/css/mobile-landing.css?v=14" />
+  <link rel="stylesheet" href="./assets/css/ev-charging.css?v=1" />
+</head>
+<body class="tsh-page">
+  <div data-include="header"></div>
+  <div data-include="toast"></div>
+  <div data-include="modal"></div>
+
+  <main class="tsh-main tsh-main-wide">
+
+    <!-- Signed-out gate: renders when Auth reports no session. -->
+    <section class="tsh-card" data-ev-signin hidden>
+      <header class="tsh-card-head">
+        <h1><i class="fas fa-charging-station gold-accent"></i> EV Charging</h1>
+      </header>
+      <div class="tsh-empty">
+        <p>Sign in to view charging-slot availability and manage your bookings.</p>
+        <p class="tsh-sub">
+          <i class="fas fa-arrow-up-right-from-square gold-accent" aria-hidden="true"></i>
+          Use the <strong>Sign in</strong> button in the <strong>top-right</strong> corner.
+        </p>
+      </div>
+    </section>
+
+    <!-- Main workspace: rendered once the master flag is on and the user
+         has signed in. Sub-panels inside are individually gated by their
+         own FEATURE_TSH_EV_* flag through data-tsh-ev-sub. -->
+    <section class="tsh-card" data-ev-main hidden>
+      <header class="tsh-card-head tsh-card-head-row">
+        <div>
+          <h1><i class="fas fa-charging-station gold-accent"></i> EV Charging</h1>
+          <p class="tsh-sub" id="evSub">Book a slot on the community charger. Records are kept for society use only — payment is directly with the provider.</p>
+        </div>
+      </header>
+
+      <!-- Subnav pills: Book / History / RFID / Support / FAQ. Each pill's
+           visibility is bound to its sub-flag inside ev-charging.js so the
+           bar collapses cleanly when a sub-feature is off. -->
+      <nav class="tsh-ev-subnav" role="tablist" aria-label="EV Charging views">
+        <button type="button" class="tsh-ev-pill tsh-ev-pill-active" role="tab" aria-selected="true"  data-ev-tab="book"    data-tsh-ev-sub="booking"><i class="fas fa-calendar-plus"></i> Book</button>
+        <button type="button" class="tsh-ev-pill"                    role="tab" aria-selected="false" data-ev-tab="history" data-tsh-ev-sub="booking"><i class="fas fa-clock-rotate-left"></i> History</button>
+        <button type="button" class="tsh-ev-pill" role="tab" aria-selected="false" data-ev-tab="rfid"     data-tsh-ev-sub="rfid"><i class="fas fa-id-card"></i> RFID</button>
+        <button type="button" class="tsh-ev-pill" role="tab" aria-selected="false" data-ev-tab="support"  data-tsh-ev-sub="support"><i class="fas fa-life-ring"></i> Support</button>
+        <button type="button" class="tsh-ev-pill" role="tab" aria-selected="false" data-ev-tab="faq"><i class="fas fa-circle-question"></i> FAQ</button>
+      </nav>
+
+      <!-- Station bar: name / location / capacity / status. Always visible
+           when the master flag is on. Populated from GET /ev/config. -->
+      <div class="tsh-ev-station-bar" id="evStationBar" aria-live="polite">
+        <div class="tsh-ev-station-icon"><i class="fas fa-plug"></i></div>
+        <div class="tsh-ev-station-info">
+          <div class="tsh-ev-station-name" data-ev-station-name>—</div>
+          <div class="tsh-ev-station-meta">
+            <span data-ev-station-location><i class="fas fa-location-dot"></i> —</span>
+            <span data-ev-station-capacity><i class="fas fa-bolt"></i> —</span>
+          </div>
+        </div>
+        <div class="tsh-ev-station-status">
+          <span class="tsh-ev-status-pill" data-ev-station-status>Loading…</span>
+        </div>
+      </div>
+
+      <!-- BOOK panel: Phase 1 placeholder for the availability grid. The
+           real grid + booking form ship in Phase 2 behind FEATURE_TSH_EV_BOOKING.
+           When the sub-flag is off, this whole panel is removed from the DOM
+           by ev-charging.js. -->
+      <section class="tsh-ev-tab-panel" data-ev-panel="book" data-tsh-ev-sub="booking">
+        <div class="tsh-ev-placeholder" id="evBookPlaceholder">
+          <i class="fas fa-hourglass-half"></i>
+          <p><strong>Slot booking arrives in Phase 2.</strong></p>
+          <p class="tsh-sub">The availability grid, quick-book flow and confirmation receipt land in the next release. Check back soon — your society already has EV Charging turned on.</p>
+        </div>
+      </section>
+
+      <!-- HISTORY panel: Phase 2 placeholder. -->
+      <section class="tsh-ev-tab-panel" data-ev-panel="history" data-tsh-ev-sub="booking" hidden>
+        <div class="tsh-ev-placeholder">
+          <i class="fas fa-clock-rotate-left"></i>
+          <p><strong>Your booking history will appear here.</strong></p>
+          <p class="tsh-sub">Phase 2 wires this to the /ev/bookings endpoint.</p>
+        </div>
+      </section>
+
+      <!-- RFID panel: Phase 6. -->
+      <section class="tsh-ev-tab-panel" data-ev-panel="rfid" data-tsh-ev-sub="rfid" hidden>
+        <div class="tsh-ev-placeholder">
+          <i class="fas fa-id-card"></i>
+          <p><strong>RFID card requests.</strong></p>
+          <p class="tsh-sub">Issue, replace or deactivate your charging RFID card. Ships in Phase 6.</p>
+        </div>
+      </section>
+
+      <!-- SUPPORT panel: Phase 6. -->
+      <section class="tsh-ev-tab-panel" data-ev-panel="support" data-tsh-ev-sub="support" hidden>
+        <div class="tsh-ev-placeholder">
+          <i class="fas fa-life-ring"></i>
+          <p><strong>Report a charging issue.</strong></p>
+          <p class="tsh-sub">Faulty connector, billing dispute, unauthorised use — file a support ticket. Ships in Phase 6.</p>
+        </div>
+      </section>
+
+      <!-- FAQ panel: rendered from ev.faqs when non-empty. -->
+      <section class="tsh-ev-tab-panel" data-ev-panel="faq" hidden>
+        <div class="tsh-ev-faq-list" id="evFaqList">
+          <p class="tsh-sub">No FAQs configured yet. Ask an admin to add them via Settings → EV charging.</p>
+        </div>
+      </section>
+
+      <!-- Usage guidelines strip: always visible when the master flag is on. -->
+      <aside class="tsh-ev-guidelines" id="evGuidelines" aria-label="Usage guidelines">
+        <div class="tsh-ev-guidelines-head">
+          <i class="fas fa-circle-info"></i>
+          <span>Usage guidelines</span>
+        </div>
+        <ul class="tsh-ev-guidelines-list" id="evGuidelinesList"></ul>
+      </aside>
+    </section>
+  </main>
+
+  <div data-include="mobile-tabbar"></div>
+  <div data-include="mobile-actions-sheet"></div>
+  <div data-include="footer"></div>
+
+  <script src="./assets/js/config.js?v=11"></script>
+  <script src="./assets/js/partials.js?v=22"></script>
+  <script src="./assets/js/api.js?v=12"></script>
+  <script src="./assets/js/auth.js?v=11"></script>
+  <script src="./assets/js/flags.js?v=19"></script>
+  <script src="./assets/js/ui.js?v=53"></script>
+  <script src="./assets/js/mobile-landing.js?v=8"></script>
+  <script src="./assets/js/ev-charging.js?v=1"></script>
+  <script>
+  (async () => {
+    await Partials.mount();
+    await Auth.init({ clientId: window.TSH_GOOGLE_CLIENT_ID });
+    UI.bindHeader();
+    EvCharging.init();
+    // Re-render on auth change so the sign-in gate and station bar update
+    // without a full page reload.
+    Auth.onChange(() => EvCharging.init());
+  })();
+  </script>
+</body>
+</html>

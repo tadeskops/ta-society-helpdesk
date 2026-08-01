@@ -847,6 +847,7 @@
         { key: 'RESERVATIONS', label: 'Reservations',              match: (n) => n === 'FEATURE_TSH_RESERVATIONS' || n.startsWith('FEATURE_TSH_RESERVATIONS_') },
         { key: 'HANDOVER',     label: 'Handover portal',           match: (n) => n === 'FEATURE_HANDOVER_TRACK' || n.startsWith('FEATURE_HANDOVER_') },
         { key: 'VEHICLES',     label: 'Vehicle registry',          match: (n) => n === 'FEATURE_TSH_VEHICLES' || n.startsWith('FEATURE_TSH_VEHICLES_') },
+        { key: 'EV_CHARGING',  label: 'EV charging',               match: (n) => n === 'FEATURE_TSH_EV_CHARGING' || n.startsWith('FEATURE_TSH_EV_') },
         { key: 'OTHER',        label: 'Other features',            match: () => true },
       ];
       const flagsGrid = document.getElementById('flagsGrid');
@@ -1655,6 +1656,46 @@
       'FEATURE_TSH_VEHICLES_RESIDENT_GRID': {
         summary: 'Show the read-only tower-based flat grid to residents on the Vehicle Registry page.',
         detail: 'When OFF (default), residents only see the search bar \u2014 they can look up a flat / vehicle / parking No. and open a read-only flat detail below the search box. When ON, residents also see the same tower-by-tower flat grid + tower filter chips that editors see, still fully read-only (no add / edit / delete / parking-edit controls are exposed). Editors are unaffected; they always see the grid.',
+        default: 'false',
+      },
+      'FEATURE_TSH_EV_CHARGING': {
+        summary: 'Master switch for the EV Charging Services module (resident booking + editor analytics + private-repo mirror).',
+        detail: 'When OFF (default), the EV Charging quick-tile is hidden on the landing page and /ev-charging.html renders a "not enabled for this site" gate. All /ev/* API endpoints return the feature-disabled envelope. Turn ON to expose the resident booking page (Design 1) and enable each sub-feature below. See tsh_requirement.md \u00a723.',
+        default: 'false',
+      },
+      'FEATURE_TSH_EV_BOOKING': {
+        summary: 'Enable the resident booking core: availability grid, create booking, cancel booking, booking history.',
+        detail: 'Sub-feature of EV Charging (must also have FEATURE_TSH_EV_CHARGING on). When OFF, the resident page shows the station and guidelines but hides the availability grid and the "Book a slot" action \u2014 useful when the charger is temporarily out of service.',
+        default: 'true',
+      },
+      'FEATURE_TSH_EV_RECEIPT': {
+        summary: 'Enable the digital-receipt view and PDF download for a confirmed booking.',
+        detail: 'Sub-feature of EV Charging. When OFF, residents see the booking timeline but cannot download a receipt PDF and the "View receipt" pill is hidden.',
+        default: 'true',
+      },
+      'FEATURE_TSH_EV_ADMIN_DASHBOARD': {
+        summary: 'Enable the editor analytics dashboard (/ev-admin.html) with KPIs, bar chart, heatmap and reports.',
+        detail: 'Sub-feature of EV Charging. Requires MANAGER role or above. When OFF, /ev-admin.html renders a feature-disabled gate and the mirror + report endpoints are hidden.',
+        default: 'true',
+      },
+      'FEATURE_TSH_EV_AUTO_REPORTS': {
+        summary: 'Enable the scheduled mirror of booking data + generated reports to the private repo tadeskops/tsh-ev-charging-data.',
+        detail: 'Sub-feature of EV Charging. When ON, the worker cron writes a monthly (by default) rollup PDF + CSV to the private repo. The GitHub App / PAT needs Contents: Write on the private repo before you flip this on (see tsh_requirement.md \u00a723.9). Editors can still download reports manually from the admin dashboard when this is OFF.',
+        default: 'false',
+      },
+      'FEATURE_TSH_EV_RFID': {
+        summary: 'Enable the RFID request lifecycle (issue new card, replace lost card, deactivate, etc.).',
+        detail: 'Sub-feature of EV Charging. When OFF, residents cannot raise RFID requests and the RFID subnav pill is hidden on the resident page.',
+        default: 'false',
+      },
+      'FEATURE_TSH_EV_REGISTRATION': {
+        summary: 'Enable the pre-registration workflow (declare EV, link vehicle registry entry, confirm charging profile).',
+        detail: 'Sub-feature of EV Charging. When OFF (Phase 1 default), any signed-in resident can book without pre-registering \u2014 a low-friction open-book model. When ON, only pre-registered vehicles can book and the "Register your EV" pill is exposed.',
+        default: 'false',
+      },
+      'FEATURE_TSH_EV_SUPPORT': {
+        summary: 'Enable the support-ticket taxonomy for EV charging issues (12 categories, filed as GitHub issues).',
+        detail: 'Sub-feature of EV Charging. When OFF, residents cannot open EV support tickets and the Support pill is hidden. Independent from the site-wide help / tool-issues path.',
         default: 'false',
       },
     }; }
