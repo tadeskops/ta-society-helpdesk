@@ -305,8 +305,6 @@
     #vehPrintArea th, #vehPrintArea td { border: 1px solid #999; padding: .35rem .55rem; font-size: .85rem; text-align: left; }
     #vehPrintArea th { background: #eee; }
 
-    .veh-tower-tools { display: flex; gap: .4rem; margin-top: .8rem; align-items: center; flex-wrap: wrap; }
-    .veh-tower-tools input { max-width: 8rem; }
 
     .veh-flat-detail { margin-top: 1rem; padding: 1rem 1.1rem; border-radius: 12px;
       border: 1px solid var(--tsh-accent, #b48a3c);
@@ -363,21 +361,22 @@
        matches the tower's unit count (plus a small constant for the
        floor-label rail) — so a 6-unit tower gets ~1.5× the width of a
        4-unit tower and every seat cell ends up the same physical width
-       across all towers. The template is set inline by JS via
-       #vehTowers[style="grid-template-columns:..."] once the tower list
-       is known; the default here is a sensible 4:6:4 fallback that
-       matches The Address's A/B/C towers. */
+       across all towers. The template is computed and set inline by
+       applyTowerLayout() based on the actual container width: if all
+       towers can render with their minimum comfortable cell width the
+       ratio row is used; otherwise it falls back to 2 columns and
+       finally stacks to 1 column. No viewport media queries — the
+       decision is content-aware, driven by ResizeObserver. */
     #vehTowers {
       display: grid;
       gap: 1.15rem;
       align-items: flex-start;
-      grid-template-columns: 4fr 6fr 4fr;
+      grid-template-columns: 1fr;
     }
     .veh-tower { margin-bottom: 0; min-width: 0; }
-    @media (max-width: 899px) { #vehTowers { grid-template-columns: 1fr 1fr; } }
-    @media (max-width: 639px) { #vehTowers { grid-template-columns: 1fr; } }
     /* Filter narrowed to a single tower — let it span the row. Toggled
-       by applyTowerFilter() (activeTower !== null). */
+       by applyTowerFilter() (activeTower !== null). applyTowerLayout()
+       clears the inline template while data-single-tower is set. */
     #vehTowers[data-single-tower="1"] { grid-template-columns: 1fr !important; }
 
     /* ------- Design 10 wheel picker (mobile resident, flag-gated) ------- */
@@ -1127,28 +1126,81 @@
         '<summary>' + label + ' <span class="veh-tower-count">(' + meta + ')</span></summary>' +
         '<div class="veh-tower-cols" style="--units:' + s.maxUnit + '" aria-hidden="true">' + cols + '</div>' +
         '<div class="veh-tower-grid" style="--units:' + s.maxUnit + '">' + cells + '</div>' +
-        '<div class="veh-tower-tools">' +
-          '<span style="color:var(--tsh-muted,#667);font-size:.85em;">Need a flat outside this grid?</span>' +
-          '<input type="text" class="veh-tower-add-flat" placeholder="' + esc(tower) + '1401" maxlength="8" aria-label="Custom flat number" />' +
-          '<button type="button" class="tsh-btn tsh-btn-ghost tsh-btn-sm" data-tower-add="' + esc(tower) + '"><i class="fas fa-plus"></i> Pick</button>' +
-        '</div>' +
         '</details>';
+    }
+
+    // Minimum comfortable per-cell width (in px) — big enough to keep
+    // a 4-char flat label like "A101" fully readable on one line
+    // without the label bar underneath overlapping. Tuned to match the
+    // committed .veh-cell font-size + padding. If future flats grow to
+    // 5 chars (A1401), bump this to ~46.
+    const VEH_MIN_CELL_PX  = 44;
+    const VEH_FLOOR_RAIL_PX = 36;    // ~2.2rem @ 16px root
+    const VEH_CELL_GAP_PX   = 6;     // ~.35rem
+    const VEH_CARD_GAP_PX   = 18;    // ~1.15rem
+
+    // Minimum width a tower card needs to render its cells at the
+    // comfortable threshold (below which text starts to overlap the
+    // colour bar or wrap to two lines).
+    function towerMinWidth(s) {
+      const u = Math.max(1, s.maxUnit);
+      return VEH_FLOOR_RAIL_PX + u * VEH_MIN_CELL_PX + u * VEH_CELL_GAP_PX;
+    }
+
+    // Decide the outer #vehTowers grid-template-columns based on the
+    // container's actual width and the visible tower specs:
+    //   1. If the row can fit every tower at the min-cell threshold,
+    //      use ratio columns (maxUnit+1)fr with a minmax(min, fr) floor
+    //      so cells never squish below VEH_MIN_CELL_PX.
+    //   2. Otherwise, if two of the widest cards fit side by side,
+    //      fall back to a 2-column stack.
+    //   3. Otherwise stack fully to 1 column.
+    // Called from renderTowerGrids, the ResizeObserver below, and
+    // applyTowerFilter (which clears the inline style when a single
+    // tower is active so the CSS !important 1fr rule wins).
+    function applyTowerLayout() {
+      if (!towersEl) return;
+      if (towersEl.hasAttribute('data-single-tower')) {
+        towersEl.style.gridTemplateColumns = '';
+        return;
+      }
+      const specs = [...buildTowerSchematics().values()];
+      if (specs.length === 0) { towersEl.style.gridTemplateColumns = ''; return; }
+      if (specs.length === 1) { towersEl.style.gridTemplateColumns = '1fr'; return; }
+      const mins = specs.map(towerMinWidth);
+      const totalMin = mins.reduce((a, b) => a + b, 0) +
+                       (specs.length - 1) * VEH_CARD_GAP_PX;
+      const w = towersEl.clientWidth || towersEl.getBoundingClientRect().width || 0;
+      if (w >= totalMin) {
+        // Enough room for the full ratio row. minmax(min, fr) protects
+        // cells from squishing if the browser rounds unevenly.
+        towersEl.style.gridTemplateColumns = specs
+          .map((s, i) => 'minmax(' + mins[i] + 'px, ' + (s.maxUnit + 1) + 'fr)')
+          .join(' ');
+        return;
+      }
+      const widest = Math.max(...mins);
+      if (w >= widest * 2 + VEH_CARD_GAP_PX) {
+        towersEl.style.gridTemplateColumns = '1fr 1fr';
+        return;
+      }
+      towersEl.style.gridTemplateColumns = '1fr';
+    }
+
+    // Watch for container-width changes (viewport resize, sidebar
+    // collapse, font-size buttons, etc.) and reflow the tower ratio.
+    if (typeof ResizeObserver === 'function' && towersEl) {
+      const _towerRO = new ResizeObserver(() => applyTowerLayout());
+      _towerRO.observe(towersEl);
     }
 
     function renderTowerGrids() {
       const specs = buildTowerSchematics();
       let html = '';
-      // Compute the outer grid-template-columns from each tower's unit
-      // count so cards share row width proportionally: a 6-unit tower
-      // ends up 1.5× the width of a 4-unit tower and every seat cell
-      // renders at the same physical width. Padded by 1 fr unit for
-      // the floor-label rail. Media queries in CSS override to stacked
-      // layouts on tablet + phone.
-      const ratios = [];
-      for (const [, s] of specs) ratios.push((s.maxUnit + 1) + 'fr');
-      towersEl.style.gridTemplateColumns = ratios.join(' ');
       for (const [tower, s] of specs) html += renderTowerGrid(tower, s);
       towersEl.innerHTML = html;
+      // Content-aware outer layout (ratio row / 2-col / stacked).
+      applyTowerLayout();
       // Apply the current tower filter after (re)rendering.
       applyTowerFilter();
     }
@@ -1493,39 +1545,11 @@
       });
     }
 
-    // Tower grid: cell click → select flat; "Pick" button → jump to a
-    // custom flat outside the grid.
+    // Tower grid: cell click → select flat.
     towersEl.addEventListener('click', (e) => {
       const cell = e.target.closest('.veh-cell');
       if (cell) {
         selectFlat(cell.getAttribute('data-flat'));
-        return;
-      }
-      const addBtn = e.target.closest('[data-tower-add]');
-      if (addBtn) {
-        const tower = addBtn.getAttribute('data-tower-add');
-        const input = addBtn.parentElement.querySelector('.veh-tower-add-flat');
-        const raw = (input && input.value || '').trim().toUpperCase();
-        if (!raw) { UI.toast('Enter a flat like ' + tower + '1401.', { kind: 'danger' }); return; }
-        if (!/^[A-Z][0-9]{1,4}$/.test(raw)) {
-          UI.toast('Flat must be a tower letter followed by 1–4 digits.', { kind: 'danger' });
-          return;
-        }
-        if (raw.charAt(0) !== tower) {
-          UI.toast('Flat "' + raw + '" is not in Tower ' + tower + '.', { kind: 'danger' });
-          return;
-        }
-        input.value = '';
-        selectFlat(raw);
-      }
-    });
-
-    // Auto-uppercase the "custom flat" input as the user types.
-    towersEl.addEventListener('input', (e) => {
-      if (e.target.classList.contains('veh-tower-add-flat')) {
-        const p = e.target.selectionStart;
-        e.target.value = e.target.value.toUpperCase();
-        try { e.target.setSelectionRange(p, p); } catch (_x) { /* ignore */ }
       }
     });
 
