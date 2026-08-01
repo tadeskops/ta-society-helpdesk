@@ -194,9 +194,19 @@ Every route calls [`ensureAllowed(ctx, { roles?: Role[], flags?: string[], requi
 ### 3.3 What is forbidden
 
 - Client-typed email/role login form.
-- Storing identity in `localStorage` or `sessionStorage`. JWT lives only in the in-memory variable for the current tab.
+- Storing raw `email` / `role` / `flat` fields in `localStorage` / `sessionStorage` / query strings as free-standing PII. (The **Google ID token itself** is cached in `localStorage` under `tsh_id_token` — see §3.4 — which technically contains `email` inside the JWT payload; that is treated as identity material, not free-standing PII, and is bounded by the JWT's own `exp`.)
 - Trusting any `email` / `role` field in a request body — Worker ignores them.
 - Shipping the GitHub PAT (or any other secret) to the browser.
+
+### 3.4 Client-side session persistence (post 2026-07-24)
+
+- The Google ID token (JWT) is persisted client-side under `localStorage.tsh_id_token` (with a companion `tsh_signed_in` flag). This is a change from the earlier "in-memory only" rule so that external links (WhatsApp, email) open in a new tab without forcing re-auth.
+- Fallback to `sessionStorage` on Safari-private / quota errors. Old `sessionStorage` entries are migrated on first load so upgraded users don't re-auth.
+- Cross-tab persistence bounded by the JWT `exp` claim (Google ID tokens are ~1 h). On expiry the client clears both keys and forces sign-in.
+- `Auth.hasSession()` is the sync helper: decodes the persisted JWT, checks `exp` with 30 s clock-skew, returns `boolean` without any network call.
+- `Flags.ensureAuthorized(minRole)` retries `GET /whoami` up to 2× with 400 / 800 ms backoff when `Auth.hasSession() === true` but the first response was empty — prevents a transient Worker blip from bouncing a signed-in user to the Sign-in gate.
+- `api.js` 401 auto-retry toasts "Session expired — please sign in again." before calling `Auth.signIn()` so a surprise popup isn't unexplained.
+- Nothing else about identity flow changes: the Worker still only trusts the JWT signature it verifies per request; every privileged action is still gated server-side; no email/role field in a request body is ever honoured.
 
 ## 4. Architecture
 
@@ -760,7 +770,7 @@ The file above (`config/site.json`) is authoritative at runtime. `worker/src/con
 - ✅ Every privileged action passes through Worker-side role allow-list lookup.
 - ✅ Client payloads MUST NOT contain `email` / `role` / `actor`; the Worker ignores them.
 - ✅ Allow-lists managed via JSON files in this repo; every change is a commit.
-- ✅ No PII in `localStorage` / `sessionStorage` / query strings.
+- ✅ No free-standing PII in `localStorage` / `sessionStorage` / query strings. The one exception is the Google ID token itself, cached under `localStorage.tsh_id_token` — that is identity material bounded by the JWT's own `exp` and cleared on expiry / sign-out. See §3.4.
 - ✅ GitHub PAT lives only in Cloudflare Worker secrets; never shipped to the browser.
 - ✅ Public read endpoints scrub PII before returning.
 - ❌ No client-typed email/role login form.
@@ -935,6 +945,81 @@ Design guarantees:
 - **No migration on activation.** All schema is present today; the flip is one boolean per capability.
 - **Fail closed.** Resident self-add requires both the feature flag AND `residentAddRequiresIdCheck = false` (once the id-validation flow lands) AND `residentAddRoles` to include `RESIDENT`. Any missing piece keeps the endpoint dark.
 - **Bulk parser is idempotent.** `POST /vehicles/emails/import` returns extracted emails without persisting; the admin reviews, then attaches via the existing `PUT /vehicles`. This keeps a single write path (`PUT /vehicles`) and a single audit line style.
+
+## 14.11 Mobile navigation & quick-actions bottom sheet (post 2026-07-31)
+
+Phone is the primary target (§14.1). The mobile creation flow uses three surfaces, wired to every page via server-included partials — there is **no** story-avatar rail (a story-ring row was tried on 2026-07-25 and rolled back on 2026-07-31 as it duplicated the tab-bar destinations; the CSS carries a comment noting the removal so it isn't accidentally re-added).
+
+**a. Site header** — the single canonical Sign-in CTA (`[data-tsh-signin]` in `docs/partials/header.html`). Every gate on every page must guide the user to this button; no page renders a second Sign-in button. Directional copy pattern (mandatory):
+
+```html
+<p class="tsh-sub">
+  <i class="fas fa-arrow-up-right-from-square gold-accent"></i>
+  Use the <strong>Sign in</strong> button in the <strong>top-right</strong> corner.
+</p>
+```
+
+**b. Mobile tab-bar** (`docs/partials/mobile-tabbar.html`, class `.tsh-mob-tabbar`, visible ≤ 640 px). Five destinations: Home / Board / **Report ("+")** / Book / Directory. The centre "Report" anchor carries `class="tsh-mob-fab"` and is styled as a raised gold FAB. Its `href="./daily-report.html"` is retained as a graceful no-JS fallback; on mobile with JS enabled the click is intercepted (see below) and the bottom sheet opens instead. Feature-gated tabs inherit the shared `[data-tsh-feature]` walker (`docs/assets/js/ui.js`) so a disabled destination hides automatically.
+
+**c. Bottom-action sheet** (`docs/partials/mobile-actions-sheet.html`, class `.tsh-mob-sheet`, WhatsApp-style). Triggered by the tab-bar FAB via `mobile-landing.js → wireActionSheet()`. Contains an accessible dialog with a gold-glowing X close button, a title, and a `<ul data-tsh-mob-sheet-list>` that JS re-renders from a client-side registry. Backdrop click, X click and Escape all close it. `body.tsh-mob-sheet-open` is toggled so page scroll is locked while open. Respects `prefers-reduced-motion`.
+
+### 14.11.1 Quick-actions registry
+
+`docs/assets/js/mobile-landing.js` owns `QUICK_ACTIONS_REGISTRY` — the canonical 14-entry catalogue of "make something" destinations available in the sheet. Every entry is:
+
+```js
+{ key: 'report', label: 'Report an issue', desc: 'Lift, water, lights, cleaning & more',
+  href: './daily-report.html', icon: 'fa-screwdriver-wrench',
+  feature: null /* or 'FEATURE_TSH_RESERVATIONS', etc. */ }
+```
+
+- `key` is a stable identifier used by the admin config and by tenants; **must** match `/^[a-z0-9_-]{1,40}$/i`.
+- `feature` (optional) is the `FEATURE_*` flag that gates this row. `null` means always shown.
+- **The first 6 registry entries are the default sheet** and must be preserved in order (`report`, `reserve`, `claim`, `vehicle`, `vote`, `myreports`) — tenants that don't customise the sheet see the same 6 as before this feature landed.
+- The full registry is exposed as `window.TSH_QUICK_ACTIONS_REGISTRY` (fresh copy per read) for the settings page to enumerate.
+
+### 14.11.2 Admin-configurable overrides (`ui.mobileQuickActions`)
+
+Admins can rename, reorder, disable, or extend the sheet without a code change via the `ui.mobileQuickActions` block on `config/site.json`. Shape (all optional):
+
+```jsonc
+{
+  "ui": {
+    "mobileQuickActions": {
+      "title": "Create",                       // ≤ 60 chars; replaces the "Create" heading
+      "items": [
+        { "key": "report",   "label": "Log a complaint" },
+        { "key": "reserve",  "enabled": false },
+        { "key": "vote",     "desc": "Vote in the AGM poll" }
+        // ≤ 32 entries. Unique keys. Order = order in the sheet.
+      ]
+    }
+  }
+}
+```
+
+- `key` **must** be a registry entry; unknown keys are silently ignored (safe forward-compat).
+- `enabled: false` removes the row **without losing its position** (re-enabling restores order).
+- `label` (≤ 60) / `desc` (≤ 120) override registry defaults per item; both optional.
+- `PUT /config` validates all bounds and rejects duplicate keys / oversize strings / non-boolean `enabled` — see `worker/src/routes/config.ts` and the `mobileQuickActions validation` block in `worker/tests/routes.smoke.test.ts`.
+- When the block is absent or empty the client falls back to the first 6 registry entries — matching the pre-2026-07-26 default.
+- Admin UI: reserved for `settings.html` under the **Mobile quick actions** section (title input + reorderable enable/disable grid with per-item label/desc override inputs). The wire-up is not shipped in the current tree; the worker validator + client renderer are ready so activating the admin surface later is a UI-only change.
+
+### 14.11.3 Accessibility & tooltip fallback
+
+`mobile-landing.js → ensureAccessibleTooltips(scope?)` walks every interactive element (`a`, `button`, `[role=button|link]`, form controls, `<summary>`) inside the given scope (default `document`) and assigns `title` where missing, using — in priority order — `aria-label`, `data-tooltip`, `alt`, or a kebab→sentence conversion of the leading `fa-*` icon class. Runs on `init()` and again per mutation batch inside the MutationObserver so partial-mounted content is covered.
+
+### 14.11.4 Wiring recap (11 real pages)
+
+`index.html`, `daily-report.html`, `daily-confirm.html`, `public-board.html`, `reservations.html`, `directory.html`, `settings.html`, `treasury.html`, `manage.html`, `manager-dashboard.html`, `vehicles.html`. `committee-dashboard.html` is a redirect stub and intentionally skipped.
+
+Each page must include, in order:
+
+1. `<link href="./assets/css/mobile-landing.css?v=…">` in `<head>`.
+2. `<div data-include="mobile-tabbar">` and `<div data-include="mobile-actions-sheet">` right after the primary `<main>`.
+3. `<script defer src="./assets/js/mobile-landing.js?v=…">` after `partials.js`.
+
+`scripts/patch-mobile-tabbar.ps1` maintains all four wiring points across every page with byte-preserving edits (BOM-less UTF-8 read/write — never `Get-Content -Raw` + `Set-Content -Encoding UTF8`, which double-encodes non-ASCII).
 
 ## 15. Non-goals / out of scope
 

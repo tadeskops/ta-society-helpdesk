@@ -468,8 +468,10 @@ Nothing sensitive is ever shipped to the browser.
 - Client payloads MUST NOT contain `email` / `role` / `actor`. Server ignores
   them if present.
 - Allow-lists are JSON files in the repo; every change is a commit.
-- **No PII in `localStorage` / `sessionStorage` / query strings.** JWT lives
-  only in the in-memory variable for the current tab.
+- **No free-standing PII in `localStorage` / `sessionStorage` / query strings.**
+  The Google ID token itself is cached under `localStorage.tsh_id_token` for
+  cross-tab persistence (bounded by the JWT `exp`, cleared on expiry /
+  sign-out); no other identity material is stored on the client.
 - GitHub PAT lives only in server secrets; never shipped to the browser.
 - Public read endpoints scrub PII before returning.
 - Soft-delete only. Hard-delete requires a manual out-of-band action on github.com.
