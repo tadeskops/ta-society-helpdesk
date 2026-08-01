@@ -100,16 +100,6 @@
       display: none !important;
     }
 
-    /* ------- Design 5 hero tweaks (resident view only) ------- */
-    body.veh-mode-resident .veh-search-card {
-      padding-top: 2.4rem;
-    }
-    body.veh-mode-resident .veh-search-card > .tsh-card-head h1 {
-      font-size: 2rem;
-    }
-    body.veh-mode-resident .veh-search-card > .tsh-card-head .tsh-sub {
-      margin-bottom: 1.2rem;
-    }
     /* ------- Rich result card (both views) ------- */
     .veh-result {
       margin-top: 1rem; padding: 1.15rem 1.25rem; border-radius: 14px;
@@ -889,7 +879,6 @@
     }
 
     @media (max-width: 640px) {
-      body.veh-mode-resident .veh-search-card > .tsh-card-head h1 { font-size: 1.55rem; }
       body.veh-mode-resident .veh-search-row input[type="search"] {
         font-size: 1rem; padding: .95rem 2.7rem .95rem 3rem;
       }
@@ -1746,7 +1735,7 @@
       } else {
         roleHintEl.textContent =
           'Signed in as ' + (who.email || '') + ' (' + who.primary + ') · ' +
-          'Read-only view. Browse the tower grids or search for a flat / vehicle / parking No. Editing is restricted to: ' + editorRoles.join(', ') + '.';
+          'Read-only view. Search for a flat, vehicle, or parking No. below.';
       }
     }
 
@@ -2362,12 +2351,16 @@
       renderQuickLinks();
       manageEl.hidden = !canWrite;
       totalEl.textContent = '(' + vehicles.length + ')';
-      // Editor-only panels (add form / edit drawer / delete controls)
-      // are hidden by the .veh-mode-editor / .veh-mode-resident body
-      // class switch inside renderTowerGrid / renderFlatDetail, so the
-      // tower grid + tower filter can safely render for residents too
-      // — they can browse flat tiles and read parking numbers, but
-      // clicking through only reveals the read-only detail view.
+      // Residents get search + read-only flat detail on click-through
+      // from a search result, but NOT the tower grid or tower filter
+      // — those are editor tools. Clear both so a stale render doesn't
+      // leak in after a role change.
+      if (!canWrite) {
+        detailEl.hidden = true;
+        towersEl.innerHTML = '';
+        if (filterEl) filterEl.innerHTML = '';
+        return;
+      }
       renderTowerFilter();
       renderTowerGrids();
       // Re-render the detail panel (list may have changed for the current flat).
