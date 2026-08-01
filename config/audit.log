@@ -147,3 +147,4 @@
 {"at":"2026-07-18T07:21:56.762Z","actor":"ta.deskops@gmail.com","action":"access-list:put","target":"config/contributor.json","detail":"count=2 by=ADMIN"}
 {"at":"2026-07-18T07:22:00.295Z","actor":"ta.deskops@gmail.com","action":"access-list:put","target":"config/managers.json","detail":"count=1 by=ADMIN"}
 {"at":"2026-08-01T09:40:56.653Z","actor":"ta.deskops@gmail.com","action":"vehicles:put","target":"config/vehicles.json","detail":"count=2"}
+{"at":"2026-08-01T11:28:01.539Z","actor":"ta.deskops@gmail.com","action":"vehicles:delete","target":"config/vehicles.json","detail":"id=veh-b805-mhxxab1234 flat=B805 regNo=MHXXAB1234"}
