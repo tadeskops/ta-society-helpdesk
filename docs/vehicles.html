@@ -643,16 +643,27 @@
        (distinct from the EV bolt which is orange). When the flat holds
        more than one bay the badge shows the count too. Full bay list
        is available via the button's tooltip. */
-    .veh-cell-parking {
-      position: absolute; top: 3px; left: 4px;
-      display: inline-flex; align-items: center; gap: 1px;
+    .veh-cell-park {
+      display: inline-flex; align-items: center; justify-content: center;
+      gap: 2px; margin-top: 2px;
+      padding: 1px 4px; border-radius: 4px;
+      background: rgba(180, 138, 60, .12);
       color: var(--tsh-accent, #b48a3c);
-      font-size: .55rem; font-weight: 700; line-height: 1;
-      filter: drop-shadow(0 0 1px rgba(0,0,0,.28));
-      pointer-events: none;
+      font-size: .55rem; font-weight: 700; letter-spacing: .02em;
+      line-height: 1; white-space: nowrap; overflow: hidden;
+      max-width: 100%; text-overflow: ellipsis;
     }
-    .veh-cell-parking i { font-size: .7rem; }
-    body.tsh-tone-dark .veh-cell-parking { color: #e6c78a; }
+    .veh-cell-park i { font-size: .58rem; flex: 0 0 auto; }
+    .veh-cell-park-txt {
+      min-width: 0; overflow: hidden; text-overflow: ellipsis;
+    }
+    .veh-cell-park-more {
+      flex: 0 0 auto; opacity: .8; font-weight: 600;
+    }
+    body.tsh-tone-dark .veh-cell-park {
+      background: rgba(180, 138, 60, .22);
+      color: #e6c78a;
+    }
 
     /* Editor-only action row (Print report etc.). */
     .veh-manage-actions {
@@ -1855,10 +1866,18 @@
           const parkTitle = bays.length
             ? ' · Parking ' + bays.join(', ')
             : '';
+          // Inline parking pill directly under the flat number: shows
+          // the actual bay label (e.g. "P-105") rather than a bare
+          // icon so the number is legible without having to open the
+          // drawer. When a flat has multiple bays only the first is
+          // shown to keep the tile compact; the tooltip carries the
+          // full list. The tile min-width has been bumped just enough
+          // to fit "P-1234 +9" comfortably.
           const parkChip = bays.length
-            ? '<span class="veh-cell-parking" aria-hidden="true">' +
-                '<i class="fas fa-square-parking"></i>' +
-                (bays.length > 1 ? String(bays.length) : '') +
+            ? '<span class="veh-cell-park" title="Parking ' + esc(bays.join(', ')) + '">' +
+                '<i class="fas fa-square-parking" aria-hidden="true"></i>' +
+                '<span class="veh-cell-park-txt">' + esc(bays[0]) + '</span>' +
+                (bays.length > 1 ? '<span class="veh-cell-park-more">+' + (bays.length - 1) + '</span>' : '') +
               '</span>'
             : '';
           cells += '<button type="button" class="' + cls + '" data-flat="' + esc(flat) + '"' +
@@ -1884,11 +1903,11 @@
     }
 
     // Minimum comfortable per-cell width (in px) — big enough to keep
-    // a 4-char flat label like "A101" fully readable on one line
-    // without the label bar underneath overlapping. Tuned to match the
-    // committed .veh-cell font-size + padding. If future flats grow to
-    // 5 chars (A1401), bump this to ~46.
-    const VEH_MIN_CELL_PX  = 44;
+    // a 4-char flat label like "A101" fully readable on one line AND
+    // to fit an inline parking-number pill ("P-105") underneath when
+    // the flat has a bay assigned. Tuned to match the committed
+    // .veh-cell font-size + padding.
+    const VEH_MIN_CELL_PX  = 54;
     const VEH_FLOOR_RAIL_PX = 36;    // ~2.2rem @ 16px root
     const VEH_CELL_GAP_PX   = 6;     // ~.35rem
     const VEH_CARD_GAP_PX   = 18;    // ~1.15rem
