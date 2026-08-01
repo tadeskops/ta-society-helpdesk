@@ -250,12 +250,22 @@ export const DEFAULT_CONFIG: SiteConfig = {
     //    the manage view that renders a print-friendly table (including
     //    EV type variants). Off by default — the underlying report layout
     //    is client-only today and no server endpoint is required.
+    //  • RESIDENT_GRID: when on, residents (read-only viewers) see the
+    //    tower-based flat grid + tower filter in addition to the search
+    //    bar. All write affordances (add / edit / delete / parking
+    //    edit / print report) remain suppressed — residents only get
+    //    a click-through to the read-only flat detail. Off by default
+    //    so the resident view stays search-only unless an editor opts
+    //    in via Settings. The flag lives fully client-side; the server
+    //    already returns the same vehicles.json shape to every signed-in
+    //    caller so no route change is required.
     FEATURE_TSH_VEHICLES_EMAIL_FILTER:        false,
     FEATURE_TSH_VEHICLES_STICKER_PATCH:       false,
     FEATURE_TSH_VEHICLES_BULK_EMAILS:         false,
     FEATURE_TSH_VEHICLES_RESIDENT_ADD:        false,
     FEATURE_TSH_VEHICLES_MEMBER_ALLOWLIST:    false,
     FEATURE_TSH_VEHICLES_REPORT_PRINT:        false,
+    FEATURE_TSH_VEHICLES_RESIDENT_GRID:       false,
     // DEPRECATED (2026-07-12): under the new strict 8-tier hierarchy
     // SECRETARY sits ABOVE TREASURER in the precedence chain and
     // inherits treasury view naturally, so this flag is a no-op. It is

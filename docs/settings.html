@@ -846,6 +846,7 @@
         { key: 'DAILY',        label: 'Daily issues & reporting',  match: (n) => n === 'FEATURE_DAILY_TRACK' || n.startsWith('FEATURE_DAILY_') },
         { key: 'RESERVATIONS', label: 'Reservations',              match: (n) => n === 'FEATURE_TSH_RESERVATIONS' || n.startsWith('FEATURE_TSH_RESERVATIONS_') },
         { key: 'HANDOVER',     label: 'Handover portal',           match: (n) => n === 'FEATURE_HANDOVER_TRACK' || n.startsWith('FEATURE_HANDOVER_') },
+        { key: 'VEHICLES',     label: 'Vehicle registry',          match: (n) => n === 'FEATURE_TSH_VEHICLES' || n.startsWith('FEATURE_TSH_VEHICLES_') },
         { key: 'OTHER',        label: 'Other features',            match: () => true },
       ];
       const flagsGrid = document.getElementById('flagsGrid');
@@ -1645,6 +1646,16 @@
         range: '5 \u2013 300 seconds',
         detail: 'Lower means live results update faster; higher reduces load on the votes file for very active polls.',
         default: '30',
+      },
+      'FEATURE_TSH_VEHICLES': {
+        summary: 'Enable the community Vehicle Registry page (search + editor CRUD).',
+        detail: 'When OFF, the Vehicle registry quick-tile is hidden on the landing page and /vehicles.html renders a "not enabled for this site" message. All /vehicles API endpoints return feature-disabled. Turn ON to expose the search-first read-only view for residents and the full add / edit / delete surface for editors (roles listed in system.vehicles.editorRoles).',
+        default: 'true',
+      },
+      'FEATURE_TSH_VEHICLES_RESIDENT_GRID': {
+        summary: 'Show the read-only tower-based flat grid to residents on the Vehicle Registry page.',
+        detail: 'When OFF (default), residents only see the search bar \u2014 they can look up a flat / vehicle / parking No. and open a read-only flat detail below the search box. When ON, residents also see the same tower-by-tower flat grid + tower filter chips that editors see, still fully read-only (no add / edit / delete / parking-edit controls are exposed). Editors are unaffected; they always see the grid.',
+        default: 'false',
       },
     }; }
 

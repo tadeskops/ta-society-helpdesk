@@ -104,6 +104,12 @@
     body.veh-mode-resident .veh-manage-actions {
       display: none !important;
     }
+    /* When the tower grid is unlocked for residents via
+       FEATURE_TSH_VEHICLES_RESIDENT_GRID, the "Manage vehicles" header
+       + subtitle inside the manage card don't apply (residents can't
+       manage anything). Hide the header text and reduce the surrounding
+       spacing so the tower filter chips sit close to the search card. */
+    body.veh-mode-resident .veh-manage > .tsh-card-head { display: none; }
 
     /* ------- Rich result card (both views) ------- */
     .veh-result {
@@ -1740,11 +1746,25 @@
       if (stored && /^[A-Z]$/.test(stored)) activeTower = stored;
     } catch (_e) { /* private mode / storage disabled — fine, default to All */ }
 
+    // Read-only tower-grid visibility for residents. Off by default;
+    // editors can flip FEATURE_TSH_VEHICLES_RESIDENT_GRID in Settings
+    // to let residents browse the same tower-based flat grid the
+    // editors see, minus every write affordance.
+    const RESIDENT_GRID_FLAG = 'FEATURE_TSH_VEHICLES_RESIDENT_GRID';
+    function residentGridOn() {
+      try { return !!(window.Flags && Flags.on && Flags.on(RESIDENT_GRID_FLAG)); }
+      catch (_e) { return false; }
+    }
+
     function updateRoleHint() {
       if (canWrite) {
         roleHintEl.textContent =
           'Signed in as ' + (who.email || '') + ' (' + who.primary + ') · ' +
           'You may add, edit, and delete entries. Pick a flat to manage its vehicles.';
+      } else if (residentGridOn()) {
+        roleHintEl.textContent =
+          'Signed in as ' + (who.email || '') + ' (' + who.primary + ') · ' +
+          'Read-only view. Browse the tower grids below or search for a flat, vehicle, or parking No.';
       } else {
         roleHintEl.textContent =
           'Signed in as ' + (who.email || '') + ' (' + who.primary + ') · ' +
@@ -2378,13 +2398,16 @@
       updateRoleHint();
       updateModeClasses();
       renderQuickLinks();
-      manageEl.hidden = !canWrite;
+      // Editors always see the manage section. Residents see it only
+      // when FEATURE_TSH_VEHICLES_RESIDENT_GRID is on — in which case
+      // it renders read-only (write UI hidden via CSS), giving them
+      // the tower filter + tower grid alongside the search bar. When
+      // the flag is off (default) the manage section stays hidden
+      // and residents get search-only.
+      const residentGrid = !canWrite && residentGridOn();
+      manageEl.hidden = !(canWrite || residentGrid);
       totalEl.textContent = '(' + vehicles.length + ')';
-      // Residents get search + read-only flat detail on click-through
-      // from a search result, but NOT the tower grid or tower filter
-      // — those are editor tools. Clear both so a stale render doesn't
-      // leak in after a role change.
-      if (!canWrite) {
+      if (!canWrite && !residentGrid) {
         detailEl.hidden = true;
         towersEl.innerHTML = '';
         if (filterEl) filterEl.innerHTML = '';
