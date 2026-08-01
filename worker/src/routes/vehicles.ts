@@ -106,7 +106,8 @@ interface Vehicle {
   regNo: string;              // normalised (uppercase, alphanumeric only)
   regNoDisplay: string;       // user-typed original, for UI
   type: VehicleType;
-  sticker?: string;
+  parkingNo?: string;         // assigned parking bay (e.g. "P-104")
+  sticker?: string;           // society-issued vehicle sticker number
   comments?: string;
   emails?: string[];          // optional owner contact emails (max 5)
   createdAt: string;
@@ -327,6 +328,7 @@ const sanitiseVehicle = (raw: unknown, ctx: Ctx, actor: string): Vehicle => {
     throw new BadRequest(`regNo "${regNoRawStr}" must contain 4–12 alphanumerics (spaces/dashes ignored)`);
   }
   const type = oneOf(raw['type'], 'type', VEHICLE_TYPES);
+  const parkingNo = optStr(raw['parkingNo'], 'parkingNo', { max: 20 });
   const sticker = optStr(raw['sticker'], 'sticker', { max: 20 });
   const comments = optStr(raw['comments'], 'comments', { max: 200 });
   const emails = validateEmails(raw['emails']);
@@ -351,6 +353,7 @@ const sanitiseVehicle = (raw: unknown, ctx: Ctx, actor: string): Vehicle => {
     updatedBy: actor,
   };
   if (sticker) out.sticker = sticker.toUpperCase();
+  if (parkingNo) out.parkingNo = parkingNo.toUpperCase();
   if (comments) out.comments = comments;
   if (emails.length) out.emails = emails;
   return out;

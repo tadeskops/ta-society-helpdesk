@@ -244,6 +244,105 @@
     }
     .veh-sticker-chip i { font-size: .72rem; }
 
+    /* Parking-bay chip — same shape as the sticker chip but tinted blue
+       so the two chips read as distinct attributes at a glance. */
+    .veh-parking-chip {
+      display: inline-flex; align-items: center; gap: .3rem;
+      padding: .12rem .55rem; border-radius: 999px;
+      background: rgba(74, 144, 226, .12); color: #2a5687;
+      font-weight: 600; font-size: .78rem; letter-spacing: .04em;
+    }
+    .veh-parking-chip i { font-size: .72rem; }
+
+    /* Small "section" heading used above the add form inside the flat
+       drawer. Reads as a natural continuation of the vehicle list. */
+    .veh-add-heading {
+      display: flex; align-items: center; gap: .45rem;
+      font-size: .95rem; font-weight: 700; margin: 0 0 .8rem;
+      color: var(--tsh-accent-dark, #6f5320);
+      padding-bottom: .55rem;
+      border-bottom: 1px dashed rgba(180, 138, 60, .35);
+    }
+    .veh-add-heading i { color: var(--tsh-accent, #b48a3c); font-size: .9rem; }
+
+    /* Tinted panel that groups "Add vehicle information for this flat"
+       — heading + form + submit — into a single visually distinct box
+       so the write-action area is unambiguous next to the read list. */
+    .veh-add-box {
+      margin-top: 1.5rem;
+      padding: 1rem 1.1rem 1.15rem;
+      background: linear-gradient(180deg,
+        rgba(180, 138, 60, .09) 0%,
+        rgba(180, 138, 60, .05) 100%);
+      border: 1px solid rgba(180, 138, 60, .25);
+      border-radius: 12px;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35);
+    }
+    body.tsh-tone-dark .veh-add-box {
+      background: linear-gradient(180deg,
+        rgba(180, 138, 60, .14) 0%,
+        rgba(180, 138, 60, .07) 100%);
+      border-color: rgba(180, 138, 60, .35);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04);
+    }
+    /* Header row inside the tinted box: heading on the left, small
+       "X" cancel on the right so the user can collapse back to the
+       trigger button without submitting. */
+    .veh-add-box-head {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: .5rem; margin-bottom: .3rem;
+    }
+    .veh-add-box-head .veh-add-heading { margin: 0; padding-bottom: .55rem; flex: 1 1 auto; }
+    .veh-add-box-close {
+      flex: 0 0 auto;
+      background: transparent; border: 0; cursor: pointer;
+      color: var(--tsh-accent-dark, #6f5320); opacity: .7;
+      width: 30px; height: 30px; border-radius: 50%;
+      display: inline-flex; align-items: center; justify-content: center;
+      transition: background .15s ease, opacity .15s ease;
+    }
+    .veh-add-box-close:hover { background: rgba(180, 138, 60, .16); opacity: 1; }
+
+    /* Trigger button shown by default in place of the tinted box.
+       Full-width, gold-accented, invites the user to open the add form. */
+    .veh-add-trigger {
+      display: flex; align-items: center; justify-content: center;
+      gap: .5rem; width: 100%; margin-top: 1.5rem;
+      padding: .75rem 1rem;
+      background: linear-gradient(180deg,
+        rgba(180, 138, 60, .12) 0%,
+        rgba(180, 138, 60, .06) 100%);
+      border: 1px dashed rgba(180, 138, 60, .55);
+      border-radius: 12px;
+      color: var(--tsh-accent-dark, #6f5320);
+      font-weight: 700; font-size: .95rem;
+      cursor: pointer;
+      transition: background .18s ease, border-color .18s ease, transform .12s ease;
+    }
+    .veh-add-trigger:hover {
+      background: linear-gradient(180deg,
+        rgba(180, 138, 60, .22) 0%,
+        rgba(180, 138, 60, .12) 100%);
+      border-color: rgba(180, 138, 60, .85);
+    }
+    .veh-add-trigger:active { transform: translateY(1px); }
+    .veh-add-trigger i { color: var(--tsh-accent, #b48a3c); }
+    body.tsh-tone-dark .veh-add-trigger {
+      color: #e6c78a; border-color: rgba(180, 138, 60, .55);
+    }
+
+    /* Trio row inside .veh-form-grid: three short attribute fields
+       (Type / Parking No. / Vehicle Sticker No.) share one row on
+       roomy drawers and stack cleanly on very narrow ones. */
+    .veh-form-trio {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: .95rem .8rem;
+      align-items: end;
+    }
+    @media (max-width: 520px) { .veh-form-trio { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 380px) { .veh-form-trio { grid-template-columns: 1fr; } }
+
     .veh-actions { display: flex; gap: .3rem; }
     /* Type badge chip. Includes the vehicle icon (car / motorcycle) and
        an optional EV bolt so the whole vehicle class reads in one
@@ -302,7 +401,7 @@
     .veh-tower-cols {
       display: grid;
       grid-template-columns: 2.2rem repeat(var(--units, 4), minmax(0, 1fr));
-      gap: .35rem; margin: .8rem 0 .3rem;
+      gap: .35rem; margin: .3rem 0 .3rem;
       font-size: .68rem; color: var(--tsh-accent-dark, #8a6b28);
       letter-spacing: .08em; text-align: center;
     }
@@ -313,6 +412,32 @@
       background: rgba(180, 138, 60, .10);
       border-radius: 4px;
       padding: .18rem 0;
+    }
+
+    /* Axis caption row — sits between the tower summary and the column
+       strip, sharing the same left-rail column width so “Floor” lines up
+       above the vertical floor numbers and “Series” lines up above the
+       01/02/03/04 chips. Purely a signpost; aria-hidden because the
+       axes are semantically encoded in the flat numbers themselves. */
+    .veh-tower-axes {
+      display: grid;
+      grid-template-columns: 2.2rem 1fr;
+      gap: .35rem;
+      margin: .7rem 0 .1rem;
+      font-size: .62rem;
+      color: var(--tsh-accent-dark, #8a6b28);
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      font-weight: 700;
+      opacity: .72;
+    }
+    .veh-tower-axes .veh-axis-floor {
+      display: inline-flex; align-items: center; justify-content: center;
+      gap: .15rem;
+    }
+    .veh-tower-axes .veh-axis-series {
+      display: inline-flex; align-items: center; justify-content: flex-start;
+      gap: .25rem; padding-left: .15rem;
     }
 
     .veh-tower-grid {
@@ -1239,6 +1364,10 @@
                    ' · ' + s.byFlat.size + ' flat' + (s.byFlat.size === 1 ? '' : 's');
       return '<details class="veh-tower" data-tower="' + esc(tower) + '" open>' +
         '<summary>' + label + ' <span class="veh-tower-count">(' + meta + ')</span></summary>' +
+        '<div class="veh-tower-axes" aria-hidden="true">' +
+          '<span class="veh-axis-floor" title="Rows = floor number">Floor ↓</span>' +
+          '<span class="veh-axis-series" title="Columns = unit series">Series →</span>' +
+        '</div>' +
         '<div class="veh-tower-cols" style="--units:' + s.maxUnit + '" aria-hidden="true">' + cols + '</div>' +
         '<div class="veh-tower-grid" style="--units:' + s.maxUnit + '">' + cells + '</div>' +
         '</details>';
@@ -1384,14 +1513,17 @@
     function renderRowRead(v) {
       const emailsTxt = Array.isArray(v.emails) && v.emails.length ? v.emails.join(', ') : '';
       const parts = [];
+      if (v.parkingNo) {
+        parts.push('<span class="veh-parking-chip" title="Parking No."><i class="fas fa-square-parking" aria-hidden="true"></i>' + esc(v.parkingNo) + '</span>');
+      }
       if (v.sticker) {
-        parts.push('<span class="veh-sticker-chip"><i class="fas fa-parking" aria-hidden="true"></i>' + esc(v.sticker) + '</span>');
+        parts.push('<span class="veh-sticker-chip" title="Vehicle Sticker No."><i class="fas fa-id-badge" aria-hidden="true"></i>' + esc(v.sticker) + '</span>');
       }
       if (v.comments) {
         parts.push('<span class="veh-comments">' + esc(v.comments) + '</span>');
       }
       if (!parts.length) {
-        parts.push('<span class="veh-empty-dash">No sticker or notes yet</span>');
+        parts.push('<span class="veh-empty-dash">No parking, sticker or notes yet</span>');
       }
       const emailsHtml = emailsTxt
         ? '<div class="veh-emails"><i class="fas fa-envelope" aria-hidden="true"></i>' +
@@ -1425,18 +1557,24 @@
             '<label for="vehEditReg">Vehicle number *</label>' +
             '<input id="vehEditReg" name="regNo" required value="' + esc(v.regNoDisplay || v.regNo) + '" maxlength="20" style="text-transform:uppercase;letter-spacing:.04em" />' +
           '</div>' +
-          '<div class="tsh-field">' +
-            '<label for="vehEditType">Type *</label>' +
-            '<select id="vehEditType" name="type" required>' +
-              '<option value="4W"' + (v.type === '4W' ? ' selected' : '') + '>4W</option>' +
-              '<option value="2W"' + (v.type === '2W' ? ' selected' : '') + '>2W</option>' +
-              '<option value="4W_EV"' + (v.type === '4W_EV' ? ' selected' : '') + '>4W EV</option>' +
-              '<option value="2W_EV"' + (v.type === '2W_EV' ? ' selected' : '') + '>2W EV</option>' +
-            '</select>' +
-          '</div>' +
-          '<div class="tsh-field">' +
-            '<label for="vehEditSticker">Sticker</label>' +
-            '<input id="vehEditSticker" name="sticker" value="' + esc(v.sticker || '') + '" placeholder="P-104" maxlength="20" style="text-transform:uppercase" />' +
+          '<div class="veh-form-trio veh-full">' +
+            '<div class="tsh-field">' +
+              '<label for="vehEditType">Type *</label>' +
+              '<select id="vehEditType" name="type" required>' +
+                '<option value="4W"' + (v.type === '4W' ? ' selected' : '') + '>4W</option>' +
+                '<option value="2W"' + (v.type === '2W' ? ' selected' : '') + '>2W</option>' +
+                '<option value="4W_EV"' + (v.type === '4W_EV' ? ' selected' : '') + '>4W EV</option>' +
+                '<option value="2W_EV"' + (v.type === '2W_EV' ? ' selected' : '') + '>2W EV</option>' +
+              '</select>' +
+            '</div>' +
+            '<div class="tsh-field">' +
+              '<label for="vehEditParking">Parking No.</label>' +
+              '<input id="vehEditParking" name="parkingNo" value="' + esc(v.parkingNo || '') + '" placeholder="P-104" maxlength="20" style="text-transform:uppercase" />' +
+            '</div>' +
+            '<div class="tsh-field">' +
+              '<label for="vehEditSticker">Vehicle Sticker No.</label>' +
+              '<input id="vehEditSticker" name="sticker" value="' + esc(v.sticker || '') + '" placeholder="S-22" maxlength="20" style="text-transform:uppercase" />' +
+            '</div>' +
           '</div>' +
           '<div class="tsh-field veh-full">' +
             '<label for="vehEditComments">Comments</label>' +
@@ -1453,6 +1591,7 @@
         if (!form) return;
         const newReg = form.querySelector('#vehEditReg').value.trim().toUpperCase();
         const newType = form.querySelector('#vehEditType').value;
+        const newParking = form.querySelector('#vehEditParking').value.trim().toUpperCase();
         const newSticker = form.querySelector('#vehEditSticker').value.trim().toUpperCase();
         const newComments = form.querySelector('#vehEditComments').value.trim();
         const newEmails = parseEmails(form.querySelector('#vehEditEmails').value);
@@ -1468,6 +1607,7 @@
             ...x,
             regNo: newReg,
             type: newType,
+            parkingNo: newParking,
             sticker: newSticker,
             comments: newComments,
             emails: newEmails,
@@ -1502,6 +1642,7 @@
             });
           };
           upper(ctrl.body.querySelector('#vehEditReg'));
+          upper(ctrl.body.querySelector('#vehEditParking'));
           upper(ctrl.body.querySelector('#vehEditSticker'));
           // Submit via Enter on the form fires the "save" action.
           const form = ctrl.getForm();
@@ -1528,40 +1669,59 @@
           '<i class="fas fa-xmark"></i> Close</button>' +
         '</div>' +
         '<div class="veh-list" id="vehDetailList">' + listHtml + '</div>' +
-        '<form id="vehDetailAdd" class="veh-form-grid" style="margin-top:1.1rem" autocomplete="off">' +
-          '<div class="tsh-field veh-full">' +
-            '<label for="vehDetailReg">Vehicle number *</label>' +
-            '<input id="vehDetailReg" required placeholder="MH11JJ0234" maxlength="20" style="text-transform:uppercase;letter-spacing:.04em" />' +
+        '<button type="button" class="veh-add-trigger" id="vehDetailAddToggle" aria-expanded="false" aria-controls="vehDetailAddBox">' +
+          '<i class="fas fa-circle-plus" aria-hidden="true"></i>' +
+          'Add vehicle information for this flat' +
+        '</button>' +
+        '<div class="veh-add-box" id="vehDetailAddBox" hidden>' +
+          '<div class="veh-add-box-head">' +
+            '<h4 class="veh-add-heading"><i class="fas fa-circle-plus" aria-hidden="true"></i>' +
+              'New vehicle</h4>' +
+            '<button type="button" class="veh-add-box-close" id="vehDetailAddCancel" aria-label="Cancel adding a vehicle" title="Cancel">' +
+              '<i class="fas fa-xmark" aria-hidden="true"></i>' +
+            '</button>' +
           '</div>' +
-          '<div class="tsh-field">' +
-            '<label for="vehDetailType">Type *</label>' +
-            '<select id="vehDetailType" required>' +
-              '<option value="4W">4W</option>' +
-              '<option value="2W">2W</option>' +
-              '<option value="4W_EV">4W EV</option>' +
-              '<option value="2W_EV">2W EV</option>' +
-            '</select>' +
-          '</div>' +
-          '<div class="tsh-field">' +
-            '<label for="vehDetailSticker">Sticker</label>' +
-            '<input id="vehDetailSticker" placeholder="P-104" maxlength="20" style="text-transform:uppercase" />' +
-          '</div>' +
-          '<div class="tsh-field veh-full">' +
-            '<label for="vehDetailComments">Comments</label>' +
-            '<input id="vehDetailComments" placeholder="White Honda City" maxlength="200" />' +
-          '</div>' +
-          '<div class="tsh-field veh-full">' +
-            '<label for="vehDetailEmails">Owner emails (optional, comma-separated, up to 5)</label>' +
-            '<input id="vehDetailEmails" placeholder="owner1@example.com, owner2@example.com" maxlength="600" />' +
-          '</div>' +
-          '<button type="submit" class="tsh-btn tsh-btn-primary" id="vehDetailAddBtn">' +
-            '<i class="fas fa-plus"></i> Add to Flat ' + esc(selectedFlat) +
-          '</button>' +
-        '</form>';
+          '<form id="vehDetailAdd" class="veh-form-grid" autocomplete="off">' +
+            '<div class="tsh-field veh-full">' +
+              '<label for="vehDetailReg">Vehicle number *</label>' +
+              '<input id="vehDetailReg" required placeholder="MH11JJ0234" maxlength="20" style="text-transform:uppercase;letter-spacing:.04em" />' +
+            '</div>' +
+            '<div class="veh-form-trio veh-full">' +
+              '<div class="tsh-field">' +
+                '<label for="vehDetailType">Type *</label>' +
+                '<select id="vehDetailType" required>' +
+                  '<option value="4W">4W</option>' +
+                  '<option value="2W">2W</option>' +
+                  '<option value="4W_EV">4W EV</option>' +
+                  '<option value="2W_EV">2W EV</option>' +
+                '</select>' +
+              '</div>' +
+              '<div class="tsh-field">' +
+                '<label for="vehDetailParking">Parking No.</label>' +
+                '<input id="vehDetailParking" placeholder="P-104" maxlength="20" style="text-transform:uppercase" />' +
+              '</div>' +
+              '<div class="tsh-field">' +
+                '<label for="vehDetailSticker">Vehicle Sticker No.</label>' +
+                '<input id="vehDetailSticker" placeholder="S-22" maxlength="20" style="text-transform:uppercase" />' +
+              '</div>' +
+            '</div>' +
+            '<div class="tsh-field veh-full">' +
+              '<label for="vehDetailComments">Comments</label>' +
+              '<input id="vehDetailComments" placeholder="White Honda City" maxlength="200" />' +
+            '</div>' +
+            '<div class="tsh-field veh-full">' +
+              '<label for="vehDetailEmails">Owner emails (optional, comma-separated, up to 5)</label>' +
+              '<input id="vehDetailEmails" placeholder="owner1@example.com, owner2@example.com" maxlength="600" />' +
+            '</div>' +
+            '<button type="submit" class="tsh-btn tsh-btn-primary" id="vehDetailAddBtn">' +
+              '<i class="fas fa-plus"></i> Add vehicle to Flat ' + esc(selectedFlat) +
+            '</button>' +
+          '</form>' +
+        '</div>';
       detailEl.hidden = false;
-      // Focus regNo when the panel opens so the manager can start typing immediately.
-      const regInput = document.getElementById('vehDetailReg');
-      if (regInput) regInput.focus();
+      // The add form is now hidden behind the "Add vehicle information for
+      // this flat" trigger button, so no field to focus on drawer open.
+      // Focus is handled by the toggle handler when the user reveals it.
     }
 
     // Set the current flat, sync the aria-pressed state on the grid, and
@@ -1690,6 +1850,40 @@
     detailEl.addEventListener('click', async (e) => {
       const closeBtn = e.target.closest('#vehDetailClose');
       if (closeBtn) { selectFlat(null); return; }
+
+      // Add-form disclosure: the tinted box is hidden until the trigger
+      // is clicked; the small "X" inside the box collapses it back.
+      const addToggle = e.target.closest('#vehDetailAddToggle');
+      if (addToggle) {
+        const box = document.getElementById('vehDetailAddBox');
+        if (box) {
+          box.hidden = false;
+          addToggle.hidden = true;
+          addToggle.setAttribute('aria-expanded', 'true');
+          const reg = document.getElementById('vehDetailReg');
+          if (reg) reg.focus();
+          box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+        return;
+      }
+      const addCancel = e.target.closest('#vehDetailAddCancel');
+      if (addCancel) {
+        const box = document.getElementById('vehDetailAddBox');
+        const trigger = document.getElementById('vehDetailAddToggle');
+        if (box) {
+          box.hidden = true;
+          // Reset the fields so the next open starts clean.
+          const form = box.querySelector('#vehDetailAdd');
+          if (form) form.reset();
+        }
+        if (trigger) {
+          trigger.hidden = false;
+          trigger.setAttribute('aria-expanded', 'false');
+          trigger.focus();
+        }
+        return;
+      }
+
       const btn = e.target.closest('button');
       if (!btn) return;
       const row = btn.closest('.veh-row');
@@ -1718,9 +1912,13 @@
 
     // Detail panel: add form submit + case-insensitive typing.
     detailEl.addEventListener('input', (e) => {
-      // Auto-uppercase regNo + sticker as the user types (add form only —
-      // the edit drawer wires its own uppercase handlers).
-      if (e.target && (e.target.id === 'vehDetailReg' || e.target.id === 'vehDetailSticker')) {
+      // Auto-uppercase regNo + parking + sticker as the user types (add
+      // form only — the edit drawer wires its own uppercase handlers).
+      if (e.target && (
+        e.target.id === 'vehDetailReg' ||
+        e.target.id === 'vehDetailParking' ||
+        e.target.id === 'vehDetailSticker'
+      )) {
         const p = e.target.selectionStart;
         e.target.value = e.target.value.toUpperCase();
         try { e.target.setSelectionRange(p, p); } catch (_x) { /* ignore */ }
@@ -1733,6 +1931,7 @@
         if (!selectedFlat) { UI.toast('Pick a flat first.', { kind: 'danger' }); return; }
         const regNo = document.getElementById('vehDetailReg').value.trim().toUpperCase();
         const type = document.getElementById('vehDetailType').value;
+        const parkingNo = document.getElementById('vehDetailParking').value.trim().toUpperCase();
         const sticker = document.getElementById('vehDetailSticker').value.trim().toUpperCase();
         const comments = document.getElementById('vehDetailComments').value.trim();
         const emails = parseEmails(document.getElementById('vehDetailEmails').value);
@@ -1745,7 +1944,7 @@
         }
         const btn = document.getElementById('vehDetailAddBtn');
         await UI.busyButton(btn, async () => {
-          const next = vehicles.concat([{ flat: selectedFlat, regNo, type, sticker, comments, emails }]);
+          const next = vehicles.concat([{ flat: selectedFlat, regNo, type, parkingNo, sticker, comments, emails }]);
           try {
             await saveAll(next);
             UI.toast('Vehicle added to ' + selectedFlat + '.', { kind: 'success' });
