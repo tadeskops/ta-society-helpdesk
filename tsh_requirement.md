@@ -838,6 +838,53 @@ All list filters across the app use a unified **"All + dropdown + Go"** pattern 
 - Available to **all roles** (PUBLIC included) on every page that lists data.
 - Pages currently using this pattern: `directory.html` (vendor category), `public-board.html` (status). The manage dashboard's tower/category/severity selects also have a **Go** button via `#applyFiltersBtn`.
 
+## 14.6a Side-panel / drawer library (`UI.SidePanel`)
+
+Feature pages that need an edit form, detail view, or ancillary content **must not** hand-roll their own drawer CSS. The shared `UI.SidePanel` primitive in `docs/assets/js/sidepanel.js` provides one reusable slide-in panel used by every future editor.
+
+**Behavioural contract:**
+
+- **Placement:** slides in from the right on desktop (≥ 641 px viewport) and becomes a bottom sheet on phones (≤ 640 px) so thumbs can reach the Save button.
+- **Dismissal:** clicking the backdrop, pressing Escape, clicking the built-in `×` header button, or clicking any child element carrying `data-sidepanel-close` all close the panel. Both behaviours can be opted out (`closeOnBackdrop: false`, `closeOnEscape: false`).
+- **Focus:** the panel focuses its first form control (or first action button) on open and restores focus to the previously focused element on close.
+- **Singleton:** only one panel is open at a time. Calling `open()` while one is already open closes the previous panel first so its `onClose` fires before the new one appears.
+- **Lazy CSS injection:** the library injects its own scoped stylesheet (`<style id="tsh-sidepanel-css">`) on first use so pages only need to load `sidepanel.js`. Every class is namespaced `.tsh-sidepanel*` — no accidental collisions with page CSS.
+- **Aliased namespace:** exposed as both `window.UI.SidePanel` and `window.UI.Drawer` (identical API) for callers who prefer either name.
+
+**API:**
+
+```js
+const ctrl = UI.SidePanel.open({
+  title:    'Edit vehicle',            // required
+  icon:     'fa-pen-to-square',        // optional Font Awesome class
+  subtitle: 'Flat A0304 · MH11JJ0234', // optional
+  size:     'md',                      // 'sm' | 'md' | 'lg' | 'xl' | number (px). Default 'md' = 420 px.
+  body:     htmlStringOrElementOrFn,   // HTML string, HTMLElement, or (rootDiv) => void renderer.
+  actions:  [                          // 0..N sticky footer buttons.
+    { id: 'save',   label: 'Save',   kind: 'primary', icon: 'fa-check',
+      onClick: (ctx) => { /* ctx = { button, controller, form, close, setBusy } */ } },
+    { id: 'cancel', label: 'Cancel', kind: 'ghost',   icon: 'fa-xmark', close: true },
+  ],
+  onOpen:            (ctrl) => { /* wire form listeners */ },
+  onClose:           () => { /* cleanup */ },
+  closeOnBackdrop:   true,   // default true
+  closeOnEscape:     true,   // default true
+  ariaLabel:         '…',    // optional; when title is a plain heading this can be omitted.
+});
+// controller: { close, isOpen, getForm, getRoot, setTitle, setSubtitle, setBody, setBusy }
+UI.SidePanel.close();
+UI.SidePanel.isOpen();
+```
+
+**Rules for feature pages:**
+
+- Include the library once: `<script src="./assets/js/sidepanel.js?v=1"></script>` — after `ui.js` (order doesn't strictly matter since it augments `window.UI` defensively, but grouping keeps intent clear).
+- Do **not** add `.veh-edit-drawer*` / `.reservations-drawer*` / etc. classes to per-page CSS. Style overrides that need to reach *inside* the panel go on descendant selectors (`.veh-edit-form input { … }`), not on the panel chrome itself.
+- Do **not** stack multiple panels. If a workflow needs multi-step navigation, use `ctrl.setBody(nextView)` and `ctrl.setTitle('Step 2')` on the existing panel.
+- Actions returning a Promise are auto-busy: the panel adds `data-busy="1"` for the lifetime of the promise so backdrop taps and re-clicks are ignored while the mutation is in flight.
+
+**Consumers today:** `vehicles.html` (edit form). Any future editor pane (announcements, polls, reservations, banner) should adopt this pattern rather than reinventing the drawer.
+
 ## 14.7 Rotating banner (`config/banner.json` + `/banner`)
 
 The Helpdesk landing surface carries a manager-curated banner used to highlight upcoming events, maintenance windows, alerts. Two render modes:
@@ -905,7 +952,7 @@ A society-wide vehicle-to-flat mapping so residents and society reps can identif
 | Read    | `GET /vehicles` — **sign-in required (any role including RESIDENT/CONTRIBUTOR)**. Returns `{ version, vehicles[], canWrite, editorRoles }`. Client builds an in-memory `Map<normalisedRegNo, Vehicle>` for O(1) search — no per-lookup round-trip. |
 | Write   | `PUT /vehicles` (bulk replace) and `DELETE /vehicles/:id` (single-row remove) — **set-membership check** against `system.vehicles.editorRoles` (Role[]). Defaults to `['ADMIN','CHAIRMAN','SECRETARY','TREASURER','COMMITTEE','MANAGER']`; `CONTRIBUTOR` and `RESIDENT` are excluded by default. Admins reconfigure the allowlist by editing `system.vehicles.editorRoles` in Settings — no code change. |
 | createdAt | Preserved across re-saves by matching incoming rows to existing rows by `id` and carrying over the original `createdAt`. `updatedAt` and `updatedBy` are stamped fresh every write. |
-| UI      | `docs/vehicles.html`: single search box (autofocus, uppercase, live 100 ms debounced filter, ≥3 chars). Result card shows the matched flat + type + optional sticker + comments. Editor pane below (hidden for non-editors) groups rows by flat with inline Edit / Delete controls and a single Add form (flat/regNo/type/sticker/comments + optional emails). All writes go through `PUT /vehicles` (whole-list) except one-shot deletes which use `DELETE /vehicles/:id`. |
+| UI      | `docs/vehicles.html`: single search box (autofocus, uppercase, live 100 ms debounced filter, ≥3 chars). Result card shows the matched flat + type + optional sticker + comments. **Manage pane (editors only)** is a pictorial seat-map view: one collapsible `<details>` per tower, rows = floors (top-down), columns = units. Above the schematic, a **Tower filter chip row** ("All" + one chip per tower letter from `cfg.lists.towers`) narrows the view to a single tower; selection persists per-browser via `localStorage['tsh_vehicles_tower_filter']`. Clicking a cell opens the flat-detail panel, which now contains **only the read-only information grid** (one row per vehicle: reg + type + sticker + comments + emails) plus an inline Add form. **Editing an existing vehicle opens the reusable `UI.SidePanel` drawer** (see §14.6a) — right-docked on desktop (≥ 641 px), bottom sheet on phones. All writes go through `PUT /vehicles` (whole-list) except one-shot deletes which use `DELETE /vehicles/:id`. |
 | Discovery | Quick-access tile on `index.html` ("Vehicle Registry → search vehicle → flat"), primary nav link in the header (gated by `FEATURE_TSH_VEHICLES`), and a row under the "Directory" services group on the home page. |
 | Audit   | Every write appends to `config/audit.log` as `vehicles:put` or `vehicles:delete` with `actor`, `count`, and (for deletes) `flat=…&regNo=…`. Picked up automatically by the daily backup workflow. |
 | Flag    | `FEATURE_TSH_VEHICLES` — **default `true`**. Admin may turn off from Settings; the nav link, home-page tile, and `/vehicles` routes all fail closed when off. |

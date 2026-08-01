@@ -121,6 +121,27 @@
     .veh-flat-detail-head h3 { margin: 0; font-size: 1.15rem; letter-spacing: .03em; }
     .veh-flat-empty { color: var(--tsh-muted, #667); font-style: italic; padding: .3rem 0; }
 
+    /* Tower filter chips — one per configured tower plus an "All" chip.
+       Hiding a tower sets [data-hidden] on the <details>; the pictorial
+       grid of the remaining tower keeps its full available width. */
+    .veh-tower-filter {
+      display: flex; gap: .4rem; flex-wrap: wrap;
+      margin: .8rem 0 .5rem;
+    }
+    .veh-tower-filter button {
+      font-family: inherit; font-size: .88rem; font-weight: 600;
+      padding: .35rem .85rem; border-radius: 999px;
+      border: 1px solid var(--tsh-border, #e2e5ee);
+      background: transparent; color: var(--tsh-text, #223);
+      cursor: pointer; transition: background .12s, border-color .12s, color .12s;
+    }
+    .veh-tower-filter button:hover { border-color: var(--tsh-accent, #b48a3c); }
+    .veh-tower-filter button[aria-pressed="true"] {
+      background: var(--tsh-accent, #b48a3c); color: #fff;
+      border-color: var(--tsh-accent, #b48a3c);
+    }
+    .veh-tower[data-hidden="1"] { display: none; }
+
     @media (max-width: 800px) {
       .veh-tower-grid { grid-template-columns: 1.8rem repeat(var(--units, 4), minmax(2.5rem, 1fr)); gap: .22rem; }
       .veh-cell { min-height: 2.4rem; font-size: .66rem; padding: .15rem .08rem; }
@@ -181,12 +202,20 @@
         </div>
       </header>
 
+      <!-- Tower filter chips. "All" is the default; picking a single tower
+           hides the other <details> so the remaining pictorial grid can
+           breathe. Selection persists per-browser in localStorage. -->
+      <div class="veh-tower-filter" id="vehTowerFilter" role="tablist" aria-label="Filter by tower"></div>
+
       <div id="vehTowers" aria-label="Tower grids"></div>
 
       <!-- Flat detail panel — appears when a cell is picked. -->
       <div id="vehFlatDetail" class="veh-flat-detail" hidden aria-live="polite"></div>
     </section>
   </main>
+
+  <!-- The edit drawer is rendered by UI.SidePanel (assets/js/sidepanel.js)
+       on demand — no per-page markup is needed. -->
 
   <div data-include="mobile-tabbar"></div>
   <div data-include="mobile-actions-sheet"></div>
@@ -199,6 +228,7 @@
   <script src="./assets/js/flags.js?v=19"></script>
   <script src="./assets/js/collapse-registry.js?v=1"></script>
   <script src="./assets/js/ui.js?v=53"></script>
+  <script src="./assets/js/sidepanel.js?v=1"></script>
   <script src="./assets/js/mobile-landing.js?v=8"></script>
   <script src="./assets/js/notify.js?v=1"></script>
   <script src="./assets/js/visitors.js?v=2"></script>
@@ -324,6 +354,7 @@
     const detailEl = document.getElementById('vehFlatDetail');
     const totalEl = document.getElementById('vehTotalCount');
     const roleHintEl = document.getElementById('vehRoleHint');
+    const filterEl = document.getElementById('vehTowerFilter');
 
     // Minimum grid dimensions for towers not covered by `towerLayouts`
     // (server-side default). Used only as a fallback so unknown towers
@@ -333,6 +364,16 @@
 
     // Selected flat for the detail panel. null = no selection (panel hidden).
     let selectedFlat = null;
+
+    // Active tower filter: null = show all, else a single tower letter.
+    // Persisted per-browser so a manager who lives in Tower B doesn't have
+    // to re-pick it every page load.
+    const TOWER_FILTER_KEY = 'tsh_vehicles_tower_filter';
+    let activeTower = null;
+    try {
+      const stored = localStorage.getItem(TOWER_FILTER_KEY);
+      if (stored && /^[A-Z]$/.test(stored)) activeTower = stored;
+    } catch (_e) { /* private mode / storage disabled — fine, default to All */ }
 
     function updateRoleHint() {
       if (canWrite) {
@@ -479,6 +520,61 @@
       let html = '';
       for (const [tower, s] of specs) html += renderTowerGrid(tower, s);
       towersEl.innerHTML = html;
+      // Apply the current tower filter after (re)rendering.
+      applyTowerFilter();
+    }
+
+    // Populate the tower filter chip row from the configured tower list.
+    // Chips = "All" + one per tower letter. Persists selection to
+    // localStorage so it survives page reloads.
+    function renderTowerFilter() {
+      if (!filterEl) return;
+      const cfgTowers = (Flags.raw && Flags.raw.lists && Array.isArray(Flags.raw.lists.towers))
+        ? Flags.raw.lists.towers : ['A', 'B', 'C'];
+      const letters = [];
+      for (const t of cfgTowers) {
+        const letter = String(t || '').trim().charAt(0).toUpperCase();
+        if (/^[A-Z]$/.test(letter) && !letters.includes(letter)) letters.push(letter);
+      }
+      const chip = (val, label, pressed) =>
+        '<button type="button" role="tab" data-tower-filter="' + esc(val) + '" aria-pressed="' +
+        (pressed ? 'true' : 'false') + '">' + esc(label) + '</button>';
+      let html = chip('', 'All', activeTower === null);
+      for (const l of letters) html += chip(l, 'Tower ' + l, activeTower === l);
+      filterEl.innerHTML = html;
+    }
+
+    // Hide any tower <details> that isn't the active filter. When "All"
+    // is picked (activeTower === null) every tower is visible.
+    function applyTowerFilter() {
+      const nodes = towersEl.querySelectorAll('.veh-tower');
+      for (const el of nodes) {
+        const t = el.getAttribute('data-tower');
+        if (activeTower === null || t === activeTower) {
+          el.removeAttribute('data-hidden');
+          // A single visible tower gets more real estate — open it so the
+          // pictorial grid is immediately visible.
+          if (activeTower !== null) el.open = true;
+        } else {
+          el.setAttribute('data-hidden', '1');
+        }
+      }
+    }
+
+    function setActiveTower(next) {
+      activeTower = (next && /^[A-Z]$/.test(next)) ? next : null;
+      try {
+        if (activeTower) localStorage.setItem(TOWER_FILTER_KEY, activeTower);
+        else localStorage.removeItem(TOWER_FILTER_KEY);
+      } catch (_e) { /* storage disabled */ }
+      // Update chip pressed state without a full re-render.
+      if (filterEl) {
+        for (const b of filterEl.querySelectorAll('[data-tower-filter]')) {
+          const v = b.getAttribute('data-tower-filter') || '';
+          b.setAttribute('aria-pressed', (v === (activeTower || '')) ? 'true' : 'false');
+        }
+      }
+      applyTowerFilter();
     }
 
     // -----------------------------------------------------------------
@@ -502,24 +598,104 @@
         '</div>';
     }
 
-    function renderRowEdit(v) {
+    // Open the reusable UI.SidePanel to edit an existing vehicle. The
+    // read-only info grid stays intact in the flat detail panel; every
+    // mutation is confined to this drawer so the two concerns never
+    // fight for the same DOM.
+    function openEditPanel(v) {
+      if (!v) return;
       const emailsTxt = Array.isArray(v.emails) ? v.emails.join(', ') : '';
-      return '<div class="veh-row" data-id="' + esc(v.id) + '" data-editing="1">' +
-        '<div>' +
-        '<input class="veh-e-reg" value="' + esc(v.regNoDisplay || v.regNo) + '" maxlength="20" style="text-transform:uppercase" />' +
-        '<input class="veh-e-emails" style="margin-top:.3rem" placeholder="Emails (comma-separated)" value="' + esc(emailsTxt) + '" maxlength="600" />' +
-        '</div>' +
-        '<div><select class="veh-e-type">' +
-          '<option value="4W"' + (v.type === '4W' ? ' selected' : '') + '>4W</option>' +
-          '<option value="2W"' + (v.type === '2W' ? ' selected' : '') + '>2W</option>' +
-          '</select></div>' +
-        '<div><input class="veh-e-sticker" value="' + esc(v.sticker || '') + '" placeholder="Sticker" maxlength="20" style="text-transform:uppercase" /></div>' +
-        '<div><input class="veh-e-comments" value="' + esc(v.comments || '') + '" placeholder="Comments" maxlength="200" /></div>' +
-        '<div class="veh-actions">' +
-        '<button type="button" class="tsh-btn tsh-btn-primary tsh-btn-icon" data-save title="Save"><i class="fas fa-check"></i></button>' +
-        '<button type="button" class="tsh-btn tsh-btn-ghost tsh-btn-icon" data-cancel title="Cancel"><i class="fas fa-xmark"></i></button>' +
-        '</div>' +
-        '</div>';
+      const bodyHtml =
+        '<form id="vehEditForm" autocomplete="off">' +
+          '<div class="tsh-field">' +
+            '<label for="vehEditReg">Vehicle number *</label>' +
+            '<input id="vehEditReg" name="regNo" required value="' + esc(v.regNoDisplay || v.regNo) + '" maxlength="20" style="text-transform:uppercase;letter-spacing:.04em" />' +
+          '</div>' +
+          '<div class="tsh-field">' +
+            '<label for="vehEditType">Type *</label>' +
+            '<select id="vehEditType" name="type" required>' +
+              '<option value="4W"' + (v.type === '4W' ? ' selected' : '') + '>4W</option>' +
+              '<option value="2W"' + (v.type === '2W' ? ' selected' : '') + '>2W</option>' +
+            '</select>' +
+          '</div>' +
+          '<div class="tsh-field">' +
+            '<label for="vehEditSticker">Sticker</label>' +
+            '<input id="vehEditSticker" name="sticker" value="' + esc(v.sticker || '') + '" placeholder="P-104" maxlength="20" style="text-transform:uppercase" />' +
+          '</div>' +
+          '<div class="tsh-field">' +
+            '<label for="vehEditComments">Comments</label>' +
+            '<input id="vehEditComments" name="comments" value="' + esc(v.comments || '') + '" placeholder="White Honda City" maxlength="200" />' +
+          '</div>' +
+          '<div class="tsh-field">' +
+            '<label for="vehEditEmails">Owner emails (optional, comma-separated, up to 5)</label>' +
+            '<input id="vehEditEmails" name="emails" value="' + esc(emailsTxt) + '" placeholder="owner1@example.com, owner2@example.com" maxlength="600" />' +
+          '</div>' +
+        '</form>';
+
+      const doSave = async (ctx) => {
+        const form = ctx.form;
+        if (!form) return;
+        const newReg = form.querySelector('#vehEditReg').value.trim().toUpperCase();
+        const newType = form.querySelector('#vehEditType').value;
+        const newSticker = form.querySelector('#vehEditSticker').value.trim().toUpperCase();
+        const newComments = form.querySelector('#vehEditComments').value.trim();
+        const newEmails = parseEmails(form.querySelector('#vehEditEmails').value);
+        const normalised = normReg(newReg);
+        if (!normalised) { UI.toast('Vehicle number is required.', { kind: 'danger' }); return; }
+        const clash = vehicles.find((x) => x.id !== v.id && x.regNo === normalised);
+        if (clash) {
+          UI.toast('Another entry (flat ' + clash.flat + ') already uses that number.', { kind: 'danger' });
+          return;
+        }
+        try {
+          const next = vehicles.map((x) => x.id === v.id ? {
+            ...x,
+            regNo: newReg,
+            type: newType,
+            sticker: newSticker,
+            comments: newComments,
+            emails: newEmails,
+          } : x);
+          await saveAll(next);
+          UI.toast('Vehicle updated.', { kind: 'success' });
+          ctx.close();
+        } catch (err) {
+          UI.toast(err.message || 'Save failed.', { kind: 'danger' });
+        }
+      };
+
+      UI.SidePanel.open({
+        title: 'Edit vehicle',
+        icon: 'fa-pen-to-square',
+        subtitle: 'Flat ' + v.flat + ' · ' + (v.regNoDisplay || v.regNo),
+        ariaLabel: 'Edit vehicle ' + (v.regNoDisplay || v.regNo),
+        size: 'md',
+        body: bodyHtml,
+        actions: [
+          { id: 'save',   label: 'Save',   kind: 'primary', icon: 'fa-check',   onClick: doSave },
+          { id: 'cancel', label: 'Cancel', kind: 'ghost',   icon: 'fa-xmark',   close: true },
+        ],
+        onOpen: (ctrl) => {
+          // Auto-uppercase reg + sticker as the user types.
+          const upper = (input) => {
+            if (!input) return;
+            input.addEventListener('input', () => {
+              const p = input.selectionStart;
+              input.value = input.value.toUpperCase();
+              try { input.setSelectionRange(p, p); } catch (_x) { /* ignore */ }
+            });
+          };
+          upper(ctrl.body.querySelector('#vehEditReg'));
+          upper(ctrl.body.querySelector('#vehEditSticker'));
+          // Submit via Enter on the form fires the "save" action.
+          const form = ctrl.getForm();
+          if (form) form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const saveBtn = ctrl.actions && ctrl.actions.querySelector('[data-action-id="save"]');
+            if (saveBtn) saveBtn.click();
+          });
+        },
+      });
     }
 
     function renderFlatDetail() {
@@ -588,7 +764,8 @@
       updateRoleHint();
       manageEl.hidden = !canWrite;
       totalEl.textContent = '(' + vehicles.length + ')';
-      if (!canWrite) { detailEl.hidden = true; towersEl.innerHTML = ''; return; }
+      if (!canWrite) { detailEl.hidden = true; towersEl.innerHTML = ''; if (filterEl) filterEl.innerHTML = ''; return; }
+      renderTowerFilter();
       renderTowerGrids();
       // Re-render the detail panel (list may have changed for the current flat).
       renderFlatDetail();
@@ -612,6 +789,16 @@
     // -----------------------------------------------------------------
     // Delegated events.
     // -----------------------------------------------------------------
+    // Tower filter chips: clicking a chip narrows the pictorial view to
+    // one tower (or "All"). Selection is persisted per-browser.
+    if (filterEl) {
+      filterEl.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-tower-filter]');
+        if (!btn) return;
+        setActiveTower(btn.getAttribute('data-tower-filter') || null);
+      });
+    }
+
     // Tower grid: cell click → select flat; "Pick" button → jump to a
     // custom flat outside the grid.
     towersEl.addEventListener('click', (e) => {
@@ -649,6 +836,9 @@
     });
 
     // Detail panel: submit (add), delegated read-row actions.
+    // Edit + Save + Cancel all live in the reusable UI.SidePanel drawer
+    // now — this handler only owns the read-row (Edit → open drawer;
+    // Delete → confirm + call server).
     detailEl.addEventListener('click', async (e) => {
       const closeBtn = e.target.closest('#vehDetailClose');
       if (closeBtn) { selectFlat(null); return; }
@@ -661,43 +851,7 @@
       if (!v) return;
 
       if (btn.hasAttribute('data-edit')) {
-        row.outerHTML = renderRowEdit(v);
-        return;
-      }
-      if (btn.hasAttribute('data-cancel')) {
-        row.outerHTML = renderRowRead(v);
-        return;
-      }
-      if (btn.hasAttribute('data-save')) {
-        const r = row;
-        const newReg = r.querySelector('.veh-e-reg').value.trim().toUpperCase();
-        const newType = r.querySelector('.veh-e-type').value;
-        const newSticker = r.querySelector('.veh-e-sticker').value.trim().toUpperCase();
-        const newComments = r.querySelector('.veh-e-comments').value.trim();
-        const newEmails = parseEmails(r.querySelector('.veh-e-emails').value);
-        const normalised = normReg(newReg);
-        if (!normalised) { UI.toast('Vehicle number is required.', { kind: 'danger' }); return; }
-        const clash = vehicles.find((x) => x.id !== id && x.regNo === normalised);
-        if (clash) {
-          UI.toast('Another entry (flat ' + clash.flat + ') already uses that number.', { kind: 'danger' });
-          return;
-        }
-        await UI.busyButton(btn, async () => {
-          const next = vehicles.map((x) => x.id === id ? {
-            ...x,
-            regNo: newReg,
-            type: newType,
-            sticker: newSticker,
-            comments: newComments,
-            emails: newEmails,
-          } : x);
-          try {
-            await saveAll(next);
-            UI.toast('Vehicle updated.', { kind: 'success' });
-          } catch (err) {
-            UI.toast(err.message || 'Save failed.', { kind: 'danger' });
-          }
-        }, { label: 'Saving…' });
+        openEditPanel(v);
         return;
       }
       if (btn.hasAttribute('data-del')) {
@@ -716,10 +870,9 @@
 
     // Detail panel: add form submit + case-insensitive typing.
     detailEl.addEventListener('input', (e) => {
-      // Auto-uppercase regNo + sticker as the user types.
-      if (e.target && (e.target.id === 'vehDetailReg' || e.target.id === 'vehDetailSticker' ||
-                       e.target.classList.contains('veh-e-reg') ||
-                       e.target.classList.contains('veh-e-sticker'))) {
+      // Auto-uppercase regNo + sticker as the user types (add form only —
+      // the edit drawer wires its own uppercase handlers).
+      if (e.target && (e.target.id === 'vehDetailReg' || e.target.id === 'vehDetailSticker')) {
         const p = e.target.selectionStart;
         e.target.value = e.target.value.toUpperCase();
         try { e.target.setSelectionRange(p, p); } catch (_x) { /* ignore */ }
