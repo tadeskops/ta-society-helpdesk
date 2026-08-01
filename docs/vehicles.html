@@ -187,12 +187,13 @@
        gold-tinted chips so the numbers read as "row 1 header, row 2
        header…" without shouting. Shares the grid template with the
        seat grid below so numbers align perfectly with cells.
-       Every cell uses a fixed --veh-cell-w so 4-unit towers (A, C) and
-       6-unit towers (B) show identically-sized boxes; the tower card
-       itself simply grows wider when it has more units. */
+       Cells auto-size at 1fr each; the outer #vehTowers grid apportions
+       row width to each tower card in proportion to its unit count, so
+       cells stay the same physical width across every tower even though
+       B has 6 units and A/C have 4. */
     .veh-tower-cols {
       display: grid;
-      grid-template-columns: 2.2rem repeat(var(--units, 4), var(--veh-cell-w, 3.1rem));
+      grid-template-columns: 2.2rem repeat(var(--units, 4), minmax(0, 1fr));
       gap: .35rem; margin: .8rem 0 .3rem;
       font-size: .68rem; color: var(--tsh-accent-dark, #8a6b28);
       letter-spacing: .08em; text-align: center;
@@ -208,7 +209,7 @@
 
     .veh-tower-grid {
       display: grid;
-      grid-template-columns: 2.2rem repeat(var(--units, 4), var(--veh-cell-w, 3.1rem));
+      grid-template-columns: 2.2rem repeat(var(--units, 4), minmax(0, 1fr));
       gap: .35rem;
     }
     /* Row heading — shows the floor number as a small tinted chip on
@@ -358,21 +359,26 @@
       .veh-manage-controls .veh-tower-legend { margin-left: 0; }
     }
 
-    /* Outer tower shelf. Uses flex-wrap (not a fixed n-column grid) so
-       that each card can take its own natural width — A/C are 4-unit
-       cards, B is a 6-unit card, and neighbouring cards fit next to it
-       or wrap onto the next row on smaller viewports. --veh-cell-w
-       is the single source of truth for seat-cell width, so both 4-
-       and 6-unit towers show identically-sized boxes. */
-    :root { --veh-cell-w: 3.1rem; }
+    /* Outer tower shelf. Uses CSS grid where each column's fr value
+       matches the tower's unit count (plus a small constant for the
+       floor-label rail) — so a 6-unit tower gets ~1.5× the width of a
+       4-unit tower and every seat cell ends up the same physical width
+       across all towers. The template is set inline by JS via
+       #vehTowers[style="grid-template-columns:..."] once the tower list
+       is known; the default here is a sensible 4:6:4 fallback that
+       matches The Address's A/B/C towers. */
     #vehTowers {
-      display: flex; gap: 1.15rem; flex-wrap: wrap; align-items: flex-start;
+      display: grid;
+      gap: 1.15rem;
+      align-items: flex-start;
+      grid-template-columns: 4fr 6fr 4fr;
     }
-    .veh-tower { margin-bottom: 0; flex: 0 0 auto; max-width: 100%; }
-    @media (max-width: 480px) { :root { --veh-cell-w: 2.7rem; } }
-    /* Filter narrowed to a single tower — no-op under flex, kept as a
-       data hook for future variants. */
-    #vehTowers[data-single-tower="1"] { justify-content: flex-start; }
+    .veh-tower { margin-bottom: 0; min-width: 0; }
+    @media (max-width: 899px) { #vehTowers { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 639px) { #vehTowers { grid-template-columns: 1fr; } }
+    /* Filter narrowed to a single tower — let it span the row. Toggled
+       by applyTowerFilter() (activeTower !== null). */
+    #vehTowers[data-single-tower="1"] { grid-template-columns: 1fr !important; }
 
     /* ------- Design 10 wheel picker (mobile resident, flag-gated) ------- */
     .veh-wheel-toggle {
@@ -1132,6 +1138,15 @@
     function renderTowerGrids() {
       const specs = buildTowerSchematics();
       let html = '';
+      // Compute the outer grid-template-columns from each tower's unit
+      // count so cards share row width proportionally: a 6-unit tower
+      // ends up 1.5× the width of a 4-unit tower and every seat cell
+      // renders at the same physical width. Padded by 1 fr unit for
+      // the floor-label rail. Media queries in CSS override to stacked
+      // layouts on tablet + phone.
+      const ratios = [];
+      for (const [, s] of specs) ratios.push((s.maxUnit + 1) + 'fr');
+      towersEl.style.gridTemplateColumns = ratios.join(' ');
       for (const [tower, s] of specs) html += renderTowerGrid(tower, s);
       towersEl.innerHTML = html;
       // Apply the current tower filter after (re)rendering.
