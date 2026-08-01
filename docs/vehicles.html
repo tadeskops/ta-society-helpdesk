@@ -271,6 +271,12 @@
       background: var(--tsh-surface-2, #f6f7fb);
     }
     .veh-flat-detail[hidden] { display: none; }
+    /* When the flat detail lives inside the reusable SidePanel drawer,
+       drop its own card frame — the drawer already provides one. */
+    .veh-flat-detail.in-sidepanel {
+      margin: 0; padding: 0; border: 0; background: transparent;
+    }
+    .veh-flat-detail.in-sidepanel #vehDetailClose { display: none; }
     .veh-flat-detail-head {
       display: flex; align-items: center; justify-content: space-between; gap: .6rem; flex-wrap: wrap;
       margin-bottom: .8rem;
@@ -281,7 +287,7 @@
     /* Tower filter chips */
     .veh-tower-filter {
       display: flex; gap: .4rem; flex-wrap: wrap;
-      margin: .8rem 0 .5rem;
+      margin: 0;
     }
     .veh-tower-filter button {
       font-family: inherit; font-size: .88rem; font-weight: 600;
@@ -296,6 +302,28 @@
       border-color: var(--tsh-accent, #b48a3c);
     }
     .veh-tower[data-hidden="1"] { display: none; }
+
+    /* Shared control row: tower-filter chips + legend on one horizontal
+       line on desktop; stacks vertically on mobile. */
+    .veh-manage-controls {
+      display: flex; gap: 1rem; align-items: center;
+      flex-wrap: wrap;
+      margin: .8rem 0 1rem;
+    }
+    .veh-manage-controls .veh-tower-filter { flex: 0 1 auto; }
+    .veh-manage-controls .veh-tower-legend { flex: 0 1 auto; margin: 0; margin-left: auto; }
+    @media (max-width: 640px) {
+      .veh-manage-controls { align-items: flex-start; }
+      .veh-manage-controls .veh-tower-legend { margin-left: 0; }
+    }
+
+    #vehTowers { display: grid; gap: 1.15rem; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    @media (max-width: 899px) { #vehTowers { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 639px) { #vehTowers { grid-template-columns: 1fr; } }
+    .veh-tower { margin-bottom: 0; }
+    /* Filter narrowed to a single tower — let it span the row. Toggled
+       by applyTowerFilter() (activeTower !== null). */
+    #vehTowers[data-single-tower="1"] { grid-template-columns: 1fr; }
 
     /* ------- Design 10 wheel picker (mobile resident, flag-gated) ------- */
     .veh-wheel-toggle {
@@ -506,22 +534,25 @@
           <span class="veh-count" id="vehTotalCount"></span>
         </h2>
         <p class="tsh-sub">Pick a flat below (like choosing a seat), then add or edit its vehicles. Vehicle numbers must be unique across the whole society.</p>
+      </header>
+
+      <!-- Shared control row: tower-filter chips on the left, colour
+           legend on the right. Flex + wrap → stacks on mobile. -->
+      <div class="veh-manage-controls">
+        <div class="veh-tower-filter" id="vehTowerFilter" role="tablist" aria-label="Filter by tower"></div>
         <div class="veh-tower-legend" aria-label="Cell colour key">
           <span><span class="veh-legend-swatch empty"></span> Empty</span>
           <span><span class="veh-legend-swatch four"></span> 4-wheeler</span>
           <span><span class="veh-legend-swatch two"></span> 2-wheeler</span>
           <span><span class="veh-legend-swatch both"></span> Both</span>
         </div>
-      </header>
-
-      <!-- Tower filter chips. "All" is the default; picking a single tower
-           hides the other <details> so the remaining pictorial grid can
-           breathe. Selection persists per-browser in localStorage. -->
-      <div class="veh-tower-filter" id="vehTowerFilter" role="tablist" aria-label="Filter by tower"></div>
+      </div>
 
       <div id="vehTowers" aria-label="Tower grids"></div>
 
-      <!-- Flat detail panel — appears when a cell is picked. -->
+      <!-- Flat detail panel — hosted here in the DOM so its delegated
+           listeners persist, but moved into the UI.SidePanel body on
+           select and moved back on close. -->
       <div id="vehFlatDetail" class="veh-flat-detail" hidden aria-live="polite"></div>
     </section>
   </main>
@@ -1013,6 +1044,9 @@
           el.setAttribute('data-hidden', '1');
         }
       }
+      // Signal single-tower mode so the grid switches to 1 column.
+      if (activeTower) towersEl.setAttribute('data-single-tower', '1');
+      else towersEl.removeAttribute('data-single-tower');
     }
 
     function setActiveTower(next) {
@@ -1200,18 +1234,73 @@
     }
 
     // Set the current flat, sync the aria-pressed state on the grid, and
-    // render the detail panel.
+    // open the reusable UI.SidePanel drawer with the flat's roster + inline
+    // Add form. `detailEl` is the same DOM node throughout the session —
+    // we move it into the panel body on open and back into #vehManage on
+    // close, so the existing delegated click/input/submit listeners keep
+    // working without re-binding.
+    let flatDetailPanelCtrl = null;
     function selectFlat(flat, opts) {
       selectedFlat = flat || null;
-      // Update aria-pressed on all cells in the current tower group.
+      // Update aria-pressed on all cells across all visible towers.
       for (const btn of towersEl.querySelectorAll('.veh-cell')) {
         btn.setAttribute('aria-pressed', btn.getAttribute('data-flat') === selectedFlat ? 'true' : 'false');
       }
-      renderFlatDetail();
-      if (selectedFlat && !(opts && opts.noScroll)) {
-        // Scroll the detail panel into view — nice on long tower lists.
-        detailEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      if (!selectedFlat) {
+        if (flatDetailPanelCtrl) { const c = flatDetailPanelCtrl; flatDetailPanelCtrl = null; c.close(); }
+        detailEl.hidden = true;
+        detailEl.innerHTML = '';
+        return;
       }
+      renderFlatDetail();
+      // If SidePanel isn't loaded (defensive), fall back to inline render
+      // and scroll into view — original behaviour.
+      if (!(window.UI && UI.SidePanel && typeof UI.SidePanel.open === 'function')) {
+        detailEl.hidden = false;
+        if (!(opts && opts.noScroll)) detailEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        return;
+      }
+      // Reuse an already-open panel (e.g. user clicked a different flat
+      // while the panel is up) — re-render happens above, we just need
+      // to re-park detailEl inside it if it drifted.
+      if (flatDetailPanelCtrl) {
+        try {
+          if (detailEl.parentElement !== flatDetailPanelCtrl.body) {
+            flatDetailPanelCtrl.body.appendChild(detailEl);
+          }
+          detailEl.hidden = false;
+          if (flatDetailPanelCtrl.setSubtitle) flatDetailPanelCtrl.setSubtitle('Flat ' + selectedFlat);
+        } catch (_e) { /* fall through and reopen below */ }
+        return;
+      }
+      flatDetailPanelCtrl = UI.SidePanel.open({
+        title: 'Flat ' + selectedFlat,
+        icon: 'fa-house-chimney',
+        subtitle: 'Manage vehicles registered to this flat',
+        size: 'lg',
+        ariaLabel: 'Manage vehicles for flat ' + selectedFlat,
+        body: (root) => {
+          root.appendChild(detailEl);
+          detailEl.hidden = false;
+          detailEl.classList.add('in-sidepanel');
+        },
+        onClose: () => {
+          // Put detailEl back where the delegated listeners expect it.
+          try {
+            detailEl.classList.remove('in-sidepanel');
+            detailEl.hidden = true;
+            detailEl.innerHTML = '';
+            if (manageEl && detailEl.parentElement !== manageEl) {
+              manageEl.appendChild(detailEl);
+            }
+          } catch (_e) { /* ignore */ }
+          selectedFlat = null;
+          for (const btn of towersEl.querySelectorAll('.veh-cell')) {
+            btn.setAttribute('aria-pressed', 'false');
+          }
+          flatDetailPanelCtrl = null;
+        },
+      });
     }
 
     function renderManage() {
