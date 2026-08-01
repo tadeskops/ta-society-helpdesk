@@ -13,130 +13,141 @@
   <!-- Mobile-only tab-bar overlay + WhatsApp-style bottom sheet. Loaded on every page so the same bottom nav appears in mobile view; hidden above 640px by the CSS media query. -->
   <link rel="stylesheet" href="./assets/css/mobile-landing.css?v=14" />
   <style>
-    /* Vehicle Registry page-scoped styles. Small enough not to warrant a
-       theme.css bump; visual language matches directory / reservations. */
+    /* ============================================================
+       Vehicle Registry page — three-design layered surface.
+       - Editor view: Design 1 "airport-cabin" schematic with
+         rectangular seat cells that carry a two-tone bar-chart
+         footer (blue=4W, green=2W).
+       - Resident view: Design 5 hero — big centred heading, big
+         pill-shaped search, quick-links row and a rich result card.
+       - Mobile resident + FEATURE_TSH_VEHICLES_WHEEL_PICKER: Design 10
+         iOS-style scroll wheels (Tower/Floor/Unit). Off by default;
+         the toggle chip only appears when the flag is on. Desktop
+         never shows the wheels regardless of flag state.
+       ============================================================ */
 
-    /* ============================================================== */
-    /* Design 5 — Search-first (RESIDENT view)                        */
-    /* Big hero heading, oversized pill-shaped search box, icon badge  */
-    /* + rich result card. This is the primary UX for                  */
-    /* PUBLIC / RESIDENT / CONTRIBUTOR / UNKNOWN callers.              */
-    /* ============================================================== */
+    /* ------- Shared search card (Google-style centered pill) ------- */
     .veh-search-card { padding: 1.25rem; }
-    /* When the caller cannot write, body gets `.veh-mode-resident` and
-       the search card blooms into a Google-style hero. */
-    body.veh-mode-resident .veh-search-card {
-      padding: 2.4rem 1.4rem 1.6rem;
-      text-align: center;
+    .veh-search-row {
+      display: flex; gap: .5rem; align-items: center; flex-wrap: wrap;
+      position: relative; max-width: 400px; margin: 1rem auto 0;
     }
-    body.veh-mode-resident .veh-search-card > .tsh-card-head h1 {
-      font-size: 2rem; margin-bottom: .3rem;
-    }
-    body.veh-mode-resident .veh-search-card > .tsh-card-head { text-align: center; }
-    body.veh-mode-resident .veh-search-row { max-width: 640px; margin: 1rem auto 0; }
-    body.veh-mode-resident .veh-search-row input[type="search"] {
-      padding: 1.05rem 1.3rem 1.05rem 3rem; font-size: 1.15rem;
-      border-radius: 999px;
-      box-shadow: 0 4px 16px rgba(0,0,0,.08);
-    }
-    body.veh-mode-resident .veh-search-row {
-      position: relative;
-    }
-    body.veh-mode-resident .veh-search-row::before {
-      content: "\f002"; /* fa-magnifying-glass */
-      font-family: "Font Awesome 6 Free"; font-weight: 900;
-      position: absolute; left: 1.2rem; top: 50%; transform: translateY(-50%);
-      color: var(--tsh-accent, #b48a3c); font-size: 1.1rem;
-      pointer-events: none;
-    }
-    body.veh-mode-resident .veh-search-row #vehSearchClear {
-      position: absolute; right: .35rem; top: 50%; transform: translateY(-50%);
-    }
-    .veh-search-row { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
     .veh-search-row input[type="search"] {
-      flex: 1 1 260px; min-width: 200px; font-size: 1.1rem;
-      padding: .7rem .9rem; letter-spacing: .04em; text-transform: uppercase;
+      flex: 1 1 240px; min-width: 200px; font-size: 1rem;
+      padding: .8rem 1.1rem .8rem 2.8rem;
+      border-radius: 999px; border-width: 2px;
+      letter-spacing: .04em; text-transform: uppercase;
+      box-shadow: 0 3px 14px rgba(0,0,0,0.07);
+      text-align: left;
+    }
+    .veh-search-row input[type="search"]:focus {
+      box-shadow: 0 5px 20px rgba(0,0,0,0.12);
+      outline: none;
+    }
+    .veh-search-row::before {
+      content: "\f002"; font-family: "Font Awesome 6 Free"; font-weight: 900;
+      position: absolute; left: 1rem; top: 50%; transform: translateY(-50%);
+      color: var(--tsh-accent, #b48a3c); font-size: .95rem;
+      z-index: 2; pointer-events: none;
+    }
+    /* Typed input stays uppercase (plates + flat numbers look consistent),
+       but placeholder is shown as natural sentence case for readability. */
+    .veh-search-row input[type="search"]::placeholder {
+      text-transform: none; letter-spacing: normal;
+      font-style: normal; opacity: .75;
     }
     .veh-hint {
-      color: var(--tsh-muted, #667); font-size: .8rem;
-      text-align: center; margin: .9rem 0 0;
+      color: var(--tsh-muted, #667); font-size: .85rem; margin: .8rem 0 0;
+      text-align: center;
     }
     .veh-hint kbd {
       background: var(--tsh-surface-2, #f6f7fb); border: 1px solid var(--tsh-border, #e2e5ee);
-      border-radius: 4px; padding: 1px 6px;
-      font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: .78rem;
+      border-radius: 4px; padding: 1px 6px; font-family: ui-monospace, monospace;
+      font-size: .8em; margin: 0 2px;
     }
+    body:not(.veh-mode-resident) .veh-hint { display: none; }
+    /* Suppress the role-hint slot when it hasn't been populated yet
+       (anonymous visitor before /whoami resolves). Avoids a stray gap
+       under the H1. updateRoleHint() writes text for signed-in users. */
+    #vehRoleHint:empty { display: none; }
     .veh-quick-links {
-      display: none; /* only shown for residents */
-      gap: .4rem; justify-content: center; margin: 1rem auto 0;
-      flex-wrap: wrap;
+      display: flex; gap: .5rem; justify-content: center; flex-wrap: wrap;
+      margin-top: 1rem;
     }
-    body.veh-mode-resident .veh-quick-links { display: flex; }
     .veh-quick-links button {
-      font-family: inherit; font-size: .82rem; padding: .35rem .85rem;
-      border-radius: 999px; border: 1px solid var(--tsh-border, #e2e5ee);
+      font-family: inherit; font-size: .85rem;
+      padding: .35rem .95rem; border-radius: 999px;
+      border: 1px solid var(--tsh-border, #e2e5ee);
       background: transparent; color: var(--tsh-muted, #667); cursor: pointer;
     }
-    .veh-quick-links button:hover { color: var(--tsh-text, #223); border-color: var(--tsh-accent, #b48a3c); }
+    .veh-quick-links button:hover {
+      color: var(--tsh-text, #223); border-color: var(--tsh-accent, #b48a3c);
+    }
+    body:not(.veh-mode-resident) .veh-quick-links { display: none; }
 
+    /* ------- Design 5 hero tweaks (resident view only) ------- */
+    body.veh-mode-resident .veh-search-card {
+      padding-top: 2.4rem;
+    }
+    body.veh-mode-resident .veh-search-card > .tsh-card-head h1 {
+      font-size: 2rem;
+    }
+    body.veh-mode-resident .veh-search-card > .tsh-card-head .tsh-sub {
+      margin-bottom: 1.2rem;
+    }
+    /* ------- Rich result card (both views) ------- */
     .veh-result {
-      margin: 1.2rem auto 0; max-width: 720px;
-      padding: 1.15rem 1.25rem; border-radius: 14px;
-      background: var(--tsh-surface, #fff); border: 1px solid var(--tsh-border, #e2e5ee);
-      box-shadow: 0 2px 10px rgba(0,0,0,.04);
-      text-align: left;
+      margin-top: 1rem; padding: 1.15rem 1.25rem; border-radius: 14px;
+      background: var(--tsh-surface-2, #f6f7fb); border: 1px solid var(--tsh-border, #e2e5ee);
     }
     .veh-result[hidden] { display: none; }
-    .veh-result-top {
-      display: flex; align-items: center; gap: 1rem; margin-bottom: .8rem;
-    }
+    .veh-result-top { display: flex; align-items: center; gap: 1rem; margin-bottom: .8rem; }
     .veh-result-icon {
-      width: 54px; height: 54px; border-radius: 12px;
-      background: rgba(180,138,60,.12); border: 1px solid var(--tsh-accent, #b48a3c);
-      display: grid; place-items: center;
-      color: var(--tsh-accent, #b48a3c); font-size: 1.5rem;
-      flex-shrink: 0;
+      width: 54px; height: 54px; border-radius: 12px; flex-shrink: 0;
+      display: grid; place-items: center; font-size: 1.5rem;
+      background: var(--tsh-accent-soft, rgba(180,138,60,.14));
+      border: 1px solid var(--tsh-accent, #b48a3c);
+      color: var(--tsh-accent-dark, #8a6b28);
     }
-    .veh-result-icon.two  { background: rgba(106,176,76,.14); border-color: #6ab04c; color: #4d8a3a; }
-    .veh-result-icon.four { background: rgba(74,144,226,.14); border-color: #4a90e2; color: #2a68b5; }
+    .veh-result-icon.two  { background: rgba(106,176,76,.14); border-color: #6ab04c; color: #4d8834; }
+    .veh-result-icon.four { background: rgba(74,144,226,.14); border-color: #4a90e2; color: #2f6cb0; }
     .veh-result-headline {
-      font-family: ui-monospace, "SF Mono", Menlo, monospace;
-      font-size: 1.35rem; font-weight: 700; letter-spacing: .05em;
-      color: var(--tsh-accent, #b48a3c);
+      font-family: ui-monospace, "SF Mono", Menlo, monospace; letter-spacing: .05em;
+      color: var(--tsh-accent-dark, #8a6b28); font-weight: 700; font-size: 1.3rem;
     }
-    .veh-result-sub {
-      color: var(--tsh-muted, #667); font-size: .9rem; margin-top: .1rem;
-    }
-    .veh-result-sub strong { color: var(--tsh-text, #223); }
-    .veh-result-table { width: 100%; border-collapse: collapse; margin-top: .3rem; }
-    .veh-result-table td { padding: .45rem 0; border-bottom: 1px solid var(--tsh-border, #e2e5ee); font-size: .92rem; }
-    .veh-result-table td:first-child {
-      color: var(--tsh-muted, #667); width: 30%;
-      text-transform: uppercase; font-size: .72rem; letter-spacing: .08em;
+    .veh-result-sub { color: var(--tsh-muted, #667); font-size: .95rem; margin-top: .1rem; }
+    .veh-result-sub strong { color: var(--tsh-text, #223); font-weight: 600; }
+    .veh-result-table { width: 100%; border-collapse: collapse; }
+    .veh-result-table td {
+      padding: .5rem 0; border-bottom: 1px solid var(--tsh-border, #e2e5ee); font-size: .95rem;
     }
     .veh-result-table tr:last-child td { border-bottom: none; }
-    .veh-result-list { margin-top: .4rem; display: flex; flex-direction: column; gap: .3rem; }
+    .veh-result-table td:first-child {
+      color: var(--tsh-muted, #667); width: 36%;
+      text-transform: uppercase; font-size: .78rem; letter-spacing: .05em;
+    }
+    .veh-result-list { margin-top: .5rem; display: flex; flex-direction: column; gap: .4rem; }
     .veh-result-list button {
-      display: block; width: 100%; text-align: left; cursor: pointer;
-      background: var(--tsh-surface-2, #f6f7fb); border: 1px solid var(--tsh-border, #e2e5ee);
-      border-radius: 10px; padding: .7rem .9rem; font-family: inherit;
-      color: var(--tsh-text, #223);
+      display: block; width: 100%; background: var(--tsh-surface, #fff);
+      border: 1px solid var(--tsh-border, #e2e5ee); border-radius: 10px;
+      padding: .75rem 1rem; text-align: left; color: var(--tsh-text, #223);
+      font-family: inherit; cursor: pointer;
     }
     .veh-result-list button:hover { border-color: var(--tsh-accent, #b48a3c); }
     .veh-result-list b {
       font-family: ui-monospace, "SF Mono", Menlo, monospace;
-      color: var(--tsh-accent, #b48a3c); letter-spacing: .04em;
+      color: var(--tsh-accent-dark, #8a6b28); letter-spacing: .04em;
     }
-    .veh-result-list .meta { color: var(--tsh-muted, #667); font-size: .8rem; display: block; margin-top: .15rem; }
-    .veh-result-actions { margin-top: .9rem; }
-    .veh-result-actions .tsh-btn { font-size: .9rem; }
-    /* Legacy heading kept in case scripts reference it (backward compat). */
-    .veh-result-flat { font-size: 1.6rem; font-weight: 700; letter-spacing: .04em; }
-    .veh-result-meta { color: var(--tsh-muted, #667); margin-top: .3rem; font-size: .95rem; }
-    .veh-result-meta strong { color: var(--tsh-text, #223); font-weight: 600; }
-    .veh-nomatch { color: var(--tsh-danger, #c33); font-weight: 600; }
+    .veh-result-list .meta {
+      color: var(--tsh-muted, #667); font-size: .85em; margin-top: .15rem; display: block;
+    }
+    .veh-result-actions { margin-top: 1rem; display: flex; gap: .5rem; flex-wrap: wrap; }
+    .veh-nomatch { color: var(--tsh-danger, #c33); font-weight: 600; font-size: 1.05rem; }
+
+    /* ------- Manage pane + count ------- */
     .veh-manage { margin-top: 1.5rem; }
     .veh-manage[hidden] { display: none; }
+    .veh-count { color: var(--tsh-muted, #667); font-size: .85em; margin-left: .5em; font-weight: 400; }
     .veh-add-grid { display: grid; grid-template-columns: 1fr 1.5fr .6fr .6fr 2fr auto; gap: .5rem; align-items: end; }
     @media (max-width: 800px) { .veh-add-grid { grid-template-columns: 1fr 1fr; } .veh-add-grid button { grid-column: span 2; } }
     .veh-list { margin-top: 1rem; display: flex; flex-direction: column; gap: .5rem; }
@@ -151,134 +162,110 @@
     .veh-badge { display: inline-block; padding: .1rem .5rem; border-radius: 999px; font-size: .75rem; font-weight: 600;
                  background: var(--tsh-accent-soft, #eee5d0); color: var(--tsh-accent-dark, #6f5320); }
     @media (max-width: 800px) { .veh-row { grid-template-columns: 1fr 1fr; } .veh-actions { grid-column: span 2; justify-content: flex-end; } }
-    .veh-count { color: var(--tsh-muted, #667); font-size: .85em; margin-left: .5em; font-weight: 400; }
 
-    /* Tower schematic grids — one collapsible <details> per tower.
-       Rows = floors (top-down, like a building elevation).
-       Columns = flat units (like seat numbers on a floor).
-
-       Design 1 (Airport Boarding Pass) — each tower reads as an aircraft
-       cabin: rounded panel with a soft header, a strip of unit-number
-       column labels (like seat letters A/B/C/D), a floor-label rail on
-       the left, and rectangular cells with a mini bar-chart footer. */
+    /* ------- Design 1 tower cabin ------- */
     .veh-tower {
       border: 1px solid var(--tsh-border, #e2e5ee); border-radius: 14px;
-      padding: .8rem 1.1rem 1.1rem; margin-bottom: 1.1rem;
+      padding: 1rem 1rem 1.15rem; margin-bottom: 1.15rem;
       background: var(--tsh-surface, #fff);
-      box-shadow: 0 1px 6px rgba(0,0,0,.03);
-      position: relative;
+      box-shadow: 0 1px 3px rgba(0,0,0,.04);
     }
     .veh-tower > summary {
-      cursor: pointer; font-weight: 700; font-size: 1.05rem;
-      padding: .3rem 0; letter-spacing: .06em;
+      cursor: pointer; padding: .1rem 0;
       display: flex; align-items: baseline; gap: .5rem; flex-wrap: wrap;
-      color: var(--tsh-accent, #b48a3c);
-      text-transform: uppercase;
+      color: var(--tsh-accent-dark, #8a6b28);
+      font-weight: 800; text-transform: uppercase;
+      letter-spacing: .12em; font-size: .95rem;
     }
     .veh-tower > summary::marker { color: var(--tsh-accent, #b48a3c); }
-    .veh-tower-count { color: var(--tsh-muted, #667); font-size: .78em; font-weight: 400; letter-spacing: .03em; text-transform: none; }
-    /* Column-header strip above the seat grid. Same 4-col template as the
-       grid (plus the leading floor-label column). Shows unit numbers 01–NN
-       like seat letters on a boarding pass. */
+    .veh-tower-count {
+      color: var(--tsh-muted, #667); font-size: .78em; font-weight: 500;
+      letter-spacing: normal; text-transform: none;
+    }
+
+    /* Column-header strip — unit numbers 01, 02, 03… mirroring the seat
+       letters on a boarding pass. Shares the grid template with the
+       seat grid below so numbers align perfectly with cells. */
     .veh-tower-cols {
       display: grid;
-      grid-template-columns: 2.2rem repeat(var(--units, 4), minmax(2.9rem, 1fr));
-      gap: .3rem; margin: .7rem 0 .3rem;
-      font-size: .68rem; letter-spacing: .1em;
-      color: var(--tsh-muted, #667); text-align: center;
+      grid-template-columns: 2.2rem repeat(var(--units, 4), minmax(3rem, 1fr));
+      gap: .35rem; margin: .8rem 0 .3rem;
+      font-size: .68rem; color: var(--tsh-muted, #667);
+      letter-spacing: .08em; text-align: center;
     }
     .veh-tower-cols span:first-child { visibility: hidden; }
+
     .veh-tower-grid {
       display: grid;
-      grid-template-columns: 2.2rem repeat(var(--units, 4), minmax(2.9rem, 1fr));
-      gap: .3rem; margin-top: .15rem;
+      grid-template-columns: 2.2rem repeat(var(--units, 4), minmax(3rem, 1fr));
+      gap: .35rem;
     }
     .veh-floor-label {
       display: grid; place-items: center;
       font-weight: 600; color: var(--tsh-muted, #667); font-size: .78em;
+      letter-spacing: .05em;
     }
-    /* Cells are rectangular (aircraft-seat inspired but square-cornered) with
-       a mini stacked bar chart pinned to the bottom edge. When a flat holds
-       BOTH 2W and 4W, the bar splits into two coloured segments proportional
-       to the count of each type — a literal two-colour "bar chart like" signal
-       per the Design 1 (Airport Boarding Pass) refinement. */
+
+    /* Rectangular seat cell — flat number on top, bar-chart footer.
+       Empty cells are dashed; occupied cells fill the bar with
+       flex-proportional segments (blue = 4W, green = 2W). */
     .veh-cell {
-      min-height: 3.1rem;
-      display: flex; flex-direction: column; align-items: stretch;
-      justify-content: flex-start; gap: .18rem;
-      padding: .28rem .22rem .2rem; border-radius: 4px;
+      min-height: 3rem;
+      display: flex; flex-direction: column; align-items: stretch; justify-content: space-between;
+      padding: .35rem .3rem .3rem; border-radius: 6px;
       border: 1.5px dashed var(--tsh-border, #e2e5ee);
       background: transparent; color: var(--tsh-muted, #778);
-      font-size: .72rem; cursor: pointer; font-family: inherit;
-      transition: border-color .12s, background .12s, transform .08s, color .12s, box-shadow .12s;
-      text-align: center;
+      cursor: pointer; font-family: inherit;
+      transition: border-color .12s, background .12s, transform .08s, color .12s;
     }
     .veh-cell:hover {
-      border-color: var(--tsh-accent, #b48a3c); color: var(--tsh-text, #223);
-      box-shadow: 0 1px 4px rgba(180,138,60,.15);
-    }
-    .veh-cell.has-veh { border-style: solid; color: var(--tsh-text, #223); }
-    .veh-cell.has-veh.four { border-color: #4a90e2; background: rgba(74,144,226,.08); }
-    .veh-cell.has-veh.two  { border-color: #6ab04c; background: rgba(106,176,76,.08); }
-    /* Two-tone soft background reinforces the split for the "both" case. The
-       real signal is the two-segment bar-chart strip inside the cell (see
-       .veh-cell-bar-4w + .veh-cell-bar-2w below). */
-    .veh-cell.has-veh.both {
       border-color: var(--tsh-accent, #b48a3c);
-      background: linear-gradient(to right,
-        rgba(74,144,226,.10) 0 50%,
-        rgba(106,176,76,.10) 50% 100%);
+      color: var(--tsh-text, #223);
+      transform: translateY(-1px);
     }
+    .veh-cell.has-veh {
+      border-style: solid; color: var(--tsh-text, #223);
+      background: var(--tsh-surface, #fff);
+    }
+    .veh-cell.has-veh.four { border-color: #4a90e2; }
+    .veh-cell.has-veh.two  { border-color: #6ab04c; }
+    .veh-cell.has-veh.both { border-color: var(--tsh-accent, #b48a3c); }
     .veh-cell[aria-pressed="true"] {
       outline: 2px solid var(--tsh-accent, #b48a3c); outline-offset: 2px;
-      transform: translateY(-1px);
     }
     .veh-cell-flat {
       font-weight: 700; letter-spacing: .02em; font-size: .74rem;
-      display: block;
+      text-align: center; line-height: 1.1;
     }
-    /* Mini stacked bar chart: pinned to the bottom of the cell via margin-top:auto.
-       Segment widths flex proportionally to the count of each vehicle type, so
-       "3× 4W + 1× 2W" renders 75% blue + 25% green. Single-type cells show one
-       full-width bar. Counts are rendered inside each segment when space allows. */
     .veh-cell-bar {
-      display: flex; width: 100%; height: .58rem;
-      border-radius: 3px; overflow: hidden;
-      margin-top: auto; gap: 1px;
-      background: rgba(0,0,0,.05);
+      display: flex; height: 12px; border-radius: 3px; overflow: hidden;
+      gap: 1px; margin-top: .3rem; background: rgba(0,0,0,.04);
     }
-    .veh-cell-bar-4w, .veh-cell-bar-2w {
+    .veh-cell-bar > span {
       display: flex; align-items: center; justify-content: center;
-      min-width: 0; font-size: 9.5px; font-weight: 700; color: #fff;
-      letter-spacing: .02em; line-height: 1; padding: 0 3px;
+      color: #fff; font-size: .55rem; font-weight: 700; letter-spacing: .04em;
+      min-width: 0; padding: 0 2px;
     }
-    .veh-cell-bar-4w { background: #4a90e2; }
-    .veh-cell-bar-2w { background: #6ab04c; }
-    /* Retained badge classes for backward compat / a11y titles — not rendered
-       in the current template but the CSS is kept minimal in case the badges
-       are re-introduced above the bar chart for a mixed-density variant. */
-    .veh-cell-badges { display: flex; gap: .25rem; font-size: .78em; line-height: 1; }
-    .veh-cell-b2w, .veh-cell-b4w { display: inline-flex; align-items: center; gap: .1em; }
+    .veh-cell-bar > span.four { background: #4a90e2; }
+    .veh-cell-bar > span.two  { background: #6ab04c; }
+
     .veh-tower-legend {
       display: flex; gap: .8rem; flex-wrap: wrap; font-size: .8rem;
       color: var(--tsh-muted, #667); margin: .5rem 0 0;
     }
     .veh-tower-legend span { display: inline-flex; align-items: center; gap: .3rem; }
-    .veh-legend-swatch { width: 18px; height: 12px; border-radius: 3px; border: 1.5px solid; display: inline-block; }
+    .veh-legend-swatch { width: 14px; height: 14px; border-radius: 3px; border: 1.5px solid; display: inline-block; }
     .veh-legend-swatch.four { border-color: #4a90e2; background: rgba(74,144,226,.15); }
     .veh-legend-swatch.two  { border-color: #6ab04c; background: rgba(106,176,76,.15); }
-    /* Split swatch mirrors the two-tone cell backdrop for "both". */
     .veh-legend-swatch.both {
       border-color: var(--tsh-accent, #b48a3c);
-      background: linear-gradient(to right, #4a90e2 0 50%, #6ab04c 50% 100%);
+      background: linear-gradient(90deg, rgba(74,144,226,.35) 50%, rgba(106,176,76,.35) 50%);
     }
-    .veh-legend-swatch.empty { border-style: dashed; background: transparent; }
+    .veh-legend-swatch.empty { border-style: dashed; border-color: var(--tsh-border, #e2e5ee); }
 
-    /* Per-tower "add flat outside the current grid" fallback. */
-    .veh-tower-tools { display: flex; gap: .4rem; margin-top: .6rem; align-items: center; flex-wrap: wrap; }
+    .veh-tower-tools { display: flex; gap: .4rem; margin-top: .8rem; align-items: center; flex-wrap: wrap; }
     .veh-tower-tools input { max-width: 8rem; }
 
-    /* Flat detail panel — appears below the grids when a cell is picked. */
     .veh-flat-detail { margin-top: 1rem; padding: 1rem 1.1rem; border-radius: 12px;
       border: 1px solid var(--tsh-accent, #b48a3c);
       background: var(--tsh-surface-2, #f6f7fb);
@@ -291,9 +278,7 @@
     .veh-flat-detail-head h3 { margin: 0; font-size: 1.15rem; letter-spacing: .03em; }
     .veh-flat-empty { color: var(--tsh-muted, #667); font-style: italic; padding: .3rem 0; }
 
-    /* Tower filter chips — one per configured tower plus an "All" chip.
-       Hiding a tower sets [data-hidden] on the <details>; the pictorial
-       grid of the remaining tower keeps its full available width. */
+    /* Tower filter chips */
     .veh-tower-filter {
       display: flex; gap: .4rem; flex-wrap: wrap;
       margin: .8rem 0 .5rem;
@@ -312,163 +297,131 @@
     }
     .veh-tower[data-hidden="1"] { display: none; }
 
-    /* Mobile-scoped shrink. Cells stay tall enough to fit flat number +
-       mini bar chart; the bar is scaled down proportionally so the two-tone
-       signal still reads at a glance. */
-    @media (max-width: 800px) {
-      .veh-tower-grid { grid-template-columns: 1.6rem repeat(var(--units, 4), minmax(2.3rem, 1fr)); gap: .18rem; }
-      .veh-cell { min-height: 2.7rem; font-size: .66rem; padding: .2rem .1rem .12rem; gap: .12rem; }
-      .veh-cell-flat { font-size: .68rem; }
-      .veh-cell-bar { height: .48rem; }
-      .veh-cell-bar-4w, .veh-cell-bar-2w { font-size: 8.5px; padding: 0 2px; }
-      .veh-cell-badges { font-size: .7em; gap: .18rem; }
+    /* ------- Design 10 wheel picker (mobile resident, flag-gated) ------- */
+    .veh-wheel-toggle {
+      display: none;
+      gap: .3rem; margin: 1rem auto 0; max-width: 320px; justify-content: center;
+      background: var(--tsh-surface-2, #f6f7fb);
+      border: 1px solid var(--tsh-border, #e2e5ee);
+      border-radius: 999px; padding: .25rem;
     }
-    /* Very small phones — narrow further so 4 units fit on a 320-wide device. */
-    @media (max-width: 380px) {
-      .veh-tower-grid { grid-template-columns: 1.4rem repeat(var(--units, 4), minmax(0, 1fr)); gap: .15rem; }
-      .veh-cell { min-height: 2.5rem; font-size: .6rem; }
-      .veh-cell-flat { font-size: .62rem; }
-      .veh-cell-bar { height: .4rem; }
-      .veh-cell-bar-4w, .veh-cell-bar-2w { font-size: 7.5px; }
+    body.veh-wheel-available .veh-wheel-toggle { display: inline-flex; }
+    .veh-wheel-toggle button {
+      flex: 1; font-family: inherit; font-size: .85rem; font-weight: 600;
+      padding: .5rem .9rem; border-radius: 999px;
+      border: none; background: transparent; color: var(--tsh-muted, #667);
+      cursor: pointer; white-space: nowrap;
     }
-    /* Resident (search-only) hero polish: bigger search input, roomier
-       result card on phones. Matches the Design 5 (search-first) vibe
-       without adding a wheel picker — v2 hook FEATURE_TSH_VEHICLES_WHEEL
-       is reserved OFF-by-default; residents stay keyboard-first for now. */
-    @media (max-width: 640px) {
-      .veh-search-card { padding: 1rem .95rem 1.1rem; }
-      .veh-search-row input[type="search"] { font-size: 1.05rem; padding: .8rem .9rem; }
-      .veh-result-flat { font-size: 1.4rem; }
-      body.veh-mode-resident .veh-search-card { padding: 1.4rem .95rem 1rem; }
-      body.veh-mode-resident .veh-search-card > .tsh-card-head h1 { font-size: 1.55rem; }
-      body.veh-mode-resident .veh-search-row input[type="search"] { font-size: 1rem; padding: .95rem 1.15rem .95rem 2.6rem; }
-      body.veh-mode-resident .veh-search-row::before { left: .9rem; font-size: .95rem; }
+    .veh-wheel-toggle button[aria-pressed="true"] {
+      background: var(--tsh-accent, #b48a3c); color: #fff;
     }
 
-    /* ============================================================== */
-    /* Design 10 — Mobile wheel picker (RESIDENT view, mobile only)   */
-    /* Gated by FEATURE_TSH_VEHICLES_WHEEL_PICKER (default OFF).       */
-    /* When OFF the .veh-wheel-picker container stays [hidden] and     */
-    /* residents get the keyboard-first Design 5 hero above.           */
-    /* When ON: shown only for callers with !canWrite AND viewport     */
-    /* ≤ 640px (JS toggles `body.veh-wheel-on`).                       */
-    /* ============================================================== */
-    .veh-wheel-picker {
-      max-width: 480px; margin: 1rem auto 0;
-      padding: 1rem 1rem 1.2rem; border-radius: 16px;
-      background: var(--tsh-surface, #fff); border: 1px solid var(--tsh-border, #e2e5ee);
-      display: none; /* JS sets display:block when eligible */
-    }
+    .veh-wheel-picker { margin-top: 1rem; }
     .veh-wheel-picker[hidden] { display: none !important; }
-    .veh-wheel-picker-head {
-      text-align: center; margin-bottom: .5rem;
-    }
-    .veh-wheel-picker-head h2 {
-      margin: 0; font-size: 1.1rem; color: var(--tsh-accent, #b48a3c);
-    }
-    .veh-wheel-picker-head p {
-      margin: .15rem 0 0; color: var(--tsh-muted, #667); font-size: .85rem;
-    }
-    .veh-wheels-labels {
-      display: grid; grid-template-columns: repeat(3, 1fr);
-      gap: .5rem; margin-bottom: .3rem;
-      font-size: .68rem; color: var(--tsh-muted, #667);
-      text-align: center; letter-spacing: .1em; text-transform: uppercase;
+    body:not(.veh-wheel-on) .veh-wheel-picker { display: none !important; }
+    body.veh-wheel-on .veh-search-row,
+    body.veh-wheel-on .veh-quick-links,
+    body.veh-wheel-on .veh-hint,
+    body.veh-wheel-on .veh-result { display: none !important; }
+
+    .veh-wheel-labels {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem;
+      text-align: center; font-size: .7rem; color: var(--tsh-muted, #667);
+      letter-spacing: .12em; text-transform: uppercase; margin-bottom: .35rem;
     }
     .veh-wheels {
-      display: grid; grid-template-columns: repeat(3, 1fr);
-      gap: .5rem; padding: .5rem;
-      border-radius: 12px; background: var(--tsh-surface-2, #f6f7fb);
+      position: relative; display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem;
+      background: var(--tsh-surface, #fff);
       border: 1px solid var(--tsh-border, #e2e5ee);
-      position: relative;
+      border-radius: 14px; padding: 1rem;
     }
-    /* Highlighted selection band in the middle of each wheel column. */
     .veh-wheels::before {
-      content: "";
-      position: absolute; left: .5rem; right: .5rem; top: 50%;
+      content: ""; position: absolute; left: 12px; right: 12px; top: 50%;
       height: 44px; transform: translateY(-50%);
-      background: rgba(180,138,60,.08);
+      background: var(--tsh-accent-soft, rgba(180,138,60,.14));
       border-top: 1px solid var(--tsh-accent, #b48a3c);
       border-bottom: 1px solid var(--tsh-accent, #b48a3c);
-      border-radius: 6px; pointer-events: none; z-index: 1;
+      border-radius: 6px; pointer-events: none;
     }
     .veh-wheel {
-      height: 220px; overflow-y: scroll;
-      scroll-snap-type: y mandatory;
-      scrollbar-width: none;
-      padding: 88px 0; /* room above + below the selection band (220-44)/2 */
-      position: relative; z-index: 2;
+      height: 200px; overflow-y: scroll; scroll-snap-type: y mandatory;
+      scrollbar-width: none; -ms-overflow-style: none;
+      padding: 78px 0; position: relative; z-index: 2;
     }
     .veh-wheel::-webkit-scrollbar { display: none; }
     .veh-wheel-item {
       height: 44px; scroll-snap-align: center;
       display: grid; place-items: center;
-      font-family: ui-monospace, "SF Mono", Menlo, monospace;
-      font-size: 1.05rem; color: var(--tsh-muted, #667);
+      font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 1.15rem;
+      color: var(--tsh-muted, #667); cursor: pointer;
       transition: color .12s, transform .12s;
-      user-select: none;
     }
     .veh-wheel-item.on {
-      color: var(--tsh-accent, #b48a3c); font-weight: 700; transform: scale(1.08);
+      color: var(--tsh-accent-dark, #8a6b28); font-weight: 700; transform: scale(1.05);
     }
+
     .veh-wheel-result {
-      margin-top: .9rem; padding: .9rem 1rem; border-radius: 12px;
-      background: var(--tsh-surface-2, #f6f7fb); border: 1px solid var(--tsh-border, #e2e5ee);
+      margin-top: 1rem; padding: 1.1rem 1.2rem; border-radius: 14px;
+      background: var(--tsh-surface-2, #f6f7fb);
+      border: 1px solid var(--tsh-border, #e2e5ee);
     }
     .veh-wheel-result h3 {
-      margin: 0; font-family: ui-monospace, "SF Mono", Menlo, monospace;
-      font-size: 1.15rem; letter-spacing: .05em; color: var(--tsh-accent, #b48a3c);
+      margin: 0 0 .25rem;
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: 1.5rem; letter-spacing: .05em;
+      color: var(--tsh-accent-dark, #8a6b28);
     }
     .veh-wheel-result .cnt {
-      color: var(--tsh-muted, #667); font-size: .78rem; margin: .15rem 0 .5rem;
+      color: var(--tsh-muted, #667); font-size: .82rem; margin-bottom: .9rem;
     }
-    .veh-wheel-vehs { display: flex; flex-direction: column; gap: .4rem; }
+    .veh-wheel-vehs {
+      display: flex; flex-direction: column; gap: .5rem; margin-bottom: .8rem;
+    }
     .veh-wheel-veh {
-      display: flex; align-items: center; gap: .7rem;
-      padding: .5rem .7rem; border-radius: 8px;
-      background: var(--tsh-surface, #fff); border: 1px solid var(--tsh-border, #e2e5ee);
+      display: flex; align-items: center; gap: .8rem;
+      padding: .55rem .75rem;
+      border: 1px solid var(--tsh-border, #e2e5ee); border-radius: 10px;
+      background: var(--tsh-surface, #fff);
     }
     .veh-wheel-veh .badge {
-      width: 32px; height: 32px; border-radius: 8px;
-      display: grid; place-items: center; flex-shrink: 0; font-size: .9rem;
+      width: 34px; height: 34px; border-radius: 8px;
+      display: grid; place-items: center; font-size: .95rem; flex-shrink: 0;
     }
-    .veh-wheel-veh .badge.four { background: rgba(74,144,226,.15); color: #2a68b5; }
-    .veh-wheel-veh .badge.two  { background: rgba(106,176,76,.15); color: #4d8a3a; }
-    .veh-wheel-veh .reg { font-family: ui-monospace, monospace; letter-spacing: .04em; }
-    .veh-wheel-veh .meta { color: var(--tsh-muted, #667); font-size: .78rem; }
-    .veh-wheel-empty {
-      color: var(--tsh-muted, #667); font-style: italic;
-      text-align: center; padding: .7rem 0;
+    .veh-wheel-veh .badge.four { background: rgba(74,144,226,.14); color: #2f6cb0; }
+    .veh-wheel-veh .badge.two  { background: rgba(106,176,76,.14); color: #4d8834; }
+    .veh-wheel-veh .reg {
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      letter-spacing: .04em; font-weight: 600; font-size: .95rem;
     }
-    /* Toggle chip in the resident hero — lets a resident switch between
-       keyboard search and wheel picker when the feature flag is ON. */
-    .veh-wheel-toggle {
-      display: none; /* JS shows only when feature flag is ON on mobile */
-      margin: .8rem auto 0; text-align: center;
-    }
-    body.veh-wheel-available .veh-wheel-toggle { display: block; }
-    .veh-wheel-toggle button {
-      font-family: inherit; font-size: .82rem;
-      padding: .4rem .9rem; border-radius: 999px;
-      border: 1px solid var(--tsh-border, #e2e5ee);
-      background: transparent; color: var(--tsh-muted, #667); cursor: pointer;
-    }
-    .veh-wheel-toggle button[aria-pressed="true"] {
-      background: var(--tsh-accent, #b48a3c); color: #fff;
-      border-color: var(--tsh-accent, #b48a3c);
-    }
-    /* Desktop: force-hide the mobile wheel picker even if the flag is on. */
+    .veh-wheel-veh .meta { color: var(--tsh-muted, #667); font-size: .8rem; margin-top: .1rem; }
+    .veh-wheel-empty { color: var(--tsh-muted, #667); font-style: italic; text-align: center; padding: .8rem 0; }
+
+    /* Desktop → never show wheel picker or its toggle, even if the flag is on. */
     @media (min-width: 641px) {
-      .veh-wheel-picker { display: none !important; }
-      .veh-wheel-toggle { display: none !important; }
-    }
-    /* Mobile: when wheel mode is active, hide the classic search row so
-       the wheels take centre stage. The result panel stays for feedback. */
-    @media (max-width: 640px) {
+      .veh-wheel-toggle, .veh-wheel-picker { display: none !important; }
       body.veh-wheel-on .veh-search-row,
       body.veh-wheel-on .veh-quick-links,
-      body.veh-wheel-on .veh-hint { display: none; }
-      body.veh-wheel-on .veh-wheel-picker { display: block; }
+      body.veh-wheel-on .veh-hint,
+      body.veh-wheel-on .veh-result { display: flex !important; }
+      body.veh-wheel-on .veh-result[hidden] { display: none !important; }
+    }
+
+    @media (max-width: 800px) {
+      .veh-tower-cols, .veh-tower-grid {
+        grid-template-columns: 1.9rem repeat(var(--units, 4), minmax(2.6rem, 1fr));
+        gap: .25rem;
+      }
+      .veh-cell { min-height: 2.7rem; padding: .28rem .18rem .22rem; }
+      .veh-cell-flat { font-size: .68rem; }
+      .veh-cell-bar { height: 10px; margin-top: .22rem; }
+      .veh-cell-bar > span { font-size: .5rem; }
+    }
+
+    @media (max-width: 640px) {
+      body.veh-mode-resident .veh-search-card > .tsh-card-head h1 { font-size: 1.55rem; }
+      body.veh-mode-resident .veh-search-row input[type="search"] {
+        font-size: 1rem; padding: .95rem 2.7rem .95rem 3rem;
+      }
     }
   </style>
 </head>
@@ -481,55 +434,62 @@
     <section class="tsh-card veh-search-card">
       <header class="tsh-card-head">
         <h1><i class="fas fa-car-side gold-accent"></i> Vehicle Registry</h1>
-        <p class="tsh-sub" id="vehRoleHint">Type a vehicle number to see which flat it belongs to.</p>
+        <p class="tsh-sub" id="vehRoleHint"></p>
       </header>
 
       <div class="veh-search-row">
         <input
           type="search"
           id="vehSearch"
-          placeholder="Enter vehicle number, e.g. MH11JJ0234"
+          placeholder="Search by Flat or Vehicle number"
           autocomplete="off"
           spellcheck="false"
           inputmode="latin"
-          aria-label="Search vehicle number"
+          aria-label="Search by Flat or Vehicle number"
         />
-        <button type="button" class="tsh-btn tsh-btn-ghost" id="vehSearchClear" title="Clear">
-          <i class="fas fa-xmark"></i>
-        </button>
       </div>
 
-      <p class="veh-hint">
+      <!-- Resident-only "/" keyboard-shortcut hint (Design 5). Hidden by
+           the CSS unless <body> has the .veh-mode-resident class. -->
+      <p class="veh-hint" aria-hidden="true">
         Tip: press <kbd>/</kbd> to jump to search anywhere on this page.
       </p>
 
+      <!-- Resident-only quick-links row (Design 5). Populated at runtime
+           from real vehicle data — a few sample flat numbers + a partial
+           regNo prefix so first-time visitors have something to click. -->
       <div class="veh-quick-links" id="vehQuickLinks" aria-label="Try one of these"></div>
 
-      <!-- Design 10 — Mobile wheel picker.
-           Rendered by JS when FEATURE_TSH_VEHICLES_WHEEL_PICKER is ON
-           AND the caller is a non-editor AND the viewport is ≤ 640 px.
-           Default OFF so residents get the keyboard-first Design 5 hero. -->
+      <!-- Mobile resident + FEATURE_TSH_VEHICLES_WHEEL_PICKER toggle
+           (Design 10). Hidden unless <body> has .veh-wheel-available. -->
       <div class="veh-wheel-toggle" id="vehWheelToggle" role="tablist" aria-label="Choose entry mode">
-        <button type="button" data-mode="search"  aria-pressed="true"><i class="fas fa-keyboard"></i> Keyboard search</button>
-        <button type="button" data-mode="wheel"   aria-pressed="false"><i class="fas fa-mobile-screen"></i> Wheel picker</button>
+        <button type="button" role="tab" data-wheel-mode="off" aria-pressed="true">
+          <i class="fas fa-keyboard" aria-hidden="true"></i> Keyboard search
+        </button>
+        <button type="button" role="tab" data-wheel-mode="on" aria-pressed="false">
+          <i class="fas fa-arrows-up-down" aria-hidden="true"></i> Wheel picker
+        </button>
       </div>
-      <section class="veh-wheel-picker" id="vehWheelPicker" hidden aria-label="Flat picker">
-        <div class="veh-wheel-picker-head">
-          <h2><i class="fas fa-mobile-screen gold-accent"></i> Pick a flat</h2>
-          <p>Spin the wheels — Tower, Floor, Unit.</p>
-        </div>
-        <div class="veh-wheels-labels">
-          <span>Tower</span><span>Floor</span><span>Unit</span>
-        </div>
-        <div class="veh-wheels" id="vehWheels">
-          <div class="veh-wheel" id="vehWheelTower" role="listbox" aria-label="Tower"></div>
-          <div class="veh-wheel" id="vehWheelFloor" role="listbox" aria-label="Floor"></div>
-          <div class="veh-wheel" id="vehWheelUnit"  role="listbox" aria-label="Unit"></div>
-        </div>
-        <div class="veh-wheel-result" id="vehWheelResult" aria-live="polite"></div>
-      </section>
 
       <div class="veh-result" id="vehResult" hidden aria-live="polite"></div>
+    </section>
+
+    <!-- Mobile-only iOS-style scroll-wheel flat picker (Design 10). Rendered
+         but kept hidden by default at both flag- and layout-gates. -->
+    <section class="veh-wheel-picker tsh-card" id="vehWheelPicker" hidden aria-label="Flat picker">
+      <header class="tsh-card-head">
+        <h2><i class="fas fa-arrows-up-down gold-accent"></i> Pick a flat</h2>
+        <p class="tsh-sub">Spin the wheels — Tower, Floor, Unit.</p>
+      </header>
+      <div class="veh-wheel-labels">
+        <div>Tower</div><div>Floor</div><div>Unit</div>
+      </div>
+      <div class="veh-wheels">
+        <div class="veh-wheel" id="vehWheelTower"   role="listbox" aria-label="Tower"></div>
+        <div class="veh-wheel" id="vehWheelFloor"   role="listbox" aria-label="Floor"></div>
+        <div class="veh-wheel" id="vehWheelUnit"    role="listbox" aria-label="Unit"></div>
+      </div>
+      <div class="veh-wheel-result" id="vehWheelResult" aria-live="polite"></div>
     </section>
 
     <!-- Manage pane — only visible to callers on the editor allowlist
@@ -545,12 +505,12 @@
         <h2><i class="fas fa-pen-to-square gold-accent"></i> Manage vehicles
           <span class="veh-count" id="vehTotalCount"></span>
         </h2>
-        <p class="tsh-sub">Pick a flat below (like choosing a seat), then add or edit its vehicles. Each occupied cell shows a mini bar-chart footer — blue = 4-wheelers, green = 2-wheelers, split proportionally when both are present. Vehicle numbers must be unique across the whole society.</p>
+        <p class="tsh-sub">Pick a flat below (like choosing a seat), then add or edit its vehicles. Vehicle numbers must be unique across the whole society.</p>
         <div class="veh-tower-legend" aria-label="Cell colour key">
           <span><span class="veh-legend-swatch empty"></span> Empty</span>
           <span><span class="veh-legend-swatch four"></span> 4-wheeler</span>
           <span><span class="veh-legend-swatch two"></span> 2-wheeler</span>
-          <span><span class="veh-legend-swatch both"></span> Both (mini bar)</span>
+          <span><span class="veh-legend-swatch both"></span> Both</span>
         </div>
       </header>
 
@@ -645,7 +605,7 @@
     // -----------------------------------------------------------------
     const resultEl = document.getElementById('vehResult');
     const searchEl = document.getElementById('vehSearch');
-    const clearBtn = document.getElementById('vehSearchClear');
+    const clearBtn = document.getElementById('vehSearchClear'); // legacy: may be null after redundant-X removal
 
     function esc(s) {
       return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => (
@@ -653,122 +613,156 @@
       ));
     }
 
-    function renderResult(v, query) {
-      if (v) {
+    // Render the search result in the Design-5 "rich card" format:
+    // a coloured icon badge (car or motorcycle), a monospace gold
+    // headline, a subtitle sentence, and a four-row info table.
+    // Multi-hit + flat-mode variations render a list instead. Everything
+    // is data-driven from `vehicles`; call sites pass the parsed
+    // result-shape.
+    function renderResult(res, query) {
+      if (!res) { resultEl.hidden = true; resultEl.innerHTML = ''; return; }
+      if (res.kind === 'none') {
+        resultEl.innerHTML =
+          '<div class="veh-result-top">' +
+            '<div class="veh-result-icon"><i class="fas fa-circle-question" aria-hidden="true"></i></div>' +
+            '<div><div class="veh-result-headline veh-nomatch">No match</div>' +
+            '<div class="veh-result-sub">No vehicle or flat matched &ldquo;' + esc(query) + '&rdquo;.</div></div>' +
+          '</div>' +
+          '<div class="veh-result-sub">Ask a manager to add it, or double-check the number.</div>';
+        resultEl.hidden = false;
+        return;
+      }
+      if (res.kind === 'vehicle') {
+        const v = res.v;
         const kind = v.type === '4W' ? 'four' : 'two';
-        const iconGlyph = v.type === '4W' ? 'fa-car' : 'fa-motorcycle';
+        const iconCls = v.type === '4W' ? 'fa-car' : 'fa-motorcycle';
         const typeLabel = v.type === '4W' ? '4-wheeler' : '2-wheeler';
         resultEl.innerHTML =
           '<div class="veh-result-top">' +
-            '<div class="veh-result-icon ' + kind + '"><i class="fas ' + iconGlyph + '"></i></div>' +
+            '<div class="veh-result-icon ' + kind + '"><i class="fas ' + iconCls + '" aria-hidden="true"></i></div>' +
             '<div>' +
               '<div class="veh-result-headline">' + esc(v.regNoDisplay || v.regNo) + '</div>' +
-              '<div class="veh-result-sub">' + typeLabel + ' · Flat <strong>' + esc(v.flat) + '</strong></div>' +
+              '<div class="veh-result-sub">' + typeLabel + ' &middot; Flat <strong>' + esc(v.flat) + '</strong></div>' +
             '</div>' +
           '</div>' +
           '<table class="veh-result-table">' +
             '<tr><td>Flat</td><td>' + esc(v.flat) + '</td></tr>' +
-            '<tr><td>Type</td><td>' + esc(v.type) + '</td></tr>' +
-            '<tr><td>Sticker</td><td>' + (v.sticker ? esc(v.sticker) : '—') + '</td></tr>' +
-            '<tr><td>Notes</td><td>' + (v.comments ? esc(v.comments) : '—') + '</td></tr>' +
+            '<tr><td>Type</td><td><span class="veh-badge">' + esc(v.type) + '</span></td></tr>' +
+            '<tr><td>Sticker</td><td>' + (v.sticker ? esc(v.sticker) : '<span style="color:var(--tsh-muted,#667)">&mdash;</span>') + '</td></tr>' +
+            '<tr><td>Notes</td><td>' + (v.comments ? esc(v.comments) : '<span style="color:var(--tsh-muted,#667)">&mdash;</span>') + '</td></tr>' +
           '</table>' +
           (canWrite
-            ? '<div class="veh-result-actions">' +
-                '<button type="button" class="tsh-btn tsh-btn-primary tsh-btn-sm" data-open-flat="' + esc(v.flat) + '">' +
-                  '<i class="fas fa-pen"></i> Edit flat ' + esc(v.flat) +
-                '</button>' +
-              '</div>'
+            ? '<div class="veh-result-actions"><button type="button" class="tsh-btn tsh-btn-primary" data-open-flat="' + esc(v.flat) + '"><i class="fas fa-pen"></i> Edit flat ' + esc(v.flat) + '</button></div>'
             : '');
         resultEl.hidden = false;
-      } else {
+        return;
+      }
+      if (res.kind === 'many') {
+        const list = res.hits.map((v) => {
+          const meta = (v.type === '4W' ? '4-wheeler' : '2-wheeler') +
+                       (v.sticker ? ' &middot; ' + esc(v.sticker) : '');
+          return '<button type="button" data-open-flat="' + esc(v.flat) + '">' +
+                 '<b>' + esc(v.regNoDisplay || v.regNo) + '</b> ' +
+                 '<span style="color:var(--tsh-muted,#667)">&middot;</span> Flat ' + esc(v.flat) +
+                 '<span class="meta">' + meta + '</span></button>';
+        }).join('');
         resultEl.innerHTML =
           '<div class="veh-result-top">' +
-            '<div class="veh-result-icon"><i class="fas fa-face-frown"></i></div>' +
-            '<div>' +
-              '<div class="veh-result-headline">No match</div>' +
-              '<div class="veh-result-sub veh-nomatch">' +
-                'Nothing found for "<strong>' + esc(query) + '</strong>". ' +
-                'Try a different vehicle number or ask a manager to add it.' +
-              '</div>' +
-            '</div>' +
-          '</div>';
+            '<div class="veh-result-icon"><i class="fas fa-list" aria-hidden="true"></i></div>' +
+            '<div><div class="veh-result-headline">' + res.hits.length + ' matches</div>' +
+            '<div class="veh-result-sub">Pick one to open its flat.</div></div>' +
+          '</div>' +
+          '<div class="veh-result-list">' + list + '</div>';
+        resultEl.hidden = false;
+        return;
+      }
+      if (res.kind === 'flat') {
+        const rows = res.rows || [];
+        const list = rows.length
+          ? rows.map((v) => {
+              const meta = esc(v.type) + (v.sticker ? ' &middot; ' + esc(v.sticker) : '') +
+                           (v.comments ? ' &middot; ' + esc(v.comments) : '');
+              return '<button type="button" data-open-flat="' + esc(v.flat) + '">' +
+                     '<b>' + esc(v.regNoDisplay || v.regNo) + '</b>' +
+                     '<span class="meta">' + meta + '</span></button>';
+            }).join('')
+          : '<p class="veh-flat-empty" style="margin:0">No vehicles registered at ' + esc(res.flat) + ' yet.</p>';
+        resultEl.innerHTML =
+          '<div class="veh-result-top">' +
+            '<div class="veh-result-icon"><i class="fas fa-house-chimney" aria-hidden="true"></i></div>' +
+            '<div><div class="veh-result-headline">Flat ' + esc(res.flat) + '</div>' +
+            '<div class="veh-result-sub">' + rows.length + ' vehicle' + (rows.length === 1 ? '' : 's') + ' registered</div></div>' +
+          '</div>' +
+          '<div class="veh-result-list">' + list + '</div>' +
+          (canWrite
+            ? '<div class="veh-result-actions"><button type="button" class="tsh-btn tsh-btn-primary" data-open-flat="' + esc(res.flat) + '"><i class="fas fa-pen"></i> Edit flat ' + esc(res.flat) + '</button></div>'
+            : '');
         resultEl.hidden = false;
       }
     }
 
-    // Design 5 flat-mode result: user typed something like "A0304" or "A12"
-    // — show every vehicle registered at that flat as a list.
-    function renderFlatResult(flat, rows) {
-      const list = rows.length
-        ? rows.map((r) =>
-            '<button type="button" data-open-flat="' + esc(flat) + '">' +
-              '<b>' + esc(r.regNoDisplay || r.regNo) + '</b>' +
-              '<span class="meta">' + esc(r.type) +
-              (r.sticker ? ' · Sticker ' + esc(r.sticker) : '') +
-              (r.comments ? ' · ' + esc(r.comments) : '') +
-              '</span>' +
-            '</button>').join('')
-        : '<p class="veh-flat-empty">No vehicles registered at ' + esc(flat) + ' yet.</p>';
-      resultEl.innerHTML =
-        '<div class="veh-result-top">' +
-          '<div class="veh-result-icon"><i class="fas fa-house-chimney"></i></div>' +
-          '<div>' +
-            '<div class="veh-result-headline">Flat ' + esc(flat) + '</div>' +
-            '<div class="veh-result-sub">' + rows.length + ' vehicle' + (rows.length === 1 ? '' : 's') + ' registered</div>' +
-          '</div>' +
-        '</div>' +
-        '<div class="veh-result-list">' + list + '</div>' +
-        (canWrite
-          ? '<div class="veh-result-actions">' +
-              '<button type="button" class="tsh-btn tsh-btn-primary tsh-btn-sm" data-open-flat="' + esc(flat) + '">' +
-                '<i class="fas fa-pen"></i> Edit flat ' + esc(flat) +
-              '</button>' +
-            '</div>'
-          : '');
-      resultEl.hidden = false;
-    }
+    // Parse a raw query and return a result-shape describing what to
+    // render. Handles: too-short query (null), flat match, single
+    // vehicle match, multiple matches, no match.
+    //
+    // Search is forgiving about formatting on both sides:
+    //   * Case-insensitive (upper/lower).
+    //   * Spaces, hyphens, dots, slashes are ignored — normReg strips
+    //     everything but [A-Z0-9] before matching.
+    //   * Flat number can be typed in any of these equivalent forms
+    //     (all resolve to canonical "A304" = tower A, floor 3, unit 04):
+    //       A304 · a304 · A0304 · a-304 · A 304 · A-0304 · a/304
+    //     Padding zeros on floor/unit are collapsed via parseFlat +
+    //     flatFromParts so the query "A0304" matches stored flat "A304"
+    //     and vice-versa.
+    //   * Vehicle numbers: stored regNo is already normalised on the
+    //     server, so a substring lookup on normReg(query) matches
+    //     "MH-11-JJ-0234" / "mh 11 jj 0234" / "MH11JJ0234" identically.
+    //
+    // If a flat-shaped query has zero registered vehicles we DON'T
+    // dead-end — we also try a vehicle substring pass on the same
+    // normalised input, and if that hits we surface those instead. This
+    // saves the user from a misleading "no vehicles at Z9999" card when
+    // the string is actually part of a plate.
+    function classifyQuery(raw) {
+      const q = normReg(raw);
+      if (!q || q.length < 2) return null;
 
-    // Multi-hit result: partial regNo matched more than one vehicle.
-    function renderManyResult(hits, query) {
-      const list = hits.slice(0, 12).map((r) =>
-        '<button type="button" data-open-flat="' + esc(r.flat) + '">' +
-          '<b>' + esc(r.regNoDisplay || r.regNo) + '</b>' +
-          '<span class="meta">Flat ' + esc(r.flat) + ' · ' + esc(r.type) +
-          (r.sticker ? ' · Sticker ' + esc(r.sticker) : '') +
-          '</span>' +
-        '</button>').join('');
-      const more = hits.length > 12 ? '<p class="veh-flat-empty" style="margin-top:.5rem">…and ' + (hits.length - 12) + ' more. Refine your search.</p>' : '';
-      resultEl.innerHTML =
-        '<div class="veh-result-top">' +
-          '<div class="veh-result-icon"><i class="fas fa-list"></i></div>' +
-          '<div>' +
-            '<div class="veh-result-headline">' + hits.length + ' matches</div>' +
-            '<div class="veh-result-sub">for "<strong>' + esc(query) + '</strong>" — pick one to see its flat.</div>' +
-          '</div>' +
-        '</div>' +
-        '<div class="veh-result-list">' + list + '</div>' + more;
-      resultEl.hidden = false;
+      // Is this shaped like a flat? (letter + 1-4 digits)
+      const flatShaped = /^[A-Z][0-9]{1,4}$/.test(q);
+      let canonicalFlat = null;
+      if (flatShaped) {
+        const parsed = parseFlat(q);
+        if (parsed) {
+          canonicalFlat = flatFromParts(parsed.tower, parsed.floor, parsed.unit);
+        }
+      }
+
+      if (canonicalFlat) {
+        const rows = vehicles.filter((v) => v.flat === canonicalFlat);
+        if (rows.length) return { kind: 'flat', flat: canonicalFlat, rows };
+        // Flat had no vehicles — try vehicle substring before giving up.
+        const subHits = vehicles.filter((v) => v.regNo.indexOf(q) !== -1);
+        if (subHits.length === 1) return { kind: 'vehicle', v: subHits[0] };
+        if (subHits.length > 1) return { kind: 'many', hits: subHits.slice(0, 25) };
+        // Genuinely empty flat — still surface the flat card so managers
+        // can quickly hit "Edit" and add one.
+        return { kind: 'flat', flat: canonicalFlat, rows: [] };
+      }
+
+      // Vehicle match (contains q)
+      const hits = vehicles.filter((v) => v.regNo.indexOf(q) !== -1);
+      if (!hits.length) return { kind: 'none', q };
+      if (hits.length === 1) return { kind: 'vehicle', v: hits[0] };
+      return { kind: 'many', hits: hits.slice(0, 25) };
     }
 
     function doSearch(raw) {
-      const q = normReg(raw);
-      if (!q) { resultEl.hidden = true; return; }
-      if (q.length < 2) { resultEl.hidden = true; return; }
-      // Flat-mode: A0304 / A12 / B1401 → look up flat directly.
-      if (/^[A-Z][0-9]{1,4}$/.test(q)) {
-        const rows = vehicles.filter((v) => v.flat === q);
-        renderFlatResult(q, rows);
-        return;
+      if (raw && String(raw).trim() && document.getElementById('vehSearch').value !== raw) {
+        document.getElementById('vehSearch').value = raw;
       }
-      if (q.length < 3) { resultEl.hidden = true; return; }
-      // Exact vehicle match (fast path via the index).
-      const exact = index.get(q);
-      if (exact) { renderResult(exact, raw); return; }
-      // Partial match — Design 5 semantic: show up to 12 candidates.
-      const hits = vehicles.filter((v) => v.regNo.includes(q));
-      if (!hits.length) { renderResult(null, raw); return; }
-      if (hits.length === 1) { renderResult(hits[0], raw); return; }
-      renderManyResult(hits, raw);
+      const res = classifyQuery(raw);
+      renderResult(res, raw);
     }
 
     let searchTimer;
@@ -779,66 +773,17 @@
     searchEl.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') { e.preventDefault(); doSearch(searchEl.value); }
     });
-    clearBtn.addEventListener('click', () => {
-      searchEl.value = '';
-      resultEl.hidden = true;
-      searchEl.focus();
-    });
-
-    // Design 5 — "/" jumps to the search input from anywhere on the page
-    // (unless the user is already typing in an input/textarea).
-    document.addEventListener('keydown', (e) => {
-      if (e.key !== '/') return;
-      const t = e.target;
-      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
-      e.preventDefault();
-      searchEl.focus(); searchEl.select();
-    });
-
-    // Design 5 — click a result row (either the single-hit "Edit" button,
-    // the multi-hit list rows, or the flat-mode list rows) to jump straight
-    // into the flat detail panel. For editors this also opens the drawer via
-    // the existing selectFlat() path.
-    resultEl.addEventListener('click', (e) => {
-      const b = e.target.closest('[data-open-flat]');
-      if (!b) return;
-      const flat = b.getAttribute('data-open-flat');
-      if (!flat) return;
-      if (canWrite) {
-        // Editor: reveal the manage pane if hidden, select the flat, scroll.
-        manageEl.hidden = false;
-        selectFlat(flat);
-      } else {
-        // Resident: just replace the search input with the flat so they see
-        // the roster; no manage pane exists for them.
-        searchEl.value = flat;
-        doSearch(flat);
-      }
-    });
-
-    // Design 5 — resident quick-links row. Only visible when
-    // `body.veh-mode-resident` is set. Populated after data loads because
-    // the sample flats depend on the actual vehicle roster.
-    const quickLinksEl = document.getElementById('vehQuickLinks');
-    function renderQuickLinks() {
-      if (!quickLinksEl) return;
-      const samples = new Set();
-      // Two flats + one partial-regNo shortcut, drawn from real data when
-      // possible so the tips always resolve to a real result.
-      for (const v of vehicles) {
-        if (samples.size >= 2) break;
-        samples.add(v.flat);
-      }
-      const partial = vehicles[0] ? vehicles[0].regNo.slice(0, 6) : 'MH11JJ';
-      const btns = [...samples].map((f) => '<button type="button" data-quick="' + esc(f) + '">Try ' + esc(f) + '</button>').join('') +
-                   '<button type="button" data-quick="' + esc(partial) + '">Try ' + esc(partial) + '</button>';
-      quickLinksEl.innerHTML = btns;
+    // The native type=search × already fires 'input' with empty value —
+    // doSearch('') → classifyQuery returns null → renderResult hides the
+    // card, so no extra listener is needed here. clearBtn is legacy and
+    // may not exist in current markup.
+    if (clearBtn) {
+      clearBtn.addEventListener('click', () => {
+        searchEl.value = '';
+        resultEl.hidden = true;
+        searchEl.focus();
+      });
     }
-    quickLinksEl.addEventListener('click', (e) => {
-      const b = e.target.closest('[data-quick]'); if (!b) return;
-      const q = b.getAttribute('data-quick') || '';
-      searchEl.value = q; doSearch(q); searchEl.focus();
-    });
 
     // -----------------------------------------------------------------
     // Manage pane (tower-grouped seat-map). Gated by canWrite so the
@@ -962,34 +907,14 @@
       return new Map([...spec.entries()].sort((a, b) => a[0].localeCompare(b[0])));
     }
 
-    // Mini stacked bar chart inside each occupied cell. Segment flex ratio =
-    // count ratio, so a cell with (2× 4W, 1× 2W) renders 66% blue + 33% green.
-    // The counts are printed inside the segments so the bar doubles as a badge —
-    // no separate icon strip needed. Empty flats return '' → the cell shows only
-    // its flat number over a dashed border. Aligned with Design 1 refinement:
-    // rectangular cells, bar-chart footer, two colours whenever both types exist.
-    function cellBadges(rows) {
+    function cellBar(rows) {
+      if (!rows || !rows.length) return '';
       const n2w = rows.filter((r) => r.type === '2W').length;
       const n4w = rows.filter((r) => r.type === '4W').length;
-      if (!n2w && !n4w) return '';
-      let seg = '';
-      if (n4w) {
-        seg += '<span class="veh-cell-bar-4w" style="flex:' + n4w + '"' +
-               ' title="' + n4w + ' four-wheeler' + (n4w === 1 ? '' : 's') + '"' +
-               ' aria-label="' + n4w + ' four-wheeler' + (n4w === 1 ? '' : 's') + '">' +
-               n4w + '</span>';
-      }
-      if (n2w) {
-        seg += '<span class="veh-cell-bar-2w" style="flex:' + n2w + '"' +
-               ' title="' + n2w + ' two-wheeler' + (n2w === 1 ? '' : 's') + '"' +
-               ' aria-label="' + n2w + ' two-wheeler' + (n2w === 1 ? '' : 's') + '">' +
-               n2w + '</span>';
-      }
-      return '<span class="veh-cell-bar" role="img"' +
-             ' aria-label="' + (n4w ? n4w + ' four-wheeler' + (n4w === 1 ? '' : 's') : '') +
-             (n4w && n2w ? ', ' : '') +
-             (n2w ? n2w + ' two-wheeler' + (n2w === 1 ? '' : 's') : '') + '">' +
-             seg + '</span>';
+      let s = '';
+      if (n4w) s += '<span class="four" title="' + n4w + ' four-wheeler(s)" style="flex:' + n4w + '">' + n4w + '</span>';
+      if (n2w) s += '<span class="two" title="' + n2w + ' two-wheeler(s)" style="flex:' + n2w + '">' + n2w + '</span>';
+      return '<span class="veh-cell-bar" aria-hidden="true">' + s + '</span>';
     }
 
     function cellClass(rows) {
@@ -1000,17 +925,23 @@
       return 'veh-cell has-veh ' + kind;
     }
 
+    // Render one tower as an "airport cabin" card: rounded panel, gold
+    // uppercase header, a strip of column-header unit numbers (01,
+    // 02...) directly above the seat grid, then the seat grid itself
+    // — floor label rail on the left, rectangular seat cells with the
+    // flat number on top and a two-tone bar-chart footer showing 2W/4W
+    // proportions when the flat has any vehicles.
     function renderTowerGrid(tower, s) {
       const floors = [];
       for (let f = s.maxFloor; f >= s.minFloor; f--) floors.push(f);
-      // Column-header strip — unit numbers 01..maxUnit above the seat grid,
-      // matching Design 1's boarding-pass seat letters. First column is
-      // empty (aligns with the floor-label rail).
-      let cols = '<span></span>';
+      // Column-header strip (unit numbers), aligned to the grid template.
+      let cols = '<span aria-hidden="true"></span>';
       for (let u = 1; u <= s.maxUnit; u++) cols += '<span>' + String(u).padStart(2, '0') + '</span>';
+      // Seat grid.
       let cells = '';
       for (const f of floors) {
-        cells += '<div class="veh-floor-label">' + (f === 0 ? 'GF' : f + 'F') + '</div>';
+        const floorLabel = (f === 0) ? 'GF' : (f + 'F');
+        cells += '<div class="veh-floor-label">' + floorLabel + '</div>';
         for (let u = 1; u <= s.maxUnit; u++) {
           const flat = flatFromParts(tower, f, u);
           const rows = s.byFlat.get(flat) || [];
@@ -1019,7 +950,7 @@
           cells += '<button type="button" class="' + cls + '" data-flat="' + esc(flat) + '"' +
                    ' aria-pressed="' + pressed + '" title="Flat ' + esc(flat) + ' — ' + rows.length + ' vehicle(s)">' +
                    '<span class="veh-cell-flat">' + esc(flat) + '</span>' +
-                   cellBadges(rows) +
+                   cellBar(rows) +
                    '</button>';
         }
       }
@@ -1285,13 +1216,10 @@
 
     function renderManage() {
       updateRoleHint();
+      updateModeClasses();
+      renderQuickLinks();
       manageEl.hidden = !canWrite;
       totalEl.textContent = '(' + vehicles.length + ')';
-      // Resident (search-only) callers get the Design 5 hero mode. Editors
-      // get the compact search + full manage pane below it.
-      document.body.classList.toggle('veh-mode-resident', !canWrite);
-      renderQuickLinks();
-      updateWheelAvailability();
       if (!canWrite) { detailEl.hidden = true; towersEl.innerHTML = ''; if (filterEl) filterEl.innerHTML = ''; return; }
       renderTowerFilter();
       renderTowerGrids();
@@ -1439,35 +1367,72 @@
     });
 
     // ------------------------------------------------------------------
-    // Design 10 — Mobile wheel picker.
-    // Gated by FEATURE_TSH_VEHICLES_WHEEL_PICKER (default OFF). Even
-    // when the flag is ON, the wheels only render for callers who
-    // cannot write (residents/PUBLIC) AND on viewports ≤ 640 px. When
-    // the flag is OFF, the mobile default is the keyboard-first Design 5
-    // hero, per the standing requirement (see §14.10a).
+    // Body-mode CSS classes.
+    //   .veh-mode-resident   — !canWrite → Design 5 hero styling
+    //   .veh-mode-editor     — canWrite  → compact Design 1 layout
+    //   .veh-wheel-available — mobile + resident + wheel flag ON
+    //                          → shows the "Keyboard vs Wheel" toggle
+    //   .veh-wheel-on        — user has picked "Wheel picker" mode
     // ------------------------------------------------------------------
     const WHEEL_FLAG = 'FEATURE_TSH_VEHICLES_WHEEL_PICKER';
-    const wheelPickerEl = document.getElementById('vehWheelPicker');
-    const wheelToggleEl = document.getElementById('vehWheelToggle');
-    const wheelTowerEl  = document.getElementById('vehWheelTower');
-    const wheelFloorEl  = document.getElementById('vehWheelFloor');
-    const wheelUnitEl   = document.getElementById('vehWheelUnit');
-    const wheelResultEl = document.getElementById('vehWheelResult');
-    const WHEEL_ITEM_H = 44; // must match CSS .veh-wheel-item height
-    let wheelSel = { t: null, f: null, u: null };
-
     function wheelFlagOn() {
       try { return !!(window.Flags && Flags.on && Flags.on(WHEEL_FLAG)); }
       catch (_e) { return false; }
     }
+    function updateModeClasses() {
+      const b = document.body;
+      b.classList.toggle('veh-mode-resident', !canWrite);
+      b.classList.toggle('veh-mode-editor',    !!canWrite);
+      const wheelAvailable = wheelFlagOn() && !canWrite;
+      b.classList.toggle('veh-wheel-available', wheelAvailable);
+      if (!wheelAvailable) {
+        b.classList.remove('veh-wheel-on');
+        const wp = document.getElementById('vehWheelPicker');
+        if (wp) wp.hidden = true;
+      }
+    }
+
+    // ------------------------------------------------------------------
+    // Design 5 quick-links — populates the row under the hero search
+    // with a couple of real flat numbers from the live data + a partial
+    // regNo. Fires from renderManage() so it stays fresh after CRUD.
+    // ------------------------------------------------------------------
+    function renderQuickLinks() {
+      const el = document.getElementById('vehQuickLinks');
+      if (!el) return;
+      const flats = Array.from(new Set(vehicles.map((v) => v.flat))).sort();
+      const picks = [];
+      if (flats.length) picks.push(flats[0]);
+      if (flats.length > 2) picks.push(flats[Math.floor(flats.length / 2)]);
+      if (vehicles.length) {
+        const partial = String(vehicles[0].regNo || '').slice(0, 6);
+        if (partial && !picks.includes(partial)) picks.push(partial);
+      }
+      el.innerHTML = picks.map((p) =>
+        '<button type="button" data-quick="' + esc(p) + '">Try ' + esc(p) + '</button>'
+      ).join('');
+    }
+
+    // ------------------------------------------------------------------
+    // Design 10 wheel picker (mobile resident only, flag-gated).
+    // Three iOS-style scroll wheels — Tower / Floor / Unit — with a gold
+    // selection band highlighting the centre row. Selection band comes
+    // from `.veh-wheels::before`; each column snap-scrolls so a swipe
+    // resolves to the nearest 44px item.
+    // ------------------------------------------------------------------
+    const WHEEL_ITEM_H = 44;
+    let wheelSel = { t: null, f: null, u: null };
+    let wheelReady = false;
 
     function makeWheelColumn(el, values, current, onChange) {
-      if (!el) return;
       el.innerHTML = values.map((v) =>
-        '<div class="veh-wheel-item" role="option" data-v="' + esc(String(v)) + '">' + esc(String(v)) + '</div>'
+        '<div class="veh-wheel-item" data-v="' + esc(v) + '" role="option">' + esc(v) + '</div>'
       ).join('');
       const idx = Math.max(0, values.indexOf(current));
-      requestAnimationFrame(() => { el.scrollTop = idx * WHEEL_ITEM_H; paint(); });
+      requestAnimationFrame(() => {
+        el.scrollTop = idx * WHEEL_ITEM_H;
+        paint();
+      });
       function paint() {
         const centerIdx = Math.round(el.scrollTop / WHEEL_ITEM_H);
         const kids = el.querySelectorAll('.veh-wheel-item');
@@ -1475,99 +1440,150 @@
           kids[i].classList.toggle('on', i === centerIdx);
         }
       }
-      let snapTmr;
+      let tmr;
       el.addEventListener('scroll', () => {
         paint();
-        clearTimeout(snapTmr);
-        snapTmr = setTimeout(() => {
+        clearTimeout(tmr);
+        tmr = setTimeout(() => {
           const centerIdx = Math.round(el.scrollTop / WHEEL_ITEM_H);
           const target = centerIdx * WHEEL_ITEM_H;
-          if (Math.abs(el.scrollTop - target) > 0.5) el.scrollTo({ top: target, behavior: 'smooth' });
-          const val = values[Math.max(0, Math.min(values.length - 1, centerIdx))];
+          if (Math.abs(el.scrollTop - target) > 0.5) {
+            el.scrollTo({ top: target, behavior: 'smooth' });
+          }
+          const val = values[centerIdx];
           if (val !== undefined) onChange(val);
         }, 120);
       });
       el.addEventListener('click', (e) => {
-        const it = e.target.closest('.veh-wheel-item'); if (!it) return;
-        const i = [...el.children].indexOf(it);
-        if (i < 0) return;
-        el.scrollTo({ top: i * WHEEL_ITEM_H, behavior: 'smooth' });
+        const it = e.target.closest('.veh-wheel-item');
+        if (!it) return;
+        const i = Array.prototype.indexOf.call(el.children, it);
+        if (i >= 0) el.scrollTo({ top: i * WHEEL_ITEM_H, behavior: 'smooth' });
       });
     }
 
     function renderWheelResult() {
-      if (!wheelResultEl) return;
-      const { t, f, u } = wheelSel;
-      if (!t || f === null || u === null) { wheelResultEl.innerHTML = ''; return; }
+      const outEl = document.getElementById('vehWheelResult');
+      if (!outEl) return;
+      const t = wheelSel.t, f = wheelSel.f, u = wheelSel.u;
+      if (!t || f == null || u == null) { outEl.innerHTML = ''; return; }
       const flat = flatFromParts(t, f, u);
       const rows = vehicles.filter((v) => v.flat === flat);
-      const veh = rows.map((r) => {
-        const kind = r.type === '4W' ? 'four' : 'two';
-        const glyph = r.type === '4W' ? 'fa-car' : 'fa-motorcycle';
+      let cards = rows.map((v) => {
+        const kind = v.type === '4W' ? 'four' : 'two';
+        const icon = v.type === '4W' ? 'fa-car' : 'fa-motorcycle';
         return '<div class="veh-wheel-veh">' +
-          '<div class="badge ' + kind + '"><i class="fas ' + glyph + '"></i></div>' +
-          '<div style="flex:1">' +
-            '<div class="reg">' + esc(r.regNoDisplay || r.regNo) + '</div>' +
-            '<div class="meta">' + esc(r.type) + (r.sticker ? ' · Sticker ' + esc(r.sticker) : '') + '</div>' +
+          '<div class="badge ' + kind + '"><i class="fas ' + icon + '" aria-hidden="true"></i></div>' +
+          '<div style="flex:1;min-width:0">' +
+            '<div class="reg">' + esc(v.regNoDisplay || v.regNo) + '</div>' +
+            '<div class="meta">' + esc(v.type) + (v.sticker ? ' &middot; ' + esc(v.sticker) : '') + '</div>' +
           '</div>' +
         '</div>';
       }).join('');
-      const body = veh || '<div class="veh-wheel-empty">No vehicles registered at ' + esc(flat) + '.</div>';
-      wheelResultEl.innerHTML =
+      if (!cards) cards = '<div class="veh-wheel-empty">No vehicles registered at ' + esc(flat) + '.</div>';
+      outEl.innerHTML =
         '<h3>' + esc(flat) + '</h3>' +
         '<div class="cnt">' + rows.length + ' vehicle' + (rows.length === 1 ? '' : 's') +
-          ' · Tower ' + esc(t) + ' · ' + (f === 0 ? 'Ground' : 'Floor ' + f) +
-          ' · Unit ' + String(u).padStart(2, '0') + '</div>' +
-        '<div class="veh-wheel-vehs">' + body + '</div>';
+          ' &middot; Tower ' + esc(t) + ' &middot; Floor ' + (f === 0 ? 'GF' : esc(f)) +
+          ' &middot; Unit ' + String(u).padStart(2, '0') + '</div>' +
+        '<div class="veh-wheel-vehs">' + cards + '</div>';
     }
 
     function initWheelPicker() {
-      if (!wheelPickerEl) return;
-      // Tower list from config (or fall back to A/B/C).
+      if (wheelReady) return;
       const cfgTowers = (Flags.raw && Flags.raw.lists && Array.isArray(Flags.raw.lists.towers))
-        ? Flags.raw.lists.towers.map((t) => String(t || '').trim().charAt(0).toUpperCase()).filter((l) => /^[A-Z]$/.test(l))
-        : ['A', 'B', 'C'];
-      // Floor/Unit ranges from the first tower's layout, or a sane default.
-      const firstLayout = (towerLayouts && towerLayouts[cfgTowers[0]]) || null;
-      const maxFloor = (firstLayout && firstLayout.floors) ? firstLayout.floors : 10;
-      const maxUnit  = (firstLayout && firstLayout.unitsPerFloor) ? firstLayout.unitsPerFloor : 4;
-      const floors = []; for (let f = maxFloor; f >= 1; f--) floors.push(f);
-      const units  = []; for (let u = 1; u <= maxUnit; u++) units.push(u);
-      wheelSel = { t: cfgTowers[0] || 'A', f: 1, u: 1 };
-      makeWheelColumn(wheelTowerEl, cfgTowers, wheelSel.t, (v) => { wheelSel.t = v; renderWheelResult(); });
-      makeWheelColumn(wheelFloorEl, floors,    wheelSel.f, (v) => { wheelSel.f = +v; renderWheelResult(); });
-      makeWheelColumn(wheelUnitEl,  units,     wheelSel.u, (v) => { wheelSel.u = +v; renderWheelResult(); });
-      renderWheelResult();
-    }
-
-    function updateWheelAvailability() {
-      // Only residents on mobile see the toggle. Editors always get the
-      // manage pane; the wheels aren't useful to them.
-      const available = wheelFlagOn() && !canWrite;
-      document.body.classList.toggle('veh-wheel-available', available);
-      if (!available) {
-        // Ensure wheel-on mode is not stuck when the flag flips off.
-        document.body.classList.remove('veh-wheel-on');
-        wheelPickerEl.hidden = true;
+        ? Flags.raw.lists.towers : ['A', 'B', 'C'];
+      const towers = [];
+      for (const t of cfgTowers) {
+        const letter = String(t || '').trim().charAt(0).toUpperCase();
+        if (/^[A-Z]$/.test(letter) && !towers.includes(letter)) towers.push(letter);
       }
+      const layouts = towerLayouts || {};
+      const first = layouts[towers[0]] || {};
+      const maxF = (first.floors && first.floors > 0) ? first.floors : 10;
+      const maxU = (first.unitsPerFloor && first.unitsPerFloor > 0) ? first.unitsPerFloor : 4;
+      const floors = []; for (let f = maxF; f >= 1; f--) floors.push(f);
+      const units  = []; for (let u = 1; u <= maxU; u++) units.push(u);
+      wheelSel = {
+        t: towers[0] || 'A',
+        f: floors[Math.floor(floors.length / 2)] || 1,
+        u: units[0] || 1,
+      };
+      makeWheelColumn(document.getElementById('vehWheelTower'), towers, wheelSel.t, (v) => {
+        wheelSel.t = v; renderWheelResult();
+      });
+      makeWheelColumn(document.getElementById('vehWheelFloor'), floors, wheelSel.f, (v) => {
+        wheelSel.f = Number(v); renderWheelResult();
+      });
+      makeWheelColumn(document.getElementById('vehWheelUnit'), units, wheelSel.u, (v) => {
+        wheelSel.u = Number(v); renderWheelResult();
+      });
+      renderWheelResult();
+      wheelReady = true;
     }
 
-    // Toggle chip: switch between keyboard search (default) and wheels.
+    // Wheel-toggle chip pair (Keyboard vs Wheel).
+    const wheelToggleEl = document.getElementById('vehWheelToggle');
+    const wheelPickerEl = document.getElementById('vehWheelPicker');
     if (wheelToggleEl) {
       wheelToggleEl.addEventListener('click', (e) => {
-        const b = e.target.closest('[data-mode]'); if (!b) return;
-        const mode = b.getAttribute('data-mode');
-        const on = mode === 'wheel';
+        const b = e.target.closest('[data-wheel-mode]');
+        if (!b) return;
+        const on = b.getAttribute('data-wheel-mode') === 'on';
         document.body.classList.toggle('veh-wheel-on', on);
-        wheelPickerEl.hidden = !on;
-        for (const btn of wheelToggleEl.querySelectorAll('[data-mode]')) {
-          btn.setAttribute('aria-pressed', btn.getAttribute('data-mode') === mode ? 'true' : 'false');
+        for (const c of wheelToggleEl.querySelectorAll('[data-wheel-mode]')) {
+          c.setAttribute('aria-pressed', c === b ? 'true' : 'false');
         }
-        if (on && !wheelTowerEl.children.length) initWheelPicker();
+        if (on) {
+          initWheelPicker();
+          if (wheelPickerEl) wheelPickerEl.hidden = false;
+        }
       });
     }
 
+    // Design 5 quick-links → clicking a sample fills the search box.
+    const quickEl = document.getElementById('vehQuickLinks');
+    if (quickEl) {
+      quickEl.addEventListener('click', (e) => {
+        const b = e.target.closest('[data-quick]');
+        if (!b) return;
+        const q = b.getAttribute('data-quick') || '';
+        searchEl.value = q;
+        searchEl.focus();
+        doSearch(q);
+      });
+    }
 
+    // Result-card interactions:
+    //   Editor → jump into the manage seat map + open the flat detail.
+    //   Resident → re-run the search as a flat lookup (roster view).
+    resultEl.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-open-flat]');
+      if (!b) return;
+      const flat = b.getAttribute('data-open-flat');
+      if (canWrite) {
+        selectFlat(flat);
+        manageEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else {
+        searchEl.value = flat;
+        doSearch(flat);
+      }
+    });
+
+    // Global "/" keyboard shortcut → focus the search field from
+    // anywhere on the page (matches the hint under the hero search).
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== '/') return;
+      if (document.activeElement === searchEl) return;
+      const tag = (document.activeElement && document.activeElement.tagName) || '';
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      e.preventDefault();
+      searchEl.focus();
+      try { searchEl.select(); } catch (_x) { /* Safari sometimes rejects */ }
+    });
+
+    await load();
+    searchEl.focus();
   })();
   </script>
 </body>
