@@ -538,3 +538,106 @@ describe('GET /ev/receipt/:id', () => {
     expect(r.status).toBe(400);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 4 - editor analytics dashboard (FEATURE_TSH_EV_ADMIN_DASHBOARD).
+// Spec: tsh_requirement.md sec 23.4 (Phase 4).
+// ---------------------------------------------------------------------------
+
+describe('GET /ev/admin/dashboard', () => {
+  const seedTwo = async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true };
+    await send('POST', '/ev/bookings', { date: istDate(1), startMin: 9*60,  endMin: 10*60, ownerFlat: 'A-101' }, 'resident1@x.com');
+    await send('POST', '/ev/bookings', { date: istDate(2), startMin: 14*60, endMin: 15*60, ownerFlat: 'B-202' }, 'mgr@x.com');
+  };
+
+  it('returns feature-disabled (503) when master flag is OFF', async () => {
+    const r = await send('GET', '/ev/admin/dashboard?period=w', undefined, 'mgr@x.com');
+    expect(r.status).toBe(503);
+  });
+
+  it('returns feature-disabled (503) when FEATURE_TSH_EV_ADMIN_DASHBOARD is OFF', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true, FEATURE_TSH_EV_ADMIN_DASHBOARD: false };
+    const r = await send('GET', '/ev/admin/dashboard?period=w', undefined, 'mgr@x.com');
+    expect(r.status).toBe(503);
+    const j = await r.json() as any;
+    expect(String(j.error)).toContain('FEATURE_TSH_EV_ADMIN_DASHBOARD');
+  });
+
+  it('requires sign-in (401 for anonymous)', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true };
+    const r = await send('GET', '/ev/admin/dashboard?period=w');
+    expect(r.status).toBe(401);
+  });
+
+  it('resident is forbidden (403)', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true };
+    const r = await send('GET', '/ev/admin/dashboard?period=w', undefined, 'resident1@x.com');
+    expect(r.status).toBe(403);
+  });
+
+  it('manager gets KPIs + byDay + byHour + topFlats', async () => {
+    await seedTwo();
+    const r = await send('GET', '/ev/admin/dashboard?period=w', undefined, 'mgr@x.com');
+    expect(r.status).toBe(200);
+    const { data } = await r.json() as any;
+    expect(data.period).toBe('w');
+    expect(data.kpis.totalBookings).toBeGreaterThanOrEqual(2);
+    expect(data.kpis.confirmedBookings).toBeGreaterThanOrEqual(2);
+    expect(Array.isArray(data.byDay)).toBe(true);
+    expect(data.byDay.length).toBeGreaterThanOrEqual(7);
+    expect(Array.isArray(data.byHour)).toBe(true);
+    expect(data.byHour.length).toBe(24);
+    expect(Array.isArray(data.topFlats)).toBe(true);
+  });
+
+  it('rejects invalid period', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true };
+    const r = await send('GET', '/ev/admin/dashboard?period=zzz', undefined, 'mgr@x.com');
+    expect(r.status).toBe(400);
+  });
+});
+
+describe('GET /ev/admin/export', () => {
+  it('returns 503 when the sub-flag is off', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true, FEATURE_TSH_EV_ADMIN_DASHBOARD: false };
+    const r = await send('GET', '/ev/admin/export?period=w&format=csv', undefined, 'mgr@x.com');
+    expect(r.status).toBe(503);
+  });
+
+  it('resident is forbidden (403)', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true };
+    const r = await send('GET', '/ev/admin/export?period=w&format=csv', undefined, 'resident1@x.com');
+    expect(r.status).toBe(403);
+  });
+
+  it('returns CSV with header row when format=csv', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true };
+    await send('POST', '/ev/bookings', { date: istDate(1), startMin: 9*60, endMin: 10*60, ownerFlat: 'A-101' }, 'resident1@x.com');
+    const r = await send('GET', '/ev/admin/export?period=w&format=csv', undefined, 'mgr@x.com');
+    expect(r.status).toBe(200);
+    expect(r.headers.get('content-type') || '').toContain('text/csv');
+    expect(r.headers.get('content-disposition') || '').toContain('.csv');
+    const text = await r.text();
+    const firstLine = text.split('\n')[0];
+    expect(firstLine).toContain('id,stationId,date,startTime,endTime');
+    expect(text).toContain('A-101');
+  });
+
+  it('returns HTML (print-ready) when format=pdf', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true };
+    await send('POST', '/ev/bookings', { date: istDate(1), startMin: 9*60, endMin: 10*60, ownerFlat: 'A-101' }, 'resident1@x.com');
+    const r = await send('GET', '/ev/admin/export?period=w&format=pdf', undefined, 'mgr@x.com');
+    expect(r.status).toBe(200);
+    expect(r.headers.get('content-type') || '').toContain('text/html');
+    const text = await r.text();
+    expect(text).toContain('EV Charging Report');
+    expect(text).toContain('A-101');
+  });
+
+  it('rejects unknown format', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true };
+    const r = await send('GET', '/ev/admin/export?period=w&format=xlsx', undefined, 'mgr@x.com');
+    expect(r.status).toBe(400);
+  });
+});

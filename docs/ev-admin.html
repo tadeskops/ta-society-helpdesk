@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>EV Analytics · TSH</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#1a1f2e" />
+  <meta name="description" content="EV Charging analytics dashboard for society editors." />
+  <link rel="icon" href="./assets/images/TaLogo.png" type="image/png" />
+  <script>(function(){try{var t=localStorage.getItem('tsh_theme');if(t!=='dark'&&t!=='light'&&t!=='medium')t='light';if(t!=='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="./assets/css/theme.css?v=87" />
+  <link rel="stylesheet" href="./assets/css/mobile-landing.css?v=14" />
+  <link rel="stylesheet" href="./assets/css/ev-charging.css?v=4" />
+</head>
+<body class="tsh-page">
+  <div data-include="header"></div>
+  <div data-include="toast"></div>
+  <div data-include="modal"></div>
+
+  <main class="tsh-main tsh-main-wide">
+    <section class="tsh-card" data-eva-main hidden>
+      <header class="tsh-card-head tsh-card-head-row">
+        <div>
+          <h1><i class="fas fa-chart-column gold-accent"></i> EV Analytics</h1>
+          <p class="tsh-sub">Utilisation, patterns and export for the community charger.</p>
+        </div>
+        <div class="tsh-ev-admin-toolbar">
+          <label class="tsh-ev-date-picker">
+            <span>Period</span>
+            <select id="evaPeriod">
+              <option value="w">Last week</option>
+              <option value="m" selected>Last month</option>
+              <option value="q">Last quarter</option>
+              <option value="y">Last year</option>
+            </select>
+          </label>
+          <button type="button" class="tsh-btn tsh-btn-ghost" id="evaExportCsv"><i class="fas fa-file-csv"></i> Export CSV</button>
+          <button type="button" class="tsh-btn tsh-btn-ghost" id="evaExportPdf"><i class="fas fa-file-pdf"></i> Export PDF</button>
+        </div>
+      </header>
+
+      <div class="tsh-ev-admin-range" id="evaRange" aria-live="polite"></div>
+
+      <!-- KPI grid -->
+      <div class="tsh-ev-kpi-grid" id="evaKpis"></div>
+
+      <!-- Bookings-per-day bar chart -->
+      <section class="tsh-ev-admin-block">
+        <h2><i class="fas fa-calendar-days gold-accent"></i> Bookings per day</h2>
+        <div class="tsh-ev-byday" id="evaByDay" role="img" aria-label="Bookings per day"></div>
+      </section>
+
+      <!-- Hour-of-day heatmap -->
+      <section class="tsh-ev-admin-block">
+        <h2><i class="fas fa-clock gold-accent"></i> Hour-of-day pattern</h2>
+        <div class="tsh-ev-byhour" id="evaByHour" role="img" aria-label="Bookings by start hour"></div>
+      </section>
+
+      <!-- Status split + top flats -->
+      <div class="tsh-ev-admin-split">
+        <section class="tsh-ev-admin-block">
+          <h2><i class="fas fa-list-check gold-accent"></i> Status split</h2>
+          <ul class="tsh-ev-status-list" id="evaByStatus"></ul>
+        </section>
+        <section class="tsh-ev-admin-block">
+          <h2><i class="fas fa-trophy gold-accent"></i> Top flats</h2>
+          <ol class="tsh-ev-top-flats" id="evaTopFlats"></ol>
+        </section>
+      </div>
+    </section>
+
+    <section class="tsh-card" data-eva-empty hidden>
+      <div class="tsh-empty">
+        <p>You need Manager, Committee or Admin rights to view EV analytics.</p>
+      </div>
+    </section>
+  </main>
+
+  <div data-include="mobile-tabbar"></div>
+  <div data-include="mobile-actions-sheet"></div>
+  <div data-include="footer"></div>
+
+  <script src="./assets/js/config.js?v=11"></script>
+  <script src="./assets/js/partials.js?v=22"></script>
+  <script src="./assets/js/api.js?v=12"></script>
+  <script src="./assets/js/auth.js?v=11"></script>
+  <script src="./assets/js/flags.js?v=19"></script>
+  <script src="./assets/js/ui.js?v=53"></script>
+  <script src="./assets/js/mobile-landing.js?v=9"></script>
+  <script src="./assets/js/ev-admin.js?v=1"></script>
+  <script>
+  (async () => {
+    await Partials.mount();
+    await Auth.init({ clientId: window.TSH_GOOGLE_CLIENT_ID });
+    UI.bindHeader();
+    EvAdmin.init();
+    Auth.onChange(() => EvAdmin.init());
+  })();
+  </script>
+</body>
+</html>

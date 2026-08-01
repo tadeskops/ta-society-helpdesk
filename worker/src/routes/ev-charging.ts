@@ -33,7 +33,8 @@ import {
   validateBookingWindow, validateTimeRange, findEvOverlap,
   countActiveEvBookingsForFlat, computeAvailability,
   buildEvReceiptQr, isReceiptEligible,
-  type EvBooking, type EvBookingStatus,
+  resolveAnalyticsRange, aggregateEvBookings, bookingsToCsv,
+  type EvBooking, type EvBookingStatus, type EvAnalyticsPeriod,
 } from '../lib/ev-booking.ts';
 
 // Master flag — every /ev/* handler passes it via ensureAllowed({ flags }).
@@ -502,6 +503,122 @@ export const mountEvCharging = (r: Router): void => {
       provider: ev.provider,
       helpline: ev.helpline,
       generatedAt: new Date().toISOString(),
+    });
+  });
+
+  // ---- Phase 4: Editor analytics dashboard --------------------------------
+  // GET /ev/admin/dashboard?period=w|m|q|y — MANAGER+.
+  // Gated by FEATURE_TSH_EV_CHARGING + FEATURE_TSH_EV_ADMIN_DASHBOARD.
+  r.get('/ev/admin/dashboard', async (ctx: Ctx) => {
+    ensureAllowed(ctx, {
+      flags: [FEATURE, FEATURE_ADMIN_DASHBOARD],
+      requireIdentity: true,
+      roles: ['MANAGER', 'COMMITTEE', 'ADMIN'],
+    });
+    const url = new URL(ctx.req.url);
+    const raw = String(url.searchParams.get('period') || 'm').toLowerCase();
+    if (!['w','m','q','y'].includes(raw)) {
+      throw new BadRequest('period must be one of: w, m, q, y');
+    }
+    const period = raw as EvAnalyticsPeriod;
+    const range = resolveAnalyticsRange(period);
+    const { items } = await loadEvBookings(ctx);
+    const result = aggregateEvBookings(items, range, { topN: 5 });
+    return ok(ctx.env, ctx.req, result);
+  });
+
+  // GET /ev/admin/export?period=w|m|q|y&format=csv|pdf — MANAGER+.
+  // `csv` returns a text/csv attachment; `pdf` returns a print-ready
+  // HTML doc that browsers can save-as-PDF (worker has no PDF gen dep).
+  r.get('/ev/admin/export', async (ctx: Ctx) => {
+    ensureAllowed(ctx, {
+      flags: [FEATURE, FEATURE_ADMIN_DASHBOARD],
+      requireIdentity: true,
+      roles: ['MANAGER', 'COMMITTEE', 'ADMIN'],
+    });
+    const url = new URL(ctx.req.url);
+    const raw = String(url.searchParams.get('period') || 'm').toLowerCase();
+    if (!['w','m','q','y'].includes(raw)) {
+      throw new BadRequest('period must be one of: w, m, q, y');
+    }
+    const format = String(url.searchParams.get('format') || 'csv').toLowerCase();
+    if (!['csv','pdf'].includes(format)) {
+      throw new BadRequest('format must be one of: csv, pdf');
+    }
+    const period = raw as EvAnalyticsPeriod;
+    const range = resolveAnalyticsRange(period);
+    const { items } = await loadEvBookings(ctx);
+    const inRange = items.filter((b) => b.date >= range.from && b.date <= range.to);
+    const stamp = `${range.from}_to_${range.to}`;
+    if (format === 'csv') {
+      const csv = bookingsToCsv(inRange);
+      return new Response(csv, {
+        status: 200,
+        headers: {
+          'content-type': 'text/csv; charset=utf-8',
+          'content-disposition': `attachment; filename="ev-bookings_${stamp}.csv"`,
+        },
+      });
+    }
+    // format === 'pdf' → print-ready HTML.
+    const ev = resolveEvConfig(ctx);
+    const stationName = String(ev.station.name || 'EV Charger');
+    const result = aggregateEvBookings(items, range, { topN: 10 });
+    const escHtml = (s: unknown): string => String(s == null ? '' : s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const pad = (n: number): string => (n < 10 ? '0' + n : '' + n);
+    const hhmm = (m: number): string => pad(Math.floor(m/60)) + ':' + pad(m % 60);
+    const rows = inRange.map((b) => `
+      <tr>
+        <td>${escHtml(b.id)}</td>
+        <td>${escHtml(b.date)}</td>
+        <td>${hhmm(b.startMin)}–${hhmm(b.endMin)}</td>
+        <td>${escHtml(b.status)}</td>
+        <td>${escHtml(b.owner.flat)}</td>
+        <td>${escHtml(b.owner.email)}</td>
+      </tr>`).join('');
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>EV Report ${escHtml(stamp)}</title>
+<style>
+  body { font-family: -apple-system, Segoe UI, Arial, sans-serif; color: #111827; margin: 24px; }
+  h1 { margin: 0 0 4px; font-size: 20px; }
+  h2 { margin: 24px 0 8px; font-size: 15px; border-bottom: 1px solid #d1d5db; padding-bottom: 4px; }
+  .meta { color: #6b7280; font-size: 12px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 12px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #e5e7eb; }
+  th { background: #f9fafb; }
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 12px 0; }
+  .kpi { border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px; }
+  .kpi .k { font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: .04em; }
+  .kpi .v { font-size: 20px; font-weight: 700; margin-top: 2px; }
+  @media print { .no-print { display: none; } }
+</style></head><body>
+<h1>EV Charging Report</h1>
+<p class="meta">${escHtml(stationName)} · ${escHtml(range.from)} to ${escHtml(range.to)} · Generated ${new Date().toISOString()}</p>
+<h2>Key metrics</h2>
+<div class="kpis">
+  <div class="kpi"><div class="k">Total bookings</div><div class="v">${result.kpis.totalBookings}</div></div>
+  <div class="kpi"><div class="k">Confirmed</div><div class="v">${result.kpis.confirmedBookings}</div></div>
+  <div class="kpi"><div class="k">Completed</div><div class="v">${result.kpis.completedBookings}</div></div>
+  <div class="kpi"><div class="k">Cancelled</div><div class="v">${result.kpis.cancelledBookings}</div></div>
+  <div class="kpi"><div class="k">Hours booked</div><div class="v">${result.kpis.totalHours}</div></div>
+  <div class="kpi"><div class="k">Unique flats</div><div class="v">${result.kpis.uniqueFlats}</div></div>
+  <div class="kpi"><div class="k">Avg duration</div><div class="v">${result.kpis.avgMinutesPerBooking} min</div></div>
+  <div class="kpi"><div class="k">Active now</div><div class="v">${result.kpis.activeBookings}</div></div>
+</div>
+<h2>Top flats</h2>
+<table><thead><tr><th>Flat</th><th>Bookings</th><th>Minutes</th></tr></thead><tbody>
+${result.topFlats.map((t) => `<tr><td>${escHtml(t.flat)}</td><td>${t.bookings}</td><td>${t.minutes}</td></tr>`).join('') || '<tr><td colspan="3">No confirmed/completed bookings in range.</td></tr>'}
+</tbody></table>
+<h2>Bookings (${inRange.length})</h2>
+<table><thead><tr><th>ID</th><th>Date</th><th>Time</th><th>Status</th><th>Flat</th><th>Owner</th></tr></thead><tbody>${rows || '<tr><td colspan="6">No bookings in range.</td></tr>'}</tbody></table>
+<p class="no-print" style="margin-top:24px"><button onclick="window.print()">Print / Save as PDF</button></p>
+</body></html>`;
+    return new Response(html, {
+      status: 200,
+      headers: {
+        'content-type': 'text/html; charset=utf-8',
+        'content-disposition': `inline; filename="ev-report_${stamp}.html"`,
+      },
     });
   });
 };

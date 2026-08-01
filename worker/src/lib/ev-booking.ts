@@ -371,3 +371,191 @@ export const buildEvReceiptQr = (b: EvBooking, salt: string): EvReceiptQrPayload
  *  legal booking yet); cancelled is excluded (voided). */
 export const isReceiptEligible = (b: EvBooking): boolean =>
   b.status === 'confirmed' || b.status === 'completed';
+
+// ---- Phase 4: Editor analytics dashboard helpers ---------------------------
+
+export type EvAnalyticsPeriod = 'w' | 'm' | 'q' | 'y';
+
+export interface EvAnalyticsRange {
+  period: EvAnalyticsPeriod;
+  from: string;              // YYYY-MM-DD (inclusive, IST)
+  to: string;                // YYYY-MM-DD (inclusive, IST)
+}
+
+export interface EvAnalyticsKpis {
+  totalBookings:     number;
+  activeBookings:    number;  // pending + confirmed
+  completedBookings: number;
+  cancelledBookings: number;
+  pendingBookings:   number;
+  confirmedBookings: number;
+  totalMinutes:      number;
+  totalHours:        number;
+  uniqueFlats:       number;
+  uniqueOwners:      number;
+  avgMinutesPerBooking: number;
+}
+
+export interface EvAnalyticsResult {
+  period: EvAnalyticsPeriod;
+  from: string;
+  to: string;
+  kpis: EvAnalyticsKpis;
+  byDay:   Array<{ date: string; count: number; minutes: number }>;
+  byHour:  Array<{ hour: number; count: number; minutes: number }>;   // 0..23
+  byStatus: Array<{ status: EvBookingStatus; count: number }>;
+  topFlats: Array<{ flat: string; bookings: number; minutes: number }>;
+  bookings: EvBooking[];
+}
+
+// Resolve the [from, to] window (inclusive, IST YYYY-MM-DD) for a period
+// relative to the given "now" epoch-ms. Kept pure so the caller decides
+// what "now" means (tests inject a fixed timestamp). The window is
+// past-heavy — it ends `advanceWindowDays` days into the future so
+// upcoming (already-confirmed) bookings are counted alongside history.
+export const resolveAnalyticsRange = (
+  period: EvAnalyticsPeriod,
+  nowMs: number = Date.now(),
+  advanceWindowDays: number = 30,
+): EvAnalyticsRange => {
+  const dayMs = 24 * 60 * 60 * 1000;
+  let spanDays: number;
+  switch (period) {
+    case 'w': spanDays = 7; break;
+    case 'm': spanDays = 30; break;
+    case 'q': spanDays = 90; break;
+    case 'y': spanDays = 365; break;
+    default:  spanDays = 30;
+  }
+  const fromMs = nowMs - (spanDays - 1) * dayMs;
+  const toMs   = nowMs + advanceWindowDays * dayMs;
+  return { period, from: istDateStr(fromMs), to: istDateStr(toMs) };
+};
+
+const withinRange = (dateStr: string, from: string, to: string): boolean =>
+  dateStr >= from && dateStr <= to;
+
+// Aggregate a booking list over a resolved period. All counts are integer
+// booking counts; minutes are summed durations. Booked-then-cancelled
+// entries still contribute to cancelledBookings but not to totalMinutes.
+export const aggregateEvBookings = (
+  items: readonly EvBooking[],
+  range: EvAnalyticsRange,
+  { topN = 5 }: { topN?: number } = {},
+): EvAnalyticsResult => {
+  const inRange = items.filter((b) => withinRange(b.date, range.from, range.to));
+
+  // KPIs.
+  let totalMinutes = 0;
+  let pending = 0, confirmed = 0, completed = 0, cancelled = 0;
+  const flats = new Set<string>();
+  const owners = new Set<string>();
+  for (const b of inRange) {
+    const dur = Math.max(0, b.endMin - b.startMin);
+    if (b.status === 'pending')   { pending++; }
+    if (b.status === 'confirmed') { confirmed++; totalMinutes += dur; }
+    if (b.status === 'completed') { completed++; totalMinutes += dur; }
+    if (b.status === 'cancelled') { cancelled++; }
+    flats.add(normalizeFlat(b.owner.flat));
+    owners.add(b.owner.email.toLowerCase());
+  }
+
+  const totalBookings = inRange.length;
+  const activeBookings = pending + confirmed;
+  const kpis: EvAnalyticsKpis = {
+    totalBookings,
+    activeBookings,
+    pendingBookings:   pending,
+    confirmedBookings: confirmed,
+    completedBookings: completed,
+    cancelledBookings: cancelled,
+    totalMinutes,
+    totalHours: Math.round((totalMinutes / 60) * 100) / 100,
+    uniqueFlats:  flats.size,
+    uniqueOwners: owners.size,
+    avgMinutesPerBooking: totalBookings > 0
+      ? Math.round(totalMinutes / totalBookings)
+      : 0,
+  };
+
+  // By day (fill zero days so the chart never has gaps).
+  const dayMap = new Map<string, { count: number; minutes: number }>();
+  const dayMs = 24 * 60 * 60 * 1000;
+  const fromMs = parseIstDateMidnight(range.from);
+  const toMs   = parseIstDateMidnight(range.to);
+  for (let t = fromMs; t <= toMs; t += dayMs) {
+    dayMap.set(istDateStr(t), { count: 0, minutes: 0 });
+  }
+  for (const b of inRange) {
+    const bucket = dayMap.get(b.date);
+    if (bucket) {
+      bucket.count += 1;
+      if (b.status !== 'cancelled') bucket.minutes += Math.max(0, b.endMin - b.startMin);
+    }
+  }
+  const byDay = Array.from(dayMap.entries()).map(([date, v]) => ({ date, ...v }));
+
+  // By hour of day (0..23). Uses startMin's hour bucket.
+  const hourBuckets: Array<{ hour: number; count: number; minutes: number }> = [];
+  for (let h = 0; h < 24; h++) hourBuckets.push({ hour: h, count: 0, minutes: 0 });
+  for (const b of inRange) {
+    if (b.status === 'cancelled') continue;
+    const h = Math.max(0, Math.min(23, Math.floor(b.startMin / 60)));
+    const bucket = hourBuckets[h]!;
+    bucket.count += 1;
+    bucket.minutes += Math.max(0, b.endMin - b.startMin);
+  }
+
+  const byStatus: Array<{ status: EvBookingStatus; count: number }> = [
+    { status: 'pending',   count: pending   },
+    { status: 'confirmed', count: confirmed },
+    { status: 'completed', count: completed },
+    { status: 'cancelled', count: cancelled },
+  ];
+
+  // Top flats by minutes booked (confirmed + completed only). Excludes
+  // cancelled records so a spam-booker cannot rank higher.
+  const flatMap = new Map<string, { bookings: number; minutes: number }>();
+  for (const b of inRange) {
+    if (b.status === 'cancelled' || b.status === 'pending') continue;
+    const key = normalizeFlat(b.owner.flat);
+    const bucket = flatMap.get(key) || { bookings: 0, minutes: 0 };
+    bucket.bookings += 1;
+    bucket.minutes  += Math.max(0, b.endMin - b.startMin);
+    flatMap.set(key, bucket);
+  }
+  const topFlats = Array.from(flatMap.entries())
+    .map(([flat, v]) => ({ flat, ...v }))
+    .sort((a, b) => (b.minutes - a.minutes) || (b.bookings - a.bookings))
+    .slice(0, topN);
+
+  return { period: range.period, from: range.from, to: range.to, kpis, byDay, byHour: hourBuckets, byStatus, topFlats, bookings: inRange };
+};
+
+// CSV export of the in-range booking list. Kept dependency-free — quote
+// fields containing commas/quotes/newlines with RFC-4180 doubling.
+const csvEscape = (v: unknown): string => {
+  const s = v == null ? '' : String(v);
+  if (/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+  return s;
+};
+export const bookingsToCsv = (items: readonly EvBooking[]): string => {
+  const header = [
+    'id','stationId','date','startTime','endTime','minutes','status',
+    'ownerEmail','ownerName','ownerFlat','createdAt','updatedAt',
+    'cancelledAt','cancelledBy','cancelReason','notes',
+  ];
+  const rows = items.map((b) => {
+    const mins = Math.max(0, b.endMin - b.startMin);
+    const pad = (n: number): string => (n < 10 ? '0' + n : '' + n);
+    const hhmm = (m: number): string => pad(Math.floor(m/60)) + ':' + pad(m % 60);
+    return [
+      b.id, b.stationId, b.date, hhmm(b.startMin), hhmm(b.endMin), mins, b.status,
+      b.owner.email, b.owner.name || '', b.owner.flat,
+      b.createdAt, b.updatedAt,
+      b.cancelledAt || '', b.cancelledBy || '', b.cancelReason || '',
+      b.notes || '',
+    ].map(csvEscape).join(',');
+  });
+  return [header.join(','), ...rows].join('\n') + '\n';
+};
