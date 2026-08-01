@@ -151,6 +151,40 @@
       grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
       gap: .55rem;
     }
+    /* Two-group picker used by kind='numericChoices' when a digit-only
+       query could mean either a flat number or a parking-bay label.
+       Each group carries its own heading + auto-fit grid of tower
+       tiles so the intent is obvious at a glance. */
+    .veh-choice-groups {
+      margin-top: .6rem; display: flex; flex-direction: column; gap: .85rem;
+    }
+    .veh-choice-group {
+      border: 1px dashed var(--tsh-border, #e2e5ee);
+      border-radius: 12px; padding: .65rem .75rem .8rem;
+      background: color-mix(in srgb, var(--tsh-surface, #fff) 92%, transparent);
+    }
+    .veh-choice-heading {
+      display: flex; align-items: center; gap: .5rem;
+      font-size: .82rem; letter-spacing: .04em; text-transform: uppercase;
+      color: var(--tsh-muted, #667); font-weight: 600; margin-bottom: .5rem;
+    }
+    .veh-choice-heading b {
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      color: var(--tsh-accent-dark, #8a6b28); letter-spacing: .05em;
+      text-transform: none; font-weight: 700;
+    }
+    .veh-choice-heading i { color: var(--tsh-accent, #b48a3c); }
+    .veh-choice-count {
+      margin-left: auto;
+      background: color-mix(in srgb, var(--tsh-accent, #b48a3c) 15%, transparent);
+      color: var(--tsh-accent-dark, #8a6b28);
+      border-radius: 999px; padding: .1rem .55rem; font-size: .72rem;
+      font-weight: 700; letter-spacing: .04em;
+    }
+    .veh-result-digits {
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      color: var(--tsh-accent-dark, #8a6b28); letter-spacing: .05em;
+    }
     .veh-result-list button {
       display: block; width: 100%; background: var(--tsh-surface, #fff);
       border: 1px solid var(--tsh-border, #e2e5ee); border-radius: 10px;
@@ -1476,6 +1510,71 @@
         resultEl.hidden = false;
         return;
       }
+      if (res.kind === 'numericChoices') {
+        // Digit-only query — the number could be a flat number OR a
+        // parking-bay label. Render TWO grouped grids so the user picks
+        // which one they meant. Either group may be empty when the
+        // query only matches one dimension; in that case its section is
+        // omitted so the layout doesn't carry an empty rail.
+        const renderOption = (o, kind) => {
+          const bays = getFlatParking(o.flat);
+          const parkingLine = bays.length
+            ? '<span class="meta veh-result-parking">' +
+              '<i class="fas fa-square-parking" aria-hidden="true"></i> ' +
+              bays.map((b) => esc(b)).join(', ') +
+              '</span>'
+            : '';
+          const meta = o.count
+            ? o.count + ' vehicle' + (o.count === 1 ? '' : 's') + ' registered'
+            : 'No vehicles registered yet';
+          return '<button type="button" data-open-flat="' + esc(o.flat) + '">' +
+                 '<b>Flat ' + esc(o.flat) + '</b>' +
+                 '<span style="color:var(--tsh-muted,#667)">&middot;</span> Tower ' + esc(o.tower) +
+                 '<span class="meta">' + esc(meta) + '</span>' +
+                 parkingLine +
+                 '</button>';
+        };
+        const groups = [];
+        if (res.flatOptions && res.flatOptions.length) {
+          groups.push(
+            '<div class="veh-choice-group">' +
+              '<div class="veh-choice-heading">' +
+                '<i class="fas fa-house-chimney" aria-hidden="true"></i> ' +
+                'Flat number <b>' + esc(res.digits) + '</b>' +
+                '<span class="veh-choice-count">' + res.flatOptions.length + '</span>' +
+              '</div>' +
+              '<div class="veh-result-list veh-result-list-grid">' +
+                res.flatOptions.map((o) => renderOption(o, 'flat')).join('') +
+              '</div>' +
+            '</div>'
+          );
+        }
+        if (res.parkingOptions && res.parkingOptions.length) {
+          groups.push(
+            '<div class="veh-choice-group">' +
+              '<div class="veh-choice-heading">' +
+                '<i class="fas fa-square-parking" aria-hidden="true"></i> ' +
+                'Parking bay containing <b>' + esc(res.digits) + '</b>' +
+                '<span class="veh-choice-count">' + res.parkingOptions.length + '</span>' +
+              '</div>' +
+              '<div class="veh-result-list veh-result-list-grid">' +
+                res.parkingOptions.map((o) => renderOption(o, 'parking')).join('') +
+              '</div>' +
+            '</div>'
+          );
+        }
+        const total = (res.flatOptions ? res.flatOptions.length : 0) +
+                      (res.parkingOptions ? res.parkingOptions.length : 0);
+        resultEl.innerHTML =
+          '<div class="veh-result-top">' +
+            '<div class="veh-result-icon"><i class="fas fa-diagram-project" aria-hidden="true"></i></div>' +
+            '<div><div class="veh-result-headline">Number <span class="veh-result-digits">' + esc(res.digits) + '</span></div>' +
+            '<div class="veh-result-sub">' + total + ' match' + (total === 1 ? '' : 'es') + ' — pick a flat or a parking bay to open it.</div></div>' +
+          '</div>' +
+          '<div class="veh-choice-groups">' + groups.join('') + '</div>';
+        resultEl.hidden = false;
+        return;
+      }
       if (res.kind === 'flatChoices') {
         // Digit-only query fanned out across every tower where the flat
         // exists. Present one card per tower so the user can pick.
@@ -1589,12 +1688,11 @@
 
       // Digit-only query (e.g. "805", "1204", "105") — the user knows
       // either the flat number (but hasn't picked a tower) OR the
-      // parking-bay label. Fan out across every configured tower to
-      // surface flat matches AND merge in any parking-bay hits so the
-      // result card carries both kinds of candidates. A flat "exists"
-      // if it has any registered vehicle OR (when the tower has a
-      // fixed server-side layout) the floor+unit fall inside the
-      // schematic's bounds.
+      // parking-bay label. Build TWO separate candidate lists so the
+      // renderer can show them as grouped grids and let the user pick
+      // which one they actually meant. A flat "exists" if it has any
+      // registered vehicle OR (when the tower has a fixed server-side
+      // layout) the floor+unit fall inside the schematic's bounds.
       if (/^[0-9]{1,4}$/.test(q)) {
         const unitStr  = q.length >= 2 ? q.slice(-2) : q.padStart(2, '0');
         const floorStr = q.length >= 3 ? q.slice(0, -2) : '0';
@@ -1603,8 +1701,8 @@
         const cfgTowers = (Flags.raw && Flags.raw.lists && Array.isArray(Flags.raw.lists.towers))
           ? Flags.raw.lists.towers : ['A', 'B', 'C'];
         const layouts = towerLayouts || {};
-        const options = [];
-        const seenFlats = new Set();
+        const flatOptions = [];
+        const flatSeen = new Set();
         for (const t of cfgTowers) {
           const letter = String(t || '').trim().charAt(0).toUpperCase();
           if (!/^[A-Z]$/.test(letter)) continue;
@@ -1619,28 +1717,28 @@
             ? (floor >= 1 && floor <= layout.floors && unit >= 1 && unit <= layout.unitsPerFloor)
             : rows.length > 0;
           if (inLayout || rows.length) {
-            options.push({ tower: letter, flat, count: rows.length });
-            seenFlats.add(flat);
+            flatOptions.push({ tower: letter, flat, count: rows.length });
+            flatSeen.add(flat);
           }
         }
-        // Merge parking-bay hits into the same result surface so a
-        // numeric query like "105" that matches BOTH flat 105 in some
-        // towers AND parking bay P-105 elsewhere returns every
-        // candidate at once. The parking-bay hits carry their own
-        // tower letter (derived from the flat that owns the bay) so
-        // they slot naturally into the flatChoices card.
+        // Parking-bay hits stay in their own bucket so the user sees
+        // clearly whether they're picking "flat 105" or "the flat whose
+        // parking bay is P-105". If a parking hit resolves to the same
+        // flat that's already a flat-number candidate, skip it — the
+        // flat card is a superset (opening it shows both anyway).
+        const parkingOptions = [];
         for (const h of parkingHits) {
-          if (seenFlats.has(h.flat)) continue;
-          seenFlats.add(h.flat);
-          options.push({ tower: h.flat.charAt(0), flat: h.flat, count: h.count });
+          if (flatSeen.has(h.flat)) continue;
+          parkingOptions.push({ tower: h.flat.charAt(0), flat: h.flat, count: h.count, bays: h.bays });
         }
-        if (options.length === 1) {
-          const only = options[0];
+        const total = flatOptions.length + parkingOptions.length;
+        if (total === 1) {
+          const only = flatOptions[0] || parkingOptions[0];
           const rows = vehicles.filter((v) => v.flat === only.flat);
           return { kind: 'flat', flat: only.flat, rows };
         }
-        if (options.length > 1) {
-          return { kind: 'flatChoices', digits: q, options };
+        if (total > 1) {
+          return { kind: 'numericChoices', digits: q, flatOptions, parkingOptions };
         }
         // No tower has that flat and no parking bay matched — fall
         // through to the vehicle-substring pass below so a stray digit
