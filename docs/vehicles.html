@@ -501,8 +501,8 @@
 
     /* ------- Design 1 tower cabin ------- */
     .veh-tower {
-      border: 1px solid var(--tsh-border, #e2e5ee); border-radius: 14px;
-      padding: 1rem 1rem 1.15rem; margin-bottom: 1.15rem;
+      border: 1px solid var(--tsh-border, #e2e5ee); border-radius: 16px;
+      padding: 1.1rem 1.15rem 1.25rem; margin-bottom: 1.25rem;
       background: var(--tsh-surface, #fff);
       box-shadow: 0 1px 3px rgba(0,0,0,.04);
     }
@@ -529,8 +529,8 @@
        B has 6 units and A/C have 4. */
     .veh-tower-cols {
       display: grid;
-      grid-template-columns: 2.2rem repeat(var(--units, 4), minmax(0, 1fr));
-      gap: .35rem; margin: .3rem 0 .3rem;
+      grid-template-columns: 2.4rem repeat(var(--units, 4), minmax(0, 1fr));
+      gap: .45rem; margin: .35rem 0 .4rem;
       font-size: .68rem; color: var(--tsh-accent-dark, #8a6b28);
       letter-spacing: .08em; text-align: center;
     }
@@ -550,9 +550,9 @@
        axes are semantically encoded in the flat numbers themselves. */
     .veh-tower-axes {
       display: grid;
-      grid-template-columns: 2.2rem 1fr;
-      gap: .35rem;
-      margin: .7rem 0 .1rem;
+      grid-template-columns: 2.4rem 1fr;
+      gap: .45rem;
+      margin: .8rem 0 .15rem;
       font-size: .62rem;
       color: var(--tsh-accent-dark, #8a6b28);
       letter-spacing: .12em;
@@ -571,37 +571,38 @@
 
     .veh-tower-grid {
       display: grid;
-      grid-template-columns: 2.2rem repeat(var(--units, 4), minmax(0, 1fr));
-      gap: .35rem;
+      grid-template-columns: 2.4rem repeat(var(--units, 4), minmax(0, 1fr));
+      gap: .45rem;
     }
     /* Row heading — shows the floor number as a small tinted chip on
        the left rail. "G" for ground floor, plain number otherwise
        (no "F" suffix so the chip stays compact and glanceable). */
     .veh-floor-label {
       display: inline-flex; align-items: center; justify-content: center;
-      font-weight: 700; color: var(--tsh-accent-dark, #8a6b28); font-size: .74em;
+      font-weight: 700; color: var(--tsh-accent-dark, #8a6b28); font-size: .78em;
       letter-spacing: .04em;
       background: rgba(180, 138, 60, .10);
-      border-radius: 4px;
-      min-height: 3rem;
+      border-radius: 6px;
+      min-height: 3.15rem;
     }
 
     /* Rectangular seat cell — flat number on top, bar-chart footer.
        Empty cells are dashed; occupied cells fill the bar with
        flex-proportional segments (blue = 4W, green = 2W). */
     .veh-cell {
-      min-height: 3rem;
+      min-height: 3.15rem;
       display: flex; flex-direction: column; align-items: stretch; justify-content: space-between;
-      padding: .35rem .3rem .3rem; border-radius: 6px;
+      padding: .42rem .35rem .35rem; border-radius: 8px;
       border: 1.5px dashed var(--tsh-border, #e2e5ee);
       background: transparent; color: var(--tsh-muted, #778);
       cursor: pointer; font-family: inherit;
-      transition: border-color .12s, background .12s, transform .08s, color .12s;
+      transition: border-color .12s, background .12s, transform .08s, color .12s, box-shadow .12s;
     }
     .veh-cell:hover {
       border-color: var(--tsh-accent, #b48a3c);
       color: var(--tsh-text, #223);
       transform: translateY(-1px);
+      box-shadow: 0 2px 6px rgba(180, 138, 60, .18);
     }
     .veh-cell.has-veh {
       border-style: solid; color: var(--tsh-text, #223);
@@ -614,12 +615,12 @@
       outline: 2px solid var(--tsh-accent, #b48a3c); outline-offset: 2px;
     }
     .veh-cell-flat {
-      font-weight: 700; letter-spacing: .02em; font-size: .74rem;
+      font-weight: 700; letter-spacing: .02em; font-size: .8rem;
       text-align: center; line-height: 1.1;
     }
     .veh-cell-bar {
-      display: flex; height: 12px; border-radius: 3px; overflow: hidden;
-      gap: 1px; margin-top: .3rem; background: rgba(0,0,0,.04);
+      display: flex; height: 14px; border-radius: 4px; overflow: hidden;
+      gap: 1px; margin-top: .35rem; background: rgba(0,0,0,.04);
     }
     .veh-cell-bar > span {
       display: flex; align-items: center; justify-content: center;
@@ -661,15 +662,15 @@
        is available via the button's tooltip. */
     .veh-cell-park {
       display: inline-flex; align-items: center; justify-content: center;
-      gap: 2px; margin-top: 2px;
-      padding: 1px 4px; border-radius: 4px;
-      background: rgba(180, 138, 60, .12);
+      gap: 3px; margin-top: 3px;
+      padding: 2px 5px; border-radius: 5px;
+      background: rgba(180, 138, 60, .14);
       color: var(--tsh-accent, #b48a3c);
-      font-size: .55rem; font-weight: 700; letter-spacing: .02em;
+      font-size: .58rem; font-weight: 700; letter-spacing: .02em;
       line-height: 1; white-space: nowrap; overflow: hidden;
       max-width: 100%; text-overflow: ellipsis;
     }
-    .veh-cell-park i { font-size: .58rem; flex: 0 0 auto; }
+    .veh-cell-park i { font-size: .62rem; flex: 0 0 auto; }
     .veh-cell-park-txt {
       min-width: 0; overflow: hidden; text-overflow: ellipsis;
     }
@@ -880,12 +881,12 @@
 
     @media (max-width: 800px) {
       .veh-tower-cols, .veh-tower-grid {
-        grid-template-columns: 1.9rem repeat(var(--units, 4), minmax(2.6rem, 1fr));
-        gap: .25rem;
+        grid-template-columns: 2rem repeat(var(--units, 4), minmax(2.75rem, 1fr));
+        gap: .3rem;
       }
-      .veh-cell { min-height: 2.7rem; padding: .28rem .18rem .22rem; }
-      .veh-cell-flat { font-size: .68rem; }
-      .veh-cell-bar { height: 10px; margin-top: .22rem; }
+      .veh-cell { min-height: 2.85rem; padding: .32rem .22rem .26rem; }
+      .veh-cell-flat { font-size: .72rem; }
+      .veh-cell-bar { height: 11px; margin-top: .26rem; }
       .veh-cell-bar > span { font-size: .5rem; }
     }
 
@@ -1944,10 +1945,10 @@
     // to fit an inline parking-number pill ("P-105") underneath when
     // the flat has a bay assigned. Tuned to match the committed
     // .veh-cell font-size + padding.
-    const VEH_MIN_CELL_PX  = 54;
-    const VEH_FLOOR_RAIL_PX = 36;    // ~2.2rem @ 16px root
-    const VEH_CELL_GAP_PX   = 6;     // ~.35rem
-    const VEH_CARD_GAP_PX   = 18;    // ~1.15rem
+    const VEH_MIN_CELL_PX  = 62;
+    const VEH_FLOOR_RAIL_PX = 38;    // ~2.4rem @ 16px root
+    const VEH_CELL_GAP_PX   = 7;     // ~.45rem
+    const VEH_CARD_GAP_PX   = 20;    // ~1.25rem
 
     // Minimum width a tower card needs to render its cells at the
     // comfortable threshold (below which text starts to overlap the
