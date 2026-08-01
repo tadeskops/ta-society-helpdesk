@@ -287,23 +287,50 @@
       font-size: .78rem;
     }
     .veh-flat-parking-edit:hover { color: var(--tsh-accent-dark, #6f5320); }
-    .veh-flat-parking-form {
-      display: flex; flex-wrap: wrap; align-items: center; gap: .35rem;
+    /* Chip strip: one chip per allocated bay (a flat may hold multiple). */
+    .veh-flat-parking-chips {
+      display: inline-flex; flex-wrap: wrap; gap: .3rem; align-items: center;
     }
-    .veh-flat-parking-form input {
+    .veh-flat-parking-form {
+      display: flex; flex-direction: column; align-items: stretch;
+      gap: .45rem; width: 100%; max-width: 22rem;
+    }
+    .veh-flat-parking-inputs {
+      display: flex; flex-direction: column; gap: .3rem;
+    }
+    .veh-flat-parking-input-row {
+      display: flex; align-items: center; gap: .35rem;
+    }
+    .veh-flat-parking-form input,
+    .veh-flat-parking-input {
       font: inherit; font-size: .85rem;
       padding: .28rem .55rem; border-radius: 6px;
       border: 1px solid var(--tsh-border, #d5d7e0);
       background: var(--tsh-surface, #fff);
       color: var(--tsh-text, #223);
       text-transform: uppercase; letter-spacing: .04em;
-      width: 8.5rem; max-width: 60vw;
+      width: 8.5rem; max-width: 60vw; flex: 1;
+    }
+    .veh-flat-parking-remove {
+      background: transparent; color: #b02a2a;
+      border: 1px solid rgba(176, 42, 42, .35);
+      border-radius: 6px; padding: .2rem .45rem;
+      cursor: pointer; font-size: .8rem;
+    }
+    .veh-flat-parking-remove:hover { background: rgba(176, 42, 42, .08); }
+    .veh-flat-parking-form-actions {
+      display: flex; flex-wrap: wrap; gap: .35rem; align-items: center;
     }
     .veh-flat-parking-form button {
       font: inherit; font-size: .8rem; font-weight: 600;
       padding: .28rem .7rem; border-radius: 6px;
       border: 1px solid transparent; cursor: pointer;
     }
+    .veh-flat-parking-add-bay {
+      background: transparent; color: #2a5687;
+      border: 1px dashed rgba(74, 144, 226, .55);
+    }
+    .veh-flat-parking-add-bay:hover { background: rgba(74, 144, 226, .08); }
     .veh-flat-parking-form button[data-act="save"] {
       background: var(--tsh-accent, #b48a3c); color: #fff;
     }
@@ -311,13 +338,11 @@
       background: transparent; color: var(--tsh-muted, #667);
       border-color: var(--tsh-border, #d5d7e0);
     }
-    .veh-flat-parking-form button[data-act="clear"] {
-      background: transparent; color: #b02a2a;
-      border-color: rgba(176, 42, 42, .4);
-    }
     body.tsh-tone-dark .veh-flat-parking { color: #c9c1ad; }
     body.tsh-tone-dark .veh-flat-parking-add { color: #92b5e0; border-color: rgba(146, 181, 224, .55); }
-    body.tsh-tone-dark .veh-flat-parking-form input { background: #2a2a2a; color: #f0e6d2; border-color: rgba(180, 138, 60, .35); }
+    body.tsh-tone-dark .veh-flat-parking-form input,
+    body.tsh-tone-dark .veh-flat-parking-input { background: #2a2a2a; color: #f0e6d2; border-color: rgba(180, 138, 60, .35); }
+    body.tsh-tone-dark .veh-flat-parking-add-bay { color: #92b5e0; border-color: rgba(146, 181, 224, .55); }
 
     /* Small "section" heading used above the add form inside the flat
        drawer. Reads as a natural continuation of the vehicle list. */
@@ -822,11 +847,11 @@
         <input
           type="search"
           id="vehSearch"
-          placeholder="Search by Flat or Vehicle number"
+          placeholder="Search by Flat, Vehicle or Parking No."
           autocomplete="off"
           spellcheck="false"
           inputmode="latin"
-          aria-label="Search by Flat or Vehicle number"
+          aria-label="Search by Flat, Vehicle or Parking No."
         />
       </div>
 
@@ -1030,84 +1055,226 @@
       if (q) doSearch(q);
     }
 
-    // Look up the parking bay assigned to a flat.
-    //   1) Prefer the explicit flatParking map (server v2).
-    //   2) Fall back to the first non-empty parkingNo on any vehicle in
-    //      that flat (legacy data written before flat-parking existed).
-    // Returns '' when no assignment can be found.
+    // Look up the parking bays assigned to a flat.
+    //   1) Prefer the explicit flatParking map (server v2, array shape).
+    //   2) Legacy single-string entries are wrapped in a one-element
+    //      array so callers get a uniform shape.
+    //   3) Fall back to any non-empty parkingNo on vehicles at that
+    //      flat (very-legacy data written before flat-parking existed).
+    // Returns [] when no assignment can be found.
     function getFlatParking(flat) {
-      if (!flat) return '';
-      const direct = flatParking && flatParking[flat];
-      if (direct) return String(direct).toUpperCase();
-      for (const v of vehicles) {
-        if (v.flat === flat && v.parkingNo) return String(v.parkingNo).toUpperCase();
+      if (!flat) return [];
+      const raw = flatParking && flatParking[flat];
+      if (Array.isArray(raw)) {
+        const seen = new Set();
+        const out = [];
+        for (const v of raw) {
+          if (typeof v !== 'string') continue;
+          const bay = v.trim().toUpperCase();
+          if (bay && !seen.has(bay)) { seen.add(bay); out.push(bay); }
+        }
+        if (out.length) return out;
+      } else if (typeof raw === 'string' && raw.trim()) {
+        return [raw.trim().toUpperCase()];
       }
-      return '';
+      // Legacy per-vehicle fallback.
+      const seen = new Set();
+      const out = [];
+      for (const v of vehicles) {
+        if (v.flat === flat && v.parkingNo) {
+          const bay = String(v.parkingNo).trim().toUpperCase();
+          if (bay && !seen.has(bay)) { seen.add(bay); out.push(bay); }
+        }
+      }
+      return out;
     }
 
     // Replace the parking row in the drawer header with an inline
-    // edit form. `current` is pre-filled so editors can adjust the
-    // existing bay label without retyping it from scratch.
+    // edit form. `current` is an array of existing bay labels so
+    // editors can adjust them without retyping from scratch, or use
+    // the "+ Add another bay" button to allocate an extra bay to the
+    // same flat (see multi-bay support).
+    //
+    // NOTE: parking No. is a fixed physical property of the flat, so
+    // there is no "clear all" button — an editor may only save a list
+    // with at least one non-empty entry. The server enforces the same
+    // rule + cross-flat uniqueness.
     function openFlatParkingEditor(current) {
       const row = document.getElementById('vehFlatParkingRow');
       if (!row) return;
-      const val = esc(current || '');
-      const clearBtn = current
-        ? '<button type="button" data-act="clear" id="vehFlatParkingClear" title="Remove parking assignment">Clear</button>'
-        : '';
+      const initial = Array.isArray(current) && current.length ? current : [''];
+      // Build one input group per existing bay + Save/Cancel + [+ Add].
+      const inputs = initial.map((bay, i) => {
+        const canRemove = initial.length > 1;
+        return '<div class="veh-flat-parking-input-row" data-idx="' + i + '">' +
+                 '<input type="text" class="veh-flat-parking-input" ' +
+                        'value="' + esc(bay) + '" placeholder="P-104" ' +
+                        'maxlength="20" autocomplete="off" required />' +
+                 (canRemove
+                   ? '<button type="button" class="veh-flat-parking-remove" ' +
+                            'data-act="remove-bay" title="Remove this bay" aria-label="Remove bay">' +
+                     '<i class="fas fa-xmark"></i></button>'
+                   : '') +
+               '</div>';
+      }).join('');
       row.innerHTML =
         '<span class="veh-flat-parking-label">Parking:</span>' +
-        '<div class="veh-flat-parking-form" role="group" aria-label="Edit parking number">' +
-          '<input id="vehFlatParkingInput" type="text" value="' + val + '" ' +
-                 'placeholder="P-104" maxlength="20" autocomplete="off" />' +
-          '<button type="button" data-act="save" id="vehFlatParkingSave"><i class="fas fa-check"></i> Save</button>' +
-          '<button type="button" data-act="cancel" id="vehFlatParkingCancel">Cancel</button>' +
-          clearBtn +
+        '<div class="veh-flat-parking-form" role="group" aria-label="Edit parking numbers">' +
+          '<div class="veh-flat-parking-inputs" id="vehFlatParkingInputs">' + inputs + '</div>' +
+          '<div class="veh-flat-parking-form-actions">' +
+            '<button type="button" data-act="add-bay" id="vehFlatParkingAddBay" ' +
+                    'class="veh-flat-parking-add-bay" title="Add another bay to this flat">' +
+              '<i class="fas fa-plus"></i> Add another' +
+            '</button>' +
+            '<button type="button" data-act="save" id="vehFlatParkingSave">' +
+              '<i class="fas fa-check"></i> Save' +
+            '</button>' +
+            '<button type="button" data-act="cancel" id="vehFlatParkingCancel">Cancel</button>' +
+          '</div>' +
         '</div>';
-      const input = document.getElementById('vehFlatParkingInput');
-      if (input) {
-        // Uppercase as the user types (matches the sticker/reg fields).
+      wireParkingInputs();
+      const first = row.querySelector('.veh-flat-parking-input');
+      if (first) { first.focus(); first.select(); }
+    }
+
+    // Attach case-insensitive uppercase + Enter/Escape handlers to every
+    // input inside the multi-bay editor. Called after render and after
+    // add-bay so newly appended inputs behave the same as the first.
+    function wireParkingInputs() {
+      const inputs = document.querySelectorAll('#vehFlatParkingInputs .veh-flat-parking-input');
+      inputs.forEach((input) => {
+        if (input.dataset.wired) return;
+        input.dataset.wired = '1';
         input.addEventListener('input', () => {
           const p = input.selectionStart;
           input.value = input.value.toUpperCase();
           try { input.setSelectionRange(p, p); } catch (_x) { /* ignore */ }
         });
         input.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter') { e.preventDefault(); commitFlatParking(input); }
+          if (e.key === 'Enter') { e.preventDefault(); commitFlatParking(); }
           else if (e.key === 'Escape') { e.preventDefault(); renderFlatDetail(); }
         });
-        input.focus();
-        input.select();
-      }
+      });
     }
 
-    // Trim + validate the inline input, then delegate to saveFlatParking.
-    async function commitFlatParking(input) {
-      if (!input) return;
-      const val = input.value.trim().toUpperCase();
-      if (val.length > 20) {
-        UI.toast('Parking No. must be 20 characters or fewer.', { kind: 'danger' });
+    // Append a fresh empty input row to the multi-bay editor. Editor
+    // stops adding rows once the society-wide cap is reached; the cap
+    // must stay in sync with MAX_PARKING_PER_FLAT on the server (10).
+    function addParkingInputRow() {
+      const container = document.getElementById('vehFlatParkingInputs');
+      if (!container) return;
+      const rows = container.querySelectorAll('.veh-flat-parking-input-row');
+      if (rows.length >= 10) {
+        UI.toast('A flat can hold at most 10 parking bays.', { kind: 'danger' });
         return;
       }
-      await saveFlatParking(val);
+      // Ensure every existing row can now be removed (we're adding a
+      // second/nth row, so the "1 bay minimum" constraint is satisfied
+      // even without the first row).
+      rows.forEach((r) => {
+        if (!r.querySelector('.veh-flat-parking-remove')) {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'veh-flat-parking-remove';
+          btn.setAttribute('data-act', 'remove-bay');
+          btn.setAttribute('title', 'Remove this bay');
+          btn.setAttribute('aria-label', 'Remove bay');
+          btn.innerHTML = '<i class="fas fa-xmark"></i>';
+          r.appendChild(btn);
+        }
+      });
+      const row = document.createElement('div');
+      row.className = 'veh-flat-parking-input-row';
+      row.setAttribute('data-idx', String(rows.length));
+      row.innerHTML =
+        '<input type="text" class="veh-flat-parking-input" value="" ' +
+               'placeholder="P-104" maxlength="20" autocomplete="off" required />' +
+        '<button type="button" class="veh-flat-parking-remove" ' +
+                'data-act="remove-bay" title="Remove this bay" aria-label="Remove bay">' +
+          '<i class="fas fa-xmark"></i></button>';
+      container.appendChild(row);
+      wireParkingInputs();
+      const newInput = row.querySelector('.veh-flat-parking-input');
+      if (newInput) newInput.focus();
     }
 
-    // PUT /vehicles/flat-parking with { flat, parkingNo }. Empty string
-    // clears the assignment. On success, refresh the whole registry so
-    // the header + all cached derivations pick up the new value.
-    async function saveFlatParking(parkingNo) {
+    // Remove one bay row from the multi-bay editor. Enforces the
+    // "at least one bay" client-side rule so the user gets an inline
+    // hint before the server would reject.
+    function removeParkingInputRow(rowEl) {
+      const container = document.getElementById('vehFlatParkingInputs');
+      if (!container || !rowEl) return;
+      const rows = container.querySelectorAll('.veh-flat-parking-input-row');
+      if (rows.length <= 1) {
+        UI.toast('At least one Parking No. is required.', { kind: 'danger' });
+        return;
+      }
+      rowEl.parentNode.removeChild(rowEl);
+      // If only one bay remains, hide its remove button (min = 1).
+      const remaining = container.querySelectorAll('.veh-flat-parking-input-row');
+      if (remaining.length === 1) {
+        const btn = remaining[0].querySelector('.veh-flat-parking-remove');
+        if (btn) btn.remove();
+      }
+    }
+
+    // Read every input, normalise + validate the list client-side, then
+    // delegate to saveFlatParking. Blank / duplicate entries are
+    // reported inline before the server sees them.
+    async function commitFlatParking() {
+      const container = document.getElementById('vehFlatParkingInputs');
+      if (!container) return;
+      const inputs = container.querySelectorAll('.veh-flat-parking-input');
+      const seen = new Set();
+      const bays = [];
+      for (const input of inputs) {
+        const val = String(input.value || '').trim().toUpperCase();
+        if (!val) {
+          UI.toast('Parking No. is required. Fill in every field or remove the empty row.',
+            { kind: 'danger' });
+          input.focus();
+          return;
+        }
+        if (val.length > 20) {
+          UI.toast('Each Parking No. must be 20 characters or fewer.', { kind: 'danger' });
+          input.focus();
+          return;
+        }
+        if (seen.has(val)) {
+          UI.toast('Duplicate Parking No. "' + val + '" \u2014 each bay must be unique.',
+            { kind: 'danger' });
+          input.focus();
+          return;
+        }
+        seen.add(val);
+        bays.push(val);
+      }
+      if (!bays.length) {
+        UI.toast('At least one Parking No. is required.', { kind: 'danger' });
+        return;
+      }
+      await saveFlatParking(bays);
+    }
+
+    // PUT /vehicles/flat-parking with { flat, parkingNos }. Refuses to
+    // send a blank list \u2014 the server would reject it anyway. On
+    // success, refresh the whole registry so the header + all cached
+    // derivations pick up the new value.
+    async function saveFlatParking(parkingNos) {
       if (!selectedFlat) return;
+      if (!Array.isArray(parkingNos) || !parkingNos.length) {
+        UI.toast('At least one Parking No. is required.', { kind: 'danger' });
+        return;
+      }
       const saveBtn = document.getElementById('vehFlatParkingSave');
       const doIt = async () => {
         try {
-          await Api.put('/vehicles/flat-parking', { flat: selectedFlat, parkingNo });
+          await Api.put('/vehicles/flat-parking',
+            { flat: selectedFlat, parkingNos });
           // Optimistically patch the local map so the re-render below
           // uses the new value even before load() finishes.
-          if (parkingNo) flatParking[selectedFlat] = parkingNo;
-          else delete flatParking[selectedFlat];
-          UI.toast(parkingNo
-            ? 'Parking No. updated for Flat ' + selectedFlat + '.'
-            : 'Parking No. cleared for Flat ' + selectedFlat + '.',
+          flatParking[selectedFlat] = parkingNos.slice();
+          UI.toast('Parking No. updated for Flat ' + selectedFlat + '.',
             { kind: 'success' });
           await load();
         } catch (err) {
@@ -1199,6 +1366,10 @@
         const kind = typeWheels(v.type) === '4W' ? 'four' : 'two';
         const iconCls = typeIcon(v.type);
         const label = typeLabel(v.type);
+        const bays = getFlatParking(v.flat);
+        const parkingCell = bays.length
+          ? bays.map((b) => esc(b)).join(', ')
+          : '<span style="color:var(--tsh-muted,#667)">&mdash;</span>';
         resultEl.innerHTML =
           '<div class="veh-result-top">' +
             '<div class="veh-result-icon ' + kind + '"><i class="fas ' + iconCls + '" aria-hidden="true"></i></div>' +
@@ -1209,6 +1380,7 @@
           '</div>' +
           '<table class="veh-result-table">' +
             '<tr><td>Flat</td><td>' + esc(v.flat) + '</td></tr>' +
+            '<tr><td>Parking</td><td>' + parkingCell + '</td></tr>' +
             '<tr><td>Type</td><td>' + typeBadge(v.type) + '</td></tr>' +
             '<tr><td>Sticker</td><td>' + (v.sticker ? esc(v.sticker) : '<span style="color:var(--tsh-muted,#667)">&mdash;</span>') + '</td></tr>' +
             '<tr><td>Notes</td><td>' + (v.comments ? esc(v.comments) : '<span style="color:var(--tsh-muted,#667)">&mdash;</span>') + '</td></tr>' +
@@ -1242,13 +1414,22 @@
         // Digit-only query fanned out across every tower where the flat
         // exists. Present one card per tower so the user can pick.
         const list = res.options.map((o) => {
+          const bays = getFlatParking(o.flat);
+          const parkingLine = bays.length
+            ? '<span class="meta veh-result-parking">' +
+              '<i class="fas fa-square-parking" aria-hidden="true"></i> ' +
+              bays.map((b) => esc(b)).join(', ') +
+              '</span>'
+            : '';
           const meta = o.count
             ? o.count + ' vehicle' + (o.count === 1 ? '' : 's') + ' registered'
             : 'No vehicles registered yet';
           return '<button type="button" data-open-flat="' + esc(o.flat) + '">' +
                  '<b>Flat ' + esc(o.flat) + '</b>' +
                  '<span style="color:var(--tsh-muted,#667)">&middot;</span> Tower ' + esc(o.tower) +
-                 '<span class="meta">' + esc(meta) + '</span></button>';
+                 '<span class="meta">' + esc(meta) + '</span>' +
+                 parkingLine +
+                 '</button>';
         }).join('');
         resultEl.innerHTML =
           '<div class="veh-result-top">' +
@@ -1311,6 +1492,34 @@
     function classifyQuery(raw) {
       const q = normReg(raw);
       if (!q || q.length < 2) return null;
+
+      // Cached lookup: does any flat's parking bay match (exact or
+      // substring, after normReg)? Returns [{flat, bays[], count}] so
+      // the caller can either open the single hit or offer choices.
+      // This is the only search vector that can reach a flat purely by
+      // its parking-bay label — no vehicle registration required.
+      const parkingHits = [];
+      const parkingSeen = new Set();
+      for (const flat of Object.keys(flatParking || {})) {
+        const bays = getFlatParking(flat);
+        if (!bays.length) continue;
+        const match = bays.some((b) => normReg(b) === q || normReg(b).indexOf(q) !== -1);
+        if (match && !parkingSeen.has(flat)) {
+          parkingSeen.add(flat);
+          const count = vehicles.filter((v) => v.flat === flat).length;
+          parkingHits.push({ flat, bays, count });
+        }
+      }
+      // Also honour the legacy per-vehicle parkingNo, in case a fresh
+      // load hasn't migrated yet.
+      for (const v of vehicles) {
+        if (!v.parkingNo || parkingSeen.has(v.flat)) continue;
+        if (normReg(v.parkingNo) === q || normReg(v.parkingNo).indexOf(q) !== -1) {
+          parkingSeen.add(v.flat);
+          const count = vehicles.filter((x) => x.flat === v.flat).length;
+          parkingHits.push({ flat: v.flat, bays: [String(v.parkingNo).toUpperCase()], count });
+        }
+      }
 
       // Digit-only query (e.g. "805", "1204") — the user knows the flat
       // number but hasn't picked a tower. Fan out across every configured
@@ -1380,9 +1589,29 @@
 
       // Vehicle match (contains q)
       const hits = vehicles.filter((v) => v.regNo.indexOf(q) !== -1);
-      if (!hits.length) return { kind: 'none', q };
       if (hits.length === 1) return { kind: 'vehicle', v: hits[0] };
-      return { kind: 'many', hits: hits.slice(0, 25) };
+      if (hits.length > 1) return { kind: 'many', hits: hits.slice(0, 25) };
+
+      // Nothing matched flat/vehicle — fall back to parking-bay match.
+      // A single hit opens the flat drawer; multiple hits reuse the
+      // flatChoices card so the user can pick which flat/tower to open.
+      if (parkingHits.length === 1) {
+        const only = parkingHits[0];
+        const rowsForFlat = vehicles.filter((v) => v.flat === only.flat);
+        return { kind: 'flat', flat: only.flat, rows: rowsForFlat };
+      }
+      if (parkingHits.length > 1) {
+        return {
+          kind: 'flatChoices',
+          digits: q,
+          options: parkingHits.map((h) => ({
+            tower: h.flat.charAt(0),
+            flat:  h.flat,
+            count: h.count,
+          })),
+        };
+      }
+      return { kind: 'none', q };
     }
 
     function doSearch(raw) {
@@ -1882,19 +2111,25 @@
       const listHtml = rows.length
         ? rows.map(renderRowRead).join('')
         : '<p class="veh-flat-empty">No vehicles registered for this flat yet. Add the first one below.</p>';
-      const parking = getFlatParking(selectedFlat);
-      // Parking row: chip + edit for editors, plain chip for residents,
-      // "Add Parking No." trigger when unassigned + user can write.
+      const parking = getFlatParking(selectedFlat);   // array of bays
+      // Parking row: one chip per bay for anyone; Edit button for editors
+      // when at least one bay exists; "Add Parking No." trigger when
+      // the flat has no allocation yet + user can write.
       let parkingHtml = '';
-      if (parking) {
+      if (parking.length) {
+        const chips = parking.map((bay) =>
+          '<span class="veh-parking-chip" title="Parking bay">' +
+            '<i class="fas fa-square-parking" aria-hidden="true"></i>' + esc(bay) +
+          '</span>'
+        ).join('');
         parkingHtml =
           '<div class="veh-flat-parking" id="vehFlatParkingRow">' +
-            '<span class="veh-flat-parking-label">Parking:</span>' +
-            '<span class="veh-parking-chip" title="Parking No.">' +
-              '<i class="fas fa-square-parking" aria-hidden="true"></i>' + esc(parking) +
+            '<span class="veh-flat-parking-label">' +
+              (parking.length === 1 ? 'Parking:' : 'Parking (' + parking.length + '):') +
             '</span>' +
+            '<div class="veh-flat-parking-chips">' + chips + '</div>' +
             (canWrite
-              ? '<button type="button" class="veh-flat-parking-edit" id="vehFlatParkingEdit" title="Edit parking number">' +
+              ? '<button type="button" class="veh-flat-parking-edit" id="vehFlatParkingEdit" title="Edit / add parking bays">' +
                   '<i class="fas fa-pen-to-square" aria-hidden="true"></i> Edit' +
                 '</button>'
               : '') +
@@ -2095,30 +2330,39 @@
       if (closeBtn) { selectFlat(null); return; }
 
       // ---- Flat-level Parking No. ------------------------------------
-      // The header row above the vehicle list carries either a chip
-      // ("Parking: P-104" + Edit) or an "Add Parking No." trigger. Both
-      // paths converge on the same inline edit form (input + Save +
-      // Cancel + optional Clear). All server calls hit
-      // PUT /vehicles/flat-parking so the value survives even when the
-      // flat has zero vehicles.
+      // The header row above the vehicle list carries either a strip
+      // of chips ("Parking: P-104 P-201" + Edit) or an "Add Parking No."
+      // trigger. Both paths converge on the same multi-bay inline edit
+      // form (one input per bay + [+ Add another] + Save + Cancel).
+      // All server calls hit PUT /vehicles/flat-parking with a
+      // parkingNos array, so the value survives even when the flat
+      // has zero vehicles.
       const parkingAdd  = e.target.closest('#vehFlatParkingAdd');
       const parkingEdit = e.target.closest('#vehFlatParkingEdit');
       if ((parkingAdd || parkingEdit) && canWrite && selectedFlat) {
         openFlatParkingEditor(getFlatParking(selectedFlat));
         return;
       }
+      const parkingAddBay = e.target.closest('#vehFlatParkingAddBay');
+      if (parkingAddBay && canWrite && selectedFlat) {
+        addParkingInputRow();
+        return;
+      }
+      const parkingRemoveBay = e.target.closest('.veh-flat-parking-remove');
+      if (parkingRemoveBay && canWrite && selectedFlat) {
+        const rowEl = parkingRemoveBay.closest('.veh-flat-parking-input-row');
+        removeParkingInputRow(rowEl);
+        return;
+      }
       const parkingSave = e.target.closest('#vehFlatParkingSave');
       if (parkingSave && canWrite && selectedFlat) {
-        await commitFlatParking(document.getElementById('vehFlatParkingInput'));
+        await commitFlatParking();
         return;
       }
       const parkingCancel = e.target.closest('#vehFlatParkingCancel');
       if (parkingCancel) { renderFlatDetail(); return; }
-      const parkingClear = e.target.closest('#vehFlatParkingClear');
-      if (parkingClear && canWrite && selectedFlat) {
-        await saveFlatParking('');
-        return;
-      }
+      // NOTE: no Clear branch — parking No. is a fixed property of the
+      // flat and cannot be blanked. Editors can only correct via Save.
 
       // Add-form disclosure: the tinted box is hidden until the trigger
       // is clicked; the small "X" inside the box collapses it back.

@@ -119,14 +119,22 @@ interface VehicleFile {
   version: number;
   vehicles: Vehicle[];
   // Per-flat parking bay assignments. Independent of the vehicles array
-  // so a flat can have a reserved parking slot before any vehicle is
-  // registered (or the parking outlives all its vehicles). Key = flat
-  // code (upper-case, e.g. "B905"), value = bay label (upper-case,
-  // e.g. "P-104"). Empty / missing = unassigned.
-  flatParking?: Record<string, string>;
+  // so a flat can have reserved parking slot(s) before any vehicle is
+  // registered (or the parking outlives all its vehicles).
+  //   key   = flat code (upper-case, e.g. "B905")
+  //   value = list of bay labels (upper-case, e.g. ["P-104", "P-201"])
+  // A single flat may be allocated multiple bays (some flats own two
+  // parking spots) but every bay label is unique across the entire
+  // society \u2014 no two flats may share the same bay code. Empty /
+  // missing = unassigned.
+  flatParking?: Record<string, string[]>;
 }
 
 const EMPTY_FILE: VehicleFile = { version: 1, vehicles: [], flatParking: {} };
+
+// Society-wide cap on how many parking bays one flat may hold. Keeps
+// the JSON compact and prevents accidental runaway lists from a UI bug.
+const MAX_PARKING_PER_FLAT = 10;
 
 // ---- Cache ------------------------------------------------------------------
 interface Cache { value: VehicleFile; sha?: string; expiresAt: number; }
@@ -141,16 +149,35 @@ const loadFromGithub = async (env: Ctx['env']): Promise<{ value: VehicleFile; sh
   if (!f) return { value: structuredClone(EMPTY_FILE) };
   try {
     const parsed = JSON.parse(f.content) as Partial<VehicleFile>;
-    // Normalise flatParking: only keep string values on string keys,
-    // upper-case both, drop empties. Guards against hand-edited JSON.
+    // Normalise flatParking: accept either the new array-per-flat shape
+    // or the legacy string-per-flat shape (upgrades in-place on read).
+    // Drop empty strings, drop within-flat duplicates, upper-case
+    // keys+values, and enforce the society-wide cap.
     const rawFP = (parsed as { flatParking?: unknown }).flatParking;
-    const flatParking: Record<string, string> = {};
+    const flatParking: Record<string, string[]> = {};
     if (isObj(rawFP)) {
       for (const [k, v] of Object.entries(rawFP as Record<string, unknown>)) {
-        if (typeof k !== 'string' || typeof v !== 'string') continue;
+        if (typeof k !== 'string') continue;
         const key = k.trim().toUpperCase();
-        const val = v.trim().toUpperCase();
-        if (key && val) flatParking[key] = val;
+        if (!key) continue;
+        let bays: string[] = [];
+        if (typeof v === 'string') {
+          // Legacy shape: single string. Wrap in an array so the rest
+          // of the code path is uniform.
+          const trimmed = v.trim().toUpperCase();
+          if (trimmed) bays = [trimmed];
+        } else if (Array.isArray(v)) {
+          const seen = new Set<string>();
+          for (const raw of v) {
+            if (typeof raw !== 'string') continue;
+            const bay = raw.trim().toUpperCase();
+            if (!bay || seen.has(bay)) continue;
+            seen.add(bay);
+            bays.push(bay);
+            if (bays.length >= MAX_PARKING_PER_FLAT) break;
+          }
+        }
+        if (bays.length) flatParking[key] = bays;
       }
     }
     return {
@@ -535,9 +562,23 @@ export const mountVehicles = (r: Router): void => {
 
   // PUT /vehicles/flat-parking — assign or clear a per-flat parking bay.
   // Body: { flat: "B905", parkingNo: "P-104" }.
-  // Empty string in `parkingNo` clears the entry. Editor-role allowlist.
+  // PUT /vehicles/flat-parking — assign, extend, or rewrite a flat's list
+  // of parking bays.
+  //
+  // Body accepts either shape:
+  //   { flat: "B905", parkingNos: ["P-104", "P-201"] }   // full replace
+  //   { flat: "B905", parkingNo:  "P-104" }              // legacy: single-item replace
+  //
+  // Rules (enforced server-side):
+  //   * At least one non-empty bay (parking is a fixed, mandatory
+  //     property of the flat \u2014 the list may not be blank).
+  //   * Each entry \u2264 20 chars, upper-cased, no within-flat duplicates.
+  //   * At most MAX_PARKING_PER_FLAT entries per flat.
+  //   * Global uniqueness: no bay may appear at any *other* flat's list.
+  //     Two flats sharing bay "P-104" is a data-model violation.
+  //
   // Kept as a separate route because parking is a flat-level property,
-  // not a vehicle-level one — a flat can be assigned a bay before any
+  // not a vehicle-level one \u2014 a flat can be assigned bay(s) before any
   // vehicle is registered, and the assignment persists across vehicle
   // add/delete operations.
   r.put('/vehicles/flat-parking', async (ctx: Ctx) => {
@@ -547,21 +588,79 @@ export const mountVehicles = (r: Router): void => {
     const body = await parseJson<Record<string, unknown>>(ctx.req);
     const towers = ctx.config.lists?.towers ?? [];
     const flat = validateFlat(body['flat'], towers);
-    const rawParking = body['parkingNo'];
-    if (rawParking !== undefined && rawParking !== null && typeof rawParking !== 'string') {
-      throw new BadRequest('parkingNo must be a string (or empty to clear)');
+
+    // Collect the incoming bays into an unnormalised string[] regardless
+    // of which body shape was used.
+    let rawList: unknown[];
+    if (Array.isArray(body['parkingNos'])) {
+      rawList = body['parkingNos'] as unknown[];
+    } else if (typeof body['parkingNo'] === 'string') {
+      rawList = [body['parkingNo']];
+    } else if (body['parkingNos'] !== undefined) {
+      throw new BadRequest('parkingNos must be an array of strings');
+    } else {
+      throw new BadRequest('parkingNo or parkingNos required');
     }
-    const parkingRaw = (typeof rawParking === 'string' ? rawParking : '').trim();
-    if (parkingRaw.length > 20) {
-      throw new BadRequest('parkingNo must be at most 20 characters');
+
+    // Normalise + validate every entry. Reject blanks and within-flat
+    // duplicates up front so the caller gets a precise error, not a
+    // silent dedupe.
+    const seen = new Set<string>();
+    const bays: string[] = [];
+    for (const raw of rawList) {
+      if (typeof raw !== 'string') {
+        throw new BadRequest('parkingNos entries must all be strings');
+      }
+      const trimmed = raw.trim();
+      if (!trimmed) {
+        throw new BadRequest(
+          'Parking No. is fixed to the flat and cannot be blank. ' +
+          'Remove the empty entry or fill it in.',
+        );
+      }
+      if (trimmed.length > 20) {
+        throw new BadRequest('Each parking No. must be at most 20 characters');
+      }
+      const bay = trimmed.toUpperCase();
+      if (seen.has(bay)) {
+        throw new BadRequest(`Duplicate parking No. "${bay}" for flat ${flat}.`);
+      }
+      seen.add(bay);
+      bays.push(bay);
     }
-    const parkingNo = parkingRaw.toUpperCase();
+    if (bays.length === 0) {
+      // Mandatory rule: a flat must retain at least one bay.
+      throw new BadRequest(
+        'Parking No. is fixed to the flat and cannot be cleared. ' +
+        'Submit at least one bay label.',
+      );
+    }
+    if (bays.length > MAX_PARKING_PER_FLAT) {
+      throw new BadRequest(
+        `A flat may hold at most ${MAX_PARKING_PER_FLAT} parking bays.`,
+      );
+    }
 
     const actor = ctx.identity!.email;
     const existing = await loadVehicles(ctx);
-    const nextMap: Record<string, string> = { ...(existing.flatParking ?? {}) };
-    if (parkingNo) nextMap[flat] = parkingNo;
-    else delete nextMap[flat];
+
+    // Global uniqueness: reject if any bay is already assigned to a
+    // *different* flat. A flat re-using its OWN previous bay is fine.
+    const claimedBy = new Map<string, string>();
+    for (const [otherFlat, otherBays] of Object.entries(existing.flatParking ?? {})) {
+      if (otherFlat === flat) continue;
+      for (const bay of otherBays) claimedBy.set(bay, otherFlat);
+    }
+    const clash = bays.find((bay) => claimedBy.has(bay));
+    if (clash) {
+      throw new Conflict(
+        `Parking No. "${clash}" is already assigned to flat ${claimedBy.get(clash)}. ` +
+        `Each bay may belong to only one flat.`,
+      );
+    }
+
+    const nextMap: Record<string, string[]> = { ...(existing.flatParking ?? {}) };
+    nextMap[flat] = bays;
 
     const next: VehicleFile = {
       version: existing.version,
@@ -570,18 +669,16 @@ export const mountVehicles = (r: Router): void => {
     };
     const file = await getFile(ctx.env, VEHICLES_PATH);
     const serialised = JSON.stringify(next, null, 2) + '\n';
-    const msg = parkingNo
-      ? `vehicles: parking ${parkingNo} @ ${flat} by ${actor}`
-      : `vehicles: clear parking @ ${flat} by ${actor}`;
+    const msg = `vehicles: parking ${bays.join('+')} @ ${flat} by ${actor}`;
     await putFile(ctx.env, VEHICLES_PATH, serialised, msg, actor, file?.sha);
     await writeAudit(ctx.env, {
       actor,
-      action: parkingNo ? 'vehicles:flat-parking-set' : 'vehicles:flat-parking-clear',
+      action: 'vehicles:flat-parking-set',
       target: VEHICLES_PATH,
-      detail: `flat=${flat} parkingNo=${parkingNo || '(cleared)'}`,
+      detail: `flat=${flat} parkingNos=${bays.join(',')}`,
     });
     invalidate();
-    return ok(ctx.env, ctx.req, { saved: true, flat, parkingNo });
+    return ok(ctx.env, ctx.req, { saved: true, flat, parkingNos: bays });
   });
 
   // ---------------------------------------------------------------------------
