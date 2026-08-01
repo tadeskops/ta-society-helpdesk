@@ -161,3 +161,155 @@
   }
   .tsh-ev-station-status { grid-column: 1 / -1; justify-self: start; }
 }
+
+/* ---- Phase 2: Booking grid, form and history ----------------------- */
+.tsh-ev-book-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 8px 0 10px;
+}
+.tsh-ev-date-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.tsh-ev-date-picker input[type="date"] {
+  padding: 6px 10px;
+  border: 1px solid var(--tsh-border, #e5e7eb);
+  border-radius: 8px;
+  background: var(--tsh-card, #fff);
+  font-size: 14px;
+  color: var(--tsh-text, #111827);
+}
+.tsh-ev-legend {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  opacity: .8;
+}
+.tsh-ev-legend-item { display: inline-flex; align-items: center; gap: 4px; }
+.tsh-ev-legend-swatch {
+  display: inline-block;
+  width: 12px; height: 12px;
+  border-radius: 3px;
+  border: 1px solid var(--tsh-border, #d1d5db);
+}
+.tsh-ev-swatch-free      { background: var(--tsh-card, #fff); }
+.tsh-ev-swatch-selected  { background: var(--tsh-primary, #2563eb); border-color: var(--tsh-primary, #2563eb); }
+.tsh-ev-swatch-booked    { background: #e5e7eb; border-color: #9ca3af; }
+
+.tsh-ev-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 6px;
+  margin: 10px 0 16px;
+}
+.tsh-ev-slot {
+  padding: 10px 4px;
+  border: 1px solid var(--tsh-border, #d1d5db);
+  border-radius: 8px;
+  background: var(--tsh-card, #fff);
+  color: var(--tsh-text, #111827);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background .12s, border-color .12s, color .12s, transform .05s;
+  text-align: center;
+}
+.tsh-ev-slot:hover:not(:disabled) {
+  border-color: var(--tsh-primary, #2563eb);
+  background: color-mix(in srgb, var(--tsh-primary, #2563eb) 8%, transparent);
+}
+.tsh-ev-slot:active:not(:disabled) { transform: scale(0.97); }
+.tsh-ev-slot--selected {
+  background: var(--tsh-primary, #2563eb) !important;
+  border-color: var(--tsh-primary, #2563eb);
+  color: #fff;
+}
+.tsh-ev-slot--booked {
+  background: #e5e7eb;
+  color: #6b7280;
+  cursor: not-allowed;
+  text-decoration: line-through;
+}
+.tsh-ev-slot-time { display: block; }
+
+.tsh-ev-book-form {
+  border: 1px solid var(--tsh-border, #e5e7eb);
+  border-radius: 12px;
+  padding: 14px 16px;
+  background: var(--tsh-card, #fff);
+  margin-top: 8px;
+}
+.tsh-ev-book-summary {
+  font-size: 14px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px dashed var(--tsh-border, #e5e7eb);
+}
+.tsh-ev-book-summary i { color: var(--tsh-primary, #2563eb); margin-right: 4px; }
+.tsh-ev-book-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 14px;
+}
+.tsh-ev-book-fields label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+.tsh-ev-book-fields label > span { font-weight: 600; opacity: .85; }
+.tsh-ev-book-fields input,
+.tsh-ev-book-fields textarea {
+  padding: 8px 10px;
+  border: 1px solid var(--tsh-border, #d1d5db);
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  background: var(--tsh-card, #fff);
+  color: var(--tsh-text, #111827);
+}
+.tsh-ev-book-notes { grid-column: 1 / -1; }
+.tsh-req { color: #b91c1c; }
+.tsh-ev-book-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.tsh-ev-hist-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.tsh-ev-hist-card {
+  border: 1px solid var(--tsh-border, #e5e7eb);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: var(--tsh-card, #fff);
+  display: flex; flex-direction: column; gap: 8px;
+}
+.tsh-ev-hist-head { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; font-size: 13px; }
+.tsh-ev-hist-date { font-weight: 600; }
+.tsh-ev-hist-time { opacity: .85; }
+.tsh-ev-hist-status {
+  margin-left: auto;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  background: #f3f4f6;
+  color: #4b5563;
+}
+.tsh-ev-hist-status-confirmed { background: #d1fae5; color: #065f46; }
+.tsh-ev-hist-status-pending   { background: #fef3c7; color: #92400e; }
+.tsh-ev-hist-status-cancelled { background: #fee2e2; color: #991b1b; }
+.tsh-ev-hist-status-completed { background: #dbeafe; color: #1e40af; }
+.tsh-ev-hist-meta { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; opacity: .8; }
+.tsh-ev-hist-meta i { margin-right: 4px; }
+.tsh-ev-hist-notes { flex: 1 1 100%; }
+.tsh-ev-hist-actions { display: flex; justify-content: flex-end; }
+.tsh-ev-hist-cancel { font-size: 12px; padding: 6px 10px; }
+
+@media (max-width: 640px) {
+  .tsh-ev-book-fields { grid-template-columns: 1fr; }
+  .tsh-ev-grid { grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); }
+}

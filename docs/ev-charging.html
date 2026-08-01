@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="./assets/css/theme.css?v=87" />
   <link rel="stylesheet" href="./assets/css/mobile-landing.css?v=14" />
-  <link rel="stylesheet" href="./assets/css/ev-charging.css?v=1" />
+  <link rel="stylesheet" href="./assets/css/ev-charging.css?v=2" />
 </head>
 <body class="tsh-page">
   <div data-include="header"></div>
@@ -72,25 +72,50 @@
         </div>
       </div>
 
-      <!-- BOOK panel: Phase 1 placeholder for the availability grid. The
-           real grid + booking form ship in Phase 2 behind FEATURE_TSH_EV_BOOKING.
-           When the sub-flag is off, this whole panel is removed from the DOM
-           by ev-charging.js. -->
+      <!-- BOOK panel (Phase 2): availability grid + booking form. Gated by
+           FEATURE_TSH_EV_BOOKING via data-tsh-ev-sub. -->
       <section class="tsh-ev-tab-panel" data-ev-panel="book" data-tsh-ev-sub="booking">
-        <div class="tsh-ev-placeholder" id="evBookPlaceholder">
-          <i class="fas fa-hourglass-half"></i>
-          <p><strong>Slot booking arrives in Phase 2.</strong></p>
-          <p class="tsh-sub">The availability grid, quick-book flow and confirmation receipt land in the next release. Check back soon — your society already has EV Charging turned on.</p>
+        <div class="tsh-ev-book-toolbar">
+          <label class="tsh-ev-date-picker">
+            <span>Date</span>
+            <input type="date" id="evDate" />
+          </label>
+          <div class="tsh-ev-legend" aria-hidden="true">
+            <span class="tsh-ev-legend-item"><span class="tsh-ev-legend-swatch tsh-ev-swatch-free"></span> Free</span>
+            <span class="tsh-ev-legend-item"><span class="tsh-ev-legend-swatch tsh-ev-swatch-selected"></span> Selected</span>
+            <span class="tsh-ev-legend-item"><span class="tsh-ev-legend-swatch tsh-ev-swatch-booked"></span> Booked</span>
+          </div>
         </div>
+        <div id="evGridStatus" class="tsh-sub" aria-live="polite">Loading availability…</div>
+        <div id="evSlotGrid" class="tsh-ev-grid" role="grid" aria-label="Available charging slots"></div>
+        <form id="evBookForm" class="tsh-ev-book-form" hidden>
+          <div class="tsh-ev-book-summary" id="evBookSummary"></div>
+          <div class="tsh-ev-book-fields">
+            <label>
+              <span>Flat / Unit <span class="tsh-req">*</span></span>
+              <input type="text" id="evOwnerFlat" required maxlength="20" placeholder="e.g. A-101" />
+            </label>
+            <label>
+              <span>Your name</span>
+              <input type="text" id="evOwnerName" maxlength="80" placeholder="Optional — defaults to your profile" />
+            </label>
+            <label class="tsh-ev-book-notes">
+              <span>Notes</span>
+              <textarea id="evNotes" maxlength="280" rows="2" placeholder="Optional context for the manager"></textarea>
+            </label>
+          </div>
+          <div class="tsh-ev-book-actions">
+            <button type="button" class="tsh-btn tsh-btn-ghost" id="evBookCancel">Clear</button>
+            <button type="submit" class="tsh-btn tsh-btn-primary" id="evBookSubmit"><i class="fas fa-calendar-check"></i> Book slot</button>
+          </div>
+        </form>
       </section>
 
-      <!-- HISTORY panel: Phase 2 placeholder. -->
+      <!-- HISTORY panel (Phase 2): your bookings, newest first. Cancel-able
+           while pending/confirmed. -->
       <section class="tsh-ev-tab-panel" data-ev-panel="history" data-tsh-ev-sub="booking" hidden>
-        <div class="tsh-ev-placeholder">
-          <i class="fas fa-clock-rotate-left"></i>
-          <p><strong>Your booking history will appear here.</strong></p>
-          <p class="tsh-sub">Phase 2 wires this to the /ev/bookings endpoint.</p>
-        </div>
+        <div id="evHistoryStatus" class="tsh-sub" aria-live="polite">Loading your bookings…</div>
+        <ul id="evHistoryList" class="tsh-ev-hist-list"></ul>
       </section>
 
       <!-- RFID panel: Phase 6. -->
@@ -140,7 +165,7 @@
   <script src="./assets/js/flags.js?v=19"></script>
   <script src="./assets/js/ui.js?v=53"></script>
   <script src="./assets/js/mobile-landing.js?v=9"></script>
-  <script src="./assets/js/ev-charging.js?v=1"></script>
+  <script src="./assets/js/ev-charging.js?v=2"></script>
   <script>
   (async () => {
     await Partials.mount();

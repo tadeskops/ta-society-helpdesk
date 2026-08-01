@@ -1,4 +1,4 @@
-// Smoke tests for the /ev/* routes (Phase 1: /ev/config only).
+// Smoke tests for the /ev/* routes (Phase 1: /ev/config, Phase 2: booking core).
 // See tsh_requirement.md §23.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -17,10 +17,24 @@ vi.mock('../src/auth/jwt.ts', () => ({
 let featureOverrides: Record<string, boolean> = {};
 let systemOverrides: Record<string, unknown> = {};
 
+// In-memory fake for GitHub Contents API so Phase 2 tests can round-trip
+// bookings between POST → GET without the underlying getFile/putFile mocks
+// dropping the state.
+const files = new Map<string, { sha: string; content: string }>();
+let putCount = 0;
+
 vi.mock('../src/github/client.ts', () => ({
-  getFile:      vi.fn(async () => undefined),
+  getFile: vi.fn(async (_env: any, path: string) => {
+    const f = files.get(path);
+    if (!f) return undefined;
+    return { sha: f.sha, content: f.content, encoding: 'utf-8' as const };
+  }),
   getJson:      vi.fn(async () => undefined),
-  putFile:      vi.fn(async () => ({ sha: 'sha-x' })),
+  putFile:      vi.fn(async (_env: any, path: string, content: string) => {
+    putCount++;
+    files.set(path, { sha: `sha-${putCount}`, content });
+    return { sha: `sha-${putCount}` };
+  }),
   appendToFile: vi.fn(async () => undefined),
   putBinaryB64: vi.fn(async () => ({ sha: 'sha-x' })),
   createIssue:  vi.fn(),
@@ -54,7 +68,7 @@ vi.mock('../src/config/loader.ts', async () => {
         treasurer:   ['tres@x.com'],
         chairman:    [],
         secretary:   [],
-        contributor: ['contrib@x.com'],
+        contributor: [],
       },
     })),
     invalidateCache: vi.fn(),
@@ -62,6 +76,7 @@ vi.mock('../src/config/loader.ts', async () => {
 });
 
 import worker from '../src/index.ts';
+import { _resetEvChargingCachesForTests } from '../src/routes/ev-charging.ts';
 
 const env = {
   GH_OWNER: 'tadeskops',
@@ -89,12 +104,15 @@ const send = (method: string, path: string, body?: any, identity?: string) => {
 beforeEach(() => {
   featureOverrides = {};
   systemOverrides = {};
+  files.clear();
+  putCount = 0;
+  _resetEvChargingCachesForTests();
 });
 
 describe('GET /ev/config — master flag', () => {
   it('returns feature-disabled (503) when FEATURE_TSH_EV_CHARGING is OFF', async () => {
     // Master defaults off; leave overrides empty.
-    const r = await send('GET', '/ev/config', undefined, 'contrib@x.com');
+    const r = await send('GET', '/ev/config', undefined, 'resident1@x.com');
     expect(r.status).toBe(503);
     const j = await r.json() as any;
     expect(j.ok).toBe(false);
@@ -111,7 +129,7 @@ describe('GET /ev/config — master flag', () => {
 
   it('returns the ev block to any signed-in user when master flag is ON', async () => {
     featureOverrides = { FEATURE_TSH_EV_CHARGING: true };
-    const r = await send('GET', '/ev/config', undefined, 'contrib@x.com');
+    const r = await send('GET', '/ev/config', undefined, 'resident1@x.com');
     expect(r.status).toBe(200);
     const j = await r.json() as any;
     expect(j.ok).toBe(true);
@@ -171,7 +189,7 @@ describe('GET /ev/config — site.json overrides', () => {
         reports: { template: '', mirrorCron: 'weekly' },
       },
     };
-    const r = await send('GET', '/ev/config', undefined, 'contrib@x.com');
+    const r = await send('GET', '/ev/config', undefined, 'resident1@x.com');
     const { data } = await r.json() as any;
     expect(data.station.name).toBe('Tower A Charger');
     expect(data.station.capacityKw).toBe(11);
@@ -179,5 +197,241 @@ describe('GET /ev/config — site.json overrides', () => {
     expect(data.faqs).toEqual([{ q: 'How to book?', a: 'Use the grid.' }]);
     expect(data.helpline.directoryEntryId).toBe('dir-42');
     expect(data.reports.mirrorCron).toBe('weekly');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 2 — booking core (§23.4). Tests below assume master flag ON and
+// FEATURE_TSH_EV_BOOKING at its DEFAULT_CONFIG value (on).
+// ---------------------------------------------------------------------------
+
+const dayMs = 24 * 60 * 60 * 1000;
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+const istDate = (offsetDays = 0): string => {
+  const t = new Date(Date.now() + IST_OFFSET_MS + offsetDays * dayMs);
+  const y = t.getUTCFullYear();
+  const m = String(t.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(t.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
+describe('GET /ev/availability', () => {
+  it('returns feature-disabled (503) when the master flag is OFF', async () => {
+    const r = await send('GET', '/ev/availability', undefined, 'resident1@x.com');
+    expect(r.status).toBe(503);
+  });
+
+  it('returns feature-disabled (503) when only FEATURE_TSH_EV_BOOKING is OFF', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true, FEATURE_TSH_EV_BOOKING: false };
+    const r = await send('GET', '/ev/availability', undefined, 'resident1@x.com');
+    expect(r.status).toBe(503);
+    const j = await r.json() as any;
+    expect(String(j.error)).toContain('FEATURE_TSH_EV_BOOKING');
+  });
+
+  it('requires sign-in (401 for anonymous)', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true };
+    const r = await send('GET', '/ev/availability');
+    expect(r.status).toBe(401);
+  });
+
+  it('renders a per-day slot grid when the flag is ON', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true };
+    const date = istDate(1);
+    const r = await send('GET', `/ev/availability?from=${date}&to=${date}`, undefined, 'resident1@x.com');
+    expect(r.status).toBe(200);
+    const { data } = await r.json() as any;
+    expect(data.days).toHaveLength(1);
+    expect(data.days[0].date).toBe(date);
+    // Default policy: 06:00-23:00 in 30-min steps = 34 slots.
+    expect(data.days[0].slots.length).toBe(34);
+    expect(data.days[0].slots.every((s: any) => s.booked === false)).toBe(true);
+    expect(data.policy.stepMinutes).toBe(30);
+  });
+
+  it('rejects a range larger than the availability window', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true };
+    const from = istDate(0);
+    const to   = istDate(30);
+    const r = await send('GET', `/ev/availability?from=${from}&to=${to}`, undefined, 'resident1@x.com');
+    expect(r.status).toBe(400);
+  });
+});
+
+describe('POST /ev/bookings — happy path & guardrails', () => {
+  const validBody = (overrides: Record<string, unknown> = {}) => ({
+    date: istDate(1),
+    startMin: 9 * 60,   // 09:00
+    endMin: 10 * 60,    // 10:00 (1h → within min/max, aligned to 30-min step)
+    ownerFlat: 'A-101',
+    ownerName: 'Test Resident',
+    ...overrides,
+  });
+
+  it('creates a booking with status=confirmed when requiresApproval is false', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true };
+    const r = await send('POST', '/ev/bookings', validBody(), 'resident1@x.com');
+    expect(r.status).toBe(200);
+    const { data } = await r.json() as any;
+    expect(data.item.status).toBe('confirmed');
+    expect(data.item.owner.email).toBe('resident1@x.com');
+    expect(data.item.owner.flat).toBe('A-101');
+    expect(data.item.stationId).toBe('ev-1');
+    expect(data.item.id).toMatch(/^EV-\d{10}(-\d+)?$/);
+  });
+
+  it('blocks a conflicting slot on the same station/day', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true };
+    const first = await send('POST', '/ev/bookings', validBody(), 'resident1@x.com');
+    expect(first.status).toBe(200);
+    const second = await send('POST', '/ev/bookings', validBody({ ownerFlat: 'B-202' }), 'mgr@x.com');
+    expect(second.status).toBe(400);
+    const j = await second.json() as any;
+    expect(String(j.error)).toContain('conflicts');
+  });
+
+  it('enforces the maxActivePerFlat quota', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true };
+    // First booking OK.
+    const first = await send('POST', '/ev/bookings', validBody(), 'resident1@x.com');
+    expect(first.status).toBe(200);
+    // Second booking, different day, same flat → hits maxActivePerFlat=1.
+    const second = await send('POST', '/ev/bookings', validBody({ date: istDate(2) }), 'resident1@x.com');
+    expect(second.status).toBe(400);
+    const j = await second.json() as any;
+    expect(String(j.error)).toContain('active booking');
+  });
+
+  it('rejects a booking that spans past close-time', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true };
+    const r = await send('POST', '/ev/bookings', validBody({
+      startMin: 23 * 60,
+      endMin:   24 * 60,   // beyond default closeMin=23:00
+    }), 'resident1@x.com');
+    expect(r.status).toBe(400);
+  });
+
+  it('rejects a date beyond the advance window', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true };
+    const r = await send('POST', '/ev/bookings', validBody({ date: istDate(30) }), 'resident1@x.com');
+    expect(r.status).toBe(400);
+    const j = await r.json() as any;
+    expect(String(j.error)).toContain('advance-booking window');
+  });
+
+  it('rejects a blacked-out date', async () => {
+    const black = istDate(2);
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true };
+    systemOverrides = { ev: { booking: {
+      stepMinutes: 30, minDurationMinutes: 30, maxDurationMinutes: 180,
+      bufferMinutes: 5, advanceWindowDays: 7, maxActivePerFlat: 1,
+      openMin: 360, closeMin: 1380, requiresApproval: false,
+      blackoutDates: [black],
+    }}};
+    const r = await send('POST', '/ev/bookings', validBody({ date: black }), 'resident1@x.com');
+    expect(r.status).toBe(400);
+    const j = await r.json() as any;
+    expect(String(j.error)).toContain('blacked out');
+  });
+
+  it('creates PENDING when requiresApproval=true', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true };
+    systemOverrides = { ev: { booking: {
+      stepMinutes: 30, minDurationMinutes: 30, maxDurationMinutes: 180,
+      bufferMinutes: 5, advanceWindowDays: 7, maxActivePerFlat: 1,
+      openMin: 360, closeMin: 1380, requiresApproval: true, blackoutDates: [],
+    }}};
+    const r = await send('POST', '/ev/bookings', validBody(), 'resident1@x.com');
+    expect(r.status).toBe(200);
+    const { data } = await r.json() as any;
+    expect(data.item.status).toBe('pending');
+  });
+});
+
+describe('GET /ev/bookings — scope resolution', () => {
+  it('resident sees only their own bookings under scope=own', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true };
+    await send('POST', '/ev/bookings', { date: istDate(1), startMin: 9*60, endMin: 10*60, ownerFlat: 'A-1' }, 'resident1@x.com');
+    await send('POST', '/ev/bookings', { date: istDate(1), startMin: 11*60, endMin: 12*60, ownerFlat: 'B-2' }, 'mgr@x.com');
+    const r = await send('GET', '/ev/bookings?scope=own', undefined, 'resident1@x.com');
+    expect(r.status).toBe(200);
+    const { data } = await r.json() as any;
+    expect(data.items).toHaveLength(1);
+    expect(data.items[0].owner.email).toBe('resident1@x.com');
+  });
+
+  it('resident is forbidden (403) from scope=all', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true };
+    const r = await send('GET', '/ev/bookings?scope=all', undefined, 'resident1@x.com');
+    expect(r.status).toBe(403);
+  });
+
+  it('manager can list every booking under scope=all', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true };
+    await send('POST', '/ev/bookings', { date: istDate(1), startMin: 9*60, endMin: 10*60, ownerFlat: 'A-1' }, 'resident1@x.com');
+    await send('POST', '/ev/bookings', { date: istDate(1), startMin: 11*60, endMin: 12*60, ownerFlat: 'B-2' }, 'mgr@x.com');
+    const r = await send('GET', '/ev/bookings?scope=all', undefined, 'mgr@x.com');
+    expect(r.status).toBe(200);
+    const { data } = await r.json() as any;
+    expect(data.items.length).toBe(2);
+  });
+});
+
+describe('PATCH /ev/bookings/:id — status transitions', () => {
+  it('owner can cancel their own confirmed booking', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true };
+    const created = await send('POST', '/ev/bookings', {
+      date: istDate(1), startMin: 9*60, endMin: 10*60, ownerFlat: 'A-1',
+    }, 'resident1@x.com');
+    const { data: cData } = await created.json() as any;
+    const id = cData.item.id;
+    const r = await send('PATCH', `/ev/bookings/${id}`, { status: 'cancelled', reason: 'not needed' }, 'resident1@x.com');
+    expect(r.status).toBe(200);
+    const { data } = await r.json() as any;
+    expect(data.item.status).toBe('cancelled');
+    expect(data.item.cancelReason).toBe('not needed');
+    expect(data.item.cancelledBy).toBe('resident1@x.com');
+  });
+
+  it('owner cannot mark their own booking as completed (staff-only transition)', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true };
+    const created = await send('POST', '/ev/bookings', {
+      date: istDate(1), startMin: 9*60, endMin: 10*60, ownerFlat: 'A-1',
+    }, 'resident1@x.com');
+    const { data: cData } = await created.json() as any;
+    const id = cData.item.id;
+    const r = await send('PATCH', `/ev/bookings/${id}`, { status: 'completed' }, 'resident1@x.com');
+    expect(r.status).toBe(403);
+  });
+
+  it('non-owner resident cannot cancel someone elses booking', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true };
+    const created = await send('POST', '/ev/bookings', {
+      date: istDate(1), startMin: 9*60, endMin: 10*60, ownerFlat: 'A-1',
+    }, 'resident1@x.com');
+    const { data: cData } = await created.json() as any;
+    const id = cData.item.id;
+    // A different contributor tries to cancel — same role, not owner.
+    const r = await send('PATCH', `/ev/bookings/${id}`, { status: 'cancelled' }, 'other@x.com');
+    expect(r.status).toBe(403);
+  });
+
+  it('manager can approve a PENDING booking to CONFIRMED', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true };
+    systemOverrides = { ev: { booking: {
+      stepMinutes: 30, minDurationMinutes: 30, maxDurationMinutes: 180,
+      bufferMinutes: 5, advanceWindowDays: 7, maxActivePerFlat: 1,
+      openMin: 360, closeMin: 1380, requiresApproval: true, blackoutDates: [],
+    }}};
+    const created = await send('POST', '/ev/bookings', {
+      date: istDate(1), startMin: 9*60, endMin: 10*60, ownerFlat: 'A-1',
+    }, 'resident1@x.com');
+    const { data: cData } = await created.json() as any;
+    expect(cData.item.status).toBe('pending');
+    const id = cData.item.id;
+    const r = await send('PATCH', `/ev/bookings/${id}`, { status: 'confirmed' }, 'mgr@x.com');
+    expect(r.status).toBe(200);
+    const { data } = await r.json() as any;
+    expect(data.item.status).toBe('confirmed');
   });
 });
