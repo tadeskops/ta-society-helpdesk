@@ -581,6 +581,38 @@
     await Auth.init({ clientId: window.TSH_GOOGLE_CLIENT_ID });
     UI.bindHeader();
 
+    // Anonymous visitor short-circuit: show a clear "Sign in required"
+    // card BEFORE we await Flags.ready() / ensureFeature. That way even
+    // if /config is slow or blocked, the user immediately sees why the
+    // page is blank and where to click to sign in — instead of staring
+    // at a search box that can't work until they authenticate.
+    if (!(window.Auth && Auth.token && Auth.token())) {
+      const mainEl = document.querySelector('main') || document.body;
+      mainEl.innerHTML =
+        '<section class="tsh-card" style="max-width:560px;margin:8vh auto;text-align:center;">' +
+        '  <header class="tsh-card-head"><h1><i class="fas fa-lock gold-accent"></i> Sign in required</h1></header>' +
+        '  <p class="tsh-sub">The <strong>Vehicle Registry</strong> is available to signed-in residents and society reps.</p>' +
+        '  <p class="tsh-sub">' +
+        '    <i class="fas fa-arrow-up-right-from-square gold-accent" aria-hidden="true"></i> ' +
+        '    Use the <strong>Sign in</strong> button in the <strong>top-right</strong> corner to continue.' +
+        '  </p>' +
+        '  <div class="tsh-toolbar" style="justify-content:center;margin-top:1rem;gap:.5rem;">' +
+        '    <a class="tsh-btn tsh-btn-ghost" href="./index.html"><i class="fas fa-house"></i> Home</a>' +
+        '  </div>' +
+        '</section>';
+      // Reload as soon as the user signs in via the header button so
+      // the page re-runs its bootstrap and lands them on the real UI.
+      if (window.Auth && typeof Auth.onChange === 'function') {
+        const off = Auth.onChange((s) => {
+          if (s && s.signedIn) {
+            try { off && off(); } catch (_e) { /* ignore */ }
+            location.reload();
+          }
+        });
+      }
+      return;
+    }
+
     // Page-level guards: feature flag + sign-in. The server also enforces
     // both on every /vehicles call, but rendering the gate client-side is
     // faster than round-tripping only to be redirected.
