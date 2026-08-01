@@ -685,13 +685,18 @@
     function renderResult(res, query) {
       if (!res) { resultEl.hidden = true; resultEl.innerHTML = ''; return; }
       if (res.kind === 'none') {
+        // Standard app-wide "empty state" pattern (matches directory.html
+        // and other feature pages). Title tells the user what happened,
+        // message echoes the query and gives them the next step.
         resultEl.innerHTML =
-          '<div class="veh-result-top">' +
-            '<div class="veh-result-icon"><i class="fas fa-circle-question" aria-hidden="true"></i></div>' +
-            '<div><div class="veh-result-headline veh-nomatch">No match</div>' +
-            '<div class="veh-result-sub">No vehicle or flat matched &ldquo;' + esc(query) + '&rdquo;.</div></div>' +
-          '</div>' +
-          '<div class="veh-result-sub">Ask a manager to add it, or double-check the number.</div>';
+          '<div class="tsh-state tsh-state-empty">' +
+            '<i class="tsh-state-icon fas fa-magnifying-glass" aria-hidden="true"></i>' +
+            '<p class="tsh-state-title">No entry found</p>' +
+            '<p class="tsh-state-msg">' +
+              'No vehicle or flat matched &ldquo;<strong>' + esc(query) + '</strong>&rdquo;. ' +
+              'Check the number and try again, or ask a manager to add it to the registry.' +
+            '</p>' +
+          '</div>';
         resultEl.hidden = false;
         return;
       }
