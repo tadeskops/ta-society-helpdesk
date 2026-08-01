@@ -66,6 +66,10 @@
       font-size: .8em; margin: 0 2px;
     }
     body:not(.veh-mode-resident) .veh-hint { display: none; }
+    /* Keep the search UI uniform across roles: hide the resident-only
+       keyboard-shortcut hint and quick-link chips so both the admin
+       and resident cards render exactly the same search block. */
+    .veh-hint { display: none; }
     /* Suppress the role-hint slot when it hasn't been populated yet
        (anonymous visitor before /whoami resolves). Avoids a stray gap
        under the H1. updateRoleHint() writes text for signed-in users. */
@@ -84,6 +88,7 @@
       color: var(--tsh-text, #223); border-color: var(--tsh-accent, #b48a3c);
     }
     body:not(.veh-mode-resident) .veh-quick-links { display: none; }
+    .veh-quick-links { display: none; }
 
     /* ------- Resident (read-only) write-UI suppression --------------
        Residents now get the tower grid + flat detail view so they can
