@@ -262,6 +262,63 @@
     }
     .veh-parking-chip i { font-size: .72rem; }
 
+    /* Flat-level parking row shown in the drawer header, under the
+       "Flat B905" title. Renders either the assigned bay chip + edit
+       button, an "Add Parking No." trigger, or an inline edit form.
+       Editors get the action buttons; residents just see the chip. */
+    .veh-flat-parking {
+      display: flex; flex-wrap: wrap; align-items: center; gap: .5rem;
+      margin: .1rem 0 .3rem;
+      font-size: .88rem;
+      color: var(--tsh-muted, #667);
+    }
+    .veh-flat-parking-label { font-weight: 500; }
+    .veh-flat-parking-add {
+      display: inline-flex; align-items: center; gap: .35rem;
+      background: transparent; border: 1px dashed rgba(74, 144, 226, .55);
+      color: #2a5687; padding: .18rem .6rem; border-radius: 999px;
+      font: inherit; font-size: .78rem; font-weight: 600;
+      cursor: pointer; letter-spacing: .02em;
+    }
+    .veh-flat-parking-add:hover { background: rgba(74, 144, 226, .08); }
+    .veh-flat-parking-edit {
+      background: transparent; border: 0; padding: .1rem .35rem;
+      color: var(--tsh-muted, #667); cursor: pointer; font: inherit;
+      font-size: .78rem;
+    }
+    .veh-flat-parking-edit:hover { color: var(--tsh-accent-dark, #6f5320); }
+    .veh-flat-parking-form {
+      display: flex; flex-wrap: wrap; align-items: center; gap: .35rem;
+    }
+    .veh-flat-parking-form input {
+      font: inherit; font-size: .85rem;
+      padding: .28rem .55rem; border-radius: 6px;
+      border: 1px solid var(--tsh-border, #d5d7e0);
+      background: var(--tsh-surface, #fff);
+      color: var(--tsh-text, #223);
+      text-transform: uppercase; letter-spacing: .04em;
+      width: 8.5rem; max-width: 60vw;
+    }
+    .veh-flat-parking-form button {
+      font: inherit; font-size: .8rem; font-weight: 600;
+      padding: .28rem .7rem; border-radius: 6px;
+      border: 1px solid transparent; cursor: pointer;
+    }
+    .veh-flat-parking-form button[data-act="save"] {
+      background: var(--tsh-accent, #b48a3c); color: #fff;
+    }
+    .veh-flat-parking-form button[data-act="cancel"] {
+      background: transparent; color: var(--tsh-muted, #667);
+      border-color: var(--tsh-border, #d5d7e0);
+    }
+    .veh-flat-parking-form button[data-act="clear"] {
+      background: transparent; color: #b02a2a;
+      border-color: rgba(176, 42, 42, .4);
+    }
+    body.tsh-tone-dark .veh-flat-parking { color: #c9c1ad; }
+    body.tsh-tone-dark .veh-flat-parking-add { color: #92b5e0; border-color: rgba(146, 181, 224, .55); }
+    body.tsh-tone-dark .veh-flat-parking-form input { background: #2a2a2a; color: #f0e6d2; border-color: rgba(180, 138, 60, .35); }
+
     /* Small "section" heading used above the add form inside the flat
        drawer. Reads as a natural continuation of the vehicle list. */
     .veh-add-heading {
@@ -339,16 +396,17 @@
       color: #e6c78a; border-color: rgba(180, 138, 60, .55);
     }
 
-    /* Trio row inside .veh-form-grid: three short attribute fields
-       (Type / Parking No. / Vehicle Sticker No.) share one row on
-       roomy drawers and stack cleanly on very narrow ones. */
+    /* Duo row inside .veh-form-grid: two short attribute fields
+       (Type / Vehicle Sticker No.) share one row on roomy drawers and
+       stack cleanly on very narrow ones. Parking No. is a flat-level
+       property, not a per-vehicle one, so it lives in the drawer header
+       above the vehicle list, not in this form. */
     .veh-form-trio {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: .95rem .8rem;
       align-items: end;
     }
-    @media (max-width: 520px) { .veh-form-trio { grid-template-columns: 1fr 1fr; } }
     @media (max-width: 380px) { .veh-form-trio { grid-template-columns: 1fr; } }
 
     .veh-actions { display: flex; gap: .3rem; }
@@ -945,6 +1003,10 @@
     let canWrite = false;
     let editorRoles = [];
     let towerLayouts = null; // { A: { floors:13, unitsPerFloor:4 }, ... } from GET /vehicles
+    // Per-flat parking bay assignments, e.g. { "B905": "P-104" }. Kept on
+    // the server as VehicleFile.flatParking so a flat can hold a parking
+    // slot without any vehicles yet.
+    let flatParking = {};
     let index = new Map();
 
     const normReg = (raw) => String(raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -960,11 +1022,106 @@
       canWrite = !!data.canWrite;
       editorRoles = Array.isArray(data.editorRoles) ? data.editorRoles : [];
       towerLayouts = (data && typeof data.towerLayouts === 'object' && data.towerLayouts) ? data.towerLayouts : null;
+      flatParking = (data && typeof data.flatParking === 'object' && data.flatParking) ? data.flatParking : {};
       rebuildIndex();
       renderManage();
       // Keep any live search in sync.
       const q = document.getElementById('vehSearch').value;
       if (q) doSearch(q);
+    }
+
+    // Look up the parking bay assigned to a flat.
+    //   1) Prefer the explicit flatParking map (server v2).
+    //   2) Fall back to the first non-empty parkingNo on any vehicle in
+    //      that flat (legacy data written before flat-parking existed).
+    // Returns '' when no assignment can be found.
+    function getFlatParking(flat) {
+      if (!flat) return '';
+      const direct = flatParking && flatParking[flat];
+      if (direct) return String(direct).toUpperCase();
+      for (const v of vehicles) {
+        if (v.flat === flat && v.parkingNo) return String(v.parkingNo).toUpperCase();
+      }
+      return '';
+    }
+
+    // Replace the parking row in the drawer header with an inline
+    // edit form. `current` is pre-filled so editors can adjust the
+    // existing bay label without retyping it from scratch.
+    function openFlatParkingEditor(current) {
+      const row = document.getElementById('vehFlatParkingRow');
+      if (!row) return;
+      const val = esc(current || '');
+      const clearBtn = current
+        ? '<button type="button" data-act="clear" id="vehFlatParkingClear" title="Remove parking assignment">Clear</button>'
+        : '';
+      row.innerHTML =
+        '<span class="veh-flat-parking-label">Parking:</span>' +
+        '<div class="veh-flat-parking-form" role="group" aria-label="Edit parking number">' +
+          '<input id="vehFlatParkingInput" type="text" value="' + val + '" ' +
+                 'placeholder="P-104" maxlength="20" autocomplete="off" />' +
+          '<button type="button" data-act="save" id="vehFlatParkingSave"><i class="fas fa-check"></i> Save</button>' +
+          '<button type="button" data-act="cancel" id="vehFlatParkingCancel">Cancel</button>' +
+          clearBtn +
+        '</div>';
+      const input = document.getElementById('vehFlatParkingInput');
+      if (input) {
+        // Uppercase as the user types (matches the sticker/reg fields).
+        input.addEventListener('input', () => {
+          const p = input.selectionStart;
+          input.value = input.value.toUpperCase();
+          try { input.setSelectionRange(p, p); } catch (_x) { /* ignore */ }
+        });
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') { e.preventDefault(); commitFlatParking(input); }
+          else if (e.key === 'Escape') { e.preventDefault(); renderFlatDetail(); }
+        });
+        input.focus();
+        input.select();
+      }
+    }
+
+    // Trim + validate the inline input, then delegate to saveFlatParking.
+    async function commitFlatParking(input) {
+      if (!input) return;
+      const val = input.value.trim().toUpperCase();
+      if (val.length > 20) {
+        UI.toast('Parking No. must be 20 characters or fewer.', { kind: 'danger' });
+        return;
+      }
+      await saveFlatParking(val);
+    }
+
+    // PUT /vehicles/flat-parking with { flat, parkingNo }. Empty string
+    // clears the assignment. On success, refresh the whole registry so
+    // the header + all cached derivations pick up the new value.
+    async function saveFlatParking(parkingNo) {
+      if (!selectedFlat) return;
+      const saveBtn = document.getElementById('vehFlatParkingSave');
+      const doIt = async () => {
+        try {
+          await Api.put('/vehicles/flat-parking', { flat: selectedFlat, parkingNo });
+          // Optimistically patch the local map so the re-render below
+          // uses the new value even before load() finishes.
+          if (parkingNo) flatParking[selectedFlat] = parkingNo;
+          else delete flatParking[selectedFlat];
+          UI.toast(parkingNo
+            ? 'Parking No. updated for Flat ' + selectedFlat + '.'
+            : 'Parking No. cleared for Flat ' + selectedFlat + '.',
+            { kind: 'success' });
+          await load();
+        } catch (err) {
+          UI.toast(err.message || 'Could not update parking number.', { kind: 'danger' });
+          // Restore the original row so the user doesn't lose their
+          // context if the request fails.
+          renderFlatDetail();
+        }
+      };
+      if (saveBtn && window.UI && typeof UI.busyButton === 'function') {
+        await UI.busyButton(saveBtn, doIt, { label: 'Saving…' });
+      } else {
+        await doIt();
+      }
     }
 
     // -----------------------------------------------------------------
@@ -1587,9 +1744,6 @@
     function renderRowRead(v) {
       const emailsTxt = Array.isArray(v.emails) && v.emails.length ? v.emails.join(', ') : '';
       const parts = [];
-      if (v.parkingNo) {
-        parts.push('<span class="veh-parking-chip" title="Parking No."><i class="fas fa-square-parking" aria-hidden="true"></i>' + esc(v.parkingNo) + '</span>');
-      }
       if (v.sticker) {
         parts.push('<span class="veh-sticker-chip" title="Vehicle Sticker No."><i class="fas fa-id-badge" aria-hidden="true"></i>' + esc(v.sticker) + '</span>');
       }
@@ -1597,7 +1751,7 @@
         parts.push('<span class="veh-comments">' + esc(v.comments) + '</span>');
       }
       if (!parts.length) {
-        parts.push('<span class="veh-empty-dash">No parking, sticker or notes yet</span>');
+        parts.push('<span class="veh-empty-dash">No sticker or notes yet</span>');
       }
       const emailsHtml = emailsTxt
         ? '<div class="veh-emails"><i class="fas fa-envelope" aria-hidden="true"></i>' +
@@ -1642,17 +1796,13 @@
               '</select>' +
             '</div>' +
             '<div class="tsh-field">' +
-              '<label for="vehEditParking">Parking No.</label>' +
-              '<input id="vehEditParking" name="parkingNo" value="' + esc(v.parkingNo || '') + '" placeholder="P-104" maxlength="20" style="text-transform:uppercase" />' +
-            '</div>' +
-            '<div class="tsh-field">' +
               '<label for="vehEditSticker">Vehicle Sticker No.</label>' +
-              '<input id="vehEditSticker" name="sticker" value="' + esc(v.sticker || '') + '" placeholder="S-22" maxlength="20" style="text-transform:uppercase" />' +
+              '<input id="vehEditSticker" name="sticker" value="' + esc(v.sticker || '') + '" placeholder="" maxlength="20" style="text-transform:uppercase" />' +
             '</div>' +
           '</div>' +
           '<div class="tsh-field veh-full">' +
             '<label for="vehEditComments">Comments</label>' +
-            '<input id="vehEditComments" name="comments" value="' + esc(v.comments || '') + '" placeholder="White Honda City" maxlength="200" />' +
+            '<input id="vehEditComments" name="comments" value="' + esc(v.comments || '') + '" placeholder="Mention Vehicle name here (optional)" maxlength="200" />' +
           '</div>' +
           '<div class="tsh-field veh-full">' +
             '<label for="vehEditEmails">Owner emails (optional, comma-separated, up to 5)</label>' +
@@ -1665,7 +1815,6 @@
         if (!form) return;
         const newReg = form.querySelector('#vehEditReg').value.trim().toUpperCase();
         const newType = form.querySelector('#vehEditType').value;
-        const newParking = form.querySelector('#vehEditParking').value.trim().toUpperCase();
         const newSticker = form.querySelector('#vehEditSticker').value.trim().toUpperCase();
         const newComments = form.querySelector('#vehEditComments').value.trim();
         const newEmails = parseEmails(form.querySelector('#vehEditEmails').value);
@@ -1681,7 +1830,6 @@
             ...x,
             regNo: newReg,
             type: newType,
-            parkingNo: newParking,
             sticker: newSticker,
             comments: newComments,
             emails: newEmails,
@@ -1716,7 +1864,6 @@
             });
           };
           upper(ctrl.body.querySelector('#vehEditReg'));
-          upper(ctrl.body.querySelector('#vehEditParking'));
           upper(ctrl.body.querySelector('#vehEditSticker'));
           // Submit via Enter on the form fires the "save" action.
           const form = ctrl.getForm();
@@ -1735,6 +1882,31 @@
       const listHtml = rows.length
         ? rows.map(renderRowRead).join('')
         : '<p class="veh-flat-empty">No vehicles registered for this flat yet. Add the first one below.</p>';
+      const parking = getFlatParking(selectedFlat);
+      // Parking row: chip + edit for editors, plain chip for residents,
+      // "Add Parking No." trigger when unassigned + user can write.
+      let parkingHtml = '';
+      if (parking) {
+        parkingHtml =
+          '<div class="veh-flat-parking" id="vehFlatParkingRow">' +
+            '<span class="veh-flat-parking-label">Parking:</span>' +
+            '<span class="veh-parking-chip" title="Parking No.">' +
+              '<i class="fas fa-square-parking" aria-hidden="true"></i>' + esc(parking) +
+            '</span>' +
+            (canWrite
+              ? '<button type="button" class="veh-flat-parking-edit" id="vehFlatParkingEdit" title="Edit parking number">' +
+                  '<i class="fas fa-pen-to-square" aria-hidden="true"></i> Edit' +
+                '</button>'
+              : '') +
+          '</div>';
+      } else if (canWrite) {
+        parkingHtml =
+          '<div class="veh-flat-parking" id="vehFlatParkingRow">' +
+            '<button type="button" class="veh-flat-parking-add" id="vehFlatParkingAdd">' +
+              '<i class="fas fa-square-parking" aria-hidden="true"></i> Add Parking No.' +
+            '</button>' +
+          '</div>';
+      }
       detailEl.innerHTML =
         '<div class="veh-flat-detail-head">' +
           '<h3><i class="fas fa-house-chimney gold-accent"></i> Flat ' + esc(selectedFlat) +
@@ -1742,6 +1914,7 @@
           '<button type="button" class="tsh-btn tsh-btn-ghost tsh-btn-sm" id="vehDetailClose">' +
           '<i class="fas fa-xmark"></i> Close</button>' +
         '</div>' +
+        parkingHtml +
         '<div class="veh-list" id="vehDetailList">' + listHtml + '</div>' +
         '<button type="button" class="veh-add-trigger" id="vehDetailAddToggle" aria-expanded="false" aria-controls="vehDetailAddBox">' +
           '<i class="fas fa-circle-plus" aria-hidden="true"></i>' +
@@ -1771,17 +1944,13 @@
                 '</select>' +
               '</div>' +
               '<div class="tsh-field">' +
-                '<label for="vehDetailParking">Parking No.</label>' +
-                '<input id="vehDetailParking" placeholder="P-104" maxlength="20" style="text-transform:uppercase" />' +
-              '</div>' +
-              '<div class="tsh-field">' +
                 '<label for="vehDetailSticker">Vehicle Sticker No.</label>' +
-                '<input id="vehDetailSticker" placeholder="S-22" maxlength="20" style="text-transform:uppercase" />' +
+                '<input id="vehDetailSticker" placeholder="" maxlength="20" style="text-transform:uppercase" />' +
               '</div>' +
             '</div>' +
             '<div class="tsh-field veh-full">' +
               '<label for="vehDetailComments">Comments</label>' +
-              '<input id="vehDetailComments" placeholder="White Honda City" maxlength="200" />' +
+              '<input id="vehDetailComments" placeholder="Mention Vehicle name here (optional)" maxlength="200" />' +
             '</div>' +
             '<div class="tsh-field veh-full">' +
               '<label for="vehDetailEmails">Owner emails (optional, comma-separated, up to 5)</label>' +
@@ -1925,6 +2094,32 @@
       const closeBtn = e.target.closest('#vehDetailClose');
       if (closeBtn) { selectFlat(null); return; }
 
+      // ---- Flat-level Parking No. ------------------------------------
+      // The header row above the vehicle list carries either a chip
+      // ("Parking: P-104" + Edit) or an "Add Parking No." trigger. Both
+      // paths converge on the same inline edit form (input + Save +
+      // Cancel + optional Clear). All server calls hit
+      // PUT /vehicles/flat-parking so the value survives even when the
+      // flat has zero vehicles.
+      const parkingAdd  = e.target.closest('#vehFlatParkingAdd');
+      const parkingEdit = e.target.closest('#vehFlatParkingEdit');
+      if ((parkingAdd || parkingEdit) && canWrite && selectedFlat) {
+        openFlatParkingEditor(getFlatParking(selectedFlat));
+        return;
+      }
+      const parkingSave = e.target.closest('#vehFlatParkingSave');
+      if (parkingSave && canWrite && selectedFlat) {
+        await commitFlatParking(document.getElementById('vehFlatParkingInput'));
+        return;
+      }
+      const parkingCancel = e.target.closest('#vehFlatParkingCancel');
+      if (parkingCancel) { renderFlatDetail(); return; }
+      const parkingClear = e.target.closest('#vehFlatParkingClear');
+      if (parkingClear && canWrite && selectedFlat) {
+        await saveFlatParking('');
+        return;
+      }
+
       // Add-form disclosure: the tinted box is hidden until the trigger
       // is clicked; the small "X" inside the box collapses it back.
       const addToggle = e.target.closest('#vehDetailAddToggle');
@@ -1986,11 +2181,11 @@
 
     // Detail panel: add form submit + case-insensitive typing.
     detailEl.addEventListener('input', (e) => {
-      // Auto-uppercase regNo + parking + sticker as the user types (add
-      // form only — the edit drawer wires its own uppercase handlers).
+      // Auto-uppercase regNo + sticker as the user types (add form only
+      // — the edit drawer wires its own uppercase handlers). Parking No.
+      // is no longer a per-vehicle field; it is set at the flat level.
       if (e.target && (
         e.target.id === 'vehDetailReg' ||
-        e.target.id === 'vehDetailParking' ||
         e.target.id === 'vehDetailSticker'
       )) {
         const p = e.target.selectionStart;
@@ -2005,7 +2200,6 @@
         if (!selectedFlat) { UI.toast('Pick a flat first.', { kind: 'danger' }); return; }
         const regNo = document.getElementById('vehDetailReg').value.trim().toUpperCase();
         const type = document.getElementById('vehDetailType').value;
-        const parkingNo = document.getElementById('vehDetailParking').value.trim().toUpperCase();
         const sticker = document.getElementById('vehDetailSticker').value.trim().toUpperCase();
         const comments = document.getElementById('vehDetailComments').value.trim();
         const emails = parseEmails(document.getElementById('vehDetailEmails').value);
@@ -2018,7 +2212,7 @@
         }
         const btn = document.getElementById('vehDetailAddBtn');
         await UI.busyButton(btn, async () => {
-          const next = vehicles.concat([{ flat: selectedFlat, regNo, type, parkingNo, sticker, comments, emails }]);
+          const next = vehicles.concat([{ flat: selectedFlat, regNo, type, sticker, comments, emails }]);
           try {
             await saveAll(next);
             UI.toast('Vehicle added to ' + selectedFlat + '.', { kind: 'success' });

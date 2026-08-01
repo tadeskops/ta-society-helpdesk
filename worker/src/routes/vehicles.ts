@@ -118,9 +118,15 @@ interface Vehicle {
 interface VehicleFile {
   version: number;
   vehicles: Vehicle[];
+  // Per-flat parking bay assignments. Independent of the vehicles array
+  // so a flat can have a reserved parking slot before any vehicle is
+  // registered (or the parking outlives all its vehicles). Key = flat
+  // code (upper-case, e.g. "B905"), value = bay label (upper-case,
+  // e.g. "P-104"). Empty / missing = unassigned.
+  flatParking?: Record<string, string>;
 }
 
-const EMPTY_FILE: VehicleFile = { version: 1, vehicles: [] };
+const EMPTY_FILE: VehicleFile = { version: 1, vehicles: [], flatParking: {} };
 
 // ---- Cache ------------------------------------------------------------------
 interface Cache { value: VehicleFile; sha?: string; expiresAt: number; }
@@ -135,10 +141,23 @@ const loadFromGithub = async (env: Ctx['env']): Promise<{ value: VehicleFile; sh
   if (!f) return { value: structuredClone(EMPTY_FILE) };
   try {
     const parsed = JSON.parse(f.content) as Partial<VehicleFile>;
+    // Normalise flatParking: only keep string values on string keys,
+    // upper-case both, drop empties. Guards against hand-edited JSON.
+    const rawFP = (parsed as { flatParking?: unknown }).flatParking;
+    const flatParking: Record<string, string> = {};
+    if (isObj(rawFP)) {
+      for (const [k, v] of Object.entries(rawFP as Record<string, unknown>)) {
+        if (typeof k !== 'string' || typeof v !== 'string') continue;
+        const key = k.trim().toUpperCase();
+        const val = v.trim().toUpperCase();
+        if (key && val) flatParking[key] = val;
+      }
+    }
     return {
       value: {
         version: typeof parsed.version === 'number' ? parsed.version : 1,
         vehicles: Array.isArray(parsed.vehicles) ? (parsed.vehicles as Vehicle[]) : [],
+        flatParking,
       },
       sha: f.sha,
     };
@@ -414,6 +433,8 @@ export const mountVehicles = (r: Router): void => {
       // Per-tower floors × unitsPerFloor. Client falls back to
       // 10 × 4 for towers absent from this map.
       towerLayouts,
+      // Per-flat parking bay assignments (independent of vehicles).
+      flatParking: file.flatParking ?? {},
     });
   });
 
@@ -445,7 +466,14 @@ export const mountVehicles = (r: Router): void => {
       if (prev) v.createdAt = prev.createdAt;
     }
 
-    const next: VehicleFile = { version: 1, vehicles: cleaned };
+    const next: VehicleFile = {
+      version: 1,
+      vehicles: cleaned,
+      // Preserve the existing flatParking map — the bulk /vehicles PUT
+      // only replaces the vehicles array. Parking assignments are
+      // maintained via PUT /vehicles/flat-parking.
+      flatParking: existing.flatParking ?? {},
+    };
     const file = await getFile(ctx.env, VEHICLES_PATH);
     const serialised = JSON.stringify(next, null, 2) + '\n';
     await putFile(
@@ -481,6 +509,9 @@ export const mountVehicles = (r: Router): void => {
     const next: VehicleFile = {
       version: existing.version,
       vehicles: existing.vehicles.filter((_, i) => i !== idx),
+      // Preserve the flatParking map on delete — a flat's parking bay
+      // survives even if its last vehicle is removed.
+      flatParking: existing.flatParking ?? {},
     };
     const file = await getFile(ctx.env, VEHICLES_PATH);
     const serialised = JSON.stringify(next, null, 2) + '\n';
@@ -500,6 +531,57 @@ export const mountVehicles = (r: Router): void => {
     });
     invalidate();
     return ok(ctx.env, ctx.req, { saved: true, count: next.vehicles.length, removed: { id, flat: removed.flat, regNo: removed.regNo } });
+  });
+
+  // PUT /vehicles/flat-parking — assign or clear a per-flat parking bay.
+  // Body: { flat: "B905", parkingNo: "P-104" }.
+  // Empty string in `parkingNo` clears the entry. Editor-role allowlist.
+  // Kept as a separate route because parking is a flat-level property,
+  // not a vehicle-level one — a flat can be assigned a bay before any
+  // vehicle is registered, and the assignment persists across vehicle
+  // add/delete operations.
+  r.put('/vehicles/flat-parking', async (ctx: Ctx) => {
+    ensureAllowed(ctx, { flags: [FEATURE], requireIdentity: true });
+    ensureMemberAccess(ctx);
+    ensureEditor(ctx);
+    const body = await parseJson<Record<string, unknown>>(ctx.req);
+    const towers = ctx.config.lists?.towers ?? [];
+    const flat = validateFlat(body['flat'], towers);
+    const rawParking = body['parkingNo'];
+    if (rawParking !== undefined && rawParking !== null && typeof rawParking !== 'string') {
+      throw new BadRequest('parkingNo must be a string (or empty to clear)');
+    }
+    const parkingRaw = (typeof rawParking === 'string' ? rawParking : '').trim();
+    if (parkingRaw.length > 20) {
+      throw new BadRequest('parkingNo must be at most 20 characters');
+    }
+    const parkingNo = parkingRaw.toUpperCase();
+
+    const actor = ctx.identity!.email;
+    const existing = await loadVehicles(ctx);
+    const nextMap: Record<string, string> = { ...(existing.flatParking ?? {}) };
+    if (parkingNo) nextMap[flat] = parkingNo;
+    else delete nextMap[flat];
+
+    const next: VehicleFile = {
+      version: existing.version,
+      vehicles: existing.vehicles,
+      flatParking: nextMap,
+    };
+    const file = await getFile(ctx.env, VEHICLES_PATH);
+    const serialised = JSON.stringify(next, null, 2) + '\n';
+    const msg = parkingNo
+      ? `vehicles: parking ${parkingNo} @ ${flat} by ${actor}`
+      : `vehicles: clear parking @ ${flat} by ${actor}`;
+    await putFile(ctx.env, VEHICLES_PATH, serialised, msg, actor, file?.sha);
+    await writeAudit(ctx.env, {
+      actor,
+      action: parkingNo ? 'vehicles:flat-parking-set' : 'vehicles:flat-parking-clear',
+      target: VEHICLES_PATH,
+      detail: `flat=${flat} parkingNo=${parkingNo || '(cleared)'}`,
+    });
+    invalidate();
+    return ok(ctx.env, ctx.req, { saved: true, flat, parkingNo });
   });
 
   // ---------------------------------------------------------------------------
