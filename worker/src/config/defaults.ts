@@ -77,6 +77,22 @@ export interface SiteConfig {
      *                     resident self-add is rejected unless the caller's
      *                     identity has been validated against a flat.
      *   • maxBulkEmails — soft cap for the bulk import parser. Default 300.
+     *   • memberAllowlist — optional per-caller allowlist of e-mail addresses
+     *                     (Gmail today, but any RFC-lite address is accepted).
+     *                     When FEATURE_TSH_VEHICLES_MEMBER_ALLOWLIST is on,
+     *                     GET/PUT/DELETE /vehicles reject callers whose
+     *                     signed-in e-mail is NOT in this list (editors
+     *                     configured via `editorRoles` always bypass).
+     *                     Empty [] + flag on = nobody except editors can
+     *                     read/write; use this to lock the registry down
+     *                     to a curated society-representative list.
+     *   • memberAllowlistEditorRoles — who is allowed to edit the
+     *                     `memberAllowlist` array itself via the Settings
+     *                     page. Set-membership check, defaults to
+     *                     ADMIN + CHAIRMAN + SECRETARY. Kept separate from
+     *                     `editorRoles` so an admin can grant one committee
+     *                     member the power to curate the allowlist without
+     *                     also making them a general vehicle editor.
      */
     vehicles?: {
       editorRoles?: string[];
@@ -85,6 +101,8 @@ export interface SiteConfig {
       residentAddRoles?: string[];
       residentAddRequiresIdCheck?: boolean;
       maxBulkEmails?: number;
+      memberAllowlist?: string[];
+      memberAllowlistEditorRoles?: string[];
       /**
        * Per-tower schematic used by the seat-map UI on docs/vehicles.html.
        * Keys are single-letter tower codes (must exist in `lists.towers`).
@@ -222,10 +240,22 @@ export const DEFAULT_CONFIG: SiteConfig = {
     //    returns them for admin attachment.
     //  • RESIDENT_ADD: POST /vehicles/mine — resident self-registration.
     //    Gated by residentAddRequiresIdCheck (default true = fail closed).
+    //  • MEMBER_ALLOWLIST: when on, GET/PUT/DELETE /vehicles requires the
+    //    caller's signed-in e-mail to appear in system.vehicles.memberAllowlist
+    //    (editors bypass). Off by default so today's behaviour — "any
+    //    signed-in society user can search" — is unchanged. The allowlist
+    //    itself is managed in Settings by roles listed in
+    //    system.vehicles.memberAllowlistEditorRoles.
+    //  • REPORT_PRINT: when on, editors see a "Print report" affordance in
+    //    the manage view that renders a print-friendly table (including
+    //    EV type variants). Off by default — the underlying report layout
+    //    is client-only today and no server endpoint is required.
     FEATURE_TSH_VEHICLES_EMAIL_FILTER:        false,
     FEATURE_TSH_VEHICLES_STICKER_PATCH:       false,
     FEATURE_TSH_VEHICLES_BULK_EMAILS:         false,
     FEATURE_TSH_VEHICLES_RESIDENT_ADD:        false,
+    FEATURE_TSH_VEHICLES_MEMBER_ALLOWLIST:    false,
+    FEATURE_TSH_VEHICLES_REPORT_PRINT:        false,
     // DEPRECATED (2026-07-12): under the new strict 8-tier hierarchy
     // SECRETARY sits ABOVE TREASURER in the precedence chain and
     // inherits treasury view naturally, so this flag is a no-op. It is
@@ -393,6 +423,18 @@ export const DEFAULT_CONFIG: SiteConfig = {
       residentAddRoles:           [],
       residentAddRequiresIdCheck: true,
       maxBulkEmails:              300,
+      // Curated per-caller allowlist for the whole registry. Off by
+      // default (empty list + flag off = every signed-in society user
+      // may search). When FEATURE_TSH_VEHICLES_MEMBER_ALLOWLIST flips
+      // on, only e-mails in this list (plus roles in `editorRoles`)
+      // can hit GET/PUT/DELETE /vehicles. Managed from Settings by the
+      // roles listed in `memberAllowlistEditorRoles`.
+      memberAllowlist:            [],
+      // Who is permitted to add / remove entries in `memberAllowlist`
+      // itself. Kept separate from `editorRoles` so an admin can grant
+      // one committee member the power to curate the allowlist without
+      // also making them a general vehicle editor. Set-membership check.
+      memberAllowlistEditorRoles: ['ADMIN', 'CHAIRMAN', 'SECRETARY'],
       // Seat-map schematics for The Address (181 flats across 3 towers).
       // Tenants with a different layout override this from site.json.
       // Client falls back to floors=10, unitsPerFloor=4 for unknown towers.

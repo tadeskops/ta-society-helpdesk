@@ -317,3 +317,61 @@ describe('GET /vehicles (v2 email-filter hook)', () => {
     expect(j.data.vehicles).toEqual([]);
   });
 });
+
+// v2 hook: FEATURE_TSH_VEHICLES_MEMBER_ALLOWLIST — curated e-mail
+// allowlist restricting who can hit GET/PUT/DELETE /vehicles. Editors
+// always bypass; empty list + flag on = editors only.
+describe('/vehicles member allowlist (v2 hook, off by default)', () => {
+  const seed = async () => {
+    // Any signed-in editor can seed the initial file.
+    await send('PUT', '/vehicles', {
+      vehicles: [
+        { flat: 'A101', regNo: 'MH12AB1234', type: '4W' },
+      ],
+    }, 'mgr@x.com');
+    _resetVehiclesCacheForTests();
+  };
+
+  it('flag OFF (default): any signed-in caller may read', async () => {
+    await seed();
+    const r = await send('GET', '/vehicles', undefined, 'contrib@x.com');
+    expect(r.status).toBe(200);
+    const j = await r.json() as any;
+    expect(j.data.vehicles).toHaveLength(1);
+  });
+
+  it('flag ON + caller not in list + not editor: 403', async () => {
+    await seed();
+    featureOverrides = { FEATURE_TSH_VEHICLES_MEMBER_ALLOWLIST: true };
+    systemOverrides = { vehicles: { memberAllowlist: ['a@x.com', 'b@x.com'] } };
+    _resetVehiclesCacheForTests();
+    const r = await send('GET', '/vehicles', undefined, 'contrib@x.com');
+    expect(r.status).toBe(403);
+    const j = await r.json() as any;
+    expect(String(j.error || '')).toMatch(/member allowlist/i);
+  });
+
+  it('flag ON + caller e-mail in list (case-insensitive): 200', async () => {
+    await seed();
+    featureOverrides = { FEATURE_TSH_VEHICLES_MEMBER_ALLOWLIST: true };
+    // Configured with mixed case; caller signs in lower-case.
+    systemOverrides = { vehicles: { memberAllowlist: ['Contrib@X.COM'] } };
+    _resetVehiclesCacheForTests();
+    const r = await send('GET', '/vehicles', undefined, 'contrib@x.com');
+    expect(r.status).toBe(200);
+    const j = await r.json() as any;
+    expect(j.data.vehicles).toHaveLength(1);
+  });
+
+  it('flag ON + editor role: 200 regardless of allowlist (editors bypass)', async () => {
+    await seed();
+    featureOverrides = { FEATURE_TSH_VEHICLES_MEMBER_ALLOWLIST: true };
+    systemOverrides = { vehicles: { memberAllowlist: [] } }; // empty list
+    _resetVehiclesCacheForTests();
+    const r = await send('GET', '/vehicles', undefined, 'mgr@x.com');
+    expect(r.status).toBe(200);
+    const j = await r.json() as any;
+    expect(j.data.vehicles).toHaveLength(1);
+    expect(j.data.canWrite).toBe(true);
+  });
+});

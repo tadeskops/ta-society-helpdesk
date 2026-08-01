@@ -183,27 +183,44 @@
       letter-spacing: normal; text-transform: none;
     }
 
-    /* Column-header strip — unit numbers 01, 02, 03… mirroring the seat
-       letters on a boarding pass. Shares the grid template with the
-       seat grid below so numbers align perfectly with cells. */
+    /* Column-header strip — unit numbers 01, 02, 03… rendered as small
+       gold-tinted chips so the numbers read as "row 1 header, row 2
+       header…" without shouting. Shares the grid template with the
+       seat grid below so numbers align perfectly with cells.
+       Every cell uses a fixed --veh-cell-w so 4-unit towers (A, C) and
+       6-unit towers (B) show identically-sized boxes; the tower card
+       itself simply grows wider when it has more units. */
     .veh-tower-cols {
       display: grid;
-      grid-template-columns: 2.2rem repeat(var(--units, 4), minmax(3rem, 1fr));
+      grid-template-columns: 2.2rem repeat(var(--units, 4), var(--veh-cell-w, 3.1rem));
       gap: .35rem; margin: .8rem 0 .3rem;
-      font-size: .68rem; color: var(--tsh-muted, #667);
+      font-size: .68rem; color: var(--tsh-accent-dark, #8a6b28);
       letter-spacing: .08em; text-align: center;
     }
     .veh-tower-cols span:first-child { visibility: hidden; }
+    .veh-tower-cols span:not(:first-child) {
+      display: inline-flex; align-items: center; justify-content: center;
+      font-weight: 700;
+      background: rgba(180, 138, 60, .10);
+      border-radius: 4px;
+      padding: .18rem 0;
+    }
 
     .veh-tower-grid {
       display: grid;
-      grid-template-columns: 2.2rem repeat(var(--units, 4), minmax(3rem, 1fr));
+      grid-template-columns: 2.2rem repeat(var(--units, 4), var(--veh-cell-w, 3.1rem));
       gap: .35rem;
     }
+    /* Row heading — shows the floor number as a small tinted chip on
+       the left rail. "G" for ground floor, plain number otherwise
+       (no "F" suffix so the chip stays compact and glanceable). */
     .veh-floor-label {
-      display: grid; place-items: center;
-      font-weight: 600; color: var(--tsh-muted, #667); font-size: .78em;
-      letter-spacing: .05em;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-weight: 700; color: var(--tsh-accent-dark, #8a6b28); font-size: .74em;
+      letter-spacing: .04em;
+      background: rgba(180, 138, 60, .10);
+      border-radius: 4px;
+      min-height: 3rem;
     }
 
     /* Rectangular seat cell — flat number on top, bar-chart footer.
@@ -262,6 +279,30 @@
       background: linear-gradient(90deg, rgba(74,144,226,.35) 50%, rgba(106,176,76,.35) 50%);
     }
     .veh-legend-swatch.empty { border-style: dashed; border-color: var(--tsh-border, #e2e5ee); }
+    .veh-legend-ev, .veh-cell-ev {
+      color: #f0a020; font-size: .85rem;
+    }
+    /* Position the EV bolt in the top-right of a populated seat cell so
+       it does not fight the flat number or the 2W/4W bar chart. */
+    .veh-cell-ev {
+      position: absolute; top: 3px; right: 5px; font-size: .7rem;
+      filter: drop-shadow(0 0 1px rgba(0,0,0,.35));
+    }
+    .veh-cell { position: relative; }
+
+    /* Editor-only action row (Print report etc.). */
+    .veh-manage-actions {
+      display: flex; justify-content: flex-end; gap: .5rem;
+      margin: 0 0 .8rem;
+    }
+    @media print {
+      body > *:not(#vehPrintArea) { display: none !important; }
+      #vehPrintArea { display: block !important; }
+    }
+    #vehPrintArea { display: none; }
+    #vehPrintArea table { width: 100%; border-collapse: collapse; margin-top: .8rem; }
+    #vehPrintArea th, #vehPrintArea td { border: 1px solid #999; padding: .35rem .55rem; font-size: .85rem; text-align: left; }
+    #vehPrintArea th { background: #eee; }
 
     .veh-tower-tools { display: flex; gap: .4rem; margin-top: .8rem; align-items: center; flex-wrap: wrap; }
     .veh-tower-tools input { max-width: 8rem; }
@@ -317,13 +358,21 @@
       .veh-manage-controls .veh-tower-legend { margin-left: 0; }
     }
 
-    #vehTowers { display: grid; gap: 1.15rem; grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    @media (max-width: 899px) { #vehTowers { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-    @media (max-width: 639px) { #vehTowers { grid-template-columns: 1fr; } }
-    .veh-tower { margin-bottom: 0; }
-    /* Filter narrowed to a single tower — let it span the row. Toggled
-       by applyTowerFilter() (activeTower !== null). */
-    #vehTowers[data-single-tower="1"] { grid-template-columns: 1fr; }
+    /* Outer tower shelf. Uses flex-wrap (not a fixed n-column grid) so
+       that each card can take its own natural width — A/C are 4-unit
+       cards, B is a 6-unit card, and neighbouring cards fit next to it
+       or wrap onto the next row on smaller viewports. --veh-cell-w
+       is the single source of truth for seat-cell width, so both 4-
+       and 6-unit towers show identically-sized boxes. */
+    :root { --veh-cell-w: 3.1rem; }
+    #vehTowers {
+      display: flex; gap: 1.15rem; flex-wrap: wrap; align-items: flex-start;
+    }
+    .veh-tower { margin-bottom: 0; flex: 0 0 auto; max-width: 100%; }
+    @media (max-width: 480px) { :root { --veh-cell-w: 2.7rem; } }
+    /* Filter narrowed to a single tower — no-op under flex, kept as a
+       data hook for future variants. */
+    #vehTowers[data-single-tower="1"] { justify-content: flex-start; }
 
     /* ------- Design 10 wheel picker (mobile resident, flag-gated) ------- */
     .veh-wheel-toggle {
@@ -545,7 +594,18 @@
           <span><span class="veh-legend-swatch four"></span> 4-wheeler</span>
           <span><span class="veh-legend-swatch two"></span> 2-wheeler</span>
           <span><span class="veh-legend-swatch both"></span> Both</span>
+          <span><i class="fas fa-bolt veh-legend-ev" aria-hidden="true"></i> EV present</span>
         </div>
+      </div>
+
+      <!-- Editor-only affordance. Gated behind FEATURE_TSH_VEHICLES_REPORT_PRINT
+           (off by default). Renders a print-friendly summary table when
+           the flag is on. Hidden on load; unhidden by initManage() once
+           the /vehicles response confirms both editor status AND the flag. -->
+      <div class="veh-manage-actions" id="vehReportActions" hidden>
+        <button type="button" class="tsh-btn tsh-btn-ghost tsh-btn-sm" id="vehPrintReportBtn">
+          <i class="fas fa-print" aria-hidden="true"></i> Print report
+        </button>
       </div>
 
       <div id="vehTowers" aria-label="Tower grids"></div>
@@ -676,6 +736,30 @@
       ));
     }
 
+    // ---- Vehicle-type helpers -----------------------------------------------
+    // Four accepted codes: 2W / 4W (petrol / diesel) and 2W_EV / 4W_EV
+    // (electric). Everything else in this file — cell colours, bar chart,
+    // icons, human labels — is derived through these three functions so a
+    // future type addition only needs to be wired in one place.
+    //
+    // typeWheels(t)  → '4W' or '2W' — grouping key for the seat-map bar
+    //                  chart and cell colour (EVs share their wheel
+    //                  class's colour so the schematic stays legible).
+    // typeIsEv(t)    → true when the row is electric.
+    // typeLabel(t)   → human string used in cards, tables and reports.
+    // typeIcon(t)    → Font-Awesome icon class.
+    function typeWheels(t) { return (t === '4W' || t === '4W_EV') ? '4W' : '2W'; }
+    function typeIsEv(t)   { return t === '4W_EV' || t === '2W_EV'; }
+    function typeLabel(t) {
+      const base = typeWheels(t) === '4W' ? '4-wheeler' : '2-wheeler';
+      return typeIsEv(t) ? base + ' EV' : base;
+    }
+    function typeIcon(t)  { return typeWheels(t) === '4W' ? 'fa-car' : 'fa-motorcycle'; }
+    function typeBadge(t) {
+      // Compact chip suitable for the pill-tag next to a headline.
+      return '<span class="veh-badge">' + esc(t.replace('_EV', ' EV')) + '</span>';
+    }
+
     // Render the search result in the Design-5 "rich card" format:
     // a coloured icon badge (car or motorcycle), a monospace gold
     // headline, a subtitle sentence, and a four-row info table.
@@ -702,20 +786,20 @@
       }
       if (res.kind === 'vehicle') {
         const v = res.v;
-        const kind = v.type === '4W' ? 'four' : 'two';
-        const iconCls = v.type === '4W' ? 'fa-car' : 'fa-motorcycle';
-        const typeLabel = v.type === '4W' ? '4-wheeler' : '2-wheeler';
+        const kind = typeWheels(v.type) === '4W' ? 'four' : 'two';
+        const iconCls = typeIcon(v.type);
+        const label = typeLabel(v.type);
         resultEl.innerHTML =
           '<div class="veh-result-top">' +
             '<div class="veh-result-icon ' + kind + '"><i class="fas ' + iconCls + '" aria-hidden="true"></i></div>' +
             '<div>' +
               '<div class="veh-result-headline">' + esc(v.regNoDisplay || v.regNo) + '</div>' +
-              '<div class="veh-result-sub">' + typeLabel + ' &middot; Flat <strong>' + esc(v.flat) + '</strong></div>' +
+              '<div class="veh-result-sub">' + label + ' &middot; Flat <strong>' + esc(v.flat) + '</strong></div>' +
             '</div>' +
           '</div>' +
           '<table class="veh-result-table">' +
             '<tr><td>Flat</td><td>' + esc(v.flat) + '</td></tr>' +
-            '<tr><td>Type</td><td><span class="veh-badge">' + esc(v.type) + '</span></td></tr>' +
+            '<tr><td>Type</td><td>' + typeBadge(v.type) + '</td></tr>' +
             '<tr><td>Sticker</td><td>' + (v.sticker ? esc(v.sticker) : '<span style="color:var(--tsh-muted,#667)">&mdash;</span>') + '</td></tr>' +
             '<tr><td>Notes</td><td>' + (v.comments ? esc(v.comments) : '<span style="color:var(--tsh-muted,#667)">&mdash;</span>') + '</td></tr>' +
           '</table>' +
@@ -727,7 +811,7 @@
       }
       if (res.kind === 'many') {
         const list = res.hits.map((v) => {
-          const meta = (v.type === '4W' ? '4-wheeler' : '2-wheeler') +
+          const meta = typeLabel(v.type) +
                        (v.sticker ? ' &middot; ' + esc(v.sticker) : '');
           return '<button type="button" data-open-flat="' + esc(v.flat) + '">' +
                  '<b>' + esc(v.regNoDisplay || v.regNo) + '</b> ' +
@@ -748,7 +832,7 @@
         const rows = res.rows || [];
         const list = rows.length
           ? rows.map((v) => {
-              const meta = esc(v.type) + (v.sticker ? ' &middot; ' + esc(v.sticker) : '') +
+              const meta = esc(typeLabel(v.type)) + (v.sticker ? ' &middot; ' + esc(v.sticker) : '') +
                            (v.comments ? ' &middot; ' + esc(v.comments) : '');
               return '<button type="button" data-open-flat="' + esc(v.flat) + '">' +
                      '<b>' + esc(v.regNoDisplay || v.regNo) + '</b>' +
@@ -977,18 +1061,23 @@
 
     function cellBar(rows) {
       if (!rows || !rows.length) return '';
-      const n2w = rows.filter((r) => r.type === '2W').length;
-      const n4w = rows.filter((r) => r.type === '4W').length;
+      // Group EVs into their wheel class so the seat-map bar chart stays
+      // readable (colour = wheel count, not fuel). A tiny lightning
+      // glyph is appended when at least one EV is present in the flat.
+      const n2w = rows.filter((r) => typeWheels(r.type) === '2W').length;
+      const n4w = rows.filter((r) => typeWheels(r.type) === '4W').length;
+      const hasEv = rows.some((r) => typeIsEv(r.type));
       let s = '';
       if (n4w) s += '<span class="four" title="' + n4w + ' four-wheeler(s)" style="flex:' + n4w + '">' + n4w + '</span>';
       if (n2w) s += '<span class="two" title="' + n2w + ' two-wheeler(s)" style="flex:' + n2w + '">' + n2w + '</span>';
-      return '<span class="veh-cell-bar" aria-hidden="true">' + s + '</span>';
+      const evMark = hasEv ? '<i class="fas fa-bolt veh-cell-ev" aria-label="includes EV" title="Includes EV"></i>' : '';
+      return '<span class="veh-cell-bar" aria-hidden="true">' + s + '</span>' + evMark;
     }
 
     function cellClass(rows) {
       if (rows.length === 0) return 'veh-cell';
-      const has2 = rows.some((r) => r.type === '2W');
-      const has4 = rows.some((r) => r.type === '4W');
+      const has2 = rows.some((r) => typeWheels(r.type) === '2W');
+      const has4 = rows.some((r) => typeWheels(r.type) === '4W');
       const kind = (has2 && has4) ? 'both' : (has4 ? 'four' : 'two');
       return 'veh-cell has-veh ' + kind;
     }
@@ -1008,8 +1097,11 @@
       // Seat grid.
       let cells = '';
       for (const f of floors) {
-        const floorLabel = (f === 0) ? 'GF' : (f + 'F');
-        cells += '<div class="veh-floor-label">' + floorLabel + '</div>';
+        // Floor label — numeric only. Ground floor prints as 'G'; the
+        // "F" suffix (13F, 12F…) was noisy at glance, so the number
+        // alone plus the tinted chip styling now conveys "floor".
+        const floorLabel = (f === 0) ? 'G' : String(f);
+        cells += '<div class="veh-floor-label" title="Floor ' + (f === 0 ? 'Ground' : f) + '">' + floorLabel + '</div>';
         for (let u = 1; u <= s.maxUnit; u++) {
           const flat = flatFromParts(tower, f, u);
           const rows = s.byFlat.get(flat) || [];
@@ -1113,7 +1205,7 @@
         '<div><div class="veh-reg">' + esc(v.regNoDisplay || v.regNo) + '</div>' +
         (emailsTxt ? '<div class="veh-emails">' + esc(emailsTxt) + '</div>' : '') +
         '</div>' +
-        '<div><span class="veh-badge">' + esc(v.type) + '</span></div>' +
+        '<div>' + typeBadge(v.type) + '</div>' +
         '<div>' + (v.sticker ? 'Sticker ' + esc(v.sticker) : '<span style="color:var(--tsh-muted,#667)">—</span>') + '</div>' +
         '<div>' + (v.comments ? esc(v.comments) : '<span style="color:var(--tsh-muted,#667)">—</span>') + '</div>' +
         '<div class="veh-actions">' +
@@ -1141,6 +1233,8 @@
             '<select id="vehEditType" name="type" required>' +
               '<option value="4W"' + (v.type === '4W' ? ' selected' : '') + '>4W</option>' +
               '<option value="2W"' + (v.type === '2W' ? ' selected' : '') + '>2W</option>' +
+              '<option value="4W_EV"' + (v.type === '4W_EV' ? ' selected' : '') + '>4W EV</option>' +
+              '<option value="2W_EV"' + (v.type === '2W_EV' ? ' selected' : '') + '>2W EV</option>' +
             '</select>' +
           '</div>' +
           '<div class="tsh-field">' +
@@ -1245,7 +1339,10 @@
           '<div class="tsh-field">' +
             '<label for="vehDetailType">Type *</label>' +
             '<select id="vehDetailType" required>' +
-              '<option value="4W">4W</option><option value="2W">2W</option>' +
+              '<option value="4W">4W</option>' +
+              '<option value="2W">2W</option>' +
+              '<option value="4W_EV">4W EV</option>' +
+              '<option value="2W_EV">2W EV</option>' +
             '</select>' +
           '</div>' +
           '<div class="tsh-field">' +
@@ -1596,13 +1693,13 @@
       const flat = flatFromParts(t, f, u);
       const rows = vehicles.filter((v) => v.flat === flat);
       let cards = rows.map((v) => {
-        const kind = v.type === '4W' ? 'four' : 'two';
-        const icon = v.type === '4W' ? 'fa-car' : 'fa-motorcycle';
+        const kind = typeWheels(v.type) === '4W' ? 'four' : 'two';
+        const icon = typeIcon(v.type);
         return '<div class="veh-wheel-veh">' +
           '<div class="badge ' + kind + '"><i class="fas ' + icon + '" aria-hidden="true"></i></div>' +
           '<div style="flex:1;min-width:0">' +
             '<div class="reg">' + esc(v.regNoDisplay || v.regNo) + '</div>' +
-            '<div class="meta">' + esc(v.type) + (v.sticker ? ' &middot; ' + esc(v.sticker) : '') + '</div>' +
+            '<div class="meta">' + esc(typeLabel(v.type)) + (v.sticker ? ' &middot; ' + esc(v.sticker) : '') + '</div>' +
           '</div>' +
         '</div>';
       }).join('');

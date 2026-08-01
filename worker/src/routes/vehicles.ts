@@ -49,10 +49,12 @@ const VEHICLES_PATH = 'config/vehicles.json';
 const FEATURE = 'FEATURE_TSH_VEHICLES';
 
 // v2 feature-flag names — exported for tests / documentation.
-export const FEATURE_EMAIL_FILTER   = 'FEATURE_TSH_VEHICLES_EMAIL_FILTER';
-export const FEATURE_STICKER_PATCH  = 'FEATURE_TSH_VEHICLES_STICKER_PATCH';
-export const FEATURE_BULK_EMAILS    = 'FEATURE_TSH_VEHICLES_BULK_EMAILS';
-export const FEATURE_RESIDENT_ADD   = 'FEATURE_TSH_VEHICLES_RESIDENT_ADD';
+export const FEATURE_EMAIL_FILTER     = 'FEATURE_TSH_VEHICLES_EMAIL_FILTER';
+export const FEATURE_STICKER_PATCH    = 'FEATURE_TSH_VEHICLES_STICKER_PATCH';
+export const FEATURE_BULK_EMAILS      = 'FEATURE_TSH_VEHICLES_BULK_EMAILS';
+export const FEATURE_RESIDENT_ADD     = 'FEATURE_TSH_VEHICLES_RESIDENT_ADD';
+export const FEATURE_MEMBER_ALLOWLIST = 'FEATURE_TSH_VEHICLES_MEMBER_ALLOWLIST';
+export const FEATURE_REPORT_PRINT     = 'FEATURE_TSH_VEHICLES_REPORT_PRINT';
 
 // Default editor allowlist. Overridden by site.json → system.vehicles.editorRoles.
 // Includes MANAGER (parking-sticker workflow) and every tier at or above
@@ -75,8 +77,27 @@ const DEFAULT_BULK_EMAIL_ROLES: readonly string[] = [
 const DEFAULT_RESIDENT_ADD_ROLES: readonly string[] = [];
 const DEFAULT_RESIDENT_ADD_REQUIRES_ID_CHECK = true;
 const DEFAULT_MAX_BULK_EMAILS = 300;
+// The member-allowlist is empty by default. When the matching feature
+// flag flips on, only e-mails in this list (plus editors) can hit the
+// registry; empty + flag on = editors only.
+const DEFAULT_MEMBER_ALLOWLIST: readonly string[] = [];
+// Who is allowed to add / remove entries in `memberAllowlist` itself.
+// Kept separate from `editorRoles` so an admin can grant one committee
+// member the power to curate the allowlist without also making them a
+// general vehicle editor. Set-membership check.
+const DEFAULT_MEMBER_ALLOWLIST_EDITOR_ROLES: readonly string[] = [
+  'ADMIN', 'CHAIRMAN', 'SECRETARY',
+];
 
-const VEHICLE_TYPES = ['2W', '4W'] as const;
+// Vehicle type codes accepted by the registry.
+//   • 2W    — two-wheeler (petrol / diesel / other non-EV)
+//   • 4W    — four-wheeler (petrol / diesel / other non-EV)
+//   • 2W_EV — electric two-wheeler
+//   • 4W_EV — electric four-wheeler
+// Existing rows written before EVs existed keep '2W'/'4W' and are treated
+// as non-EV. The wheel class is the primary group key used by the seat-map
+// bar chart on docs/vehicles.html (EVs are counted in the same 2W/4W bin).
+const VEHICLE_TYPES = ['2W', '4W', '2W_EV', '4W_EV'] as const;
 type VehicleType = typeof VEHICLE_TYPES[number];
 
 interface Vehicle {
@@ -178,6 +199,45 @@ export const requiresIdCheckForResidentAdd = (ctx: Ctx): boolean => {
 export const getMaxBulkEmails = (ctx: Ctx): number => {
   const v = getVehiclesCfg(ctx)['maxBulkEmails'];
   return typeof v === 'number' && v > 0 ? Math.floor(v) : DEFAULT_MAX_BULK_EMAILS;
+};
+
+// v2: curated member allowlist. Optional per-caller access-control layer
+// on top of the normal RBAC. When the flag is off, this is a no-op and
+// every signed-in society caller can search the registry — v1 behaviour.
+// When on, only e-mails in the list may hit GET/PUT/DELETE /vehicles
+// (editors always bypass, so the registry never locks its own admins out).
+// Empty list + flag on = editors only.
+export const getMemberAllowlist = (ctx: Ctx): readonly string[] => {
+  const raw = getVehiclesCfg(ctx)['memberAllowlist'];
+  if (!Array.isArray(raw)) return DEFAULT_MEMBER_ALLOWLIST;
+  return raw
+    .filter((e): e is string => typeof e === 'string')
+    .map((e) => e.trim().toLowerCase())
+    .filter((e) => e.length > 0);
+};
+
+// Who may curate the `memberAllowlist` array itself from Settings.
+// The endpoint that mutates the list is not yet built — this getter is
+// wired in defaults so Settings UI can surface the field once the list-
+// management view lands.
+export const getMemberAllowlistEditorRoles = (ctx: Ctx): readonly string[] =>
+  readRoleList(getVehiclesCfg(ctx)['memberAllowlistEditorRoles']) ??
+  DEFAULT_MEMBER_ALLOWLIST_EDITOR_ROLES;
+
+const isMember = (ctx: Ctx): boolean => {
+  const list = getMemberAllowlist(ctx);
+  const email = ctx.identity?.email?.toLowerCase();
+  return !!email && list.includes(email);
+};
+
+const ensureMemberAccess = (ctx: Ctx): void => {
+  if (!isFeatureOn(ctx.config, FEATURE_MEMBER_ALLOWLIST)) return;
+  if (isEditor(ctx)) return;
+  if (isMember(ctx)) return;
+  throw new Forbidden(
+    'Vehicle registry access is restricted to the configured member ' +
+    'allowlist. Ask an admin to add your e-mail via Settings.',
+  );
 };
 
 const isEditor = (ctx: Ctx): boolean => {
@@ -318,6 +378,11 @@ export const mountVehicles = (r: Router): void => {
   // GET /vehicles — sign-in required.
   r.get('/vehicles', async (ctx: Ctx) => {
     ensureAllowed(ctx, { flags: [FEATURE], requireIdentity: true });
+    // v2 hook: curated e-mail allowlist. When the flag is off (default),
+    // this is a no-op and any signed-in society caller can read the
+    // registry. When on, non-editor callers whose e-mail is not in
+    // `system.vehicles.memberAllowlist` are rejected with 403.
+    ensureMemberAccess(ctx);
     const file = await loadVehicles(ctx);
     // Advertise the caller's write permission and (for the v2 filter)
     // the current allowlist so the client can hide manage-controls without a
@@ -339,6 +404,10 @@ export const mountVehicles = (r: Router): void => {
       // Tell the client whether the server-side filter is currently
       // active so it can render a hint ("showing only your vehicles").
       filtered: isFeatureOn(ctx.config, FEATURE_EMAIL_FILTER) && !canWrite,
+      // Report-print feature is a client-only affordance today; expose
+      // its flag so the manage view can conditionally render the button
+      // without a second /config round-trip.
+      reportPrintEnabled: isFeatureOn(ctx.config, FEATURE_REPORT_PRINT),
       // Per-tower floors × unitsPerFloor. Client falls back to
       // 10 × 4 for towers absent from this map.
       towerLayouts,
@@ -348,6 +417,7 @@ export const mountVehicles = (r: Router): void => {
   // PUT /vehicles — bulk replace. Editor-role allowlist.
   r.put('/vehicles', async (ctx: Ctx) => {
     ensureAllowed(ctx, { flags: [FEATURE], requireIdentity: true });
+    ensureMemberAccess(ctx);
     ensureEditor(ctx);
     const body = await parseJson<Record<string, unknown>>(ctx.req);
     const incoming = (body['vehicles'] ?? body['file'] ?? body) as unknown;
@@ -396,6 +466,7 @@ export const mountVehicles = (r: Router): void => {
   // DELETE /vehicles/:id — remove one row, keep everything else.
   r.delete('/vehicles/:id', async (ctx: Ctx, params: Record<string, string>) => {
     ensureAllowed(ctx, { flags: [FEATURE], requireIdentity: true });
+    ensureMemberAccess(ctx);
     ensureEditor(ctx);
     const id = decodeURIComponent(params['id'] ?? '').trim();
     if (!id) throw new BadRequest('vehicle id required');
