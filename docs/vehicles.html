@@ -1587,12 +1587,14 @@
         }
       }
 
-      // Digit-only query (e.g. "805", "1204") — the user knows the flat
-      // number but hasn't picked a tower. Fan out across every configured
-      // tower and surface the matching flats so they can click through.
-      // A flat "exists" if it has any registered vehicle OR (when the
-      // tower has a fixed server-side layout) the floor+unit fall inside
-      // the schematic's bounds.
+      // Digit-only query (e.g. "805", "1204", "105") — the user knows
+      // either the flat number (but hasn't picked a tower) OR the
+      // parking-bay label. Fan out across every configured tower to
+      // surface flat matches AND merge in any parking-bay hits so the
+      // result card carries both kinds of candidates. A flat "exists"
+      // if it has any registered vehicle OR (when the tower has a
+      // fixed server-side layout) the floor+unit fall inside the
+      // schematic's bounds.
       if (/^[0-9]{1,4}$/.test(q)) {
         const unitStr  = q.length >= 2 ? q.slice(-2) : q.padStart(2, '0');
         const floorStr = q.length >= 3 ? q.slice(0, -2) : '0';
@@ -1602,6 +1604,7 @@
           ? Flags.raw.lists.towers : ['A', 'B', 'C'];
         const layouts = towerLayouts || {};
         const options = [];
+        const seenFlats = new Set();
         for (const t of cfgTowers) {
           const letter = String(t || '').trim().charAt(0).toUpperCase();
           if (!/^[A-Z]$/.test(letter)) continue;
@@ -1617,7 +1620,19 @@
             : rows.length > 0;
           if (inLayout || rows.length) {
             options.push({ tower: letter, flat, count: rows.length });
+            seenFlats.add(flat);
           }
+        }
+        // Merge parking-bay hits into the same result surface so a
+        // numeric query like "105" that matches BOTH flat 105 in some
+        // towers AND parking bay P-105 elsewhere returns every
+        // candidate at once. The parking-bay hits carry their own
+        // tower letter (derived from the flat that owns the bay) so
+        // they slot naturally into the flatChoices card.
+        for (const h of parkingHits) {
+          if (seenFlats.has(h.flat)) continue;
+          seenFlats.add(h.flat);
+          options.push({ tower: h.flat.charAt(0), flat: h.flat, count: h.count });
         }
         if (options.length === 1) {
           const only = options[0];
@@ -1627,8 +1642,9 @@
         if (options.length > 1) {
           return { kind: 'flatChoices', digits: q, options };
         }
-        // No tower has that flat — fall through to the vehicle-substring
-        // pass below so a stray digit sequence in a plate can still match.
+        // No tower has that flat and no parking bay matched — fall
+        // through to the vehicle-substring pass below so a stray digit
+        // sequence in a plate can still match.
       }
 
       // Is this shaped like a flat? (letter + 1-4 digits)
