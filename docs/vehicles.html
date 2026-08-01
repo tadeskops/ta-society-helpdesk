@@ -85,6 +85,21 @@
     }
     body:not(.veh-mode-resident) .veh-quick-links { display: none; }
 
+    /* ------- Resident (read-only) write-UI suppression --------------
+       Residents now get the tower grid + flat detail view so they can
+       see parking numbers and vehicle rosters, but ALL write controls
+       must stay hidden. The delete/edit/add buttons are already blocked
+       server-side, but we also hide them client-side to keep the read
+       experience clean. */
+    body.veh-mode-resident .veh-add-trigger,
+    body.veh-mode-resident .veh-add-box,
+    body.veh-mode-resident .veh-actions,
+    body.veh-mode-resident .veh-flat-parking-edit,
+    body.veh-mode-resident .veh-flat-parking-add,
+    body.veh-mode-resident .veh-manage-actions {
+      display: none !important;
+    }
+
     /* ------- Design 5 hero tweaks (resident view only) ------- */
     body.veh-mode-resident .veh-search-card {
       padding-top: 2.4rem;
@@ -1731,7 +1746,7 @@
       } else {
         roleHintEl.textContent =
           'Signed in as ' + (who.email || '') + ' (' + who.primary + ') · ' +
-          'Search-only access. Editing is restricted to: ' + editorRoles.join(', ') + '.';
+          'Read-only view. Browse the tower grids or search for a flat / vehicle / parking No. Editing is restricted to: ' + editorRoles.join(', ') + '.';
       }
     }
 
@@ -2347,7 +2362,12 @@
       renderQuickLinks();
       manageEl.hidden = !canWrite;
       totalEl.textContent = '(' + vehicles.length + ')';
-      if (!canWrite) { detailEl.hidden = true; towersEl.innerHTML = ''; if (filterEl) filterEl.innerHTML = ''; return; }
+      // Editor-only panels (add form / edit drawer / delete controls)
+      // are hidden by the .veh-mode-editor / .veh-mode-resident body
+      // class switch inside renderTowerGrid / renderFlatDetail, so the
+      // tower grid + tower filter can safely render for residents too
+      // — they can browse flat tiles and read parking numbers, but
+      // clicking through only reveals the read-only detail view.
       renderTowerFilter();
       renderTowerGrids();
       // Re-render the detail panel (list may have changed for the current flat).
