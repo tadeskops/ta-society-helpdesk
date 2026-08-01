@@ -338,11 +338,18 @@
       +   '<span><i class="fas fa-door-open"></i> Flat ' + esc(it.owner && it.owner.flat) + '</span>'
       +   (it.notes ? '<span class="tsh-ev-hist-notes"><i class="fas fa-note-sticky"></i> ' + esc(it.notes) + '</span>' : '')
       + '</div>'
-      + (isActive ? '<div class="tsh-ev-hist-actions"><button type="button" class="tsh-btn tsh-btn-ghost tsh-ev-hist-cancel" data-id="' + esc(it.id) + '"><i class="fas fa-xmark"></i> Cancel booking</button></div>' : '');
+      + '<div class="tsh-ev-hist-actions">'
+      +   (isReceiptEligible(it) ? '<button type="button" class="tsh-btn tsh-btn-ghost tsh-ev-hist-receipt" data-id="' + esc(it.id) + '"><i class="fas fa-receipt"></i> View receipt</button>' : '')
+      +   (isActive ? '<button type="button" class="tsh-btn tsh-btn-ghost tsh-ev-hist-cancel" data-id="' + esc(it.id) + '"><i class="fas fa-xmark"></i> Cancel booking</button>' : '')
+      + '</div>';
     const cancelBtn = li.querySelector('.tsh-ev-hist-cancel');
     if (cancelBtn) cancelBtn.addEventListener('click', () => cancelBooking(it.id));
+    const receiptBtn = li.querySelector('.tsh-ev-hist-receipt');
+    if (receiptBtn) receiptBtn.addEventListener('click', () => openReceipt(it.id));
     return li;
   }
+
+  const isReceiptEligible = (it) => it && (it.status === 'confirmed' || it.status === 'completed');
 
   async function cancelBooking(id) {
     if (!id) return;
@@ -358,6 +365,107 @@
 
   function toast(msg, opts) {
     if (root.UI && root.UI.toast) root.UI.toast(msg, opts || {});
+  }
+
+  // ---- Phase 3: Digital receipt --------------------------------------------
+
+  async function openReceipt(id) {
+    if (!id) return;
+    let payload;
+    try {
+      payload = await root.Api.get('/ev/receipt/' + encodeURIComponent(id));
+    } catch (e) {
+      toast('Could not load receipt: ' + (e && e.message || e), { kind: 'danger' });
+      return;
+    }
+    const data = payload && payload.ok ? payload.data : payload;
+    if (!data) return;
+    renderReceiptModal(data);
+  }
+
+  function renderReceiptModal(r) {
+    // Reuse the shared Modal partial. Falls back to a plain overlay if the
+    // partial helpers are unavailable so the page still works when Modal
+    // is not initialised.
+    const host = ensureReceiptModalHost();
+    const startMin = Number.isFinite(r.item.startMin) ? r.item.startMin : 0;
+    const endMin   = Number.isFinite(r.item.endMin)   ? r.item.endMin   : 0;
+    const durMin   = endMin - startMin;
+    const qrJson   = JSON.stringify(r.qr);
+    const qrSrc    = 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeURIComponent(qrJson);
+    const soc = r.society || {};
+    const st  = r.station || {};
+    host.innerHTML = ''
+      + '<div class="tsh-ev-receipt-overlay" role="dialog" aria-modal="true" aria-label="Booking receipt">'
+      +   '<div class="tsh-ev-receipt-card" id="evReceiptPrintable">'
+      +     '<header class="tsh-ev-receipt-head">'
+      +       '<div class="tsh-ev-receipt-brand">'
+      +         (soc.logoUrl ? '<img alt="" src="' + esc(soc.logoUrl) + '">' : '<i class="fas fa-charging-station"></i>')
+      +         '<div>'
+      +           '<h2>' + esc(soc.name || 'Booking Receipt') + '</h2>'
+      +           '<p class="tsh-sub">EV Charging · Digital Receipt</p>'
+      +         '</div>'
+      +       '</div>'
+      +       '<button type="button" class="tsh-btn tsh-btn-ghost tsh-ev-receipt-close" aria-label="Close">&times;</button>'
+      +     '</header>'
+      +     '<dl class="tsh-ev-receipt-grid">'
+      +       row('Booking ID',   esc(r.item.id))
+      +       row('Status',       esc(r.item.status).toUpperCase())
+      +       row('Date',         esc(r.item.date))
+      +       row('Time',         pad2(Math.floor(startMin/60)) + ':' + pad2(startMin%60) + ' – ' + pad2(Math.floor(endMin/60)) + ':' + pad2(endMin%60) + ' (' + durMin + ' min)')
+      +       row('Station',      esc(st.name) + (st.location ? ' · ' + esc(st.location) : ''))
+      +       row('Charger',      Number.isFinite(st.capacityKw) ? esc(st.capacityKw) + ' kW' : '—')
+      +       row('Flat',         esc(r.item.owner && r.item.owner.flat))
+      +       row('Owner',        esc((r.item.owner && r.item.owner.name) || r.item.owner && r.item.owner.email || ''))
+      +       (r.item.notes ? row('Notes', esc(r.item.notes)) : '')
+      +     '</dl>'
+      +     '<div class="tsh-ev-receipt-qr">'
+      +       '<img alt="QR verification code" src="' + qrSrc + '">'
+      +       '<p class="tsh-sub">Scan to verify · Checksum <code>' + esc(r.qr.checksum) + '</code></p>'
+      +     '</div>'
+      +     '<footer class="tsh-ev-receipt-foot">'
+      +       (soc.address ? '<p>' + esc(soc.address) + '</p>' : '')
+      +       (soc.email   ? '<p><i class="fas fa-envelope"></i> ' + esc(soc.email) + '</p>' : '')
+      +       (soc.phone   ? '<p><i class="fas fa-phone"></i> '    + esc(soc.phone) + '</p>' : '')
+      +       '<p class="tsh-sub">Generated ' + esc(r.generatedAt) + '</p>'
+      +     '</footer>'
+      +     '<div class="tsh-ev-receipt-actions tsh-no-print">'
+      +       '<button type="button" class="tsh-btn tsh-btn-primary tsh-ev-receipt-print"><i class="fas fa-print"></i> Print / Save PDF</button>'
+      +       '<button type="button" class="tsh-btn tsh-btn-ghost tsh-ev-receipt-close">Close</button>'
+      +     '</div>'
+      +   '</div>'
+      + '</div>';
+    host.hidden = false;
+    document.body.classList.add('tsh-modal-open');
+    host.querySelectorAll('.tsh-ev-receipt-close').forEach((b) => b.addEventListener('click', closeReceipt));
+    host.querySelector('.tsh-ev-receipt-print').addEventListener('click', () => window.print());
+    // Close on backdrop click.
+    host.querySelector('.tsh-ev-receipt-overlay').addEventListener('click', (ev) => {
+      if (ev.target === ev.currentTarget) closeReceipt();
+    });
+  }
+
+  function row(label, val) {
+    return '<dt>' + esc(label) + '</dt><dd>' + val + '</dd>';
+  }
+
+  function ensureReceiptModalHost() {
+    let host = document.getElementById('evReceiptHost');
+    if (!host) {
+      host = document.createElement('div');
+      host.id = 'evReceiptHost';
+      host.hidden = true;
+      document.body.appendChild(host);
+    }
+    return host;
+  }
+
+  function closeReceipt() {
+    const host = document.getElementById('evReceiptHost');
+    if (!host) return;
+    host.hidden = true;
+    host.innerHTML = '';
+    document.body.classList.remove('tsh-modal-open');
   }
 
   // ---- Gates ---------------------------------------------------------------

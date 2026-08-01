@@ -435,3 +435,106 @@ describe('PATCH /ev/bookings/:id — status transitions', () => {
     expect(data.item.status).toBe('confirmed');
   });
 });
+
+
+// ---------------------------------------------------------------------------
+// Phase 3 - digital receipt tests (FEATURE_TSH_EV_RECEIPT default on).
+// Spec: tsh_requirement.md sec 23.4 (Phase 3).
+// ---------------------------------------------------------------------------
+
+describe('GET /ev/receipt/:id', () => {
+  const bookOne = async (identity: string) => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true };
+    const r = await send('POST', '/ev/bookings', {
+      date: istDate(1), startMin: 9*60, endMin: 10*60, ownerFlat: 'A-101',
+    }, identity);
+    const { data } = await r.json() as any;
+    return data.item.id as string;
+  };
+
+  it('returns feature-disabled (503) when master flag is OFF', async () => {
+    const r = await send('GET', '/ev/receipt/EV-0102261200', undefined, 'resident1@x.com');
+    expect(r.status).toBe(503);
+  });
+
+  it('returns feature-disabled (503) when only FEATURE_TSH_EV_RECEIPT is OFF', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true, FEATURE_TSH_EV_RECEIPT: false };
+    const r = await send('GET', '/ev/receipt/EV-0102261200', undefined, 'resident1@x.com');
+    expect(r.status).toBe(503);
+    const j = await r.json() as any;
+    expect(String(j.error)).toContain('FEATURE_TSH_EV_RECEIPT');
+  });
+
+  it('requires sign-in (401 for anonymous)', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true };
+    const r = await send('GET', '/ev/receipt/EV-0102261200');
+    expect(r.status).toBe(401);
+  });
+
+  it('404 when the booking id does not exist', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true };
+    const r = await send('GET', '/ev/receipt/EV-0102261200', undefined, 'resident1@x.com');
+    expect(r.status).toBe(404);
+  });
+
+  it('owner can fetch their own receipt and payload has qr + checksum', async () => {
+    const id = await bookOne('resident1@x.com');
+    const r = await send('GET', '/ev/receipt/'+id, undefined, 'resident1@x.com');
+    expect(r.status).toBe(200);
+    const { data } = await r.json() as any;
+    expect(data.item.id).toBe(id);
+    expect(data.station.id).toBe('ev-1');
+    expect(data.society.name).toBeDefined();
+    expect(data.qr).toBeDefined();
+    expect(data.qr.v).toBe(1);
+    expect(data.qr.id).toBe(id);
+    expect(String(data.qr.checksum)).toMatch(/^[0-9a-f]{8}$/);
+    expect(data.generatedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  });
+
+  it('checksum is deterministic across two calls', async () => {
+    const id = await bookOne('resident1@x.com');
+    const a = await send('GET', '/ev/receipt/'+id, undefined, 'resident1@x.com');
+    const b = await send('GET', '/ev/receipt/'+id, undefined, 'resident1@x.com');
+    const ja = await a.json() as any;
+    const jb = await b.json() as any;
+    expect(ja.data.qr.checksum).toBe(jb.data.qr.checksum);
+  });
+
+  it('non-owner resident cannot view another owners receipt (403)', async () => {
+    const id = await bookOne('resident1@x.com');
+    const r = await send('GET', '/ev/receipt/'+id, undefined, 'other@x.com');
+    expect(r.status).toBe(403);
+  });
+
+  it('manager can view any owner receipt', async () => {
+    const id = await bookOne('resident1@x.com');
+    const r = await send('GET', '/ev/receipt/'+id, undefined, 'mgr@x.com');
+    expect(r.status).toBe(200);
+  });
+
+  it('pending booking cannot yield a receipt (400)', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true };
+    systemOverrides = { ev: { booking: {
+      stepMinutes: 30, minDurationMinutes: 30, maxDurationMinutes: 180,
+      bufferMinutes: 5, advanceWindowDays: 7, maxActivePerFlat: 1,
+      openMin: 360, closeMin: 1380, requiresApproval: true, blackoutDates: [],
+    }}};
+    const created = await send('POST', '/ev/bookings', {
+      date: istDate(1), startMin: 9*60, endMin: 10*60, ownerFlat: 'A-1',
+    }, 'resident1@x.com');
+    const { data: cData } = await created.json() as any;
+    const r = await send('GET', '/ev/receipt/'+cData.item.id, undefined, 'resident1@x.com');
+    expect(r.status).toBe(400);
+    const j = await r.json() as any;
+    expect(String(j.error)).toContain('confirmed or completed');
+  });
+
+  it('cancelled booking cannot yield a receipt (400)', async () => {
+    const id = await bookOne('resident1@x.com');
+    const cancel = await send('PATCH', '/ev/bookings/'+id, { status: 'cancelled' }, 'resident1@x.com');
+    expect(cancel.status).toBe(200);
+    const r = await send('GET', '/ev/receipt/'+id, undefined, 'resident1@x.com');
+    expect(r.status).toBe(400);
+  });
+});

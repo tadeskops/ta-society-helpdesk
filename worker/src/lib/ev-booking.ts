@@ -317,3 +317,57 @@ export const computeAvailability = (
   }
   return slots;
 };
+
+
+// ---- Phase 3: Digital receipt helpers ---------------------------------------
+
+/** Payload embedded in the QR code on the digital receipt. Everything a
+ *  verifier needs to prove the booking's authenticity without a network
+ *  hop: the id, station, time-range and a deterministic checksum. */
+export interface EvReceiptQrPayload {
+  v: 1;
+  id: string;
+  station: string;
+  date: string;
+  startMin: number;
+  endMin: number;
+  ownerFlat: string;
+  checksum: string;
+}
+
+// Small djb2-style hash — deterministic across runs, no crypto dependency.
+// Used only as a tamper-evident checksum on the printed QR, not as an
+// authentication token. Salt lets an editor rotate hashes without
+// invalidating past receipts they still have in email.
+export const evReceiptChecksum = (b: EvBooking, salt: string): string => {
+  const src = [
+    b.id, b.stationId, b.date,
+    String(b.startMin), String(b.endMin),
+    b.owner.flat.toLowerCase(),
+    b.status,
+    salt || '',
+  ].join('|');
+  let h = 5381;
+  for (let i = 0; i < src.length; i++) {
+    h = ((h << 5) + h + src.charCodeAt(i)) & 0xffffffff;
+  }
+  // Return as 8-hex-char string (unsigned) so the QR payload stays compact.
+  return (h >>> 0).toString(16).padStart(8, '0');
+};
+
+export const buildEvReceiptQr = (b: EvBooking, salt: string): EvReceiptQrPayload => ({
+  v: 1,
+  id: b.id,
+  station: b.stationId,
+  date: b.date,
+  startMin: b.startMin,
+  endMin: b.endMin,
+  ownerFlat: b.owner.flat,
+  checksum: evReceiptChecksum(b, salt),
+});
+
+/** True when the booking is in a state where a printable receipt makes
+ *  sense — confirmed / completed. Pending is deliberately excluded (no
+ *  legal booking yet); cancelled is excluded (voided). */
+export const isReceiptEligible = (b: EvBooking): boolean =>
+  b.status === 'confirmed' || b.status === 'completed';

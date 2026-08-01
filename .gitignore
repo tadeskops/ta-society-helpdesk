@@ -50,4 +50,6 @@ ref/
 *.swo
 *.bak
 *~diag.json
-COMMIT_MSG.tmp
+COMMIT_MSG.tmp_push_out.txt
+_tsc_out.txt
+_test_out.txt

@@ -32,6 +32,7 @@ import {
   effectiveBookingPolicy, nextEvBookingId, canTransitionEv,
   validateBookingWindow, validateTimeRange, findEvOverlap,
   countActiveEvBookingsForFlat, computeAvailability,
+  buildEvReceiptQr, isReceiptEligible,
   type EvBooking, type EvBookingStatus,
 } from '../lib/ev-booking.ts';
 
@@ -440,5 +441,67 @@ export const mountEvCharging = (r: Router): void => {
       ...(reason ? { detail: reason } : {}),
     });
     return ok(ctx.env, ctx.req, { item: patched });
+  });
+
+  // GET /ev/receipt/:id — digital receipt for a confirmed/completed booking.
+  // Owner or MANAGER+. Gated by FEATURE_TSH_EV_CHARGING + FEATURE_TSH_EV_RECEIPT.
+  // Spec: tsh_requirement.md §23.4 (Phase 3).
+  r.get('/ev/receipt/:id', async (ctx: Ctx, params) => {
+    ensureAllowed(ctx, {
+      flags: [FEATURE, FEATURE_RECEIPT],
+      requireIdentity: true,
+      roles: RESIDENT_UP,
+    });
+    const id = String(params['id'] || '');
+    if (!EV_ID_RE.test(id)) throw new BadRequest('booking id is malformed');
+    const { items } = await loadEvBookings(ctx);
+    const row = items.find((r) => r.id === id);
+    if (!row) throw new NotFound(`ev booking not found: ${id}`);
+    const meEmail = ctx.identity!.email.toLowerCase();
+    const isOwner = row.owner.email.toLowerCase() === meEmail;
+    if (!isOwner && !isStaff(ctx)) {
+      throw new Forbidden('Only the owner or a manager can view this receipt');
+    }
+    if (!isReceiptEligible(row)) {
+      throw new BadRequest(
+        `Receipt is only available for confirmed or completed bookings (current: ${row.status})`,
+      );
+    }
+    const ev = resolveEvConfig(ctx);
+    // Salt lets an admin rotate all receipt checksums by changing a single
+    // system value without invalidating past bookings. Falls back to the
+    // station id so a fresh install still produces stable checksums.
+    const sys = ctx.config.system as Record<string, unknown>;
+    const salt = String(
+      (sys['evReceiptSalt'] as string | undefined)
+      ?? (ev.station.id as string | undefined)
+      ?? 'ev-1',
+    );
+    const qr = buildEvReceiptQr(row, salt);
+    // Society block — pulled from system.society if present, else a
+    // reasonable fallback so the receipt template always has something
+    // to show. Editors can override any leaf via site.json.
+    const societyRaw = (sys['society'] as Record<string, unknown> | undefined) || {};
+    const society = {
+      name:     String(societyRaw['name']    ?? 'The Address'),
+      address:  String(societyRaw['address'] ?? ''),
+      email:    String(societyRaw['email']   ?? ''),
+      phone:    String(societyRaw['phone']   ?? ''),
+      logoUrl:  String(sys['logoUrl']        ?? ''),
+    };
+    return ok(ctx.env, ctx.req, {
+      item: row,
+      station: {
+        id:         ev.station.id,
+        name:       ev.station.name,
+        location:   ev.station.location,
+        capacityKw: ev.station.capacityKw,
+      },
+      society,
+      qr,
+      provider: ev.provider,
+      helpline: ev.helpline,
+      generatedAt: new Date().toISOString(),
+    });
   });
 };

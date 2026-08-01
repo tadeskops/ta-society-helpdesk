@@ -313,3 +313,84 @@
   .tsh-ev-book-fields { grid-template-columns: 1fr; }
   .tsh-ev-grid { grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); }
 }
+
+
+/* ---- Phase 3: Digital receipt modal --------------------------------- */
+.tsh-ev-receipt-overlay {
+  position: fixed; inset: 0;
+  background: rgba(15, 23, 42, 0.65);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1200;
+  padding: 20px;
+  overflow-y: auto;
+}
+.tsh-ev-receipt-card {
+  background: #fff;
+  border-radius: 16px;
+  max-width: 480px;
+  width: 100%;
+  padding: 24px 28px;
+  color: #111827;
+  box-shadow: 0 20px 40px rgba(0,0,0,.3);
+  font-family: inherit;
+}
+.tsh-ev-receipt-head {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  gap: 12px;
+  border-bottom: 1px dashed #e5e7eb;
+  padding-bottom: 14px; margin-bottom: 14px;
+}
+.tsh-ev-receipt-brand { display: flex; gap: 12px; align-items: center; }
+.tsh-ev-receipt-brand img { width: 44px; height: 44px; object-fit: contain; border-radius: 8px; }
+.tsh-ev-receipt-brand i { font-size: 32px; color: var(--tsh-primary, #2563eb); }
+.tsh-ev-receipt-brand h2 { margin: 0; font-size: 18px; font-weight: 700; }
+.tsh-ev-receipt-brand .tsh-sub { margin: 2px 0 0; font-size: 12px; opacity: .7; }
+.tsh-ev-receipt-close {
+  background: transparent; border: 0;
+  font-size: 24px; cursor: pointer;
+  line-height: 1; color: #6b7280;
+  padding: 0 6px;
+}
+.tsh-ev-receipt-grid {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 14px;
+  margin: 0 0 16px;
+  font-size: 13px;
+}
+.tsh-ev-receipt-grid dt { opacity: .7; font-weight: 500; }
+.tsh-ev-receipt-grid dd { margin: 0; font-weight: 600; }
+.tsh-ev-receipt-qr {
+  text-align: center;
+  padding: 14px 0;
+  border-top: 1px dashed #e5e7eb;
+  border-bottom: 1px dashed #e5e7eb;
+}
+.tsh-ev-receipt-qr img {
+  width: 180px; height: 180px;
+  border: 1px solid #e5e7eb; border-radius: 8px;
+  padding: 6px; background: #fff;
+}
+.tsh-ev-receipt-qr code {
+  background: #f3f4f6; padding: 2px 6px; border-radius: 4px;
+  font-family: 'Consolas', monospace; font-size: 12px;
+}
+.tsh-ev-receipt-foot {
+  padding-top: 12px;
+  font-size: 12px; opacity: .8;
+  display: flex; flex-direction: column; gap: 3px;
+}
+.tsh-ev-receipt-foot p { margin: 0; }
+.tsh-ev-receipt-actions {
+  display: flex; gap: 8px; justify-content: flex-end;
+  margin-top: 14px;
+}
+
+/* Print styles: hide everything except the receipt card. */
+@media print {
+  body > *:not(#evReceiptHost) { display: none !important; }
+  #evReceiptHost { display: block !important; }
+  .tsh-ev-receipt-overlay { position: static !important; background: #fff !important; padding: 0 !important; }
+  .tsh-ev-receipt-card { box-shadow: none !important; max-width: none !important; width: 100% !important; padding: 12px !important; }
+  .tsh-no-print { display: none !important; }
+}
