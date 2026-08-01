@@ -1,6 +1,8 @@
 // docs/assets/js/auth.js
 // Google Identity Services (GIS) shim. Holds the ID token in memory
-// only — never written to localStorage / cookies (spec §15.2).
+// AND in localStorage (persisted across tabs + browser restarts until
+// the JWT expires — typically ~1 h). Prior versions used sessionStorage
+// which is tab-scoped and forced re-sign-in in every new tab.
 //
 // Usage on a page:
 //   await Auth.init({ clientId: '<GOOGLE_OAUTH_CLIENT_ID>' });
@@ -8,6 +10,8 @@
 //   await Auth.signIn();                       // opens GIS prompt
 //   Auth.signOut();
 //   Auth.token();                              // current bearer or null
+//   Auth.hasSession();                         // sync bool — is there a
+//                                              //   valid persisted JWT?
 (function (root) {
   'use strict';
 
@@ -45,6 +49,58 @@
   }
 
   const STORAGE_KEY = 'tsh_id_token';
+  const HINT_KEY    = 'tsh_signed_in';
+
+  // Persistent, cross-tab storage. We used to use sessionStorage (tab-
+  // scoped), which forced users to re-sign-in every time they opened a
+  // new tab — e.g. clicking a link from WhatsApp / email opens a new
+  // tab and the fresh tab had no token, so the role-gated page rendered
+  // the sign-in card even though the user had signed in seconds earlier
+  // in another tab. Switching to localStorage lets one sign-in cover
+  // the whole browser profile until the JWT actually expires. The
+  // stored value is the Google id_token JWT only — no refresh token,
+  // no PII beyond what's in the JWT itself — and is cleared on
+  // Auth.signOut(). See auth.js docstring for the security posture.
+  const STORE = (function () {
+    try {
+      const t = '__tsh_probe__';
+      localStorage.setItem(t, '1'); localStorage.removeItem(t);
+      return localStorage;
+    } catch (_e) {
+      // localStorage disabled (e.g. Safari private) — fall back to
+      // sessionStorage so the token at least survives navigations in
+      // the same tab.
+      try { return sessionStorage; } catch (_e2) { return null; }
+    }
+  })();
+
+  function safeRead(key) {
+    if (!STORE) return '';
+    try { return STORE.getItem(key) || ''; } catch (_e) { return ''; }
+  }
+  function safeWrite(key, val) {
+    if (!STORE) return;
+    try { STORE.setItem(key, val); } catch (_e) { /* ignore quota / SecurityError */ }
+  }
+  function safeRemove(key) {
+    if (!STORE) return;
+    try { STORE.removeItem(key); } catch (_e) { /* ignore */ }
+  }
+
+  // One-shot migration: if the previous session-only token is still in
+  // sessionStorage (older release), copy it to STORE so the user isn't
+  // signed out on upgrade.
+  (function migrateSessionStorage() {
+    try {
+      if (STORE === sessionStorage) return;
+      const legacyJwt  = sessionStorage.getItem(STORAGE_KEY);
+      const legacyHint = sessionStorage.getItem(HINT_KEY);
+      if (legacyJwt && !safeRead(STORAGE_KEY)) safeWrite(STORAGE_KEY, legacyJwt);
+      if (legacyHint && !safeRead(HINT_KEY))  safeWrite(HINT_KEY,   legacyHint);
+      sessionStorage.removeItem(STORAGE_KEY);
+      sessionStorage.removeItem(HINT_KEY);
+    } catch (_e) { /* ignore */ }
+  })();
 
   function applyToken(jwt) {
     const claims = decodeJwt(jwt);
@@ -57,15 +113,9 @@
     state.name = claims.name || null;
     state.picture = claims.picture || null;
     state.expiry = (claims.exp || 0) * 1000;
-    // Tab-scoped cache (sessionStorage is cleared when the tab closes; not
-    // shared with other tabs and never written to disk persistently). This
-    // lets page reloads restore the session immediately instead of relying
-    // on Google's One Tap silent re-auth, which is often suppressed by
-    // FedCM / third-party-cookie restrictions.
-    try {
-      sessionStorage.setItem('tsh_signed_in', '1');
-      sessionStorage.setItem(STORAGE_KEY, jwt);
-    } catch (_e) { /* ignore */ }
+    // Persist across tabs + browser restarts (until JWT expires).
+    safeWrite(HINT_KEY, '1');
+    safeWrite(STORAGE_KEY, jwt);
     notify();
   }
 
@@ -75,26 +125,21 @@
     state.name = null;
     state.picture = null;
     state.expiry = 0;
-    try {
-      sessionStorage.removeItem('tsh_signed_in');
-      sessionStorage.removeItem(STORAGE_KEY);
-    } catch (_e) { /* ignore */ }
+    safeRemove(HINT_KEY);
+    safeRemove(STORAGE_KEY);
     notify();
   }
 
   function restoreFromStorage() {
-    let jwt = '';
-    try { jwt = sessionStorage.getItem(STORAGE_KEY) || ''; } catch (_e) { return false; }
+    const jwt = safeRead(STORAGE_KEY);
     if (!jwt) return false;
     const claims = decodeJwt(jwt);
     if (!claims || !claims.exp) return false;
     const expMs = claims.exp * 1000;
     // 60 s clock-skew buffer — if it's already about to expire, drop it.
     if (Date.now() > expMs - 60_000) {
-      try {
-        sessionStorage.removeItem(STORAGE_KEY);
-        sessionStorage.removeItem('tsh_signed_in');
-      } catch (_e) { /* ignore */ }
+      safeRemove(STORAGE_KEY);
+      safeRemove(HINT_KEY);
       return false;
     }
     state.token = jwt;
@@ -103,6 +148,18 @@
     state.picture = claims.picture || null;
     state.expiry = expMs;
     return true;
+  }
+
+  // Synchronous helper: "is there a valid persisted session I can trust
+  // right now, without waiting for the network?" Pages can use this to
+  // avoid rendering a Sign in gate while /whoami is still in flight.
+  function hasSession() {
+    if (state.token && Date.now() < state.expiry - 30_000) return true;
+    const jwt = safeRead(STORAGE_KEY);
+    if (!jwt) return false;
+    const claims = decodeJwt(jwt);
+    if (!claims || !claims.exp) return false;
+    return Date.now() < (claims.exp * 1000) - 30_000;
   }
 
   async function loadGisScript() {
@@ -137,8 +194,7 @@
     // 2) Only when there was no cached token AND a previous tab-session hint
     //    exists, attempt the GIS silent re-auth as a fallback. Otherwise we
     //    just notify (anonymous) and let the UI offer Sign in.
-    let hint = '';
-    try { hint = sessionStorage.getItem('tsh_signed_in') || ''; } catch (_e) { /* ignore */ }
+    let hint = safeRead(HINT_KEY);
     if (!restored && hint === '1') {
       await new Promise((resolve) => {
         let done = false;
@@ -164,7 +220,7 @@
               done = true;
               clearTimeout(timer);
               try { off(); } catch (_e) { /* ignore */ }
-              try { sessionStorage.removeItem('tsh_signed_in'); } catch (_e) { /* ignore */ }
+              safeRemove(HINT_KEY);
               resolve();
             }
           });
@@ -293,6 +349,6 @@
     return () => listeners.delete(fn);
   }
 
-  root.Auth = { init, signIn, signOut, token: tokenIfFresh, onChange, email: () => state.email };
+  root.Auth = { init, signIn, signOut, token: tokenIfFresh, hasSession, onChange, email: () => state.email };
 })(window);
 

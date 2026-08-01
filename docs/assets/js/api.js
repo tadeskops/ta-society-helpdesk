@@ -95,6 +95,13 @@
         if (hadToken) {
           // Force the next request to omit the stale bearer.
           try { root.Auth.signOut(); } catch (_e) { /* ignore */ }
+          // Tell the user why the sign-in popup is about to appear —
+          // otherwise it looks like the app forgot they were signed in.
+          try {
+            if (root.UI && typeof root.UI.toast === 'function') {
+              root.UI.toast('Session expired — please sign in again.', { kind: 'warn' });
+            }
+          } catch (_e) { /* ignore */ }
         }
         try { await root.Auth.signIn(); } catch (_e) { /* user dismissed */ }
         if (root.Auth.token()) {

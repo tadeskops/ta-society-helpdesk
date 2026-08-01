@@ -46,7 +46,10 @@ const validateSiteShape = (raw: unknown): SiteConfig => {
   // entries (defaultTheme, defaultFontScale, etc.) must be strings. The
   // `ui.collapse` slot is reserved for the collapsible-sections registry
   // override and accepts an object map of `{id: {collapsible:bool,
-  // defaultCollapsed:bool}}` (both fields optional).
+  // defaultCollapsed:bool}}` (both fields optional). The
+  // `ui.mobileQuickActions` slot lets an admin customise the mobile "+"
+  // bottom-sheet menu (title + ordered enable/disable list of registry
+  // keys, with optional per-item label / desc overrides).
   if (raw['ui'] !== undefined) {
     if (!isObj(raw['ui'])) throw new BadRequest('config.ui must be an object');
     for (const [k, v] of Object.entries(raw['ui'] as Record<string, unknown>)) {
@@ -60,6 +63,63 @@ const validateSiteShape = (raw: unknown): SiteConfig => {
           }
           if (e.defaultCollapsed !== undefined && typeof e.defaultCollapsed !== 'boolean') {
             throw new BadRequest(`ui.collapse.${id}.defaultCollapsed must be boolean`);
+          }
+        }
+        continue;
+      }
+      if (k === 'mobileQuickActions') {
+        if (!isObj(v)) throw new BadRequest('ui.mobileQuickActions must be an object');
+        const q = v as Record<string, unknown>;
+        if (q.title !== undefined) {
+          if (typeof q.title !== 'string') {
+            throw new BadRequest('ui.mobileQuickActions.title must be a string');
+          }
+          if (q.title.length > 60) {
+            throw new BadRequest('ui.mobileQuickActions.title must be 60 chars or fewer');
+          }
+        }
+        if (q.items !== undefined) {
+          if (!Array.isArray(q.items)) {
+            throw new BadRequest('ui.mobileQuickActions.items must be an array');
+          }
+          if (q.items.length > 32) {
+            throw new BadRequest('ui.mobileQuickActions.items must have 32 items or fewer');
+          }
+          const seenKeys = new Set<string>();
+          for (const [i, item] of (q.items as unknown[]).entries()) {
+            if (!isObj(item)) {
+              throw new BadRequest(`ui.mobileQuickActions.items[${i}] must be an object`);
+            }
+            const it = item as Record<string, unknown>;
+            if (typeof it.key !== 'string' || !it.key) {
+              throw new BadRequest(`ui.mobileQuickActions.items[${i}].key must be a non-empty string`);
+            }
+            if (!/^[a-z0-9_-]{1,40}$/i.test(it.key)) {
+              throw new BadRequest(`ui.mobileQuickActions.items[${i}].key must be alphanumeric (\`_ -\` allowed, max 40 chars)`);
+            }
+            if (seenKeys.has(it.key)) {
+              throw new BadRequest(`ui.mobileQuickActions.items[${i}].key "${it.key}" is duplicated`);
+            }
+            seenKeys.add(it.key);
+            if (it.enabled !== undefined && typeof it.enabled !== 'boolean') {
+              throw new BadRequest(`ui.mobileQuickActions.items[${i}].enabled must be boolean`);
+            }
+            if (it.label !== undefined) {
+              if (typeof it.label !== 'string') {
+                throw new BadRequest(`ui.mobileQuickActions.items[${i}].label must be a string`);
+              }
+              if (it.label.length > 60) {
+                throw new BadRequest(`ui.mobileQuickActions.items[${i}].label must be 60 chars or fewer`);
+              }
+            }
+            if (it.desc !== undefined) {
+              if (typeof it.desc !== 'string') {
+                throw new BadRequest(`ui.mobileQuickActions.items[${i}].desc must be a string`);
+              }
+              if (it.desc.length > 120) {
+                throw new BadRequest(`ui.mobileQuickActions.items[${i}].desc must be 120 chars or fewer`);
+              }
+            }
           }
         }
         continue;

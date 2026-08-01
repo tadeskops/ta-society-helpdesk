@@ -30,6 +30,11 @@ yarn-error.log*
 .env
 .env.*
 
+### Local test / tsc capture files (created by the `cmd /c "npm test > _test_out.txt"`
+### workaround for PowerShell NativeCommandError — never commit).
+worker/_test_out.txt
+worker/_tsc_out.txt
+
 ### OAuth client secret JSON downloads — never commit, even under config/
 client_secret*.json
 **/client_secret*.json

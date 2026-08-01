@@ -9,6 +9,8 @@
   <script>(function(){try{var t=localStorage.getItem('tsh_theme');if(t!=='dark'&&t!=='light'&&t!=='medium')t='light';if(t!=='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="./assets/css/theme.css?v=87" />
+  <!-- Mobile-only tab-bar overlay + WhatsApp-style bottom sheet. Loaded on every page so the same bottom nav appears in mobile view; hidden above 640px by the CSS media query. -->
+  <link rel="stylesheet" href="./assets/css/mobile-landing.css?v=14" />
 </head>
 <body class="tsh-page">
   <div data-include="header"></div>
@@ -26,10 +28,13 @@
       <div id="signinGate" class="tsh-signin-gate" hidden>
         <i class="fas fa-shield-halved tsh-signin-gate-icon" aria-hidden="true"></i>
         <div class="tsh-signin-gate-body">
-          <div class="tsh-signin-gate-title">Sign in with Google to submit a report</div>
-          <p class="tsh-signin-gate-msg">Any Gmail account works. We use your email only to track who filed each report &mdash; we never post on your behalf or share it.</p>
+          <div class="tsh-signin-gate-title">Sign in to submit a report</div>
+          <p class="tsh-signin-gate-msg">Any Gmail account works &mdash; we use your email only to track who filed each report, never to post on your behalf.</p>
+          <p class="tsh-signin-gate-msg">
+            <i class="fas fa-arrow-up-right-from-square gold-accent" aria-hidden="true"></i>
+            Use the <strong>Sign in</strong> button in the <strong>top-right</strong> corner.
+          </p>
         </div>
-        <button type="button" class="tsh-btn tsh-btn-primary tsh-signin-gate-action" id="signinGateBtn"><i class="fab fa-google"></i>Sign in</button>
       </div>
       <div id="signinConfirmed" class="tsh-signin-confirmed" hidden>
         <i class="fas fa-circle-check" aria-hidden="true"></i>
@@ -119,15 +124,18 @@
     </section>
   </main>
 
+  <div data-include="mobile-tabbar"></div>
+  <div data-include="mobile-actions-sheet"></div>
   <div data-include="footer"></div>
 
   <script src="./assets/js/config.js?v=11"></script>
   <script src="./assets/js/partials.js?v=22"></script>
   <script src="./assets/js/api.js?v=12"></script>
   <script src="./assets/js/auth.js?v=11"></script>
-  <script src="./assets/js/flags.js?v=15"></script>
+  <script src="./assets/js/flags.js?v=19"></script>
   <script src="./assets/js/collapse-registry.js?v=1"></script>
   <script src="./assets/js/ui.js?v=53"></script>
+  <script src="./assets/js/mobile-landing.js?v=8"></script>
   <script src="./assets/js/notify.js?v=1"></script>
   <script src="./assets/js/pdf-report.js?v=8"></script>
   <script src="./assets/js/visitors.js?v=2"></script>
@@ -159,7 +167,6 @@
     const gate = document.getElementById('signinGate');
     const confirmed = document.getElementById('signinConfirmed');
     const emailSlot = confirmed.querySelector('[data-tsh-email]');
-    document.getElementById('signinGateBtn').addEventListener('click', () => Auth.signIn());
     document.getElementById('signoutLink').addEventListener('click', () => {
       Auth.signOut();
       UI.toast('Signed out.', { kind: 'info' });
@@ -172,8 +179,8 @@
         const btn = document.getElementById('submitBtn');
         btn.disabled = !s.signedIn;
         const status = document.getElementById('formStatus');
-        if (!s.signedIn) status.textContent = 'Sign in with Google above to submit.';
-        else if (status.textContent === 'Sign in with Google above to submit.') status.textContent = '';
+        if (!s.signedIn) status.textContent = 'Sign in to submit.';
+        else if (status.textContent === 'Sign in to submit.') status.textContent = '';
       } else {
         // Anonymous flow: still surface the confirmation strip when signed in
         // so the user knows their identity is attached, but never block.

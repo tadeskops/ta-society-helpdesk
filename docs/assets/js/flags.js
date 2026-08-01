@@ -90,7 +90,7 @@
       +   '<h1>' + societyName.replace(/</g, '&lt;') + '</h1>'
       +   '<h2><i class="fas fa-hammer" aria-hidden="true"></i> Under Maintenance</h2>'
       +   '<p>' + message.replace(/</g, '&lt;') + '</p>'
-      +   '<p class="tsh-mnt-hint">If you are an administrator, please sign in from the top-right menu to continue.</p>'
+      +   '<p class="tsh-mnt-hint">Admins can sign in to continue.</p>'
       + '</div>';
     document.body.appendChild(overlay);
   }
@@ -220,19 +220,38 @@
   //   const who = await Flags.ensureAuthorized('MANAGER');
   // - Anonymous visitor: renders an inline sign-in gate; throws.
   // - Signed-in but role too low: renders a "not authorised" panel; throws.
+  //
+  // Robustness: if the client HAS a valid persisted session
+  // (Auth.hasSession() === true) but /whoami transiently returns empty
+  // (network hiccup, worker cold start, CORS on localhost), we retry a
+  // couple of times before treating the token as rejected. That avoids
+  // the class of bug where a user who is already signed in gets bounced
+  // to the Sign-in card because of a 1-second worker blip.
   async function ensureAuthorized(minRole, redirectTo) {
     await ready();
     const tok = root.Auth ? root.Auth.token() : null;
-    const who = await whoami();
 
     // No client token at all — show the sign-in gate.
     if (!tok) {
       renderSignInGate(minRole);
       throw new Error('Unauthenticated');
     }
-    // Client thinks we're signed in, but the server rejected /whoami
-    // (token expired, invalidated, signature failure). Drop the stale
-    // session and offer Sign in again.
+
+    let who = await whoami();
+
+    // Client thinks we're signed in, but /whoami came back empty. If
+    // the local JWT is still valid this is almost always transient —
+    // give it up to 2 retries with short backoff before we conclude the
+    // server has actually rejected the token.
+    if (!who.email && root.Auth && typeof root.Auth.hasSession === 'function' && root.Auth.hasSession()) {
+      for (let attempt = 0; attempt < 2 && !who.email; attempt++) {
+        await new Promise((r) => setTimeout(r, 400 + attempt * 400));
+        who = await whoami(true);
+      }
+    }
+
+    // Server ultimately rejected the token — drop the stale session and
+    // offer Sign in again.
     if (!who.email) {
       try { root.Auth && root.Auth.signOut(); } catch (_e) { /* ignore */ }
       renderSignInGate(minRole);
@@ -252,24 +271,20 @@
     main.innerHTML =
       '<section class="tsh-card" style="max-width:560px;margin:8vh auto;text-align:center;">' +
       '  <header class="tsh-card-head"><h1><i class="fas fa-lock gold-accent"></i> Sign in required</h1></header>' +
-      '  <p class="tsh-sub">This page is restricted to <strong id="tshGateRole"></strong> access and above. ' +
-      '     Please sign in with your authorised Google account.</p>' +
+      '  <p class="tsh-sub">This page needs <strong id="tshGateRole"></strong> access or higher.</p>' +
+      '  <p class="tsh-sub">' +
+      '    <i class="fas fa-arrow-up-right-from-square gold-accent" aria-hidden="true"></i> ' +
+      '    Use the <strong>Sign in</strong> button in the <strong>top-right</strong> corner.' +
+      '  </p>' +
       '  <div class="tsh-toolbar" style="justify-content:center;margin-top:1rem;gap:.5rem;">' +
-      '    <button type="button" class="tsh-btn tsh-btn-primary" id="tshGateSignIn">' +
-      '      <i class="fas fa-right-to-bracket"></i> Sign in with Google</button>' +
       '    <a class="tsh-btn tsh-btn-ghost" href="./index.html"><i class="fas fa-house"></i> Home</a>' +
       '  </div>' +
-      '  <p class="tsh-sub" style="margin-top:1rem;font-size:.85rem;">' +
-      '    Tip: you can also use the <em>Sign in</em> button in the top-right.</p>' +
       '</section>';
     const roleEl = document.getElementById('tshGateRole');
     if (roleEl) roleEl.textContent = need;
-    const btn = document.getElementById('tshGateSignIn');
-    if (btn && root.Auth) {
-      btn.addEventListener('click', async () => {
-        try { await root.Auth.signIn(); } catch (_e) { /* user dismissed */ }
-      });
-      // When sign-in succeeds, reload so the page re-runs its bootstrap.
+    // When sign-in succeeds via the header button, reload so the page
+    // re-runs its bootstrap and lands the user on the real content.
+    if (root.Auth) {
       const off = root.Auth.onChange((s) => {
         if (s.signedIn) { try { off && off(); } catch (_e) {} location.reload(); }
       });

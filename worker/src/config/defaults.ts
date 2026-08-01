@@ -120,6 +120,31 @@ export interface SiteConfig {
      * userbox doesn't crowd the nav row.
      */
     headerIconExpand?: 'auto' | 'never' | 'always';
+    /**
+     * Mobile "+" quick-actions bottom sheet — admin overrides the built-in
+     * WhatsApp-style menu triggered by the tab-bar centre FAB (v2 UI).
+     *
+     * `title` replaces the default "Create" heading. Any short string.
+     * `items` is an ordered list of registry keys plus per-item state.
+     * Only keys present in the client-side registry
+     * (`window.TSH_QUICK_ACTIONS_REGISTRY` in mobile-landing.js) are
+     * rendered; unknown keys are silently ignored. `enabled: false`
+     * removes an item without losing its position. `label` / `desc`
+     * per-item overrides let admins rename an entry ("Report an issue" →
+     * "Log a complaint") without touching code.
+     *
+     * When the block is absent, the client falls back to the first six
+     * registry entries — the pre-2026-07-26 default.
+     */
+    mobileQuickActions?: {
+      title?: string;
+      items?: Array<{
+        key: string;
+        enabled?: boolean;
+        label?: string;
+        desc?: string;
+      }>;
+    };
   };
 }
 

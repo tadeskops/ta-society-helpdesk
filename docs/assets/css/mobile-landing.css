@@ -1,0 +1,474 @@
+/* =====================================================================
+   mobile-landing.css — mobile overlay for the whole site
+   ---------------------------------------------------------------------
+   Site-wide mobile-only enhancement wrapped in @media (max-width: 640px).
+   Adds a fixed bottom tab-bar with a centre "+" FAB that opens a
+   WhatsApp-style bottom sheet of quick-actions. Hides duplicate access
+   points that the tab-bar + sheet already cover (header nav links,
+   #tshHero, #tshQuick, #tshServices, footer). Desktop (≥641px) is
+   completely untouched.
+
+   Palette + fonts inherit from theme.css tokens (--c-primary gold,
+   --c-bg-2 navy, --c-text, system-sans). No new colours introduced.
+
+   Companion files:
+   - docs/partials/mobile-tabbar.html         → the tab-bar markup
+   - docs/partials/mobile-actions-sheet.html  → the bottom-sheet markup
+   - docs/assets/js/mobile-landing.js         → wiring + registry
+   ===================================================================== */
+
+/* Base visibility helpers.
+   Desktop (≥641px) hides mobile-only nodes; leaves desktop-only nodes
+   alone. Scoped to a min-width query so that inside the mobile media
+   block below the rule does NOT apply, letting the element's own
+   `display` rule win without needing a fragile `display: revert`
+   override that resolves to the tag default. */
+@media (min-width: 641px) {
+  [data-tsh-mobile-only] { display: none !important; }
+}
+
+/* ===================== MOBILE (<=640px) OVERRIDES ===================== */
+@media (max-width: 640px) {
+
+  /* --- Visibility toggles ------------------------------------------ */
+  .tsh-page-landing [data-tsh-desktop-only] { display: none !important; }
+
+  /* Header primary-nav icons that duplicate the fixed bottom tab-bar
+     (Home / Report / Board / Directory) are redundant on mobile.
+     Manager-only icons (My reports, Dashboard, Manage, Settings) stay
+     visible because they aren't reachable from the tab-bar. */
+  .tsh-nav > a[data-tsh-nav="home"],
+  .tsh-nav > a[data-tsh-nav="report"],
+  .tsh-nav > a[data-tsh-nav="board"],
+  .tsh-nav > a[data-tsh-nav="directory"] {
+    display: none !important;
+  }
+
+  /* Mobile-only Instagram icon in the header. The full text row in the
+     footer is redundant on phones and the icon in the header keeps a
+     one-tap shortcut without eating vertical space. */
+  .tsh-header-ig {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    margin-left: auto;         /* pushes it to the right of the brand row */
+    margin-right: 6px;
+    border-radius: 50%;
+    color: var(--c-primary);
+    text-decoration: none;
+    font-size: 18px;
+    transition: transform 0.15s ease, background-color 0.15s ease;
+  }
+  .tsh-header-ig:hover,
+  .tsh-header-ig:focus-visible {
+    background-color: rgba(212, 175, 55, 0.12);
+    transform: scale(1.05);
+    outline: none;
+  }
+  .tsh-header-ig:focus-visible {
+    outline: 2px solid var(--c-primary);
+    outline-offset: 2px;
+  }
+
+  /* Footer Instagram row is now covered by the header icon on mobile,
+     drop it to reclaim vertical space above the fixed tab-bar. */
+  .tsh-footer-social { display: none !important; }
+
+  /* The whole footer (Report-site-bug button + meta line) is redundant
+     on mobile — its content pokes up behind the fixed tab-bar as a
+     dark 89px band. All primary navigation is already in the tab-bar
+     and the IG shortcut has been moved to the header, so hide the
+     entire footer to give the last content row breathing room above
+     the tab-bar. Desktop layout is untouched (rule scoped to the
+     mobile media block). */
+  .tsh-footer { display: none !important; }
+
+  /* Toast container defaults to `bottom: var(--sp-5)` in theme.css,
+     which puts it exactly where the fixed tab-bar sits on mobile so
+     info/warn/danger toasts overlap the bar. Lift the container above
+     the tab-bar (bar height ≈ 56px + safe-area, +12px breathing gap)
+     so the whole toast stays legible and the bar stays tappable. */
+  .tsh-toasts {
+    bottom: calc(80px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  /* Nodes the tab-bar + bottom-sheet already cover. Hidden purely
+     visually — markup, JS bindings and feature flags stay live so
+     desktop still shows them. `#tshHero` = "What would you like to do
+     today?" primary CTA (mobile users tap the gold Report FAB instead);
+     `#tshQuick` = the collapsible "Quick Access" tiles (same set of
+     shortcuts the sheet exposes with more room); `#tshServices` = the
+     "All services" catalogue (exhaustively duplicates the sheet + the
+     header staff icons — keep desktop, hide on phones). */
+  .tsh-page-landing #tshHero,
+  .tsh-page-landing #tshQuick,
+  .tsh-page-landing #tshServices {
+    display: none !important;
+  }
+
+  /* Leave room at the bottom for the fixed tab-bar (56px + safe area).
+     Applies to every page — the tab-bar partial is now included site-
+     wide (docs/partials/mobile-tabbar.html) so every mobile page needs
+     the same bottom breathing room to keep the last content row visible
+     above the fixed bar. */
+  .tsh-main {
+    padding-bottom: calc(68px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  /* --- 2. (removed) Story avatar strip ------------------------------
+     The story-avatar rail was rolled back on 2026-07-31 in favour of
+     the header, tab-bar and bottom-sheet as the sole mobile access
+     points. All `.tsh-mob-story*` selectors + the pulse keyframe were
+     removed with the markup. Numbering below is kept for readability. */
+
+  /* --- 3. Compact banner strip ------------------------------------ */
+  .tsh-page-landing #tshBannerStrip { margin: var(--sp-2) var(--sp-4); }
+
+  /* --- 4. Home-manager pinned card (compact, gold-tinted) --------- */
+  .tsh-page-landing #tshHomeMgr { margin: var(--sp-2) var(--sp-4) var(--sp-3); }
+  .tsh-page-landing #tshHomeMgr .tsh-home-mgr-card {
+    padding: var(--sp-3);
+    border-radius: var(--rad-lg);
+  }
+  .tsh-page-landing #tshHomeMgr .tsh-home-mgr-avatar {
+    width: 44px;
+    height: 44px;
+    font-size: 14px;
+  }
+
+  /* --- 5. KPI strip: 2×2 compact grid on phones ------------------- */
+  .tsh-page-landing #tshKpi { margin: 0 var(--sp-4) var(--sp-3); }
+  .tsh-page-landing #tshKpi .tsh-kpi-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .tsh-page-landing #tshKpi .tsh-kpi-card {
+    padding: 10px;
+    grid-template-columns: 30px 1fr;
+    column-gap: 8px;
+  }
+  .tsh-page-landing #tshKpi .tsh-kpi-icon {
+    width: 30px;
+    height: 30px;
+    font-size: 0.85rem;
+  }
+  .tsh-page-landing #tshKpi .tsh-kpi-value { font-size: 1.15rem; }
+  .tsh-page-landing #tshKpi .tsh-kpi-label { font-size: 0.66rem; }
+  .tsh-page-landing #tshKpi .tsh-kpi-delta { font-size: 0.62rem; }
+
+  /* --- 6. Recent issues + Services + info sections tighten -------- */
+  .tsh-page-landing #tshRecentIssues,
+  .tsh-page-landing #tshServices,
+  .tsh-page-landing .tsh-infogrid,
+  .tsh-page-landing #tshStaff {
+    margin-left: var(--sp-4);
+    margin-right: var(--sp-4);
+  }
+
+  /* ================================================================
+     Fixed bottom tab-bar
+     ================================================================ */
+  .tsh-mob-tabbar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    display: flex;
+    justify-content: space-around;
+    align-items: flex-end;
+    padding: 6px 10px calc(10px + env(safe-area-inset-bottom, 0px));
+    background: linear-gradient(
+      180deg,
+      rgba(11, 15, 22, 0.55),
+      var(--c-bg-2, #1a1f2e) 60%
+    );
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border-top: 1px solid var(--c-border);
+    box-shadow: 0 -8px 20px rgba(0, 0, 0, 0.35);
+  }
+  .tsh-mob-tabbar a {
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: 6px 2px;
+    /* Fixed light grey — the tab-bar background is intentionally dark
+       navy on every theme (Instagram-mockup design). If we used
+       var(--c-text-muted) the labels would vanish on light/medium themes
+       where that token becomes dark slate/brown. */
+    color: #cbd5e1;
+    text-decoration: none;
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    line-height: 1;
+    min-height: 44px;               /* accessible tap target */
+  }
+  .tsh-mob-tabbar a i { font-size: 17px; }
+  .tsh-mob-tabbar a[aria-current="page"],
+  .tsh-mob-tabbar a.is-active { color: var(--c-primary); }
+  .tsh-mob-tabbar a:focus-visible {
+    outline: 2px solid var(--c-primary);
+    outline-offset: -2px;
+    border-radius: 8px;
+  }
+  .tsh-mob-tabbar a.tsh-mob-fab {
+    position: relative;
+    top: -14px;
+    flex: 0 0 auto;
+    width: 52px;
+    height: 52px;
+    padding: 0;
+    border-radius: 50%;
+    background: linear-gradient(
+      135deg,
+      var(--c-primary),
+      var(--c-primary-2, #b8961f)
+    );
+    color: var(--c-bg-2, #1a1f2e);
+    box-shadow: 0 6px 18px rgba(212, 175, 55, 0.42);
+    justify-content: center;
+    align-items: center;
+    font-size: 0;                   /* hides the label text on the FAB */
+  }
+  .tsh-mob-tabbar a.tsh-mob-fab i { font-size: 22px; }
+
+  /* Floating display-controls dock — nudge above the tab-bar so the
+     draggable dock doesn't collide with it in its default position.
+     Skip the override when `.is-floating` because ui.js's drag handler
+     sets an inline `top:` on floating docks. If we forced `bottom` too,
+     the position:fixed element would stretch to fill both anchors
+     (top+bottom) and become a very tall vertical pill. */
+  .tsh-page-landing .tsh-floatdock:not(.is-floating) {
+    bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* Above 640px the tab-bar + sheet are fully hidden even if the markup
+   is present. */
+@media (min-width: 641px) {
+  .tsh-mob-tabbar,
+  .tsh-mob-sheet { display: none !important; }
+}
+
+/* =====================================================================
+   MOBILE UI SECTION REORDER
+   ---------------------------------------------------------------------
+   Design rationale:
+   - Section reorder puts "who wants my attention" content (banner,
+     society-manager card, KPI, recent issues, announcements, events,
+     polls) above the "All services" catalogue. A resident opening the
+     app in "reactive scan" mode hits fresh content first rather than
+     static navigation.
+   - The tab-bar covers Home / Board / Book / Directory and the "+"
+     tab opens a bottom-sheet for every "create" action (Report /
+     Reserve / Claim / Search vehicle / Vote / My reports).
+   - Redundant access points (#tshHero, #tshQuick, #tshServices, primary
+     nav links duplicated by the tab-bar) are hidden further up.
+   ===================================================================== */
+@media (max-width: 640px) {
+
+  /* Section reorder — main must be flex to enable `order`. */
+  body.tsh-page-landing main.tsh-main {
+    display: flex;
+    flex-direction: column;
+  }
+  body.tsh-page-landing #tshBannerStrip     { order: 1; }
+  body.tsh-page-landing #tshHomeMgr         { order: 2; }
+  body.tsh-page-landing #tshKpi             { order: 3; }
+  body.tsh-page-landing #tshRecentIssues    { order: 4; }
+  body.tsh-page-landing .tsh-infogrid       { order: 5; }
+  body.tsh-page-landing #tshStaff           { order: 6; }
+
+  /* ================================================================
+     Bottom-sheet triggered by the tab-bar "+" (WhatsApp-style).
+     Rendered from docs/partials/mobile-actions-sheet.html and shown
+     by mobile-landing.js when the user taps the centre FAB. Escapable
+     via backdrop tap, close (X) button, or Escape key.
+     ================================================================ */
+  .tsh-mob-sheet {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    pointer-events: none;
+  }
+  .tsh-mob-sheet[hidden] { display: none; }
+  .tsh-mob-sheet-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    pointer-events: auto;
+    animation: tsh-mob-sheet-fade 0.2s ease;
+  }
+  .tsh-mob-sheet-panel {
+    position: relative;
+    background: var(--c-bg-2, #1a1f2e);
+    /* Sheet panel is always dark navy for the WhatsApp-like look, so
+       fix the text colour to a light slate regardless of the active
+       theme (same fix pattern the bottom tab-bar uses). Using
+       var(--c-text) would produce dark-on-dark on the light theme. */
+    color: #e2e8f0;
+    border-top-left-radius: var(--rad-xl);
+    border-top-right-radius: var(--rad-xl);
+    /* Extra top padding to make room for the absolute-positioned close
+       X in the top-right corner without overlapping the handle/title. */
+    padding: 12px 16px calc(20px + env(safe-area-inset-bottom, 0px));
+    pointer-events: auto;
+    box-shadow: 0 -12px 30px rgba(0, 0, 0, 0.5);
+    animation: tsh-mob-sheet-rise 0.22s cubic-bezier(0.22, 0.61, 0.36, 1);
+    max-height: 85vh;
+    overflow-y: auto;
+  }
+  /* Gold-glowing close X at the top-right of the panel. Replaces the
+     old full-width "Cancel" button — a compact, universally-recognised
+     dismiss affordance that doesn't compete with the action rows for
+     visual weight. The pulse glow draws the eye without being loud. */
+  .tsh-mob-sheet-x {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    width: 36px;
+    height: 36px;
+    display: grid;
+    place-items: center;
+    background: rgba(212, 175, 55, 0.14);
+    color: #f3d97a;
+    border: 1px solid rgba(212, 175, 55, 0.55);
+    border-radius: 50%;
+    font-size: 22px;
+    line-height: 1;
+    font-family: inherit;
+    cursor: pointer;
+    padding: 0;
+    z-index: 2;
+    box-shadow:
+      0 0 8px rgba(212, 175, 55, 0.35),
+      0 0 18px rgba(212, 175, 55, 0.18);
+    transition: box-shadow 0.2s ease, transform 0.15s ease, background 0.2s ease, color 0.2s ease;
+    animation: tsh-mob-sheet-x-glow 2.4s ease-in-out infinite;
+  }
+  .tsh-mob-sheet-x:hover,
+  .tsh-mob-sheet-x:focus-visible {
+    background: rgba(212, 175, 55, 0.26);
+    color: #fff;
+    outline: none;
+    transform: scale(1.05);
+    animation: none;
+    box-shadow:
+      0 0 12px rgba(212, 175, 55, 0.65),
+      0 0 28px rgba(212, 175, 55, 0.35);
+  }
+  @keyframes tsh-mob-sheet-x-glow {
+    0%, 100% {
+      box-shadow:
+        0 0 8px rgba(212, 175, 55, 0.35),
+        0 0 18px rgba(212, 175, 55, 0.18);
+    }
+    50% {
+      box-shadow:
+        0 0 14px rgba(212, 175, 55, 0.6),
+        0 0 30px rgba(212, 175, 55, 0.32);
+    }
+  }
+  .tsh-mob-sheet-handle {
+    width: 40px;
+    height: 4px;
+    background: var(--c-border);
+    border-radius: 999px;
+    margin: 0 auto 12px;
+  }
+  .tsh-mob-sheet-title {
+    margin: 0 0 12px;
+    font-size: 0.78rem;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+  }
+  .tsh-mob-sheet-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .tsh-mob-sheet-list li[hidden],
+  .tsh-mob-sheet-list a[hidden] { display: none; }
+  .tsh-mob-sheet-list a {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 8px;
+    color: #e2e8f0;
+    text-decoration: none;
+    border-radius: var(--rad-md);
+    min-height: 56px;
+  }
+  .tsh-mob-sheet-list a:hover,
+  .tsh-mob-sheet-list a:focus-visible {
+    background: rgba(212, 175, 55, 0.14);
+    outline: none;
+  }
+  .tsh-mob-sheet-icon {
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    background: rgba(212, 175, 55, 0.16);
+    color: #d4af37;
+    border-radius: 50%;
+    font-size: 16px;
+    flex: 0 0 auto;
+  }
+  .tsh-mob-sheet-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+  .tsh-mob-sheet-h {
+    font-weight: 600;
+    font-size: 0.95rem;
+    line-height: 1.2;
+    color: #f1f5f9;
+  }
+  .tsh-mob-sheet-d {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    line-height: 1.25;
+  }
+  .tsh-mob-sheet-chev {
+    color: #64748b;
+    font-size: 0.7rem;
+    flex: 0 0 auto;
+  }
+  @keyframes tsh-mob-sheet-fade {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  @keyframes tsh-mob-sheet-rise {
+    from { transform: translateY(100%); }
+    to   { transform: translateY(0); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .tsh-mob-sheet-panel,
+    .tsh-mob-sheet-backdrop { animation: none; }
+    .tsh-mob-sheet-x { animation: none; }
+  }
+
+  /* When the sheet is open, prevent background scroll. Applied by JS
+     via body.tsh-mob-sheet-open. */
+  body.tsh-mob-sheet-open { overflow: hidden; }
+}
+

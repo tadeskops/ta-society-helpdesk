@@ -304,6 +304,76 @@ describe('RBAC denials', () => {
   });
 });
 
+describe('PUT /config → ui.mobileQuickActions validation', () => {
+  // The mobile "+" bottom-sheet is admin-configurable via a new
+  // ui.mobileQuickActions block. The validator must accept a well-formed
+  // block, reject items with missing / duplicate / oversized keys, and
+  // still reject payloads that put non-string scalars anywhere else in
+  // the ui block (regression guard for the pre-existing rules).
+  const baseCfg = () => ({
+    version: 1,
+    features: { FEATURE_DAILY_TRACK: true },
+    tunables: {},
+    lists: { towers: [], categories: [], subCategories: {} },
+    system: {},
+    ui: {} as Record<string, unknown>,
+  });
+
+  it('accepts a well-formed mobileQuickActions block', async () => {
+    const cfg = baseCfg();
+    cfg.ui.mobileQuickActions = {
+      title: 'Quick actions',
+      items: [
+        { key: 'report',  enabled: true,  label: 'Log a complaint' },
+        { key: 'reserve', enabled: false },
+        { key: 'vote',    enabled: true,  desc: 'Vote on society decisions' },
+      ],
+    };
+    const r = await send('PUT', '/config', { config: cfg }, 'dev@x.com');
+    expect(r.status).toBe(200);
+  });
+
+  it('rejects a non-object mobileQuickActions', async () => {
+    const cfg = baseCfg();
+    cfg.ui.mobileQuickActions = 'nope' as unknown as Record<string, unknown>;
+    const r = await send('PUT', '/config', { config: cfg }, 'dev@x.com');
+    expect(r.status).toBe(400);
+    const j = await r.json() as any;
+    expect(String(j.error || '')).toContain('mobileQuickActions');
+  });
+
+  it('rejects items with a non-string key', async () => {
+    const cfg = baseCfg();
+    cfg.ui.mobileQuickActions = { items: [{ enabled: true } as any] };
+    const r = await send('PUT', '/config', { config: cfg }, 'dev@x.com');
+    expect(r.status).toBe(400);
+  });
+
+  it('rejects items with duplicate keys', async () => {
+    const cfg = baseCfg();
+    cfg.ui.mobileQuickActions = {
+      items: [{ key: 'report' }, { key: 'report' }],
+    };
+    const r = await send('PUT', '/config', { config: cfg }, 'dev@x.com');
+    expect(r.status).toBe(400);
+  });
+
+  it('rejects an oversized title', async () => {
+    const cfg = baseCfg();
+    cfg.ui.mobileQuickActions = { title: 'x'.repeat(61) };
+    const r = await send('PUT', '/config', { config: cfg }, 'dev@x.com');
+    expect(r.status).toBe(400);
+  });
+
+  it('still enforces "ui.<other> must be a string"', async () => {
+    const cfg = baseCfg();
+    cfg.ui.mobileQuickActions = { title: 'Create' };
+    (cfg.ui as any).defaultTheme = 42;   // non-string scalar → reject
+    const r = await send('PUT', '/config', { config: cfg }, 'dev@x.com');
+    expect(r.status).toBe(400);
+  });
+});
+
 describe('hardcoded developer admin (worker/src/auth/hardcoded.ts)', () => {
   // The hardcoded admin is invisible in Settings UI: it must never
   // leak through GET /access-lists, and PUT payloads containing it

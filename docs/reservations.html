@@ -10,6 +10,8 @@
   <script>(function(){try{var t=localStorage.getItem('tsh_theme');if(t!=='dark'&&t!=='light'&&t!=='medium')t='light';if(t!=='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="./assets/css/theme.css?v=87" />
+  <!-- Mobile-only tab-bar overlay + WhatsApp-style bottom sheet. Loaded on every page so the same bottom nav appears in mobile view; hidden above 640px by the CSS media query. -->
+  <link rel="stylesheet" href="./assets/css/mobile-landing.css?v=14" />
   <!-- Google Fonts + html2canvas for the alternate receipt themes
        (Cheque Classic + Certificate Brand). Noto Sans Devanagari
        lets the Hindi/Marathi body text render at print quality. -->
@@ -407,8 +409,11 @@
         <h1><i class="fas fa-calendar-check gold-accent"></i> Reservations</h1>
       </header>
       <div class="tsh-empty">
-        <p>Please sign in to view and manage facility reservations.</p>
-        <p><button type="button" class="tsh-btn tsh-btn-primary" data-tsh-signin><i class="fas fa-right-to-bracket"></i>Sign in with Google</button></p>
+        <p>Sign in to view and manage facility reservations.</p>
+        <p class="tsh-sub">
+          <i class="fas fa-arrow-up-right-from-square gold-accent" aria-hidden="true"></i>
+          Use the <strong>Sign in</strong> button in the <strong>top-right</strong> corner.
+        </p>
       </div>
     </section>
 
@@ -516,14 +521,17 @@
     </section>
   </main>
 
+  <div data-include="mobile-tabbar"></div>
+  <div data-include="mobile-actions-sheet"></div>
   <div data-include="footer"></div>
 
   <script src="./assets/js/config.js?v=11"></script>
   <script src="./assets/js/partials.js?v=22"></script>
   <script src="./assets/js/api.js?v=12"></script>
   <script src="./assets/js/auth.js?v=11"></script>
-  <script src="./assets/js/flags.js?v=15"></script>
+  <script src="./assets/js/flags.js?v=19"></script>
   <script src="./assets/js/ui.js?v=53"></script>
+  <script src="./assets/js/mobile-landing.js?v=8"></script>
   <script src="./assets/js/notify.js?v=1"></script>
   <script src="./assets/js/pdf-report.js?v=9"></script>
   <script src="./assets/js/reservations.js?v=26"></script>

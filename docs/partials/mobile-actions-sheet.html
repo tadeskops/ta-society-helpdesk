@@ -1,0 +1,89 @@
+<!-- Mobile-only bottom-sheet triggered by the tab-bar "+". WhatsApp-style
+     quick-create menu that lists every "make something" action the app
+     supports. Loaded via <div data-include="mobile-actions-sheet">.
+     Hidden above 640px by mobile-landing.css. Feature-gated rows respect
+     the shared [data-tsh-feature] walker (docs/assets/js/ui.js L1199 +
+     the sheet-scoped pass in mobile-landing.js).
+
+     ADMIN-CONFIGURABLE: the heading (h2#tshMobSheetTitle) and the list
+     (ul[data-tsh-mob-sheet-list]) are re-rendered by mobile-landing.js
+     from site.json → ui.mobileQuickActions when set (edited via
+     Settings → Mobile quick actions). The static markup below is a
+     graceful first-paint fallback used before /config resolves and
+     for tenants that haven't customised the sheet. -->
+<div class="tsh-mob-sheet" data-tsh-mob-sheet data-tsh-mobile-only hidden aria-hidden="true">
+  <div class="tsh-mob-sheet-backdrop" data-tsh-mob-sheet-close aria-hidden="true"></div>
+  <div class="tsh-mob-sheet-panel" role="dialog" aria-modal="true" aria-labelledby="tshMobSheetTitle">
+    <button
+      type="button"
+      class="tsh-mob-sheet-x"
+      data-tsh-mob-sheet-close
+      aria-label="Close menu"
+      title="Close menu"
+    >&times;</button>
+    <div class="tsh-mob-sheet-handle" aria-hidden="true"></div>
+    <h2 id="tshMobSheetTitle" class="tsh-mob-sheet-title" data-tsh-mob-sheet-title>Create</h2>
+    <ul class="tsh-mob-sheet-list" role="list" data-tsh-mob-sheet-list>
+      <li>
+        <a href="./daily-report.html">
+          <span class="tsh-mob-sheet-icon" aria-hidden="true"><i class="fas fa-screwdriver-wrench"></i></span>
+          <span class="tsh-mob-sheet-body">
+            <span class="tsh-mob-sheet-h">Report an issue</span>
+            <span class="tsh-mob-sheet-d">Lift, water, lights, cleaning &amp; more</span>
+          </span>
+          <i class="fas fa-chevron-right tsh-mob-sheet-chev" aria-hidden="true"></i>
+        </a>
+      </li>
+      <li>
+        <a href="./reservations.html" data-tsh-feature="FEATURE_TSH_RESERVATIONS">
+          <span class="tsh-mob-sheet-icon" aria-hidden="true"><i class="fas fa-calendar-check"></i></span>
+          <span class="tsh-mob-sheet-body">
+            <span class="tsh-mob-sheet-h">Reserve a space</span>
+            <span class="tsh-mob-sheet-d">Community hall, guest room &amp; more</span>
+          </span>
+          <i class="fas fa-chevron-right tsh-mob-sheet-chev" aria-hidden="true"></i>
+        </a>
+      </li>
+      <li>
+        <a href="./treasury.html" data-tsh-feature="FEATURE_TREASURY">
+          <span class="tsh-mob-sheet-icon" aria-hidden="true"><i class="fas fa-money-check-dollar"></i></span>
+          <span class="tsh-mob-sheet-body">
+            <span class="tsh-mob-sheet-h">Claim an expense</span>
+            <span class="tsh-mob-sheet-d">Reimbursement request &amp; ledger</span>
+          </span>
+          <i class="fas fa-chevron-right tsh-mob-sheet-chev" aria-hidden="true"></i>
+        </a>
+      </li>
+      <li>
+        <a href="./vehicles.html" data-tsh-feature="FEATURE_TSH_VEHICLES">
+          <span class="tsh-mob-sheet-icon" aria-hidden="true"><i class="fas fa-car-side"></i></span>
+          <span class="tsh-mob-sheet-body">
+            <span class="tsh-mob-sheet-h">Search a vehicle</span>
+            <span class="tsh-mob-sheet-d">Find the flat for a number plate</span>
+          </span>
+          <i class="fas fa-chevron-right tsh-mob-sheet-chev" aria-hidden="true"></i>
+        </a>
+      </li>
+      <li>
+        <a href="./index.html#tshPolls" data-tsh-feature="FEATURE_DAILY_POLLS">
+          <span class="tsh-mob-sheet-icon" aria-hidden="true"><i class="fas fa-square-poll-vertical"></i></span>
+          <span class="tsh-mob-sheet-body">
+            <span class="tsh-mob-sheet-h">Cast a vote</span>
+            <span class="tsh-mob-sheet-d">Open polls &amp; society decisions</span>
+          </span>
+          <i class="fas fa-chevron-right tsh-mob-sheet-chev" aria-hidden="true"></i>
+        </a>
+      </li>
+      <li>
+        <a href="./public-board.html?my=1" data-tsh-myreports>
+          <span class="tsh-mob-sheet-icon" aria-hidden="true"><i class="fas fa-bookmark"></i></span>
+          <span class="tsh-mob-sheet-body">
+            <span class="tsh-mob-sheet-h">My reports</span>
+            <span class="tsh-mob-sheet-d">See what you've raised recently</span>
+          </span>
+          <i class="fas fa-chevron-right tsh-mob-sheet-chev" aria-hidden="true"></i>
+        </a>
+      </li>
+    </ul>
+  </div>
+</div>

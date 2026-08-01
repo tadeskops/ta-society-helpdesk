@@ -10,6 +10,8 @@
   <script>(function(){try{var t=localStorage.getItem('tsh_theme');if(t!=='dark'&&t!=='light'&&t!=='medium')t='light';if(t!=='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="./assets/css/theme.css?v=88" />
+  <!-- Mobile-only tab-bar overlay + WhatsApp-style bottom sheet. Loaded on every page so the same bottom nav appears in mobile view; hidden above 640px by the CSS media query. -->
+  <link rel="stylesheet" href="./assets/css/mobile-landing.css?v=14" />
   <style>
     /* ============================================================
        Treasury page â€” merged Design 1 (Ledger Console) + Design 3
@@ -424,6 +426,8 @@
     </section>
   </main>
 
+  <div data-include="mobile-tabbar"></div>
+  <div data-include="mobile-actions-sheet"></div>
   <div data-include="footer"></div>
 
   <button type="button" class="tr-fab" id="trFab" aria-label="New request">
@@ -434,8 +438,9 @@
   <script src="./assets/js/partials.js?v=22"></script>
   <script src="./assets/js/api.js?v=12"></script>
   <script src="./assets/js/auth.js?v=11"></script>
-  <script src="./assets/js/flags.js?v=15"></script>
+  <script src="./assets/js/flags.js?v=19"></script>
   <script src="./assets/js/ui.js?v=53"></script>
+  <script src="./assets/js/mobile-landing.js?v=8"></script>
   <script src="./assets/js/pdf-report.js?v=9"></script>
   <script src="./assets/js/treasury.js?v=3"></script>
   <script>
