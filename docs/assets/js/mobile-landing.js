@@ -38,6 +38,7 @@
     { key: 'reserve',        label: 'Reserve a space',    desc: 'Community hall, guest room & more',    href: './reservations.html',            feature: 'FEATURE_TSH_RESERVATIONS',        icon: 'fa-calendar-check' },
     { key: 'claim',          label: 'Claim an expense',   desc: 'Reimbursement request & ledger',       href: './treasury.html',                feature: 'FEATURE_TREASURY',                icon: 'fa-money-check-dollar' },
     { key: 'vehicle',        label: 'Search a vehicle',   desc: 'Find the flat for a number plate',     href: './vehicles.html',                feature: 'FEATURE_TSH_VEHICLES',            icon: 'fa-car-side' },
+    { key: 'evcharging',     label: 'Book EV charging',   desc: 'Reserve a charger slot',               href: './ev-charging.html',             feature: 'FEATURE_TSH_EV_CHARGING',         icon: 'fa-charging-station' },
     { key: 'vote',           label: 'Cast a vote',        desc: 'Open polls & society decisions',       href: './index.html#tshPolls',          feature: 'FEATURE_DAILY_POLLS',             icon: 'fa-square-poll-vertical' },
     { key: 'myreports',      label: 'My reports',         desc: "See what you've raised recently",      href: './public-board.html?my=1',       feature: null,                              icon: 'fa-bookmark' },
     // Additional actions available for admins to enable.
