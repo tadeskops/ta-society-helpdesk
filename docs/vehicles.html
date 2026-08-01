@@ -72,25 +72,66 @@
       display: grid; place-items: center;
       font-weight: 600; color: var(--tsh-muted, #667); font-size: .78em;
     }
+    /* Cells are rectangular (aircraft-seat inspired but square-cornered) with
+       a mini stacked bar chart pinned to the bottom edge. When a flat holds
+       BOTH 2W and 4W, the bar splits into two coloured segments proportional
+       to the count of each type — a literal two-colour "bar chart like" signal
+       per the Design 1 (Airport Boarding Pass) refinement. */
     .veh-cell {
-      min-height: 2.8rem;
-      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .1rem;
-      padding: .2rem .15rem; border-radius: 7px;
+      min-height: 3.1rem;
+      display: flex; flex-direction: column; align-items: stretch;
+      justify-content: flex-start; gap: .18rem;
+      padding: .28rem .22rem .2rem; border-radius: 4px;
       border: 1.5px dashed var(--tsh-border, #e2e5ee);
       background: transparent; color: var(--tsh-muted, #778);
       font-size: .72rem; cursor: pointer; font-family: inherit;
-      transition: border-color .12s, background .12s, transform .08s, color .12s;
+      transition: border-color .12s, background .12s, transform .08s, color .12s, box-shadow .12s;
+      text-align: center;
     }
-    .veh-cell:hover { border-color: var(--tsh-accent, #b48a3c); color: var(--tsh-text, #223); }
+    .veh-cell:hover {
+      border-color: var(--tsh-accent, #b48a3c); color: var(--tsh-text, #223);
+      box-shadow: 0 1px 4px rgba(180,138,60,.15);
+    }
     .veh-cell.has-veh { border-style: solid; color: var(--tsh-text, #223); }
-    .veh-cell.has-veh.four { border-color: #4a90e2; background: rgba(74,144,226,.10); }
-    .veh-cell.has-veh.two  { border-color: #6ab04c; background: rgba(106,176,76,.10); }
-    .veh-cell.has-veh.both { border-color: var(--tsh-accent, #b48a3c); background: var(--tsh-accent-soft, rgba(180,138,60,.14)); }
+    .veh-cell.has-veh.four { border-color: #4a90e2; background: rgba(74,144,226,.08); }
+    .veh-cell.has-veh.two  { border-color: #6ab04c; background: rgba(106,176,76,.08); }
+    /* Two-tone soft background reinforces the split for the "both" case. The
+       real signal is the two-segment bar-chart strip inside the cell (see
+       .veh-cell-bar-4w + .veh-cell-bar-2w below). */
+    .veh-cell.has-veh.both {
+      border-color: var(--tsh-accent, #b48a3c);
+      background: linear-gradient(to right,
+        rgba(74,144,226,.10) 0 50%,
+        rgba(106,176,76,.10) 50% 100%);
+    }
     .veh-cell[aria-pressed="true"] {
       outline: 2px solid var(--tsh-accent, #b48a3c); outline-offset: 2px;
       transform: translateY(-1px);
     }
-    .veh-cell-flat { font-weight: 700; letter-spacing: .02em; font-size: .74rem; }
+    .veh-cell-flat {
+      font-weight: 700; letter-spacing: .02em; font-size: .74rem;
+      display: block;
+    }
+    /* Mini stacked bar chart: pinned to the bottom of the cell via margin-top:auto.
+       Segment widths flex proportionally to the count of each vehicle type, so
+       "3× 4W + 1× 2W" renders 75% blue + 25% green. Single-type cells show one
+       full-width bar. Counts are rendered inside each segment when space allows. */
+    .veh-cell-bar {
+      display: flex; width: 100%; height: .58rem;
+      border-radius: 3px; overflow: hidden;
+      margin-top: auto; gap: 1px;
+      background: rgba(0,0,0,.05);
+    }
+    .veh-cell-bar-4w, .veh-cell-bar-2w {
+      display: flex; align-items: center; justify-content: center;
+      min-width: 0; font-size: 9.5px; font-weight: 700; color: #fff;
+      letter-spacing: .02em; line-height: 1; padding: 0 3px;
+    }
+    .veh-cell-bar-4w { background: #4a90e2; }
+    .veh-cell-bar-2w { background: #6ab04c; }
+    /* Retained badge classes for backward compat / a11y titles — not rendered
+       in the current template but the CSS is kept minimal in case the badges
+       are re-introduced above the bar chart for a mixed-density variant. */
     .veh-cell-badges { display: flex; gap: .25rem; font-size: .78em; line-height: 1; }
     .veh-cell-b2w, .veh-cell-b4w { display: inline-flex; align-items: center; gap: .1em; }
     .veh-tower-legend {
@@ -98,11 +139,15 @@
       color: var(--tsh-muted, #667); margin: .5rem 0 0;
     }
     .veh-tower-legend span { display: inline-flex; align-items: center; gap: .3rem; }
-    .veh-legend-swatch { width: 14px; height: 14px; border-radius: 3px; border: 1.5px solid; display: inline-block; }
+    .veh-legend-swatch { width: 18px; height: 12px; border-radius: 3px; border: 1.5px solid; display: inline-block; }
     .veh-legend-swatch.four { border-color: #4a90e2; background: rgba(74,144,226,.15); }
     .veh-legend-swatch.two  { border-color: #6ab04c; background: rgba(106,176,76,.15); }
-    .veh-legend-swatch.both { border-color: var(--tsh-accent, #b48a3c); background: var(--tsh-accent-soft, rgba(180,138,60,.20)); }
-    .veh-legend-swatch.empty { border-style: dashed; }
+    /* Split swatch mirrors the two-tone cell backdrop for "both". */
+    .veh-legend-swatch.both {
+      border-color: var(--tsh-accent, #b48a3c);
+      background: linear-gradient(to right, #4a90e2 0 50%, #6ab04c 50% 100%);
+    }
+    .veh-legend-swatch.empty { border-style: dashed; background: transparent; }
 
     /* Per-tower "add flat outside the current grid" fallback. */
     .veh-tower-tools { display: flex; gap: .4rem; margin-top: .6rem; align-items: center; flex-wrap: wrap; }
@@ -142,11 +187,33 @@
     }
     .veh-tower[data-hidden="1"] { display: none; }
 
+    /* Mobile-scoped shrink. Cells stay tall enough to fit flat number +
+       mini bar chart; the bar is scaled down proportionally so the two-tone
+       signal still reads at a glance. */
     @media (max-width: 800px) {
-      .veh-tower-grid { grid-template-columns: 1.8rem repeat(var(--units, 4), minmax(2.5rem, 1fr)); gap: .22rem; }
-      .veh-cell { min-height: 2.4rem; font-size: .66rem; padding: .15rem .08rem; }
+      .veh-tower-grid { grid-template-columns: 1.6rem repeat(var(--units, 4), minmax(2.3rem, 1fr)); gap: .18rem; }
+      .veh-cell { min-height: 2.7rem; font-size: .66rem; padding: .2rem .1rem .12rem; gap: .12rem; }
       .veh-cell-flat { font-size: .68rem; }
+      .veh-cell-bar { height: .48rem; }
+      .veh-cell-bar-4w, .veh-cell-bar-2w { font-size: 8.5px; padding: 0 2px; }
       .veh-cell-badges { font-size: .7em; gap: .18rem; }
+    }
+    /* Very small phones — narrow further so 4 units fit on a 320-wide device. */
+    @media (max-width: 380px) {
+      .veh-tower-grid { grid-template-columns: 1.4rem repeat(var(--units, 4), minmax(0, 1fr)); gap: .15rem; }
+      .veh-cell { min-height: 2.5rem; font-size: .6rem; }
+      .veh-cell-flat { font-size: .62rem; }
+      .veh-cell-bar { height: .4rem; }
+      .veh-cell-bar-4w, .veh-cell-bar-2w { font-size: 7.5px; }
+    }
+    /* Resident (search-only) hero polish: bigger search input, roomier
+       result card on phones. Matches the Design 5 (search-first) vibe
+       without adding a wheel picker — v2 hook FEATURE_TSH_VEHICLES_WHEEL
+       is reserved OFF-by-default; residents stay keyboard-first for now. */
+    @media (max-width: 640px) {
+      .veh-search-card { padding: 1rem .95rem 1.1rem; }
+      .veh-search-row input[type="search"] { font-size: 1.05rem; padding: .8rem .9rem; }
+      .veh-result-flat { font-size: 1.4rem; }
     }
   </style>
 </head>
@@ -193,12 +260,12 @@
         <h2><i class="fas fa-pen-to-square gold-accent"></i> Manage vehicles
           <span class="veh-count" id="vehTotalCount"></span>
         </h2>
-        <p class="tsh-sub">Pick a flat below (like choosing a seat), then add or edit its vehicles. Vehicle numbers must be unique across the whole society.</p>
+        <p class="tsh-sub">Pick a flat below (like choosing a seat), then add or edit its vehicles. Each occupied cell shows a mini bar-chart footer — blue = 4-wheelers, green = 2-wheelers, split proportionally when both are present. Vehicle numbers must be unique across the whole society.</p>
         <div class="veh-tower-legend" aria-label="Cell colour key">
           <span><span class="veh-legend-swatch empty"></span> Empty</span>
           <span><span class="veh-legend-swatch four"></span> 4-wheeler</span>
           <span><span class="veh-legend-swatch two"></span> 2-wheeler</span>
-          <span><span class="veh-legend-swatch both"></span> Both</span>
+          <span><span class="veh-legend-swatch both"></span> Both (mini bar)</span>
         </div>
       </header>
 
@@ -466,13 +533,34 @@
       return new Map([...spec.entries()].sort((a, b) => a[0].localeCompare(b[0])));
     }
 
+    // Mini stacked bar chart inside each occupied cell. Segment flex ratio =
+    // count ratio, so a cell with (2× 4W, 1× 2W) renders 66% blue + 33% green.
+    // The counts are printed inside the segments so the bar doubles as a badge —
+    // no separate icon strip needed. Empty flats return '' → the cell shows only
+    // its flat number over a dashed border. Aligned with Design 1 refinement:
+    // rectangular cells, bar-chart footer, two colours whenever both types exist.
     function cellBadges(rows) {
       const n2w = rows.filter((r) => r.type === '2W').length;
       const n4w = rows.filter((r) => r.type === '4W').length;
-      let s = '';
-      if (n4w) s += '<span class="veh-cell-b4w" title="' + n4w + ' four-wheeler(s)"><i class="fas fa-car"></i>' + n4w + '</span>';
-      if (n2w) s += '<span class="veh-cell-b2w" title="' + n2w + ' two-wheeler(s)"><i class="fas fa-motorcycle"></i>' + n2w + '</span>';
-      return s ? '<span class="veh-cell-badges">' + s + '</span>' : '';
+      if (!n2w && !n4w) return '';
+      let seg = '';
+      if (n4w) {
+        seg += '<span class="veh-cell-bar-4w" style="flex:' + n4w + '"' +
+               ' title="' + n4w + ' four-wheeler' + (n4w === 1 ? '' : 's') + '"' +
+               ' aria-label="' + n4w + ' four-wheeler' + (n4w === 1 ? '' : 's') + '">' +
+               n4w + '</span>';
+      }
+      if (n2w) {
+        seg += '<span class="veh-cell-bar-2w" style="flex:' + n2w + '"' +
+               ' title="' + n2w + ' two-wheeler' + (n2w === 1 ? '' : 's') + '"' +
+               ' aria-label="' + n2w + ' two-wheeler' + (n2w === 1 ? '' : 's') + '">' +
+               n2w + '</span>';
+      }
+      return '<span class="veh-cell-bar" role="img"' +
+             ' aria-label="' + (n4w ? n4w + ' four-wheeler' + (n4w === 1 ? '' : 's') : '') +
+             (n4w && n2w ? ', ' : '') +
+             (n2w ? n2w + ' two-wheeler' + (n2w === 1 ? '' : 's') : '') + '">' +
+             seg + '</span>';
     }
 
     function cellClass(rows) {
