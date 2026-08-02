@@ -285,7 +285,7 @@
   filter: saturate(1.05) brightness(0.94);
   transition: transform .35s cubic-bezier(.2, .8, .2, 1), filter .3s ease;
 }
-.tsh-ev-station-card:hover:not(:disabled) .tsh-ev-station-photo img {
+.tsh-ev-station-card:hover:not([aria-disabled="true"]) .tsh-ev-station-photo img {
   transform: scale(1.06);
   filter: saturate(1.15) brightness(1);
 }
@@ -312,7 +312,7 @@
 }
 
 /* Hover — lift the card, brighten the ring, sweep the shine. */
-.tsh-ev-station-card:hover:not(:disabled) {
+.tsh-ev-station-card:hover:not([aria-disabled="true"]) {
   transform: translateY(-4px);
   border-color: color-mix(in srgb, var(--c-primary, #d4af37) 55%, var(--c-svc-tile-border, var(--c-border-soft, #e5e7eb)));
   box-shadow:
@@ -322,14 +322,14 @@
     0 22px 40px -18px color-mix(in srgb, var(--c-primary, #d4af37) 55%, transparent),
     0 10px 22px -6px rgba(0, 0, 0, 0.24);
 }
-.tsh-ev-station-card:hover:not(:disabled)::before { opacity: 1; }
-.tsh-ev-station-card:hover:not(:disabled)::after { left: 130%; }
+.tsh-ev-station-card:hover:not([aria-disabled="true"])::before { opacity: 1; }
+.tsh-ev-station-card:hover:not([aria-disabled="true"])::after { left: 130%; }
 
 .tsh-ev-station-card:focus-visible {
   outline: 2px solid var(--c-primary, #d4af37);
   outline-offset: 3px;
 }
-.tsh-ev-station-card:active:not(:disabled) { transform: translateY(0); }
+.tsh-ev-station-card:active:not([aria-disabled="true"]) { transform: translateY(0); }
 
 /* Selected — persistent aurora ring + inner sheen + brighter photo bg. */
 .tsh-ev-station-card.tsh-ev-station-selected {
@@ -407,8 +407,8 @@
   .tsh-ev-station-card::after,
   .tsh-ev-station-card::before,
   .tsh-ev-station-photo img { transition: none; }
-  .tsh-ev-station-card:hover:not(:disabled) { transform: none; }
-  .tsh-ev-station-card:hover:not(:disabled)::after { left: -60%; }
+  .tsh-ev-station-card:hover:not([aria-disabled="true"]) { transform: none; }
+  .tsh-ev-station-card:hover:not([aria-disabled="true"])::after { left: -60%; }
 }
 
 /* ---- Maintenance state (added 2026-08-02, Phase 7) ----------------
@@ -492,31 +492,32 @@
 }
 
 /* Staff-only maintenance toggle. Rendered as an accessible pill-switch
-   in the top-LEFT of the card (the top-right is claimed by the status
-   pill on poster tiles). Positioned absolutely so the resident-visible
-   layout stays unchanged when the toggle is not rendered. Click bubbles
-   to the parent radio button, which we stop in JS. */
+   pinned to the bottom-RIGHT of the card, inside the dark scrim so it
+   reads as part of the tile (not a floating control) and doesn't
+   collide with the ONLINE / UNDER MAINTENANCE status pill at the
+   top-right. Click bubbles to the parent radio div, which we stop in
+   JS so flipping the toggle doesn't accidentally re-select the card. */
 .tsh-ev-maintenance-toggle {
   position: absolute;
-  top: 8px;
-  left: 8px;
+  bottom: 8px;
+  right: 8px;
   z-index: 5;
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 3px 8px 3px 3px;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--c-primary, #d4af37) 30%, transparent);
-  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid color-mix(in srgb, var(--c-primary, #d4af37) 45%, transparent);
+  background: rgba(20, 22, 30, 0.55);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
-  color: #1f2937;
+  color: #fff;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: .05em;
   text-transform: uppercase;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, .22);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .28);
   transition: box-shadow .15s ease, transform .12s ease;
 }
 .tsh-ev-maintenance-toggle:hover { transform: translateY(-1px); }
@@ -550,9 +551,9 @@
 .tsh-ev-maintenance-toggle.is-maintenance .tsh-ev-maintenance-toggle-thumb {
   left: 16px;
 }
-.tsh-ev-maintenance-toggle-label { line-height: 1; }
-.tsh-ev-maintenance-toggle.is-online .tsh-ev-maintenance-toggle-label { color: #15803d; }
-.tsh-ev-maintenance-toggle.is-maintenance .tsh-ev-maintenance-toggle-label { color: #92400e; }
+.tsh-ev-maintenance-toggle-label { line-height: 1; text-shadow: 0 1px 2px rgba(0,0,0,0.6); }
+.tsh-ev-maintenance-toggle.is-online .tsh-ev-maintenance-toggle-label { color: #86efac; }
+.tsh-ev-maintenance-toggle.is-maintenance .tsh-ev-maintenance-toggle-label { color: #fcd34d; }
 /* Compact width on small screens — drop the label to save space. */
 @media (max-width: 480px) {
   .tsh-ev-maintenance-toggle-label { display: none; }

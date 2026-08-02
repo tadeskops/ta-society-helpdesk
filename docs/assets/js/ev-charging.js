@@ -129,10 +129,19 @@
               + '</button>'
             : '';
           return ''
-            + '<button type="button" class="' + cardCls + '"'
+            // The card is a <div role="radio"> NOT a <button>. A native
+            // <button> cannot legally contain another <button> (the
+            // per-card maintenance toggle) — browsers hoist the inner
+            // button out of the parent during parsing, which is why
+            // toggles were escaping their card and floating at the top
+            // of the page instead of sitting inside each tile. A div
+            // with role=radio + tabindex is fully accessible and
+            // legally accepts nested buttons.
+            + '<div class="' + cardCls + '"'
             + ' role="radio" aria-checked="' + (isSelected ? 'true' : 'false') + '"'
             + ' data-ev-station-id="' + esc(s.id) + '"'
-            + (on ? '' : ' disabled aria-disabled="true"') + '>'
+            + ' tabindex="' + (on ? '0' : '-1') + '"'
+            + (on ? '' : ' aria-disabled="true"') + '>'
             +   media
             +   '<div class="tsh-ev-station-info">'
             +     '<div class="tsh-ev-station-name">' + esc(s.name || '—') + '</div>'
@@ -145,7 +154,7 @@
             +   '</div>'
             +   '<span class="tsh-ev-status-pill ' + statusCls + '">' + status + '</span>'
             + toggle
-            + '</button>';
+            + '</div>';
         }).join('');
         return rows;
       })
@@ -156,16 +165,24 @@
     // of ~4 stations). Cards are ordered 2W-first via `order` above so
     // physical parking order still holds.
     host.innerHTML = '<div class="tsh-ev-stations-row">' + html + '</div>';
-    // Wire click → selection change. Disabled cards ignore clicks (they
-    // carry the native `disabled` attribute so the browser also blocks
-    // keyboard activation).
-    host.querySelectorAll('[data-ev-station-id]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const id = btn.getAttribute('data-ev-station-id');
+    // Wire click → selection change. Disabled cards (aria-disabled)
+    // ignore clicks; keyboard activation via Space/Enter is wired
+    // explicitly since we're using a <div role=radio> not a <button>.
+    host.querySelectorAll('[data-ev-station-id]').forEach((card) => {
+      const select = () => {
+        if (card.getAttribute('aria-disabled') === 'true') return;
+        const id = card.getAttribute('data-ev-station-id');
         if (!id || String(id) === String(stationId)) return;
         stationId = id;
         renderStationsBar(stationsList, stationId);
         refreshAvailability();
+      };
+      card.addEventListener('click', select);
+      card.addEventListener('keydown', (ev) => {
+        if (ev.key === ' ' || ev.key === 'Enter') {
+          ev.preventDefault();
+          select();
+        }
       });
     });
     // Wire the staff maintenance toggle — sits above the card so its
