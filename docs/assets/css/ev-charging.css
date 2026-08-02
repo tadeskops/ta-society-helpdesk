@@ -58,18 +58,18 @@
   color: var(--tsh-primary, #2563eb);
   font-size: 22px;
 }
-.tsh-ev-station-info { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.tsh-ev-station-name { font-weight: 600; font-size: 16px; }
-.tsh-ev-station-meta { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; opacity: .8; }
-.tsh-ev-station-meta i { margin-right: 4px; opacity: .7; }
+.tsh-ev-station-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tsh-ev-station-name { font-weight: 600; font-size: 13px; line-height: 1.2; }
+.tsh-ev-station-meta { display: flex; flex-wrap: wrap; gap: 8px; font-size: 11px; opacity: .8; }
+.tsh-ev-station-meta i { margin-right: 3px; opacity: .7; }
 .tsh-ev-status-pill {
   display: inline-block;
-  padding: 4px 12px;
+  padding: 2px 8px;
   border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 10px;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: .04em;
+  letter-spacing: .05em;
   background: #f3f4f6;
   color: #4b5563;
 }
@@ -108,35 +108,43 @@
   border-radius: 2px;
 }
 .tsh-ev-stations-row {
+  /* Compact single-row layout — cards shrink to ~140px min so the full
+     fleet fits on one line at desktop widths and wraps only on small
+     phones. Editors asked for "all in one row in small size" rather
+     than the earlier hero-tile treatment. */
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
 }
 
 .tsh-ev-station-card {
   position: relative;
   isolation: isolate;                     /* keep ::before/::after clipped */
   display: grid;
-  grid-template-columns: 44px 1fr auto;
-  gap: 12px;
+  grid-template-columns: 36px 1fr auto;
+  gap: 8px;
   align-items: center;
-  padding: 14px 16px;
+  padding: 10px 12px;
   border: 1px solid var(--c-svc-tile-border, var(--c-border-soft, #e5e7eb));
-  border-radius: 16px;
+  border-radius: 14px;
   background: var(--c-svc-tile-bg, var(--c-card-bg, #fff));
   backdrop-filter: blur(10px) saturate(120%);
   -webkit-backdrop-filter: blur(10px) saturate(120%);
   font: inherit;
+  font-size: 12px;
   color: var(--c-text, inherit);
   text-align: left;
   cursor: pointer;
   overflow: hidden;
-  /* Base 3-D shadow — a soft ambient drop + a 1px inner highlight so
-     the tile reads as an object floating a hair above the page. */
+  /* 3-D bevel: top highlight + inner shade at the bottom + soft ambient
+     drop + a tight contact shadow. Together they make the tile read as
+     a physical chip lifted a hair off the page. */
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.08) inset,
-    0 8px 24px -14px rgba(0, 0, 0, 0.25),
-    0 2px 6px -2px rgba(0, 0, 0, 0.10);
+    inset 0 1px 0 rgba(255, 255, 255, 0.65),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.06),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.35),
+    0 10px 24px -14px rgba(0, 0, 0, 0.30),
+    0 2px 4px -1px rgba(0, 0, 0, 0.10);
   transition:
     border-color .18s ease,
     box-shadow .22s ease,
@@ -197,28 +205,20 @@
     "photo photo"
     "info  status";
   align-items: end;
-  padding: 0 0 14px 0;
+  padding: 0 0 8px 0;
 }
 .tsh-ev-station-card.tsh-ev-station-has-photo .tsh-ev-station-photo { grid-area: photo; }
-.tsh-ev-station-card.tsh-ev-station-has-photo .tsh-ev-station-info  { grid-area: info; padding: 4px 16px 0; }
-.tsh-ev-station-card.tsh-ev-station-has-photo .tsh-ev-status-pill   { grid-area: status; margin: 0 16px; }
+.tsh-ev-station-card.tsh-ev-station-has-photo .tsh-ev-station-info  { grid-area: info; padding: 4px 10px 0; }
+.tsh-ev-station-card.tsh-ev-station-has-photo .tsh-ev-status-pill   { grid-area: status; margin: 0 10px; }
 .tsh-ev-station-photo {
   position: relative;
-  aspect-ratio: 4 / 3;
-  border-top-left-radius: 15px;
-  border-top-right-radius: 15px;
+  aspect-ratio: 1 / 1;
   overflow: hidden;
-  /* Photo backdrop — a warm gold-to-cream gradient so both hardware
-     families feel part of the project palette rather than the vendor's
-     teal palette. A soft inner ring adds depth around the render. */
-  background:
-    radial-gradient(60% 40% at 50% 20%,
-      color-mix(in srgb, var(--c-primary, #d4af37) 22%, transparent),
-      transparent 70%),
-    linear-gradient(160deg,
-      color-mix(in srgb, var(--c-primary, #d4af37) 8%, #ffffff) 0%,
-      color-mix(in srgb, var(--c-primary, #d4af37) 3%, #faf6ec) 100%);
-  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--c-primary, #d4af37) 22%, transparent);
+  /* Transparent photo surface — the image spreads edge-to-edge so
+     the product hardware fills the tile. No gold gradient panel; the
+     card's own translucent surface shows through, matching the "3-D
+     chip floating on the page" bevel treatment. */
+  background: transparent;
 }
 .tsh-ev-station-photo img {
   position: absolute;
@@ -226,14 +226,19 @@
   width: 100%;
   height: 100%;
   object-fit: contain;
-  padding: 12px 12px 8px;
+  /* No inner padding — image spreads full-bleed across the photo cell. */
+  padding: 4px;
   box-sizing: border-box;
-  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.18));
+  /* Multiply blend keeps the transparent PNG playing nicely with the
+     card's translucent tint (dark & light themes both handled), so we
+     don't get a milky halo around the product. */
+  mix-blend-mode: multiply;
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.22));
   transition: transform .25s cubic-bezier(.2, .8, .2, 1), filter .25s ease;
 }
 .tsh-ev-station-card:hover:not(:disabled) .tsh-ev-station-photo img {
-  transform: translateY(-2px) scale(1.04);
-  filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.22));
+  transform: translateY(-2px) scale(1.05);
+  filter: drop-shadow(0 10px 16px rgba(0, 0, 0, 0.28));
 }
 /* If the photo failed to load the <img> is removed and this fallback
    class is applied to the container — show a glowing bolt instead. */
@@ -246,25 +251,27 @@
   display: grid;
   place-items: center;
   color: var(--c-primary, #d4af37);
-  font-size: 44px;
-  filter: drop-shadow(0 0 12px color-mix(in srgb, var(--c-primary, #d4af37) 55%, transparent));
+  font-size: 28px;
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--c-primary, #d4af37) 55%, transparent));
 }
 .tsh-ev-station-series {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
   color: color-mix(in srgb, var(--c-primary, #d4af37) 75%, var(--c-text, #1f2937));
-  margin-top: 2px;
+  margin-top: 1px;
   letter-spacing: .01em;
 }
 
 /* Hover — lift the card, brighten the ring, sweep the shine. */
 .tsh-ev-station-card:hover:not(:disabled) {
-  transform: translateY(-3px);
-  border-color: color-mix(in srgb, var(--c-primary, #d4af37) 45%, var(--c-svc-tile-border, var(--c-border-soft, #e5e7eb)));
+  transform: translateY(-4px);
+  border-color: color-mix(in srgb, var(--c-primary, #d4af37) 55%, var(--c-svc-tile-border, var(--c-border-soft, #e5e7eb)));
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.10) inset,
-    0 22px 40px -22px color-mix(in srgb, var(--c-primary, #d4af37) 55%, transparent),
-    0 8px 18px -6px rgba(0, 0, 0, 0.20);
+    inset 0 1px 0 rgba(255, 255, 255, 0.75),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.08),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.45),
+    0 22px 40px -18px color-mix(in srgb, var(--c-primary, #d4af37) 55%, transparent),
+    0 10px 22px -6px rgba(0, 0, 0, 0.24);
 }
 .tsh-ev-station-card:hover:not(:disabled)::before { opacity: 1; }
 .tsh-ev-station-card:hover:not(:disabled)::after { left: 130%; }
