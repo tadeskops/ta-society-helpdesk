@@ -77,15 +77,30 @@
           const statusCls = on ? 'tsh-ev-status-online' : 'tsh-ev-status-offline';
           const cardCls = 'tsh-ev-station-card'
             + (isSelected ? ' tsh-ev-station-selected' : '')
-            + (on ? '' : ' tsh-ev-station-disabled');
+            + (on ? '' : ' tsh-ev-station-disabled')
+            + (s.image ? ' tsh-ev-station-has-photo' : '');
+          // Product photo hero — falls back to a Font Awesome icon when
+          // no image is supplied by the config. Alt text uses the model
+          // + name so screen readers get a useful description.
+          const altText = [s.series, s.name].filter(Boolean).join(' — ') || 'Charging station';
+          const media = s.image
+            ? '<div class="tsh-ev-station-photo">'
+              +   '<img src="' + esc(s.image) + '" alt="' + esc(altText) + '" loading="lazy" decoding="async"'
+              +   ' onerror="this.parentNode.classList.add(\'tsh-ev-station-photo-fallback\');this.remove();" />'
+              + '</div>'
+            : '<div class="tsh-ev-station-icon"><i class="' + stationIconClass(s) + '"></i></div>';
+          const seriesLine = s.series
+            ? '<div class="tsh-ev-station-series">' + esc(s.series) + '</div>'
+            : '';
           return ''
             + '<button type="button" class="' + cardCls + '"'
             + ' role="radio" aria-checked="' + (isSelected ? 'true' : 'false') + '"'
             + ' data-ev-station-id="' + esc(s.id) + '"'
             + (on ? '' : ' disabled') + '>'
-            +   '<div class="tsh-ev-station-icon"><i class="' + stationIconClass(s) + '"></i></div>'
+            +   media
             +   '<div class="tsh-ev-station-info">'
             +     '<div class="tsh-ev-station-name">' + esc(s.name || '—') + '</div>'
+            +     seriesLine
             +     '<div class="tsh-ev-station-meta">'
             +       (s.location ? '<span><i class="fas fa-location-dot"></i> ' + esc(s.location) + '</span>' : '')
             +       (stationSubtitle(s) ? '<span><i class="fas fa-bolt"></i> ' + esc(stationSubtitle(s)) + '</span>' : '')
@@ -223,11 +238,56 @@
       dateEl.value = todayIstYmd();
       dateEl.min   = todayIstYmd();
     }
+    // Cap the date-picker so users can't pick beyond the advance-booking
+    // window. Server still validates authoritatively.
+    if (dateEl && bookingPolicy && Number.isFinite(bookingPolicy.advanceWindowDays)) {
+      dateEl.max = ymdOffset(todayIstYmd(), bookingPolicy.advanceWindowDays);
+    }
+    renderPolicyBar(bookingPolicy);
     if (dateEl) dateEl.addEventListener('change', () => refreshAvailability());
     const form = $('#evBookForm');
     if (form) form.addEventListener('submit', onBookSubmit);
     const cancelBtn = $('#evBookCancel');
     if (cancelBtn) cancelBtn.addEventListener('click', clearSelection);
+  }
+
+  // Add `days` calendar days to a YYYY-MM-DD string (local calendar math).
+  function ymdOffset(ymd, days) {
+    const [y, m, d] = ymd.split('-').map((n) => Number(n));
+    const t = new Date(y, (m - 1), d);
+    t.setDate(t.getDate() + Math.max(0, Math.floor(days)));
+    return t.getFullYear() + '-' + pad2(t.getMonth() + 1) + '-' + pad2(t.getDate());
+  }
+
+  // Render a compact policy summary above the date picker so residents
+  // see the caps at a glance. Silent (hidden) when there's nothing to say.
+  function renderPolicyBar(p) {
+    const bar = $('#evPolicyBar');
+    if (!bar) return;
+    if (!p) { bar.hidden = true; bar.innerHTML = ''; return; }
+    const chips = [];
+    if (Number.isFinite(p.advanceWindowDays)) {
+      const d = p.advanceWindowDays;
+      chips.push('<span class="tsh-ev-chip"><i class="fas fa-calendar-check"></i> Book up to <strong>' + d + ' day' + (d === 1 ? '' : 's') + '</strong> ahead</span>');
+    }
+    if (Number.isFinite(p.maxDurationMinutes)) {
+      chips.push('<span class="tsh-ev-chip"><i class="fas fa-hourglass-half"></i> Max <strong>' + p.maxDurationMinutes + ' min</strong> per slot</span>');
+    }
+    if (Number.isFinite(p.maxDailyMinutesPerFlat) && p.maxDailyMinutesPerFlat > 0) {
+      chips.push('<span class="tsh-ev-chip"><i class="fas fa-clock"></i> Max <strong>' + p.maxDailyMinutesPerFlat + ' min/day</strong> per flat</span>');
+    }
+    if (Number.isFinite(p.maxTotalBookingsPerFlat) && p.maxTotalBookingsPerFlat > 0) {
+      chips.push('<span class="tsh-ev-chip"><i class="fas fa-list-check"></i> Max <strong>' + p.maxTotalBookingsPerFlat + ' active booking' + (p.maxTotalBookingsPerFlat === 1 ? '' : 's') + '</strong> per flat</span>');
+    } else if (p.maxTotalBookingsPerFlat === null || p.maxTotalBookingsPerFlat === undefined) {
+      // Only mention "unlimited" when a positive daily minutes cap is
+      // set — otherwise nothing meaningful to communicate.
+      if (Number.isFinite(p.maxDailyMinutesPerFlat) && p.maxDailyMinutesPerFlat > 0) {
+        chips.push('<span class="tsh-ev-chip tsh-ev-chip-muted"><i class="fas fa-infinity"></i> Unlimited total bookings</span>');
+      }
+    }
+    if (chips.length === 0) { bar.hidden = true; bar.innerHTML = ''; return; }
+    bar.innerHTML = chips.join('');
+    bar.hidden = false;
   }
 
   async function refreshAvailability() {

@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="./assets/css/theme.css?v=87" />
   <link rel="stylesheet" href="./assets/css/mobile-landing.css?v=14" />
-  <link rel="stylesheet" href="./assets/css/ev-charging.css?v=5" />
+  <link rel="stylesheet" href="./assets/css/ev-charging.css?v=7" />
 </head>
 <body class="tsh-page">
   <div data-include="header"></div>
@@ -66,6 +66,7 @@
       <!-- BOOK panel (Phase 2): availability grid + booking form. Gated by
            FEATURE_TSH_EV_BOOKING via data-tsh-ev-sub. -->
       <section class="tsh-ev-tab-panel" data-ev-panel="book" data-tsh-ev-sub="booking">
+        <div id="evPolicyBar" class="tsh-ev-policy-bar" aria-live="polite" hidden></div>
         <div class="tsh-ev-book-toolbar">
           <label class="tsh-ev-date-picker">
             <span>Date</span>
@@ -156,7 +157,7 @@
   <script src="./assets/js/flags.js?v=19"></script>
   <script src="./assets/js/ui.js?v=53"></script>
   <script src="./assets/js/mobile-landing.js?v=9"></script>
-  <script src="./assets/js/ev-charging.js?v=4"></script>
+  <script src="./assets/js/ev-charging.js?v=6"></script>
   <script>
   (async () => {
     await Partials.mount();

@@ -175,6 +175,15 @@ export interface SiteConfig {
         currentType?: 'AC' | 'DC';
         connector?: string;
         model?: string;
+        /**
+         * Optional product photo path (relative to the docs site root,
+         * e.g. `./assets/images/ev/sunarth-dcfc-4w.png`) shown on the
+         * resident station picker so the visual identity of the bay is
+         * unmistakable.
+         */
+        image?: string;
+        /** Optional short marketing tagline (e.g. "UltraPro Series - 80 kW"). */
+        series?: string;
       }>;
       booking?: {
         stepMinutes?: number;
@@ -183,6 +192,12 @@ export interface SiteConfig {
         bufferMinutes?: number;
         advanceWindowDays?: number;
         maxActivePerFlat?: number;
+        /** Global cap on active (upcoming) bookings per flat across all
+         *  stations. `null` or omitted = unlimited. */
+        maxTotalBookingsPerFlat?: number | null;
+        /** Max total booked minutes per flat per IST calendar date,
+         *  summed across all stations. `null` or omitted = unlimited. */
+        maxDailyMinutesPerFlat?: number | null;
         openMin?: number;
         closeMin?: number;
         requiresApproval?: boolean;
@@ -585,17 +600,23 @@ export const DEFAULT_CONFIG: SiteConfig = {
         enabled:    true,
       },
       booking: {
-        stepMinutes:        30,
-        minDurationMinutes: 30,
-        maxDurationMinutes: 180,
-        bufferMinutes:      5,
-        advanceWindowDays:  7,
-        maxActivePerFlat:   1,
+        stepMinutes:             30,
+        minDurationMinutes:      30,
+        maxDurationMinutes:      180,
+        bufferMinutes:           5,
+        // Tatkal-style short advance window (2 days) — editable in
+        // config/site.json → system.ev.booking.advanceWindowDays.
+        advanceWindowDays:       2,
+        maxActivePerFlat:        1,
+        // `null` = unlimited. Editors flip these two to positive
+        // integers when they want a hard cap.
+        maxTotalBookingsPerFlat: null,
+        maxDailyMinutesPerFlat:  null,
         // 06:00 – 23:00 IST charging window. Minutes-since-midnight.
-        openMin:            360,
-        closeMin:           1380,
-        requiresApproval:   false,
-        blackoutDates:      [],
+        openMin:                 360,
+        closeMin:                1380,
+        requiresApproval:        false,
+        blackoutDates:           [],
       },
       usageGuidelines: [
         'Book a slot before you plug in. Walk-ups are not guaranteed.',

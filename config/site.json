@@ -410,7 +410,9 @@
           "kind": "4W",
           "currentType": "DC",
           "connector": "CCS-2",
-          "model": "DCFC-080-CCA00-SA-CP-AE"
+          "model": "DCFC-080-CCA00-SA-CP-AE",
+          "image": "./assets/images/ev/sunarth-dcfc-4w.png",
+          "series": "UltraPro Series — 80 kW DC Fast Charger"
         },
         {
           "id": "ev-4w-2",
@@ -421,7 +423,9 @@
           "kind": "4W",
           "currentType": "DC",
           "connector": "CCS-2",
-          "model": "DCFC-080-CCA00-SA-CP-AE"
+          "model": "DCFC-080-CCA00-SA-CP-AE",
+          "image": "./assets/images/ev/sunarth-dcfc-4w.png",
+          "series": "UltraPro Series — 80 kW DC Fast Charger"
         },
         {
           "id": "ev-2w-1",
@@ -431,7 +435,9 @@
           "enabled": true,
           "kind": "2W",
           "currentType": "AC",
-          "connector": "Bharat AC-001"
+          "connector": "Bharat AC-001",
+          "image": "./assets/images/ev/sunarth-acwallbox-2w.png",
+          "series": "AC Wallbox Series — 3.3 kW · 3 sockets"
         },
         {
           "id": "ev-2w-2",
@@ -441,7 +447,9 @@
           "enabled": true,
           "kind": "2W",
           "currentType": "AC",
-          "connector": "Bharat AC-001"
+          "connector": "Bharat AC-001",
+          "image": "./assets/images/ev/sunarth-acwallbox-2w.png",
+          "series": "AC Wallbox Series — 3.3 kW · 3 sockets"
         }
       ],
       "booking": {
@@ -449,8 +457,10 @@
         "minDurationMinutes": 30,
         "maxDurationMinutes": 180,
         "bufferMinutes": 5,
-        "advanceWindowDays": 7,
+        "advanceWindowDays": 2,
         "maxActivePerFlat": 1,
+        "maxTotalBookingsPerFlat": null,
+        "maxDailyMinutesPerFlat": 180,
         "openMin": 360,
         "closeMin": 1380,
         "requiresApproval": false,

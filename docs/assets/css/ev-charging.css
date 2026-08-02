@@ -90,8 +90,8 @@
 }
 .tsh-ev-stations-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
 }
 .tsh-ev-station-card {
   display: grid;
@@ -108,6 +108,65 @@
   cursor: pointer;
   transition: border-color .15s ease, box-shadow .15s ease, transform .06s ease;
 }
+/* Cards that carry a product photo get a two-row layout: hero photo on
+   top, info block + status pill below. Icon-only cards keep the compact
+   three-column layout so operators can drop the image and everything
+   still fits. */
+.tsh-ev-station-card.tsh-ev-station-has-photo {
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    "photo photo"
+    "info  status";
+  align-items: end;
+  padding: 0 0 12px 0;
+}
+.tsh-ev-station-card.tsh-ev-station-has-photo .tsh-ev-station-photo { grid-area: photo; }
+.tsh-ev-station-card.tsh-ev-station-has-photo .tsh-ev-station-info  { grid-area: info; padding: 0 14px; }
+.tsh-ev-station-card.tsh-ev-station-has-photo .tsh-ev-status-pill   { grid-area: status; margin: 0 14px; }
+.tsh-ev-station-photo {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
+  overflow: hidden;
+  /* Product photo lives on a soft gradient that echoes the SunArth
+     teal / white palette so the two hardware families read as a set. */
+  background:
+    radial-gradient(120% 80% at 50% 100%, rgba(255,255,255,0), rgba(0,0,0,.04)),
+    linear-gradient(135deg, #e6fbf6 0%, #f5f9fc 100%);
+}
+.tsh-ev-station-photo img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 10px 10px 6px;
+  box-sizing: border-box;
+  transition: transform .18s ease;
+}
+.tsh-ev-station-card:hover:not(:disabled) .tsh-ev-station-photo img {
+  transform: scale(1.03);
+}
+/* If the photo failed to load the <img> is removed and this fallback
+   class is applied to the container — show a friendly icon instead. */
+.tsh-ev-station-photo-fallback::after {
+  content: "\f0e7"; /* fa-bolt */
+  font-family: "Font Awesome 6 Free";
+  font-weight: 900;
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: color-mix(in srgb, var(--tsh-primary, #2563eb) 55%, transparent);
+  font-size: 40px;
+}
+.tsh-ev-station-series {
+  font-size: 12px;
+  font-weight: 500;
+  color: color-mix(in srgb, var(--tsh-primary, #2563eb) 80%, #1f2937);
+  margin-top: 2px;
+}
 .tsh-ev-station-card:hover:not(:disabled) {
   border-color: color-mix(in srgb, var(--tsh-primary, #2563eb) 40%, var(--tsh-border, #e5e7eb));
   box-shadow: 0 1px 6px rgba(0,0,0,.05);
@@ -122,9 +181,17 @@
   background: color-mix(in srgb, var(--tsh-primary, #2563eb) 6%, var(--tsh-card, #fff));
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--tsh-primary, #2563eb) 20%, transparent);
 }
+.tsh-ev-station-card.tsh-ev-station-selected .tsh-ev-station-photo {
+  background:
+    radial-gradient(120% 80% at 50% 100%, rgba(255,255,255,0), rgba(0,0,0,.04)),
+    linear-gradient(135deg, #d6f5ec 0%, #e8f2ff 100%);
+}
 .tsh-ev-station-card.tsh-ev-station-disabled {
   opacity: .55;
   cursor: not-allowed;
+}
+.tsh-ev-station-card.tsh-ev-station-disabled .tsh-ev-station-photo img {
+  filter: grayscale(1);
 }
 .tsh-ev-station-card .tsh-ev-station-icon {
   width: 44px; height: 44px;
@@ -217,6 +284,35 @@
 }
 
 /* ---- Phase 2: Booking grid, form and history ----------------------- */
+
+/* Policy summary bar — surfaces editor-tunable caps (advance window,
+   per-slot / daily-minutes / total-bookings) as a compact chip strip so
+   residents see what to expect before they touch the picker. */
+.tsh-ev-policy-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0 12px;
+}
+.tsh-ev-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tsh-primary, #2563eb) 6%, var(--tsh-card, #fff));
+  border: 1px solid color-mix(in srgb, var(--tsh-primary, #2563eb) 20%, var(--tsh-border, #e5e7eb));
+  font-size: 12px;
+  color: color-mix(in srgb, var(--tsh-primary, #2563eb) 90%, #1f2937);
+}
+.tsh-ev-chip i { font-size: 11px; opacity: .85; }
+.tsh-ev-chip strong { font-weight: 700; }
+.tsh-ev-chip.tsh-ev-chip-muted {
+  background: transparent;
+  border-style: dashed;
+  opacity: .75;
+}
+
 .tsh-ev-book-toolbar {
   display: flex;
   align-items: center;

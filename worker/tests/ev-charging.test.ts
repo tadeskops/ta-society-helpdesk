@@ -222,9 +222,9 @@ describe('GET /ev/config — site.json overrides', () => {
     systemOverrides = {
       ev: {
         stations: [
-          { id: 'ev-4w-1', name: 'SunArth DC Fast Charger #1', location: 'Basement — 4W bay 1', capacityKw: 80, kind: '4W', currentType: 'DC', connector: 'CCS-2', enabled: true },
+          { id: 'ev-4w-1', name: 'SunArth DC Fast Charger #1', location: 'Basement — 4W bay 1', capacityKw: 80, kind: '4W', currentType: 'DC', connector: 'CCS-2', enabled: true, image: './assets/images/ev/sunarth-dcfc-4w.png', series: 'UltraPro Series' },
           { id: 'ev-4w-2', name: 'SunArth DC Fast Charger #2', location: 'Basement — 4W bay 2', capacityKw: 80, kind: '4W', currentType: 'DC', connector: 'CCS-2', enabled: true },
-          { id: 'ev-2w-1', name: 'SunArth 2-Wheeler Point #1', location: 'Basement — 2W bay 1', capacityKw: 3.3, kind: '2W', currentType: 'AC', connector: 'Bharat AC-001', enabled: true },
+          { id: 'ev-2w-1', name: 'SunArth 2-Wheeler Point #1', location: 'Basement — 2W bay 1', capacityKw: 3.3, kind: '2W', currentType: 'AC', connector: 'Bharat AC-001', enabled: true, image: './assets/images/ev/sunarth-acwallbox-2w.png', series: 'AC Wallbox Series' },
           { id: 'ev-2w-2', name: 'SunArth 2-Wheeler Point #2', location: 'Basement — 2W bay 2', capacityKw: 3.3, kind: '2W', currentType: 'AC', connector: 'Bharat AC-001', enabled: true },
         ],
       },
@@ -238,6 +238,12 @@ describe('GET /ev/config — site.json overrides', () => {
     expect(data.stations[0].capacityKw).toBe(80);
     expect(data.stations[2].kind).toBe('2W');
     expect(data.stations[2].capacityKw).toBe(3.3);
+    // Product-photo path + series tagline are surfaced verbatim so the
+    // resident picker can render the hero image (issue: real SunArth
+    // photo per bay). Unknown fields must not be stripped by normalize.
+    expect(data.stations[0].image).toBe('./assets/images/ev/sunarth-dcfc-4w.png');
+    expect(data.stations[0].series).toBe('UltraPro Series');
+    expect(data.stations[2].image).toBe('./assets/images/ev/sunarth-acwallbox-2w.png');
     // Legacy `station` (singular) points at the first entry.
     expect(data.station.id).toBe('ev-4w-1');
   });
@@ -412,6 +418,120 @@ describe('POST /ev/bookings — happy path & guardrails', () => {
     expect(r.status).toBe(200);
     const { data } = await r.json() as any;
     expect(data.item.status).toBe('pending');
+  });
+});
+
+describe('POST /ev/bookings — editor-tunable caps', () => {
+  // Reuse the same slot shape as the happy-path suite.
+  const bodyOn = (date: string, overrides: Record<string, unknown> = {}) => ({
+    date, startMin: 9 * 60, endMin: 10 * 60,
+    ownerFlat: 'A-101', ownerName: 'Cap Test',
+    ...overrides,
+  });
+
+  it('honours a 2-day advance window (Tatkal-style)', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true };
+    systemOverrides = { ev: { booking: {
+      stepMinutes: 30, minDurationMinutes: 30, maxDurationMinutes: 180,
+      bufferMinutes: 5, advanceWindowDays: 2, maxActivePerFlat: 5,
+      openMin: 360, closeMin: 1380, requiresApproval: false, blackoutDates: [],
+    }}};
+    // Day 2 (== window edge) is allowed.
+    const ok2 = await send('POST', '/ev/bookings', bodyOn(istDate(2)), 'resident1@x.com');
+    expect(ok2.status).toBe(200);
+    // Day 3 exceeds the 2-day window and must be rejected.
+    const bad = await send('POST', '/ev/bookings', bodyOn(istDate(3)), 'resident1@x.com');
+    expect(bad.status).toBe(400);
+    const j = await bad.json() as any;
+    expect(String(j.error)).toContain('advance-booking window');
+    expect(String(j.error)).toContain('2 days');
+  });
+
+  it('enforces maxTotalBookingsPerFlat across all stations', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true };
+    systemOverrides = { ev: {
+      stations: [
+        { id: 'ev-4w-1', name: '4W-1', capacityKw: 80, kind: '4W', enabled: true },
+        { id: 'ev-2w-1', name: '2W-1', capacityKw: 3.3, kind: '2W', enabled: true },
+      ],
+      booking: {
+        stepMinutes: 30, minDurationMinutes: 30, maxDurationMinutes: 180,
+        bufferMinutes: 5, advanceWindowDays: 7,
+        // Per-station cap generous (5) so we can prove the global cap is what bites.
+        maxActivePerFlat: 5,
+        maxTotalBookingsPerFlat: 2,
+        openMin: 360, closeMin: 1380, requiresApproval: false, blackoutDates: [],
+      },
+    }};
+    // Two bookings — on TWO different stations — are allowed.
+    const a = await send('POST', '/ev/bookings', bodyOn(istDate(1), { stationId: 'ev-4w-1' }), 'resident1@x.com');
+    expect(a.status).toBe(200);
+    const b = await send('POST', '/ev/bookings', bodyOn(istDate(2), { stationId: 'ev-2w-1' }), 'resident1@x.com');
+    expect(b.status).toBe(200);
+    // Third booking — irrespective of station — must be rejected.
+    const c = await send('POST', '/ev/bookings', bodyOn(istDate(3), { stationId: 'ev-4w-1' }), 'resident1@x.com');
+    expect(c.status).toBe(400);
+    const j = await c.json() as any;
+    expect(String(j.error)).toContain('cap 2 across all chargers');
+  });
+
+  it('treats null maxTotalBookingsPerFlat as unlimited', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true };
+    systemOverrides = { ev: { booking: {
+      stepMinutes: 30, minDurationMinutes: 30, maxDurationMinutes: 180,
+      bufferMinutes: 5, advanceWindowDays: 7,
+      maxActivePerFlat: 10, maxTotalBookingsPerFlat: null,
+      openMin: 360, closeMin: 1380, requiresApproval: false, blackoutDates: [],
+    }}};
+    for (let i = 1; i <= 4; i++) {
+      const r = await send('POST', '/ev/bookings', bodyOn(istDate(i)), 'resident1@x.com');
+      expect(r.status).toBe(200);
+    }
+  });
+
+  it('enforces maxDailyMinutesPerFlat on the same date', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true };
+    systemOverrides = { ev: { booking: {
+      stepMinutes: 30, minDurationMinutes: 30, maxDurationMinutes: 180,
+      bufferMinutes: 5, advanceWindowDays: 7,
+      maxActivePerFlat: 10, maxDailyMinutesPerFlat: 120,   // 2 hours / day cap
+      openMin: 360, closeMin: 1380, requiresApproval: false, blackoutDates: [],
+    }}};
+    const d = istDate(1);
+    // Slots are spaced beyond the 5-min buffer so overlap-detection
+    // doesn't cross-reject them. We're isolating the daily-minutes cap.
+    // First 60-min slot on d — 60/120 used.
+    const a = await send('POST', '/ev/bookings', { date: d, startMin: 9*60,  endMin: 10*60, ownerFlat: 'A-101' }, 'resident1@x.com');
+    expect(a.status).toBe(200);
+    // Second 60-min slot on d (12:00-13:00) — 120/120 used exactly.
+    const b = await send('POST', '/ev/bookings', { date: d, startMin: 12*60, endMin: 13*60, ownerFlat: 'A-101' }, 'resident1@x.com');
+    expect(b.status).toBe(200);
+    // Third slot on d — would push to 180 > 120 → reject.
+    const c = await send('POST', '/ev/bookings', { date: d, startMin: 15*60, endMin: 16*60, ownerFlat: 'A-101' }, 'resident1@x.com');
+    expect(c.status).toBe(400);
+    const j = await c.json() as any;
+    expect(String(j.error)).toContain('daily cap');
+    expect(String(j.error)).toContain('120 min allowed');
+    // Same flat on a DIFFERENT day is unaffected by today's daily cap.
+    const other = await send('POST', '/ev/bookings', { date: istDate(2), startMin: 9*60, endMin: 10*60, ownerFlat: 'A-101' }, 'resident1@x.com');
+    expect(other.status).toBe(200);
+  });
+
+  it('exposes the new caps on GET /ev/availability policy block', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true };
+    systemOverrides = { ev: { booking: {
+      stepMinutes: 30, minDurationMinutes: 30, maxDurationMinutes: 180,
+      bufferMinutes: 5, advanceWindowDays: 2,
+      maxActivePerFlat: 1, maxTotalBookingsPerFlat: 3, maxDailyMinutesPerFlat: 120,
+      openMin: 360, closeMin: 1380, requiresApproval: false, blackoutDates: [],
+    }}};
+    const r = await send('GET', `/ev/availability?from=${istDate(0)}&to=${istDate(0)}`, undefined, 'resident1@x.com');
+    expect(r.status).toBe(200);
+    const { data } = await r.json() as any;
+    expect(data.policy.advanceWindowDays).toBe(2);
+    expect(data.policy.maxTotalBookingsPerFlat).toBe(3);
+    expect(data.policy.maxDailyMinutesPerFlat).toBe(120);
+    expect(data.policy.maxActivePerFlat).toBe(1);
   });
 });
 

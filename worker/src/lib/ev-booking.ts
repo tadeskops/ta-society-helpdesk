@@ -33,7 +33,17 @@ export interface EvBooking {
 }
 
 /** Effective booking policy — either straight from site.json → ev.booking
- *  or filled in from DEFAULT_CONFIG. Every field is guaranteed present. */
+ *  or filled in from DEFAULT_CONFIG. Every field is guaranteed present.
+ *
+ *  Editor-tunable knobs (Aug-2026):
+ *  - `advanceWindowDays` — Tatkal-style cap on how many days ahead a
+ *    resident may book. Default 2. Config lives in `site.json`.
+ *  - `maxDailyMinutesPerFlat` — max total booked minutes per flat per
+ *    IST calendar date, summed across ALL stations. `null` = no cap.
+ *  - `maxTotalBookingsPerFlat` — hard cap on active (upcoming) bookings
+ *    held by a single flat across ALL stations. `null` = no cap.
+ *  The legacy per-station `maxActivePerFlat` continues to apply on top
+ *  of these globals so a single-station deployment behaves unchanged. */
 export interface EvBookingPolicy {
   stepMinutes: number;
   minDurationMinutes: number;
@@ -41,6 +51,12 @@ export interface EvBookingPolicy {
   bufferMinutes: number;
   advanceWindowDays: number;
   maxActivePerFlat: number;
+  /** Max total upcoming bookings held by a flat across ALL stations.
+   *  `null` = unlimited. */
+  maxTotalBookingsPerFlat: number | null;
+  /** Max total booked minutes per flat per IST calendar date across
+   *  ALL stations. `null` = unlimited. */
+  maxDailyMinutesPerFlat: number | null;
   openMin: number;
   closeMin: number;
   requiresApproval: boolean;
@@ -85,17 +101,27 @@ const istParts = (ms: number) => {
 export const effectiveBookingPolicy = (raw: unknown): EvBookingPolicy => {
   const DEF: EvBookingPolicy = {
     stepMinutes: 30, minDurationMinutes: 30, maxDurationMinutes: 180,
-    bufferMinutes: 5, advanceWindowDays: 7, maxActivePerFlat: 1,
+    bufferMinutes: 5, advanceWindowDays: 2, maxActivePerFlat: 1,
+    maxTotalBookingsPerFlat: null, maxDailyMinutesPerFlat: null,
     openMin: 360, closeMin: 1380, requiresApproval: false, blackoutDates: [],
   };
   const src = (raw && typeof raw === 'object' && !Array.isArray(raw))
     ? raw as Record<string, unknown>
     : {};
-  const numOr = (k: keyof EvBookingPolicy, def: number): number => {
+  const numOr = (k: string, def: number): number => {
     const v = src[k];
     return typeof v === 'number' && Number.isFinite(v) ? v : def;
   };
-  const boolOr = (k: keyof EvBookingPolicy, def: boolean): boolean => {
+  // Nullable knobs: `null` (or the string "null" / missing / non-finite)
+  // means "no cap". Positive finite numbers are honoured verbatim. A
+  // number <= 0 also flips to unlimited so admins can type 0 to disable.
+  const nullableNum = (k: string): number | null => {
+    const v = src[k];
+    if (v === null || v === undefined || v === '') return null;
+    if (typeof v === 'number' && Number.isFinite(v) && v > 0) return v;
+    return null;
+  };
+  const boolOr = (k: string, def: boolean): boolean => {
     const v = src[k];
     return typeof v === 'boolean' ? v : def;
   };
@@ -103,16 +129,18 @@ export const effectiveBookingPolicy = (raw: unknown): EvBookingPolicy => {
     ? (src['blackoutDates'] as unknown[]).filter((s): s is string => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s))
     : DEF.blackoutDates;
   return {
-    stepMinutes:        numOr('stepMinutes',        DEF.stepMinutes),
-    minDurationMinutes: numOr('minDurationMinutes', DEF.minDurationMinutes),
-    maxDurationMinutes: numOr('maxDurationMinutes', DEF.maxDurationMinutes),
-    bufferMinutes:      numOr('bufferMinutes',      DEF.bufferMinutes),
-    advanceWindowDays:  numOr('advanceWindowDays',  DEF.advanceWindowDays),
-    maxActivePerFlat:   numOr('maxActivePerFlat',   DEF.maxActivePerFlat),
-    openMin:            numOr('openMin',            DEF.openMin),
-    closeMin:           numOr('closeMin',           DEF.closeMin),
-    requiresApproval:   boolOr('requiresApproval',  DEF.requiresApproval),
-    blackoutDates:      dates,
+    stepMinutes:             numOr('stepMinutes',        DEF.stepMinutes),
+    minDurationMinutes:      numOr('minDurationMinutes', DEF.minDurationMinutes),
+    maxDurationMinutes:      numOr('maxDurationMinutes', DEF.maxDurationMinutes),
+    bufferMinutes:           numOr('bufferMinutes',      DEF.bufferMinutes),
+    advanceWindowDays:       numOr('advanceWindowDays',  DEF.advanceWindowDays),
+    maxActivePerFlat:        numOr('maxActivePerFlat',   DEF.maxActivePerFlat),
+    maxTotalBookingsPerFlat: nullableNum('maxTotalBookingsPerFlat'),
+    maxDailyMinutesPerFlat:  nullableNum('maxDailyMinutesPerFlat'),
+    openMin:                 numOr('openMin',            DEF.openMin),
+    closeMin:                numOr('closeMin',           DEF.closeMin),
+    requiresApproval:        boolOr('requiresApproval',  DEF.requiresApproval),
+    blackoutDates:           dates,
   };
 };
 
@@ -280,6 +308,43 @@ export const countActiveEvBookingsForFlat = (
     n++;
   }
   return n;
+};
+
+/** Count TOTAL active (upcoming) bookings held by a flat across ALL
+ *  stations. Anchor is `todayIstDate`; past dates do not count. Used to
+ *  enforce the editor-tunable `maxTotalBookingsPerFlat` cap. */
+export const countTotalActiveEvBookingsForFlat = (
+  items: readonly EvBooking[],
+  flatNorm: string,
+  todayIstDate: string,
+): number => {
+  let n = 0;
+  for (const r of items) {
+    if (!isActiveEvBooking(r)) continue;
+    if (r.date < todayIstDate) continue;
+    if (!r.owner.flat) continue;
+    if (normalizeFlat(r.owner.flat) !== flatNorm) continue;
+    n++;
+  }
+  return n;
+};
+
+/** Sum the total booked MINUTES for a flat on a specific IST date,
+ *  across ALL stations. Used to enforce `maxDailyMinutesPerFlat`. */
+export const sumBookedMinutesForFlatOnDate = (
+  items: readonly EvBooking[],
+  flatNorm: string,
+  date: string,
+): number => {
+  let total = 0;
+  for (const r of items) {
+    if (r.date !== date) continue;
+    if (!isActiveEvBooking(r)) continue;
+    if (!r.owner.flat) continue;
+    if (normalizeFlat(r.owner.flat) !== flatNorm) continue;
+    total += Math.max(0, r.endMin - r.startMin);
+  }
+  return total;
 };
 
 // ---- Availability grid -----------------------------------------------------

@@ -32,6 +32,7 @@ import {
   effectiveBookingPolicy, nextEvBookingId, canTransitionEv,
   validateBookingWindow, validateTimeRange, findEvOverlap,
   countActiveEvBookingsForFlat, computeAvailability,
+  countTotalActiveEvBookingsForFlat, sumBookedMinutesForFlatOnDate,
   buildEvReceiptQr, isReceiptEligible,
   resolveAnalyticsRange, aggregateEvBookings, bookingsToCsv,
   type EvBooking, type EvBookingStatus, type EvAnalyticsPeriod,
@@ -424,6 +425,9 @@ export const mountEvCharging = (r: Router): void => {
         openMin: policy.openMin,
         closeMin: policy.closeMin,
         advanceWindowDays: policy.advanceWindowDays,
+        maxActivePerFlat: policy.maxActivePerFlat,
+        maxTotalBookingsPerFlat: policy.maxTotalBookingsPerFlat,
+        maxDailyMinutesPerFlat: policy.maxDailyMinutesPerFlat,
         blackoutDates: policy.blackoutDates,
       },
       days,
@@ -519,6 +523,33 @@ export const mountEvCharging = (r: Router): void => {
         `Flat ${ownerFlatR} already has ${held} active booking(s) on this charger ` +
         `(cap ${policy.maxActivePerFlat}). Cancel an existing booking first.`,
       );
+    }
+    // Global (across-all-stations) upcoming-bookings cap. `null` skips.
+    if (policy.maxTotalBookingsPerFlat !== null) {
+      const heldAll = countTotalActiveEvBookingsForFlat(items, flatNorm, istDateStr(Date.now()));
+      if (heldAll >= policy.maxTotalBookingsPerFlat) {
+        throw new BadRequest(
+          `Flat ${ownerFlatR} already has ${heldAll} active EV booking(s) ` +
+          `(cap ${policy.maxTotalBookingsPerFlat} across all chargers). ` +
+          `Cancel an existing booking first.`,
+        );
+      }
+    }
+    // Per-day booked-minutes cap for this flat, across all stations.
+    // Sum only bookings on the same date — sits on top of the per-slot
+    // `maxDurationMinutes` gate so residents can't queue up multiple
+    // slots to exceed the daily allowance.
+    if (policy.maxDailyMinutesPerFlat !== null) {
+      const bookedToday   = sumBookedMinutesForFlatOnDate(items, flatNorm, date);
+      const requested     = endMin - startMin;
+      const wouldTotal    = bookedToday + requested;
+      if (wouldTotal > policy.maxDailyMinutesPerFlat) {
+        throw new BadRequest(
+          `Flat ${ownerFlatR} would exceed the daily cap ` +
+          `(${wouldTotal} min booked vs ${policy.maxDailyMinutesPerFlat} min allowed on ${date}). ` +
+          `Reduce the duration or pick another day.`,
+        );
+      }
     }
     const meEmail = ctx.identity!.email.toLowerCase();
     const meName  = ctx.identity!.name;
