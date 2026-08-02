@@ -1527,11 +1527,11 @@ Resident-facing charging-slot booking + editor analytics + private-repo mirror f
 | Phase | Ships | Feature flags added | Status |
 |---|---|---|---|
 | 1 | Foundation: master flag, config schema, `/ev/config` endpoint, resident page shell (Design 1), Settings flag group, mobile-sheet entry, tests | `FEATURE_TSH_EV_CHARGING` (master, default off), all sub-flags seeded | **shipped** |
-| 2 | Booking core: data model + storage, availability grid, book/cancel, booking history | `FEATURE_TSH_EV_BOOKING` (default on when master on) | planned |
-| 3 | Digital receipt: view / print / PDF / save-to-device, QR payload | `FEATURE_TSH_EV_RECEIPT` (default on) | planned |
-| 4 | Editor analytics dashboard (Design 5): KPI, bar chart, heatmap, top-flat ranking, CSV / PDF export | `FEATURE_TSH_EV_ADMIN_DASHBOARD` (default on) | planned |
-| 5 | Private-repo mirror + auto reports (cron, monthly by default) | `FEATURE_TSH_EV_AUTO_REPORTS` (default off) | planned |
-| 6 | RFID lifecycle (6 request types), pre-registration workflow, support-ticket taxonomy (12 categories) | `FEATURE_TSH_EV_RFID`, `FEATURE_TSH_EV_REGISTRATION`, `FEATURE_TSH_EV_SUPPORT` (all default off) | planned |
+| 2 | Booking core: data model + storage, availability grid, book/cancel, booking history | `FEATURE_TSH_EV_BOOKING` (default on when master on) | **shipped** |
+| 3 | Digital receipt: view / print / PDF / save-to-device, QR payload | `FEATURE_TSH_EV_RECEIPT` (default on) | **shipped** |
+| 4 | Editor analytics dashboard (Design 5): KPI, bar chart, heatmap, top-flat ranking, CSV / PDF export | `FEATURE_TSH_EV_ADMIN_DASHBOARD` (default on) | **shipped** |
+| 5 | Auto reports (hourly cron, monthly rollup) + manual "Sync now" trigger on admin dashboard. Private-repo split still gated on the ops grant in §23.9 — currently writes to `backups/ev/YYYY-MM/{report.md,bookings.csv}` in the same public repo. | `FEATURE_TSH_EV_AUTO_REPORTS` (default off in prod, on in dev) | **shipped** (private-repo split pending §23.9 grant) |
+| 6 | RFID lifecycle (6 request types), pre-registration workflow, support-ticket taxonomy (12 categories). Frontend forms + list panels wired on `docs/ev-charging.html`; admin approval flow reuses `PATCH /ev/rfid/:id` + `PATCH /ev/support/:id`. | `FEATURE_TSH_EV_RFID`, `FEATURE_TSH_EV_REGISTRATION`, `FEATURE_TSH_EV_SUPPORT` (all default off in prod, on in dev) | **shipped** |
 
 ### 23.2 Feature-flag surface
 

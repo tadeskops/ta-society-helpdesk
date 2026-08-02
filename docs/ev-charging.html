@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="./assets/css/theme.css?v=87" />
   <link rel="stylesheet" href="./assets/css/mobile-landing.css?v=14" />
-  <link rel="stylesheet" href="./assets/css/ev-charging.css?v=13" />
+  <link rel="stylesheet" href="./assets/css/ev-charging.css?v=14" />
 </head>
 <body class="tsh-page">
   <div data-include="header"></div>
@@ -121,20 +121,109 @@
 
       <!-- RFID panel: Phase 6. -->
       <section class="tsh-ev-tab-panel" data-ev-panel="rfid" data-tsh-ev-sub="rfid" hidden>
-        <div class="tsh-ev-placeholder">
+        <div class="tsh-ev-lifecycle-intro">
           <i class="fas fa-id-card"></i>
-          <p><strong>RFID card requests.</strong></p>
-          <p class="tsh-sub">Issue, replace or deactivate your charging RFID card. Ships in Phase 6.</p>
+          <div>
+            <strong>RFID card requests</strong>
+            <p class="tsh-sub">Issue a new card, replace a lost/damaged one, or update the details on file. Managers review requests within 24 hours; you'll see the status update here.</p>
+          </div>
         </div>
+        <form id="evRfidForm" class="tsh-ev-lifecycle-form" autocomplete="off">
+          <div class="tsh-ev-lifecycle-fields">
+            <label>
+              <span>Request type <span class="tsh-req" aria-hidden="true">*</span></span>
+              <select id="evRfidType" required>
+                <option value="issue-new">Issue a new card</option>
+                <option value="replace-lost">Replace a lost card</option>
+                <option value="replace-damaged">Replace a damaged card</option>
+                <option value="deactivate">Deactivate my card</option>
+                <option value="reactivate">Reactivate my card</option>
+                <option value="update-details">Update details (plate / phone)</option>
+              </select>
+            </label>
+            <label>
+              <span>Flat / Unit <span class="tsh-req" aria-hidden="true">*</span></span>
+              <input type="text" id="evRfidFlat" required aria-required="true" maxlength="20"
+                     pattern="[A-Za-z0-9\-\/ ]{1,20}" placeholder="e.g. A-101" />
+            </label>
+            <label>
+              <span>Vehicle plate</span>
+              <input type="text" id="evRfidPlate" maxlength="20" placeholder="MH-12-AB-1234"
+                     pattern="[A-Za-z0-9\- ]{4,20}" title="4–20 letters/digits, hyphens allowed" />
+            </label>
+            <label>
+              <span>Existing card serial <small class="tsh-sub">(only if replacing / updating)</small></span>
+              <input type="text" id="evRfidCardCode" maxlength="40" placeholder="Card serial printed on the tag" />
+            </label>
+            <label class="tsh-ev-lifecycle-notes">
+              <span>Notes for the manager</span>
+              <textarea id="evRfidNotes" maxlength="500" rows="2" placeholder="Anything the manager should know before approving"></textarea>
+            </label>
+          </div>
+          <div class="tsh-ev-book-actions">
+            <button type="reset" class="tsh-btn tsh-btn-ghost">Clear</button>
+            <button type="submit" class="tsh-btn tsh-btn-primary" id="evRfidSubmit"><i class="fas fa-paper-plane"></i> File request</button>
+          </div>
+        </form>
+        <h4 class="tsh-ev-lifecycle-heading"><i class="fas fa-clock-rotate-left"></i> Your requests</h4>
+        <div id="evRfidStatus" class="tsh-sub" aria-live="polite">Loading your requests…</div>
+        <ul id="evRfidList" class="tsh-ev-hist-list"></ul>
       </section>
 
       <!-- SUPPORT panel: Phase 6. -->
       <section class="tsh-ev-tab-panel" data-ev-panel="support" data-tsh-ev-sub="support" hidden>
-        <div class="tsh-ev-placeholder">
+        <div class="tsh-ev-lifecycle-intro">
           <i class="fas fa-life-ring"></i>
-          <p><strong>Report a charging issue.</strong></p>
-          <p class="tsh-sub">Faulty connector, billing dispute, unauthorised use — file a support ticket. Ships in Phase 6.</p>
+          <div>
+            <strong>Report a charging issue</strong>
+            <p class="tsh-sub">Faulty connector, billing dispute, unauthorised use, safety concern — pick the closest category, describe what happened, and a manager will follow up.</p>
+          </div>
         </div>
+        <form id="evSupportForm" class="tsh-ev-lifecycle-form" autocomplete="off">
+          <div class="tsh-ev-lifecycle-fields">
+            <label>
+              <span>Category <span class="tsh-req" aria-hidden="true">*</span></span>
+              <select id="evSupportCategory" required>
+                <option value="unable-to-start">Unable to start a charging session</option>
+                <option value="card-not-working">RFID card not working</option>
+                <option value="billing-issue">Billing / payment dispute</option>
+                <option value="app-issue">Provider app / login issue</option>
+                <option value="physical-damage">Physical damage to the charger</option>
+                <option value="slow-charging">Slow charging speed</option>
+                <option value="session-ended-early">Session ended early</option>
+                <option value="noise-issue">Noise / disturbance from unit</option>
+                <option value="reservation-mismatch">Someone else was on my slot</option>
+                <option value="safety-concern">Safety concern (sparks, smoke, heat)</option>
+                <option value="general-feedback">General feedback / suggestion</option>
+                <option value="other">Other</option>
+              </select>
+            </label>
+            <label>
+              <span>Flat / Unit <span class="tsh-req" aria-hidden="true">*</span></span>
+              <input type="text" id="evSupportFlat" required aria-required="true" maxlength="20"
+                     pattern="[A-Za-z0-9\-\/ ]{1,20}" placeholder="e.g. A-101" />
+            </label>
+            <label>
+              <span>Subject <span class="tsh-req" aria-hidden="true">*</span></span>
+              <input type="text" id="evSupportSubject" required maxlength="120" placeholder="Short summary (max 120 chars)" />
+            </label>
+            <label>
+              <span>Related booking id <small class="tsh-sub">(optional)</small></span>
+              <input type="text" id="evSupportBookingId" maxlength="32" placeholder="e.g. EVB-08260830-01" />
+            </label>
+            <label class="tsh-ev-lifecycle-notes">
+              <span>What happened? <span class="tsh-req" aria-hidden="true">*</span></span>
+              <textarea id="evSupportMessage" required maxlength="2000" rows="4" placeholder="Describe what went wrong, when it happened, and any error messages. Max 2000 characters."></textarea>
+            </label>
+          </div>
+          <div class="tsh-ev-book-actions">
+            <button type="reset" class="tsh-btn tsh-btn-ghost">Clear</button>
+            <button type="submit" class="tsh-btn tsh-btn-primary" id="evSupportSubmit"><i class="fas fa-paper-plane"></i> File ticket</button>
+          </div>
+        </form>
+        <h4 class="tsh-ev-lifecycle-heading"><i class="fas fa-clock-rotate-left"></i> Your tickets</h4>
+        <div id="evSupportStatus" class="tsh-sub" aria-live="polite">Loading your tickets…</div>
+        <ul id="evSupportList" class="tsh-ev-hist-list"></ul>
       </section>
 
       <!-- FAQ panel: rendered from ev.faqs when non-empty. -->
@@ -166,7 +255,7 @@
   <script src="./assets/js/flags.js?v=19"></script>
   <script src="./assets/js/ui.js?v=53"></script>
   <script src="./assets/js/mobile-landing.js?v=9"></script>
-  <script src="./assets/js/ev-charging.js?v=11"></script>
+  <script src="./assets/js/ev-charging.js?v=12"></script>
   <script>
   (async () => {
     await Partials.mount();

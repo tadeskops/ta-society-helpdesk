@@ -856,9 +856,93 @@
 .tsh-ev-hist-actions { display: flex; justify-content: flex-end; }
 .tsh-ev-hist-cancel { font-size: 12px; padding: 6px 10px; }
 
+/* ---- Phase 6: RFID + Support lifecycle panels ------------------------ */
+.tsh-ev-lifecycle-intro {
+  display: flex; gap: 14px; align-items: flex-start;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--c-primary, #b8860b) 8%, var(--c-card-bg, #fff));
+  border: 1px solid color-mix(in srgb, var(--c-primary, #b8860b) 22%, transparent);
+  margin: 4px 0 16px;
+}
+.tsh-ev-lifecycle-intro > i {
+  font-size: 26px;
+  color: var(--c-primary, #b8860b);
+  margin-top: 2px;
+}
+.tsh-ev-lifecycle-intro strong {
+  display: block;
+  font-size: 15px;
+  margin-bottom: 4px;
+}
+.tsh-ev-lifecycle-intro .tsh-sub {
+  margin: 0;
+  line-height: 1.5;
+}
+.tsh-ev-lifecycle-form {
+  padding: 16px 18px;
+  border-radius: 12px;
+  border: 1px solid var(--c-border-soft, #e5e7eb);
+  background: var(--c-card-bg, #fff);
+  margin-bottom: 20px;
+}
+.tsh-ev-lifecycle-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px 16px;
+  margin-bottom: 12px;
+}
+.tsh-ev-lifecycle-fields label {
+  display: flex; flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+}
+.tsh-ev-lifecycle-fields label > span:first-child {
+  font-weight: 600;
+}
+.tsh-ev-lifecycle-fields input,
+.tsh-ev-lifecycle-fields select,
+.tsh-ev-lifecycle-fields textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--c-border-soft, #e5e7eb);
+  border-radius: 8px;
+  background: var(--c-input-bg, #fff);
+  color: var(--c-text, #1f2937);
+  font: inherit;
+}
+.tsh-ev-lifecycle-fields input:focus,
+.tsh-ev-lifecycle-fields select:focus,
+.tsh-ev-lifecycle-fields textarea:focus {
+  outline: none;
+  border-color: var(--c-primary, #b8860b);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--c-primary, #b8860b) 20%, transparent);
+}
+.tsh-ev-lifecycle-notes { grid-column: 1 / -1; }
+.tsh-ev-lifecycle-heading {
+  margin: 20px 0 10px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--c-text, #1f2937);
+  display: flex; align-items: center; gap: 8px;
+}
+.tsh-ev-lifecycle-heading i {
+  color: var(--c-primary, #b8860b);
+  font-size: 13px;
+}
+/* Status pill colours for RFID + Support statuses (reuse hist-status base). */
+.tsh-ev-hist-status-approved    { background: #d1fae5; color: #065f46; }
+.tsh-ev-hist-status-issued      { background: #dbeafe; color: #1e40af; }
+.tsh-ev-hist-status-rejected    { background: #fee2e2; color: #991b1b; }
+.tsh-ev-hist-status-open        { background: #fef3c7; color: #92400e; }
+.tsh-ev-hist-status-in-progress { background: #e0e7ff; color: #3730a3; }
+.tsh-ev-hist-status-resolved    { background: #d1fae5; color: #065f46; }
+.tsh-ev-hist-status-closed      { background: #e5e7eb; color: #374151; }
+
 @media (max-width: 640px) {
   .tsh-ev-book-fields { grid-template-columns: 1fr; }
   .tsh-ev-grid { grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); }
+  .tsh-ev-lifecycle-fields { grid-template-columns: 1fr; }
 }
 
 

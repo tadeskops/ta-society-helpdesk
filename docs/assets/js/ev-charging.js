@@ -307,6 +307,8 @@
         // Lazy-load per-panel data.
         if (target === 'book')    refreshAvailability();
         if (target === 'history') refreshHistory();
+        if (target === 'rfid')    refreshRfid();
+        if (target === 'support') refreshSupport();
       });
     });
   }
@@ -872,6 +874,232 @@
       root.Auth.onChange(() => { syncGate(); });
     }
     await syncGate();
+  }
+
+  // ---- Phase 6: RFID + Support lifecycle UI --------------------------------
+  //
+  // Both panels use the same shape: sticky form at the top, list of
+  // existing items below. Lazy-loaded when the tab is clicked; the form
+  // is wired once on first paint.
+
+  let rfidWired    = false;
+  let supportWired = false;
+  const RFID_TYPE_LABELS = {
+    'issue-new':       'New card',
+    'replace-lost':    'Replace (lost)',
+    'replace-damaged': 'Replace (damaged)',
+    'deactivate':      'Deactivate',
+    'reactivate':      'Reactivate',
+    'update-details':  'Update details',
+  };
+  const SUPPORT_CATEGORY_LABELS = {
+    'unable-to-start':      'Unable to start',
+    'card-not-working':     'Card not working',
+    'billing-issue':        'Billing dispute',
+    'app-issue':            'App issue',
+    'physical-damage':      'Physical damage',
+    'slow-charging':        'Slow charging',
+    'session-ended-early':  'Session ended early',
+    'noise-issue':          'Noise issue',
+    'reservation-mismatch': 'Slot conflict',
+    'safety-concern':       'Safety concern',
+    'general-feedback':     'General feedback',
+    'other':                'Other',
+  };
+
+  function prefillLifecycleFlat(inputId) {
+    const el = $('#' + inputId);
+    if (!el || el.value) return;
+    try {
+      const stored = root.localStorage && root.localStorage.getItem('tsh:ev:lastFlat');
+      if (stored) el.value = stored;
+    } catch (_e) { /* private mode — ignore */ }
+  }
+
+  async function refreshRfid() {
+    if (!rfidWired) {
+      const form = $('#evRfidForm');
+      if (form) form.addEventListener('submit', onRfidSubmit);
+      rfidWired = true;
+    }
+    prefillLifecycleFlat('evRfidFlat');
+    const list   = $('#evRfidList');
+    const status = $('#evRfidStatus');
+    if (!list) return;
+    list.innerHTML = '';
+    if (status) status.textContent = 'Loading your requests…';
+    try {
+      const payload = await root.Api.get('/ev/rfid?scope=own');
+      const items = payload && payload.data ? (payload.data.items || []) : [];
+      if (!items.length) {
+        if (status) status.textContent = 'No RFID requests yet. Use the form above to file one.';
+        return;
+      }
+      if (status) status.textContent = '';
+      items.forEach((it) => list.appendChild(renderRfidCard(it)));
+    } catch (e) {
+      if (status) status.textContent = 'Could not load requests: ' + (e && e.message || e);
+    }
+  }
+
+  function renderRfidCard(it) {
+    const li = document.createElement('li');
+    li.className = 'tsh-ev-hist-card tsh-ev-hist-' + esc(it.status || 'pending');
+    const canCancel = it.status === 'pending';
+    const typeLabel = RFID_TYPE_LABELS[it.type] || it.type;
+    li.innerHTML = ''
+      + '<div class="tsh-ev-hist-head">'
+      +   '<span class="tsh-ev-hist-date"><i class="fas fa-id-card"></i> ' + esc(typeLabel) + '</span>'
+      +   '<span class="tsh-ev-hist-time"><i class="fas fa-hashtag"></i> ' + esc(it.id) + '</span>'
+      +   '<span class="tsh-ev-hist-status tsh-ev-hist-status-' + esc(it.status) + '">' + esc(it.status) + '</span>'
+      + '</div>'
+      + '<div class="tsh-ev-hist-meta">'
+      +   '<span><i class="fas fa-door-open"></i> Flat ' + esc(it.owner && it.owner.flat) + '</span>'
+      +   (it.vehiclePlate ? '<span><i class="fas fa-car"></i> ' + esc(it.vehiclePlate) + '</span>' : '')
+      +   (it.cardCode ? '<span><i class="fas fa-barcode"></i> ' + esc(it.cardCode) + '</span>' : '')
+      +   (it.notes ? '<span class="tsh-ev-hist-notes"><i class="fas fa-note-sticky"></i> ' + esc(it.notes) + '</span>' : '')
+      + '</div>'
+      + '<div class="tsh-ev-hist-actions">'
+      +   (canCancel ? '<button type="button" class="tsh-btn tsh-btn-ghost tsh-ev-hist-cancel" data-id="' + esc(it.id) + '"><i class="fas fa-xmark"></i> Cancel</button>' : '')
+      + '</div>';
+    const btn = li.querySelector('.tsh-ev-hist-cancel');
+    if (btn) btn.addEventListener('click', () => cancelRfid(it.id));
+    return li;
+  }
+
+  async function onRfidSubmit(ev) {
+    ev.preventDefault();
+    const type   = ($('#evRfidType') && $('#evRfidType').value) || '';
+    const flat   = ($('#evRfidFlat') && $('#evRfidFlat').value || '').trim();
+    const plate  = ($('#evRfidPlate') && $('#evRfidPlate').value || '').trim();
+    const card   = ($('#evRfidCardCode') && $('#evRfidCardCode').value || '').trim();
+    const notes  = ($('#evRfidNotes') && $('#evRfidNotes').value || '').trim();
+    if (!type) { toast('Pick a request type', { kind: 'warn' }); return; }
+    if (!flat) { toast('Flat / unit is required', { kind: 'warn' }); return; }
+    const btn = $('#evRfidSubmit');
+    if (btn) { btn.disabled = true; btn.dataset.origHtml = btn.innerHTML; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Filing…'; }
+    try {
+      await root.Api.post('/ev/rfid', {
+        type, ownerFlat: flat,
+        vehiclePlate: plate || undefined,
+        cardCode: card || undefined,
+        notes: notes || undefined,
+      });
+      toast('RFID request filed', { kind: 'success' });
+      try { if (root.localStorage) root.localStorage.setItem('tsh:ev:lastFlat', flat); } catch (_e) {}
+      const form = $('#evRfidForm');
+      if (form) form.reset();
+      await refreshRfid();
+    } catch (e) {
+      toast('Could not file request: ' + (e && e.message || e), { kind: 'danger' });
+    } finally {
+      if (btn) { btn.disabled = false; if (btn.dataset.origHtml) btn.innerHTML = btn.dataset.origHtml; }
+    }
+  }
+
+  async function cancelRfid(id) {
+    if (!id) return;
+    if (!confirm('Cancel this RFID request?')) return;
+    try {
+      await root.Api.patch('/ev/rfid/' + encodeURIComponent(id), { status: 'cancelled' });
+      toast('Request cancelled', { kind: 'success' });
+      await refreshRfid();
+    } catch (e) {
+      toast('Cancel failed: ' + (e && e.message || e), { kind: 'danger' });
+    }
+  }
+
+  async function refreshSupport() {
+    if (!supportWired) {
+      const form = $('#evSupportForm');
+      if (form) form.addEventListener('submit', onSupportSubmit);
+      supportWired = true;
+    }
+    prefillLifecycleFlat('evSupportFlat');
+    const list   = $('#evSupportList');
+    const status = $('#evSupportStatus');
+    if (!list) return;
+    list.innerHTML = '';
+    if (status) status.textContent = 'Loading your tickets…';
+    try {
+      const payload = await root.Api.get('/ev/support?scope=own');
+      const items = payload && payload.data ? (payload.data.items || []) : [];
+      if (!items.length) {
+        if (status) status.textContent = 'No tickets filed yet. Use the form above to report an issue.';
+        return;
+      }
+      if (status) status.textContent = '';
+      items.forEach((it) => list.appendChild(renderSupportCard(it)));
+    } catch (e) {
+      if (status) status.textContent = 'Could not load tickets: ' + (e && e.message || e);
+    }
+  }
+
+  function renderSupportCard(it) {
+    const li = document.createElement('li');
+    li.className = 'tsh-ev-hist-card tsh-ev-hist-' + esc(it.status || 'open');
+    const canClose = it.status === 'open' || it.status === 'in-progress' || it.status === 'resolved';
+    const catLabel = SUPPORT_CATEGORY_LABELS[it.category] || it.category;
+    li.innerHTML = ''
+      + '<div class="tsh-ev-hist-head">'
+      +   '<span class="tsh-ev-hist-date"><i class="fas fa-life-ring"></i> ' + esc(catLabel) + '</span>'
+      +   '<span class="tsh-ev-hist-time"><i class="fas fa-hashtag"></i> ' + esc(it.id) + '</span>'
+      +   '<span class="tsh-ev-hist-status tsh-ev-hist-status-' + esc(it.status) + '">' + esc(it.status) + '</span>'
+      + '</div>'
+      + '<div class="tsh-ev-hist-meta">'
+      +   '<span><i class="fas fa-door-open"></i> Flat ' + esc(it.owner && it.owner.flat) + '</span>'
+      +   (it.relatedBookingId ? '<span><i class="fas fa-calendar"></i> ' + esc(it.relatedBookingId) + '</span>' : '')
+      +   '<span class="tsh-ev-hist-notes"><strong>' + esc(it.subject) + '</strong> — ' + esc(it.message) + '</span>'
+      +   (it.resolutionNote ? '<span class="tsh-ev-hist-notes"><i class="fas fa-check"></i> <em>' + esc(it.resolutionNote) + '</em></span>' : '')
+      + '</div>'
+      + '<div class="tsh-ev-hist-actions">'
+      +   (canClose ? '<button type="button" class="tsh-btn tsh-btn-ghost tsh-ev-hist-cancel" data-id="' + esc(it.id) + '"><i class="fas fa-xmark"></i> Close ticket</button>' : '')
+      + '</div>';
+    const btn = li.querySelector('.tsh-ev-hist-cancel');
+    if (btn) btn.addEventListener('click', () => closeSupport(it.id));
+    return li;
+  }
+
+  async function onSupportSubmit(ev) {
+    ev.preventDefault();
+    const category = ($('#evSupportCategory') && $('#evSupportCategory').value) || '';
+    const flat     = ($('#evSupportFlat') && $('#evSupportFlat').value || '').trim();
+    const subject  = ($('#evSupportSubject') && $('#evSupportSubject').value || '').trim();
+    const message  = ($('#evSupportMessage') && $('#evSupportMessage').value || '').trim();
+    const bookingId = ($('#evSupportBookingId') && $('#evSupportBookingId').value || '').trim();
+    if (!category) { toast('Pick a category', { kind: 'warn' }); return; }
+    if (!flat)     { toast('Flat / unit is required', { kind: 'warn' }); return; }
+    if (!subject)  { toast('Please enter a subject', { kind: 'warn' }); return; }
+    if (!message)  { toast('Please describe what happened', { kind: 'warn' }); return; }
+    const btn = $('#evSupportSubmit');
+    if (btn) { btn.disabled = true; btn.dataset.origHtml = btn.innerHTML; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Filing…'; }
+    try {
+      await root.Api.post('/ev/support', {
+        category, ownerFlat: flat, subject, message,
+        relatedBookingId: bookingId || undefined,
+      });
+      toast('Ticket filed — a manager will follow up', { kind: 'success' });
+      try { if (root.localStorage) root.localStorage.setItem('tsh:ev:lastFlat', flat); } catch (_e) {}
+      const form = $('#evSupportForm');
+      if (form) form.reset();
+      await refreshSupport();
+    } catch (e) {
+      toast('Could not file ticket: ' + (e && e.message || e), { kind: 'danger' });
+    } finally {
+      if (btn) { btn.disabled = false; if (btn.dataset.origHtml) btn.innerHTML = btn.dataset.origHtml; }
+    }
+  }
+
+  async function closeSupport(id) {
+    if (!id) return;
+    if (!confirm('Close this support ticket?')) return;
+    try {
+      await root.Api.patch('/ev/support/' + encodeURIComponent(id), { status: 'closed' });
+      toast('Ticket closed', { kind: 'success' });
+      await refreshSupport();
+    } catch (e) {
+      toast('Close failed: ' + (e && e.message || e), { kind: 'danger' });
+    }
   }
 
   root.EvCharging = { init, _renderStationsBar: renderStationsBar, _SUB_FLAG_MAP: SUB_FLAG_MAP };

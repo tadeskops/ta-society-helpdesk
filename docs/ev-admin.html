@@ -37,6 +37,10 @@
           </label>
           <button type="button" class="tsh-btn tsh-btn-ghost" id="evaExportCsv"><i class="fas fa-file-csv"></i> Export CSV</button>
           <button type="button" class="tsh-btn tsh-btn-ghost" id="evaExportPdf"><i class="fas fa-file-pdf"></i> Export PDF</button>
+          <button type="button" class="tsh-btn tsh-btn-ghost" id="evaMirrorSync"
+                  data-tsh-feature="FEATURE_TSH_EV_AUTO_REPORTS"
+                  title="Regenerate the monthly report + bookings CSV and push them to the mirror repo"
+                  hidden><i class="fas fa-cloud-arrow-up"></i> Sync now</button>
         </div>
       </header>
 
@@ -88,7 +92,7 @@
   <script src="./assets/js/flags.js?v=19"></script>
   <script src="./assets/js/ui.js?v=53"></script>
   <script src="./assets/js/mobile-landing.js?v=9"></script>
-  <script src="./assets/js/ev-admin.js?v=1"></script>
+  <script src="./assets/js/ev-admin.js?v=2"></script>
   <script>
   (async () => {
     await Partials.mount();

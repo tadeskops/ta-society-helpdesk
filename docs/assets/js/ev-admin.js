@@ -153,6 +153,43 @@
       var b = base();
       window.open(b.origin + '/ev/admin/export?period=' + encodeURIComponent(b.period) + '&format=pdf', '_blank');
     });
+    var syncBtn = $('#evaMirrorSync');
+    if (syncBtn) {
+      // Only expose the manual sync when the auto-reports sub-flag is on;
+      // the cron would be dark otherwise so the button would be a no-op.
+      if (Flags && Flags.on && Flags.on('FEATURE_TSH_EV_AUTO_REPORTS')) {
+        syncBtn.hidden = false;
+      }
+      syncBtn.addEventListener('click', async function () {
+        if (!confirm('Regenerate this month\'s report + bookings CSV and push them to the mirror repo now?')) return;
+        var orig = syncBtn.innerHTML;
+        syncBtn.disabled = true;
+        syncBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Syncing…';
+        try {
+          var payload = await Api.post('/ev/admin/mirror', {});
+          var data = payload && payload.data ? payload.data : payload;
+          var msg;
+          if (data && data.ran) {
+            msg = 'Sync ok — ' + data.month + ': '
+                + (data.bookings || 0) + ' bookings, '
+                + (data.changed ? 'files updated' : 'no changes');
+          } else if (data && data.ran === false) {
+            msg = 'Sync skipped: ' + (data.reason || 'no reason given');
+          } else {
+            msg = 'Sync complete';
+          }
+          if (window.UI && UI.toast) UI.toast(msg, { kind: 'success' });
+          else alert(msg);
+        } catch (e) {
+          var em = 'Sync failed: ' + (e && e.message || e);
+          if (window.UI && UI.toast) UI.toast(em, { kind: 'danger' });
+          else alert(em);
+        } finally {
+          syncBtn.disabled = false;
+          syncBtn.innerHTML = orig;
+        }
+      });
+    }
   }
 
   async function init () {
