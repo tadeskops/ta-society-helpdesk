@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="./assets/css/theme.css?v=87" />
   <link rel="stylesheet" href="./assets/css/mobile-landing.css?v=14" />
-  <link rel="stylesheet" href="./assets/css/ev-charging.css?v=4" />
+  <link rel="stylesheet" href="./assets/css/ev-charging.css?v=5" />
 </head>
 <body class="tsh-page">
   <div data-include="header"></div>
@@ -79,6 +79,143 @@
         <p>You need Manager, Committee or Admin rights to view EV analytics.</p>
       </div>
     </section>
+
+    <!-- ================================================================= -->
+    <!--  Phase 6b — AMC (Annual Maintenance Contract) editor register.     -->
+    <!--  Editor-only. Records duration, coverage, society responsibilities, -->
+    <!--  document scans, and servicing visit log. Spec §23.11.              -->
+    <!-- ================================================================= -->
+    <section class="tsh-card tsh-ev-amc"
+             data-tsh-feature="FEATURE_TSH_EV_AMC"
+             id="evAmcSection" hidden>
+      <header class="tsh-card-head">
+        <h2><i class="fas fa-file-signature gold-accent"></i> AMC &amp; maintenance records</h2>
+        <div class="tsh-ev-amc-actions">
+          <span id="evAmcRenewalChip" class="tsh-chip" hidden></span>
+          <button type="button" class="tsh-btn tsh-btn-primary" id="evAmcSaveBtn" disabled>
+            <i class="fas fa-save"></i> Save contract
+          </button>
+        </div>
+      </header>
+      <p class="tsh-card-lede" id="evAmcStorageNote"></p>
+
+      <!-- Contract fields grid ------------------------------------------- -->
+      <div class="tsh-ev-amc-grid">
+        <label>Contract number
+          <input type="text" id="evAmcNumber" maxlength="64" placeholder="e.g. SUN/AMC/2026-27">
+        </label>
+        <label>Vendor
+          <input type="text" id="evAmcVendor" maxlength="120">
+        </label>
+        <label>Start date
+          <input type="date" id="evAmcStart">
+        </label>
+        <label>End date
+          <input type="date" id="evAmcEnd">
+        </label>
+        <label>Renewal reminder (days)
+          <input type="number" min="0" max="365" id="evAmcReminderDays">
+        </label>
+        <label>Annual fee (₹)
+          <input type="number" min="0" step="1" id="evAmcFee">
+        </label>
+        <label>Currency
+          <input type="text" id="evAmcCurrency" maxlength="6" value="INR">
+        </label>
+        <label>Vendor phone
+          <input type="text" id="evAmcVendorPhone" maxlength="40">
+        </label>
+        <label>Vendor email
+          <input type="email" id="evAmcVendorEmail" maxlength="120">
+        </label>
+        <label>Vendor website
+          <input type="url" id="evAmcVendorWebsite" maxlength="200">
+        </label>
+        <label class="tsh-ev-amc-full">Vendor address
+          <input type="text" id="evAmcVendorAddress" maxlength="400">
+        </label>
+        <label class="tsh-ev-amc-full">Emergency contact line
+          <input type="text" id="evAmcEmergency" maxlength="400"
+                 placeholder="e.g. SunArth 24×7 helpline: +91-77977-98887 — mention station ID">
+        </label>
+      </div>
+
+      <!-- Coverage and society responsibilities lists -------------------- -->
+      <div class="tsh-ev-amc-lists">
+        <div class="tsh-ev-amc-list-card">
+          <h3><i class="fas fa-shield-check"></i> Vendor covers</h3>
+          <ul class="tsh-ev-amc-list" id="evAmcCoverageList"></ul>
+          <div class="tsh-ev-amc-list-add">
+            <input type="text" id="evAmcCoverageAdd" maxlength="400" placeholder="Add a coverage point…">
+            <button type="button" class="tsh-btn tsh-btn-ghost" id="evAmcCoverageAddBtn">
+              <i class="fas fa-plus"></i> Add
+            </button>
+          </div>
+        </div>
+        <div class="tsh-ev-amc-list-card">
+          <h3><i class="fas fa-list-check"></i> Society must maintain</h3>
+          <ul class="tsh-ev-amc-list" id="evAmcRespList"></ul>
+          <div class="tsh-ev-amc-list-add">
+            <input type="text" id="evAmcRespAdd" maxlength="400" placeholder="Add a society responsibility…">
+            <button type="button" class="tsh-btn tsh-btn-ghost" id="evAmcRespAddBtn">
+              <i class="fas fa-plus"></i> Add
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <label class="tsh-ev-amc-notes">Notes for editors
+        <textarea id="evAmcNotes" maxlength="4000" rows="3" placeholder="Where is the original stored? Vendor rep name? Renewal negotiation points?"></textarea>
+      </label>
+
+      <!-- Documents -->
+      <section class="tsh-ev-amc-docs">
+        <header class="tsh-ev-amc-subhead">
+          <h3><i class="fas fa-folder-open gold-accent"></i> Documents on file</h3>
+          <div class="tsh-ev-amc-upload">
+            <select id="evAmcDocKind">
+              <option value="contract">Signed contract</option>
+              <option value="renewal">Renewal letter</option>
+              <option value="sla">SLA / addendum</option>
+              <option value="invoice">Invoice / payment</option>
+              <option value="inspection">Inspection report</option>
+              <option value="photo">Photo</option>
+              <option value="other">Other</option>
+            </select>
+            <input type="text" id="evAmcDocTitle" maxlength="200" placeholder="Document title">
+            <input type="file" id="evAmcDocFile" accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx">
+            <button type="button" class="tsh-btn tsh-btn-primary" id="evAmcUploadBtn">
+              <i class="fas fa-upload"></i> Upload
+            </button>
+          </div>
+        </header>
+        <ul class="tsh-ev-amc-doc-list" id="evAmcDocList"></ul>
+      </section>
+
+      <!-- Servicing log ------------------------------------------------- -->
+      <section class="tsh-ev-amc-servicing">
+        <header class="tsh-ev-amc-subhead">
+          <h3><i class="fas fa-screwdriver-wrench gold-accent"></i> Servicing &amp; inspection log</h3>
+          <div class="tsh-ev-amc-servicing-add">
+            <input type="date"   id="evAmcSvcDate">
+            <select              id="evAmcSvcKind">
+              <option value="quarterly">Quarterly</option>
+              <option value="annual">Annual</option>
+              <option value="preventive">Preventive</option>
+              <option value="breakdown">Breakdown fix</option>
+              <option value="inspection">Inspection</option>
+            </select>
+            <input type="text" id="evAmcSvcBy"      maxlength="120" placeholder="Performed by…">
+            <input type="text" id="evAmcSvcStation" maxlength="40"  placeholder="Station (opt.)">
+            <input type="text" id="evAmcSvcNotes"   maxlength="200" placeholder="Notes">
+            <button type="button" class="tsh-btn tsh-btn-primary" id="evAmcSvcAddBtn">
+              <i class="fas fa-plus"></i> Log visit
+            </button>
+          </div>
+        </header>
+        <ul class="tsh-ev-amc-svc-list" id="evAmcSvcList"></ul>
+      </section>
+    </section>
   </main>
 
   <div data-include="mobile-tabbar"></div>
@@ -92,14 +229,23 @@
   <script src="./assets/js/flags.js?v=19"></script>
   <script src="./assets/js/ui.js?v=53"></script>
   <script src="./assets/js/mobile-landing.js?v=9"></script>
-  <script src="./assets/js/ev-admin.js?v=2"></script>
+  <script src="./assets/js/ev-admin.js?v=3"></script>
+  <script src="./assets/js/ev-amc.js?v=1"></script>
   <script>
   (async () => {
     await Partials.mount();
     await Auth.init({ clientId: window.TSH_GOOGLE_CLIENT_ID });
     UI.bindHeader();
     EvAdmin.init();
-    Auth.onChange(() => EvAdmin.init());
+    if (window.EvAmc && typeof window.EvAmc.init === 'function') {
+      window.EvAmc.init();
+    }
+    Auth.onChange(() => {
+      EvAdmin.init();
+      if (window.EvAmc && typeof window.EvAmc.init === 'function') {
+        window.EvAmc.init();
+      }
+    });
   })();
   </script>
 </body>

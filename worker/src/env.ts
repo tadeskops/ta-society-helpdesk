@@ -41,4 +41,16 @@ export interface Env {
   GOOGLE_CAL_CLIENT_ID?: string;
   GOOGLE_CAL_CLIENT_SECRET?: string;
   GOOGLE_CAL_REFRESH_TOKEN?: string;
+
+  /** EV charging private repo (AMC contract PDFs + mirrored monthly
+   *  reports). When unset the AMC document upload falls back to
+   *  `backups/ev/amc/` in the primary repo — see tsh_requirement.md §23.9
+   *  for the private-repo split. Recommended name:
+   *  "tsh-ev-charging-data". Owner + branch fall back to GH_OWNER / main. */
+  GH_EV_OWNER?: string;
+  GH_EV_REPO?: string;
+  GH_EV_BRANCH?: string;
+  /** Optional: separate PAT for the EV private repo. Falls back to
+   *  GITHUB_TOKEN when absent. */
+  GITHUB_EV_TOKEN?: string;
 }

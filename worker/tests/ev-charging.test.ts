@@ -1283,3 +1283,137 @@ describe('PATCH /ev/stations/:id — maintenance toggle', () => {
     expect(r.status).toBe(200);
   });
 });
+
+// -------------------------------------------------------------------------
+// Phase 6b — AMC (Annual Maintenance Contract) editor register
+// Spec: tsh_requirement.md §23.11.
+// -------------------------------------------------------------------------
+describe('Phase 6b — AMC editor (FEATURE_TSH_EV_AMC)', () => {
+  it('flag off -> 503', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true, FEATURE_TSH_EV_AMC: false };
+    const r = await send('GET', '/ev/admin/amc', undefined, 'mgr@x.com');
+    expect(r.status).toBe(503);
+    expect(String((await r.json() as any).error)).toContain('FEATURE_TSH_EV_AMC');
+  });
+
+  it('resident cannot read the AMC register', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true, FEATURE_TSH_EV_AMC: true };
+    const r = await send('GET', '/ev/admin/amc', undefined, 'resident1@x.com');
+    expect(r.status).toBe(403);
+  });
+
+  it('manager reads the default AMC scaffold pre-seeded with SunArth contact', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true, FEATURE_TSH_EV_AMC: true };
+    const r = await send('GET', '/ev/admin/amc', undefined, 'mgr@x.com');
+    expect(r.status).toBe(200);
+    const j = await r.json() as any;
+    expect(j.data.amc.version).toBe(1);
+    expect(j.data.amc.contract.vendor).toMatch(/sunarth/i);
+    expect(j.data.amc.contract.vendorContact.email).toBe('info@sunarth.com');
+    expect(Array.isArray(j.data.amc.contract.coverage)).toBe(true);
+    expect(j.data.amc.contract.coverage.length).toBeGreaterThan(0);
+    expect(Array.isArray(j.data.amc.contract.societyResponsibilities)).toBe(true);
+    expect(j.data.amc.documents.length).toBe(0);
+    expect(j.data.amc.servicing.length).toBe(0);
+    // No dates seeded so renewalDaysRemaining should be null.
+    expect(j.data.renewalDaysRemaining).toBeNull();
+  });
+
+  it('manager can update contract dates and duration; endDate before startDate rejected', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true, FEATURE_TSH_EV_AMC: true };
+    const bad = await send('PUT', '/ev/admin/amc', {
+      startDate: '2026-01-01', endDate: '2025-12-31',
+    }, 'mgr@x.com');
+    expect(bad.status).toBe(400);
+    const good = await send('PUT', '/ev/admin/amc', {
+      number: 'SUN/AMC/2026-27',
+      startDate: '2026-04-01',
+      endDate:   '2027-03-31',
+      renewalReminderDays: 45,
+      annualFee: 84000,
+      currency: 'inr',
+      coverage: ['Chargers, cables & RFID readers', 'Two preventive visits per quarter'],
+      societyResponsibilities: ['Clean the station bays weekly'],
+      notes: 'Signed original stored with secretary.',
+    }, 'mgr@x.com');
+    expect(good.status).toBe(200);
+    const j = await good.json() as any;
+    expect(j.data.amc.contract.number).toBe('SUN/AMC/2026-27');
+    expect(j.data.amc.contract.currency).toBe('INR');   // upper-cased
+    expect(j.data.amc.contract.annualFee).toBe(84000);
+    expect(j.data.amc.contract.renewalReminderDays).toBe(45);
+    expect(j.data.amc.contract.coverage.length).toBe(2);
+    expect(typeof j.data.renewalDaysRemaining).toBe('number');
+  });
+
+  it('manager can upload a document within the mime whitelist; oversize rejected', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true, FEATURE_TSH_EV_AMC: true };
+    const bad = await send('POST', '/ev/admin/amc/documents', {
+      kind: 'contract', title: 'Signed AMC', mime: 'application/x-shell',
+      bytes: 1024, dataBase64: 'aGVsbG8=',
+    }, 'mgr@x.com');
+    expect(bad.status).toBe(400);
+    const ok = await send('POST', '/ev/admin/amc/documents', {
+      kind: 'contract', title: 'Signed AMC 2026-27',
+      mime: 'application/pdf', bytes: 5,
+      dataBase64: 'aGVsbG8=',
+    }, 'mgr@x.com');
+    expect(ok.status).toBe(200);
+    const j = await ok.json() as any;
+    expect(j.data.document.id).toMatch(/^EVAMC-[A-Z0-9]{8}$/);
+    expect(j.data.document.path).toMatch(/^backups\/ev\/amc\/\d{4}-\d{2}\/EVAMC-[A-Z0-9]{8}\.pdf$/);
+    expect(j.data.document.kind).toBe('contract');
+    // Read-back places the doc in the record.
+    const list = await send('GET', '/ev/admin/amc', undefined, 'mgr@x.com');
+    const lj = await list.json() as any;
+    expect(lj.data.amc.documents.length).toBe(1);
+    expect(lj.data.amc.documents[0].id).toBe(j.data.document.id);
+  });
+
+  it('manager can archive and restore a document', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true, FEATURE_TSH_EV_AMC: true };
+    const up = await send('POST', '/ev/admin/amc/documents', {
+      kind: 'invoice', title: 'Q1 invoice', mime: 'application/pdf', bytes: 5, dataBase64: 'aGVsbG8=',
+    }, 'mgr@x.com');
+    const id = (await up.json() as any).data.document.id;
+    const arch = await send('PATCH', '/ev/admin/amc/documents/' + id, { archived: true }, 'mgr@x.com');
+    expect(arch.status).toBe(200);
+    expect((await arch.json() as any).data.document.archived).toBe(true);
+    const back = await send('PATCH', '/ev/admin/amc/documents/' + id, { archived: false }, 'mgr@x.com');
+    expect(back.status).toBe(200);
+    expect((await back.json() as any).data.document.archived).toBe(false);
+  });
+
+  it('manager can log a servicing visit and delete it; residents cannot', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true, FEATURE_TSH_EV_AMC: true };
+    const bad = await send('POST', '/ev/admin/amc/servicing', {
+      date: '2026-07-14', kind: 'quarterly', performedBy: 'SunArth crew',
+    }, 'resident1@x.com');
+    expect(bad.status).toBe(403);
+    const ok = await send('POST', '/ev/admin/amc/servicing', {
+      date: '2026-07-14', kind: 'quarterly', performedBy: 'SunArth crew',
+      station: 'ev-2w-1', notes: 'All chargers OK.',
+    }, 'mgr@x.com');
+    expect(ok.status).toBe(200);
+    const j = await ok.json() as any;
+    expect(j.data.entry.id).toMatch(/^EVAMS-[A-Z0-9]{8}$/);
+    const list = await send('GET', '/ev/admin/amc', undefined, 'mgr@x.com');
+    expect((await list.json() as any).data.amc.servicing.length).toBe(1);
+    const del = await send('DELETE', '/ev/admin/amc/servicing/' + j.data.entry.id, undefined, 'mgr@x.com');
+    expect(del.status).toBe(200);
+    const list2 = await send('GET', '/ev/admin/amc', undefined, 'mgr@x.com');
+    expect((await list2.json() as any).data.amc.servicing.length).toBe(0);
+  });
+
+  it('rejects bad servicing dates and unknown kinds', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true, FEATURE_TSH_EV_AMC: true };
+    const r1 = await send('POST', '/ev/admin/amc/servicing', {
+      date: '2026/07/14', kind: 'quarterly', performedBy: 'x',
+    }, 'mgr@x.com');
+    expect(r1.status).toBe(400);
+    const r2 = await send('POST', '/ev/admin/amc/servicing', {
+      date: '2026-07-14', kind: 'ritual', performedBy: 'x',
+    }, 'mgr@x.com');
+    expect(r2.status).toBe(400);
+  });
+});

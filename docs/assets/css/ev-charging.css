@@ -1210,3 +1210,145 @@
   color: var(--tsh-muted, #6b7280);
   font-size: 12px; padding: 8px 0;
 }
+/* ---------------------------------------------------------------------- */
+/*  Phase 6b — AMC (Annual Maintenance Contract) editor block.            */
+/*  Rendered inside /docs/ev-admin.html. Editor-only. Spec §23.11.        */
+/* ---------------------------------------------------------------------- */
+.tsh-ev-amc { margin-top: 20px; }
+.tsh-ev-amc .tsh-card-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap;
+}
+.tsh-ev-amc-actions { display: inline-flex; align-items: center; gap: 10px; }
+.tsh-ev-amc .tsh-card-lede {
+  color: var(--tsh-muted, #6b7280); font-size: 13px;
+  margin: 4px 0 14px;
+}
+.tsh-ev-amc-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px 16px; margin-bottom: 18px;
+}
+.tsh-ev-amc-grid label {
+  display: flex; flex-direction: column; gap: 4px;
+  font-size: 12px; font-weight: 600; color: var(--tsh-muted, #4b5563);
+}
+.tsh-ev-amc-grid input,
+.tsh-ev-amc-grid select {
+  padding: 8px 10px; border: 1px solid var(--c-border-soft, #e5e7eb);
+  border-radius: 8px; font-size: 14px; font-weight: 400; color: var(--tsh-fg, #111827);
+  background: var(--c-card-bg, #fff);
+}
+.tsh-ev-amc-full { grid-column: 1 / -1; }
+.tsh-ev-amc-notes { display: flex; flex-direction: column; gap: 4px;
+  font-size: 12px; font-weight: 600; color: var(--tsh-muted, #4b5563);
+  margin-bottom: 18px;
+}
+.tsh-ev-amc-notes textarea {
+  padding: 8px 10px; border: 1px solid var(--c-border-soft, #e5e7eb);
+  border-radius: 8px; font-family: inherit; font-size: 14px; font-weight: 400;
+  color: var(--tsh-fg, #111827); background: var(--c-card-bg, #fff);
+  resize: vertical;
+}
+
+.tsh-ev-amc-lists {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px; margin-bottom: 18px;
+}
+.tsh-ev-amc-list-card {
+  border: 1px solid var(--c-border-soft, #e5e7eb);
+  border-radius: 12px; padding: 14px; background: #fbfbf7;
+}
+.tsh-ev-amc-list-card h3 {
+  margin: 0 0 10px; font-size: 14px; color: var(--tsh-fg, #111827);
+  display: flex; align-items: center; gap: 8px;
+}
+.tsh-ev-amc-list-card h3 i { color: var(--c-primary, #b8860b); }
+.tsh-ev-amc-list { list-style: none; padding: 0; margin: 0 0 10px; }
+.tsh-ev-amc-list li {
+  display: flex; align-items: flex-start; gap: 8px; padding: 6px 0;
+  border-bottom: 1px dashed var(--c-border-soft, #e5e7eb);
+  font-size: 13px; color: var(--tsh-fg, #111827);
+}
+.tsh-ev-amc-list li:last-child { border-bottom: none; }
+.tsh-ev-amc-list li span { flex: 1; }
+.tsh-ev-amc-list li button {
+  background: transparent; border: none; color: #9ca3af; cursor: pointer;
+  padding: 2px 6px; border-radius: 6px;
+}
+.tsh-ev-amc-list li button:hover { color: #dc2626; background: #fee2e2; }
+.tsh-ev-amc-list-add { display: flex; gap: 8px; }
+.tsh-ev-amc-list-add input {
+  flex: 1; padding: 6px 10px;
+  border: 1px solid var(--c-border-soft, #e5e7eb);
+  border-radius: 8px; font-size: 13px;
+}
+
+.tsh-ev-amc-subhead {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap; margin: 14px 0 10px;
+}
+.tsh-ev-amc-subhead h3 {
+  margin: 0; font-size: 15px; display: inline-flex; align-items: center; gap: 8px;
+}
+.tsh-ev-amc-upload,
+.tsh-ev-amc-servicing-add {
+  display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+}
+.tsh-ev-amc-upload input[type=text],
+.tsh-ev-amc-upload select,
+.tsh-ev-amc-servicing-add input,
+.tsh-ev-amc-servicing-add select {
+  padding: 6px 10px; border: 1px solid var(--c-border-soft, #e5e7eb);
+  border-radius: 8px; font-size: 13px;
+}
+
+.tsh-ev-amc-doc-list,
+.tsh-ev-amc-svc-list { list-style: none; padding: 0; margin: 0; }
+.tsh-ev-amc-doc {
+  display: flex; align-items: flex-start; gap: 12px; padding: 12px;
+  border: 1px solid var(--c-border-soft, #e5e7eb); border-radius: 10px;
+  margin-bottom: 8px; background: var(--c-card-bg, #fff);
+}
+.tsh-ev-amc-doc-archived { opacity: 0.55; }
+.tsh-ev-amc-doc-icon {
+  width: 40px; height: 40px; flex: 0 0 40px;
+  border-radius: 10px; background: #fef3c7; color: #92400e;
+  display: flex; align-items: center; justify-content: center; font-size: 18px;
+}
+.tsh-ev-amc-doc-body { flex: 1; min-width: 0; }
+.tsh-ev-amc-doc-title { font-weight: 600; font-size: 14px; color: var(--tsh-fg, #111827); }
+.tsh-ev-amc-doc-kind { font-weight: 400; color: var(--tsh-muted, #6b7280); font-size: 12px; }
+.tsh-ev-amc-doc-meta { font-size: 12px; color: var(--tsh-muted, #6b7280); margin-top: 2px; }
+.tsh-ev-amc-doc-path { font-size: 11px; color: #9ca3af; font-family: ui-monospace, SFMono-Regular, monospace; margin-top: 2px; word-break: break-all; }
+
+.tsh-ev-amc-svc {
+  display: flex; align-items: flex-start; gap: 12px; padding: 10px 12px;
+  border: 1px solid var(--c-border-soft, #e5e7eb); border-radius: 10px;
+  margin-bottom: 6px; background: var(--c-card-bg, #fff);
+}
+.tsh-ev-amc-svc-date {
+  flex: 0 0 92px; font-weight: 600; font-size: 13px;
+  color: var(--tsh-fg, #111827);
+}
+.tsh-ev-amc-svc-body { flex: 1; min-width: 0; }
+.tsh-ev-amc-svc-title { font-size: 13px; color: var(--tsh-fg, #111827); }
+.tsh-ev-amc-svc-kind {
+  text-transform: capitalize; font-weight: 600; color: var(--c-primary, #b8860b);
+}
+.tsh-ev-amc-svc-notes { font-size: 12px; color: var(--tsh-muted, #6b7280); margin-top: 2px; }
+.tsh-ev-amc-svc-meta { font-size: 11px; color: #9ca3af; margin-top: 2px; }
+
+.tsh-btn-icon {
+  background: transparent; border: 1px solid var(--c-border-soft, #e5e7eb);
+  padding: 4px 8px; border-radius: 8px; color: #9ca3af; cursor: pointer;
+}
+.tsh-btn-icon:hover { color: #dc2626; background: #fef2f2; }
+
+.tsh-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;
+  background: #f3f4f6; color: #374151;
+}
+.tsh-chip-ok      { background: #dcfce7; color: #166534; }
+.tsh-chip-warn    { background: #fef3c7; color: #92400e; }
+.tsh-chip-danger  { background: #fee2e2; color: #991b1b; }

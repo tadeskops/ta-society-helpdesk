@@ -387,6 +387,7 @@ export const DEFAULT_CONFIG: SiteConfig = {
     //  • RFID              — Phase 6. RFID request lifecycle.
     //  • REGISTRATION      — Phase 6. Pre-registration workflow.
     //  • SUPPORT           — Phase 6. Support ticket taxonomy (12 cats).
+    //  • AMC               — Phase 6b. Editor-only AMC record + document store.
     FEATURE_TSH_EV_CHARGING:                 true,
     FEATURE_TSH_EV_BOOKING:                  true,
     FEATURE_TSH_EV_RECEIPT:                  true,
@@ -395,6 +396,7 @@ export const DEFAULT_CONFIG: SiteConfig = {
     FEATURE_TSH_EV_RFID:                     true,
     FEATURE_TSH_EV_REGISTRATION:             true,
     FEATURE_TSH_EV_SUPPORT:                  true,
+    FEATURE_TSH_EV_AMC:                      true,
     // DEPRECATED (2026-07-12): under the new strict 8-tier hierarchy
     // SECRETARY sits ABOVE TREASURER in the precedence chain and
     // inherits treasury view naturally, so this flag is a no-op. It is

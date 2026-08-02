@@ -58,6 +58,7 @@
     "FEATURE_TSH_EV_RFID": true,
     "FEATURE_TSH_EV_REGISTRATION": true,
     "FEATURE_TSH_EV_SUPPORT": true,
+    "FEATURE_TSH_EV_AMC": true,
     "FEATURE_TREASURY_SECRETARY_ACCESS": false
   },
   "tunables": {

@@ -23,7 +23,7 @@ import { ensureAllowed } from '../middleware/rbac.ts';
 import { isFeatureOn, tunable } from '../config/defaults.ts';
 import { BadRequest, NotFound, Forbidden } from '../lib/errors.ts';
 import { parseJson, str, optStr, oneOf, num } from '../lib/validate.ts';
-import { getFile, putFile } from '../github/client.ts';
+import { getFile, putFile, putBinaryB64, type RepoTarget } from '../github/client.ts';
 import { writeAudit } from '../lib/audit.ts';
 import { isAtLeast } from '../auth/roles.ts';
 import { istDateStr, parseIstDateMidnight, normalizeFlat } from '../lib/reservation.ts';
@@ -48,6 +48,12 @@ import {
   type EvRegistration,
   type SupportTicket,
 } from '../lib/ev-lifecycle.ts';
+import {
+  DOC_KINDS, SERVICING_KINDS, AMC_DOC_ID_RE, AMC_SERVICING_ID_RE,
+  AMC_MAX_DOCS, AMC_MAX_SERVICING, AMC_MAX_UPLOAD_BYTES, ALLOWED_AMC_MIMES,
+  emptyAmc, nextAmcDocId, nextAmcServicingId, isDateStr, mimeExt, daysUntilEnd,
+  type AmcRecord, type AmcDocument, type AmcServicingEntry,
+} from '../lib/ev-amc.ts';
 
 // Master flag — every /ev/* handler passes it via ensureAllowed({ flags }).
 export const FEATURE = 'FEATURE_TSH_EV_CHARGING';
@@ -62,6 +68,7 @@ export const FEATURE_AUTO_REPORTS     = 'FEATURE_TSH_EV_AUTO_REPORTS';
 export const FEATURE_RFID             = 'FEATURE_TSH_EV_RFID';
 export const FEATURE_REGISTRATION     = 'FEATURE_TSH_EV_REGISTRATION';
 export const FEATURE_SUPPORT          = 'FEATURE_TSH_EV_SUPPORT';
+export const FEATURE_AMC              = 'FEATURE_TSH_EV_AMC';
 
 // Shallow-merge a site.json override onto a defaults record. Preserves
 // primitive types where the override supplies a value of the right type;
@@ -1262,5 +1269,377 @@ ${result.topFlats.map((t) => `<tr><td>${escHtml(t.flat)}</td><td>${t.bookings}</
       detail: nextEnabled ? 'online' : `maintenance: ${nextReason}`,
     });
     return ok(ctx.env, ctx.req, { station: updated });
+  });
+
+  // ==========================================================================
+  //  Phase 6b — AMC (Annual Maintenance Contract) editor register.
+  //
+  //  Editor-only workspace to record the vendor AMC, log servicing visits,
+  //  and store the signed contract / SLA / invoice / inspection PDFs. Docs
+  //  land in `backups/ev/amc/YYYY-MM/{docId}.{ext}` in the private EV repo
+  //  (env.GH_EV_REPO) when configured, otherwise in the primary repo — the
+  //  same fallback pattern as the monthly report mirror in §23.9.
+  //
+  //  Metadata (contract fields, servicing log, doc index) lives in
+  //  `config/ev-amc.json` in the primary repo. Reads are cheap and don't
+  //  contain PII, so caching for CONFIG_CACHE_SECONDS is fine.
+  //
+  //  Gates: FEATURE_TSH_EV_CHARGING (master) + FEATURE_TSH_EV_AMC (sub) +
+  //  MANAGER-or-above role. Spec: tsh_requirement.md §23.11.
+  // ==========================================================================
+
+  const AMC_PATH = 'config/ev-amc.json';
+
+  // Build the RepoTarget for the EV private repo, or undefined if unset —
+  // in which case docs land in the primary repo under backups/ev/amc/.
+  const evRepoTarget = (env: Ctx['env']): RepoTarget | undefined => {
+    const repo = String(env.GH_EV_REPO || '').trim();
+    if (!repo) return undefined;
+    return {
+      owner:  String(env.GH_EV_OWNER  || env.GH_OWNER).trim(),
+      repo,
+      branch: String(env.GH_EV_BRANCH || 'main').trim(),
+      ...(env.GITHUB_EV_TOKEN ? { token: env.GITHUB_EV_TOKEN } : {}),
+    };
+  };
+
+  const loadAmc = async (ctx: Ctx): Promise<{ record: AmcRecord; sha?: string }> => {
+    const f = await getFile(ctx.env, AMC_PATH);
+    if (!f) return { record: emptyAmc() };
+    try {
+      const parsed = JSON.parse(f.content) as AmcRecord;
+      // Migrate older shapes by shallow-merging into the empty scaffold.
+      const scaffold = emptyAmc();
+      return {
+        record: {
+          version: 1,
+          contract:  { ...scaffold.contract, ...(parsed.contract ?? {}) },
+          documents: Array.isArray(parsed.documents) ? parsed.documents : [],
+          servicing: Array.isArray(parsed.servicing) ? parsed.servicing : [],
+        },
+        sha: f.sha,
+      };
+    } catch (e) {
+      throw new BadRequest('ev-amc.json is corrupt: ' + String(e));
+    }
+  };
+
+  const saveAmc = async (
+    ctx: Ctx,
+    record: AmcRecord,
+    sha: string | undefined,
+    actor: string,
+    msg: string,
+  ): Promise<void> => {
+    // Bounded-file guards.
+    if (record.documents.length > AMC_MAX_DOCS) {
+      throw new BadRequest(`too many AMC documents (max ${AMC_MAX_DOCS}); archive older ones first`);
+    }
+    if (record.servicing.length > AMC_MAX_SERVICING) {
+      throw new BadRequest(`too many servicing entries (max ${AMC_MAX_SERVICING})`);
+    }
+    const content = JSON.stringify(record, null, 2) + '\n';
+    await putFile(ctx.env, AMC_PATH, content, msg, actor, sha);
+  };
+
+  // ---- GET /ev/admin/amc ----------------------------------------------------
+  //
+  // Returns the current AMC record + a computed `renewalDaysRemaining`
+  // convenience field so the UI can render the "renewal in N days" chip
+  // without recomputing the date math client-side. MANAGER+ only.
+  r.get('/ev/admin/amc', async (ctx: Ctx) => {
+    ensureAllowed(ctx, {
+      flags: [FEATURE, FEATURE_AMC],
+      requireIdentity: true,
+      roles: ['MANAGER'],
+    });
+    const { record } = await loadAmc(ctx);
+    const renewalDaysRemaining = daysUntilEnd(record.contract.endDate);
+    return ok(ctx.env, ctx.req, {
+      amc: record,
+      renewalDaysRemaining,
+      storage: {
+        privateRepoConfigured: !!(ctx.env.GH_EV_REPO || '').trim(),
+        docsRepoNote: (ctx.env.GH_EV_REPO || '').trim()
+          ? `Documents mirror to ${ctx.env.GH_EV_OWNER || ctx.env.GH_OWNER}/${ctx.env.GH_EV_REPO} under backups/ev/amc/…`
+          : 'Documents currently write to the primary repo under backups/ev/amc/… (set GH_EV_REPO to split off).',
+      },
+    });
+  });
+
+  // ---- PUT /ev/admin/amc ----------------------------------------------------
+  //
+  // Updates the contract fields (not the documents[] or servicing[] lists).
+  // Accepts a partial body — omitted fields are preserved. MANAGER+ only.
+  r.put('/ev/admin/amc', async (ctx: Ctx) => {
+    ensureAllowed(ctx, {
+      flags: [FEATURE, FEATURE_AMC],
+      requireIdentity: true,
+      roles: ['MANAGER'],
+    });
+    const body = await parseJson<Record<string, unknown>>(ctx.req);
+    const { record, sha } = await loadAmc(ctx);
+    const nowIso = new Date().toISOString();
+    const actor = ctx.identity!.email;
+
+    // Whitelist and validate each contract field individually so a
+    // malformed key can never sneak past.
+    const nextContract = { ...record.contract };
+    if (typeof body.number === 'string') nextContract.number = optStr(body.number, 'number', { max: 64 }) ?? '';
+    if (typeof body.vendor === 'string') nextContract.vendor = optStr(body.vendor, 'vendor', { max: 120 }) ?? '';
+    if (body.vendorContact && typeof body.vendorContact === 'object') {
+      const vc = body.vendorContact as Record<string, unknown>;
+      nextContract.vendorContact = {
+        phone:   optStr(vc.phone,   'vendorContact.phone',   { max: 40 })  ?? nextContract.vendorContact.phone   ?? '',
+        email:   optStr(vc.email,   'vendorContact.email',   { max: 120 }) ?? nextContract.vendorContact.email   ?? '',
+        website: optStr(vc.website, 'vendorContact.website', { max: 200 }) ?? nextContract.vendorContact.website ?? '',
+        address: optStr(vc.address, 'vendorContact.address', { max: 400 }) ?? nextContract.vendorContact.address ?? '',
+      };
+    }
+    if (body.startDate !== undefined) {
+      const s = optStr(body.startDate, 'startDate', { max: 10 }) ?? '';
+      if (s && !isDateStr(s)) throw new BadRequest('startDate must be YYYY-MM-DD');
+      nextContract.startDate = s;
+    }
+    if (body.endDate !== undefined) {
+      const s = optStr(body.endDate, 'endDate', { max: 10 }) ?? '';
+      if (s && !isDateStr(s)) throw new BadRequest('endDate must be YYYY-MM-DD');
+      nextContract.endDate = s;
+    }
+    if (nextContract.startDate && nextContract.endDate && nextContract.endDate < nextContract.startDate) {
+      throw new BadRequest('endDate must be on or after startDate');
+    }
+    if (body.renewalReminderDays !== undefined) {
+      const n = num(body.renewalReminderDays, 'renewalReminderDays', { min: 0, max: 365, int: true });
+      nextContract.renewalReminderDays = n;
+    }
+    if (body.annualFee !== undefined) {
+      if (body.annualFee === null) {
+        nextContract.annualFee = null;
+      } else {
+        const n = num(body.annualFee, 'annualFee', { min: 0, max: 100_000_000 });
+        nextContract.annualFee = n;
+      }
+    }
+    if (body.currency !== undefined) {
+      const c = optStr(body.currency, 'currency', { max: 8 }) ?? 'INR';
+      nextContract.currency = c.toUpperCase();
+    }
+    const cleanBulletList = (raw: unknown, label: string): string[] => {
+      if (!Array.isArray(raw)) throw new BadRequest(`${label} must be an array of strings`);
+      if (raw.length > 40)     throw new BadRequest(`${label} may not exceed 40 entries`);
+      return raw
+        .map((s) => optStr(s, `${label}[]`, { max: 400 }))
+        .filter((s): s is string => typeof s === 'string' && s.length > 0);
+    };
+    if (body.coverage !== undefined) {
+      nextContract.coverage = cleanBulletList(body.coverage, 'coverage');
+    }
+    if (body.societyResponsibilities !== undefined) {
+      nextContract.societyResponsibilities = cleanBulletList(body.societyResponsibilities, 'societyResponsibilities');
+    }
+    if (body.emergencyContact !== undefined) {
+      nextContract.emergencyContact = optStr(body.emergencyContact, 'emergencyContact', { max: 400 }) ?? '';
+    }
+    if (body.notes !== undefined) {
+      nextContract.notes = optStr(body.notes, 'notes', { max: 4000 }) ?? '';
+    }
+    nextContract.updatedAt = nowIso;
+    nextContract.updatedBy = actor;
+
+    const next: AmcRecord = { ...record, contract: nextContract };
+    await saveAmc(ctx, next, sha, actor,
+      `ev-amc: contract updated by ${actor}`);
+    await writeAudit(ctx.env, {
+      actor, action: 'ev.amc.contract.update', target: nextContract.number || 'unnumbered',
+      detail: `start=${nextContract.startDate || '-'} end=${nextContract.endDate || '-'}`,
+    });
+    const renewalDaysRemaining = daysUntilEnd(next.contract.endDate);
+    return ok(ctx.env, ctx.req, { amc: next, renewalDaysRemaining });
+  });
+
+  // ---- POST /ev/admin/amc/documents ----------------------------------------
+  //
+  // Uploads a scanned document. Body: {
+  //   kind: string, title: string, mime: string, bytes: number,
+  //   dataBase64: string  // raw base64, no data: prefix
+  // }
+  // Writes to backups/ev/amc/YYYY-MM/{docId}.{ext} in the EV private repo
+  // when GH_EV_REPO is set, otherwise the primary repo. MANAGER+ only.
+  r.post('/ev/admin/amc/documents', async (ctx: Ctx) => {
+    ensureAllowed(ctx, {
+      flags: [FEATURE, FEATURE_AMC],
+      requireIdentity: true,
+      roles: ['MANAGER'],
+    });
+    const body = await parseJson<{
+      kind?: unknown; title?: unknown; mime?: unknown;
+      bytes?: unknown; dataBase64?: unknown;
+    }>(ctx.req);
+    const kind  = oneOf(body.kind, 'kind', DOC_KINDS);
+    const title = str(body.title, 'title', { max: 200 });
+    const mime  = str(body.mime, 'mime', { max: 120 });
+    const bytes = num(body.bytes, 'bytes', { min: 1, max: AMC_MAX_UPLOAD_BYTES, int: true });
+    const data  = str(body.dataBase64, 'dataBase64', { max: (AMC_MAX_UPLOAD_BYTES * 4) / 3 + 128 });
+    if (!ALLOWED_AMC_MIMES.has(mime)) {
+      throw new BadRequest(`unsupported document mime: ${mime}. Allowed: PDF, PNG/JPG/WebP, Word, Excel.`);
+    }
+    if (!/^[A-Za-z0-9+/=\r\n]+$/.test(data)) {
+      throw new BadRequest('dataBase64 must be a base64 string (no data: prefix)');
+    }
+
+    const { record, sha } = await loadAmc(ctx);
+    if (record.documents.length >= AMC_MAX_DOCS) {
+      throw new BadRequest(`document limit reached (${AMC_MAX_DOCS}); archive older ones first`);
+    }
+    const nowIso = new Date().toISOString();
+    const yearMonth = nowIso.slice(0, 7);
+    const actor = ctx.identity!.email;
+    const id = nextAmcDocId();
+    const ext = mimeExt(mime);
+    const path = `backups/ev/amc/${yearMonth}/${id}.${ext}`;
+
+    const target = evRepoTarget(ctx.env);
+    try {
+      await putBinaryB64(
+        ctx.env, path, data,
+        `ev-amc: upload ${kind} "${title}" by ${actor}`,
+        actor, target,
+      );
+    } catch (e) {
+      throw new BadRequest('document upload failed: ' + String(e));
+    }
+
+    const doc: AmcDocument = {
+      id, kind, title, path, mime, bytes,
+      uploadedAt: nowIso, uploadedBy: actor,
+    };
+    const next: AmcRecord = { ...record, documents: [doc, ...record.documents] };
+    await saveAmc(ctx, next, sha, actor,
+      `ev-amc: document ${id} (${kind}) uploaded by ${actor}`);
+    await writeAudit(ctx.env, {
+      actor, action: 'ev.amc.document.upload', target: id,
+      detail: `${kind}: ${title} (${bytes}B ${mime})`,
+    });
+    return ok(ctx.env, ctx.req, { document: doc });
+  });
+
+  // ---- PATCH /ev/admin/amc/documents/:id -----------------------------------
+  //
+  // Archive / unarchive a document. Body: { archived: boolean }. Soft
+  // delete only — the binary in the repo stays intact so the audit trail
+  // survives. MANAGER+ only.
+  r.patch('/ev/admin/amc/documents/:id', async (ctx: Ctx, params) => {
+    ensureAllowed(ctx, {
+      flags: [FEATURE, FEATURE_AMC],
+      requireIdentity: true,
+      roles: ['MANAGER'],
+    });
+    const id = String(params['id'] || '');
+    if (!AMC_DOC_ID_RE.test(id)) throw new BadRequest('bad document id');
+    const body = await parseJson<{ archived?: unknown }>(ctx.req);
+    if (typeof body.archived !== 'boolean') {
+      throw new BadRequest('archived must be a boolean');
+    }
+    const { record, sha } = await loadAmc(ctx);
+    const idx = record.documents.findIndex((d) => d.id === id);
+    if (idx === -1) throw new NotFound('document not found');
+    const doc = record.documents[idx]!;
+    const nowIso = new Date().toISOString();
+    const actor  = ctx.identity!.email;
+    const next: AmcDocument = { ...doc, archived: body.archived };
+    if (body.archived) {
+      next.archivedAt = nowIso;
+      next.archivedBy = actor;
+    } else {
+      delete next.archivedAt;
+      delete next.archivedBy;
+    }
+    const nextDocs = record.documents.slice();
+    nextDocs[idx] = next;
+    const nextRec: AmcRecord = { ...record, documents: nextDocs };
+    await saveAmc(ctx, nextRec, sha, actor,
+      `ev-amc: document ${id} ${body.archived ? 'archived' : 'restored'} by ${actor}`);
+    await writeAudit(ctx.env, {
+      actor, action: body.archived ? 'ev.amc.document.archive' : 'ev.amc.document.restore',
+      target: id, detail: doc.title,
+    });
+    return ok(ctx.env, ctx.req, { document: next });
+  });
+
+  // ---- POST /ev/admin/amc/servicing ----------------------------------------
+  //
+  // Appends a servicing log entry. Body: {
+  //   date: 'YYYY-MM-DD', kind: string, performedBy: string,
+  //   station?: string, notes?: string
+  // }. MANAGER+ only.
+  r.post('/ev/admin/amc/servicing', async (ctx: Ctx) => {
+    ensureAllowed(ctx, {
+      flags: [FEATURE, FEATURE_AMC],
+      requireIdentity: true,
+      roles: ['MANAGER'],
+    });
+    const body = await parseJson<{
+      date?: unknown; kind?: unknown; performedBy?: unknown;
+      station?: unknown; notes?: unknown;
+    }>(ctx.req);
+    const date = str(body.date, 'date', { max: 10 });
+    if (!isDateStr(date)) throw new BadRequest('date must be YYYY-MM-DD');
+    const kind = oneOf(body.kind, 'kind', SERVICING_KINDS);
+    const performedBy = str(body.performedBy, 'performedBy', { max: 120 });
+    const station = optStr(body.station, 'station', { max: 40 }) ?? '';
+    const notes   = optStr(body.notes,   'notes',   { max: 2000 }) ?? '';
+    const { record, sha } = await loadAmc(ctx);
+    if (record.servicing.length >= AMC_MAX_SERVICING) {
+      throw new BadRequest(`servicing log limit reached (${AMC_MAX_SERVICING})`);
+    }
+    const nowIso = new Date().toISOString();
+    const actor  = ctx.identity!.email;
+    const entry: AmcServicingEntry = {
+      id: nextAmcServicingId(),
+      date, kind, performedBy,
+      ...(station ? { station } : {}),
+      notes,
+      createdAt: nowIso, createdBy: actor,
+    };
+    const nextRec: AmcRecord = { ...record, servicing: [entry, ...record.servicing] };
+    await saveAmc(ctx, nextRec, sha, actor,
+      `ev-amc: servicing ${entry.id} logged by ${actor}`);
+    await writeAudit(ctx.env, {
+      actor, action: 'ev.amc.servicing.log', target: entry.id,
+      detail: `${kind} on ${date} by ${performedBy}`,
+    });
+    return ok(ctx.env, ctx.req, { entry });
+  });
+
+  // ---- DELETE /ev/admin/amc/servicing/:id ----------------------------------
+  //
+  // Removes a servicing log entry. Hard-delete is fine because the entry
+  // was authored by an editor and the audit event preserves the record.
+  // MANAGER+ only.
+  r.delete('/ev/admin/amc/servicing/:id', async (ctx: Ctx, params) => {
+    ensureAllowed(ctx, {
+      flags: [FEATURE, FEATURE_AMC],
+      requireIdentity: true,
+      roles: ['MANAGER'],
+    });
+    const id = String(params['id'] || '');
+    if (!AMC_SERVICING_ID_RE.test(id)) throw new BadRequest('bad servicing id');
+    const { record, sha } = await loadAmc(ctx);
+    const idx = record.servicing.findIndex((e) => e.id === id);
+    if (idx === -1) throw new NotFound('servicing entry not found');
+    const entry = record.servicing[idx]!;
+    const actor = ctx.identity!.email;
+    const nextRec: AmcRecord = {
+      ...record,
+      servicing: record.servicing.filter((e) => e.id !== id),
+    };
+    await saveAmc(ctx, nextRec, sha, actor,
+      `ev-amc: servicing ${id} removed by ${actor}`);
+    await writeAudit(ctx.env, {
+      actor, action: 'ev.amc.servicing.delete', target: id,
+      detail: `${entry.kind} on ${entry.date}`,
+    });
+    return ok(ctx.env, ctx.req, { removed: id });
   });
 };

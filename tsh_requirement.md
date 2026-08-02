@@ -1532,6 +1532,7 @@ Resident-facing charging-slot booking + editor analytics + private-repo mirror f
 | 4 | Editor analytics dashboard (Design 5): KPI, bar chart, heatmap, top-flat ranking, CSV / PDF export | `FEATURE_TSH_EV_ADMIN_DASHBOARD` (default on) | **shipped** |
 | 5 | Auto reports (hourly cron, monthly rollup) + manual "Sync now" trigger on admin dashboard. Private-repo split still gated on the ops grant in §23.9 — currently writes to `backups/ev/YYYY-MM/{report.md,bookings.csv}` in the same public repo. | `FEATURE_TSH_EV_AUTO_REPORTS` (default off in prod, on in dev) | **shipped** (private-repo split pending §23.9 grant) |
 | 6 | RFID lifecycle (6 request types), pre-registration workflow, support-ticket taxonomy (12 categories). Frontend forms + list panels wired on `docs/ev-charging.html`; admin approval flow reuses `PATCH /ev/rfid/:id` + `PATCH /ev/support/:id`. | `FEATURE_TSH_EV_RFID`, `FEATURE_TSH_EV_REGISTRATION`, `FEATURE_TSH_EV_SUPPORT` (all default off in prod, on in dev) | **shipped** |
+| 6b | AMC (Annual Maintenance Contract) editor register: records vendor duration, coverage promises, society-side responsibilities, signed-document uploads, and servicing-visit log. Editor-only section on `docs/ev-admin.html`. Documents mirror to a private EV repo when `GH_EV_REPO` is set, otherwise land in the primary repo under `backups/ev/amc/YYYY-MM/…`. See §23.11. | `FEATURE_TSH_EV_AMC` (default on when master on) | **shipped** |
 
 ### 23.2 Feature-flag surface
 
@@ -1545,6 +1546,7 @@ All flags gate their own sub-feature. Master flag `FEATURE_TSH_EV_CHARGING` gate
 - `FEATURE_TSH_EV_RFID`
 - `FEATURE_TSH_EV_REGISTRATION`
 - `FEATURE_TSH_EV_SUPPORT`
+- `FEATURE_TSH_EV_AMC`
 
 Settings page renders one group per sub-flag with ON/OFF summary copy (existing `FLAG_GROUPS` convention, group key `EV_CHARGING`).
 
@@ -1664,3 +1666,47 @@ Records + reports mirror to a dedicated private repo `tadeskops/tsh-ev-charging-
 | 6 | Report template ownership | Default only in Phase 1; upload UI in Phase 4 |
 | 7 | Helpline block on PDF | Single directory-entry id via `ev.helpline.directoryEntryId` |
 | 8 | Private-repo access | External grant required — see §23.9 |
+
+### 23.11 AMC (Annual Maintenance Contract) editor register — Phase 6b
+
+**Purpose.** Give committee editors a single place to record the vendor AMC's duration and the exact points the society itself must maintain, upload signed / scanned documents, and log every servicing visit. Residents never see this page. Spec ties: §23.9 (private-repo split) and §2 (RBAC: MANAGER, COMMITTEE and ADMIN roles all pass; SECRETARY / TREASURER / RESIDENT do not).
+
+**Gates.**
+- `FEATURE_TSH_EV_CHARGING` (master) + `FEATURE_TSH_EV_AMC` (sub, default on when master on).
+- Server role: `MANAGER` or above (managers, committee, admins).
+- Client role gate: `Flags.ensureAuthorized('MANAGER')` before any render.
+
+**Storage layout.**
+- Metadata (contract fields, coverage list, society-responsibilities list, servicing log, document index): `config/ev-amc.json` in the primary repo. Small, no PII beyond editor emails — safe in public repo. Bounded: `AMC_MAX_DOCS = 200`, `AMC_MAX_SERVICING = 500`.
+- Document binaries (contract PDFs, invoice scans, inspection reports, photos): `backups/ev/amc/YYYY-MM/{EVAMC-XXXXXXXX}.{ext}` in the **EV private repo** when `GH_EV_REPO` is configured; otherwise in the primary repo under the same path. Follows the same fallback pattern as the monthly-report mirror (§23.9). Base64-uploaded via `putBinaryB64`. Individual doc max size: `AMC_MAX_UPLOAD_BYTES = 8 MiB`. Allowed MIMEs: PDF, PNG, JPEG, WebP, DOC/DOCX, XLS/XLSX (rejected at the server — never trust the client's `mime` field).
+
+**Env vars (secrets already covered in §10, added here for cross-reference).**
+- `GH_EV_OWNER` (opt) — owner of the private EV repo; falls back to `GH_OWNER`.
+- `GH_EV_REPO` (opt) — private EV repo name (recommended: `tsh-ev-charging-data`). Absent = fallback to primary repo, as above.
+- `GH_EV_BRANCH` (opt, default `main`).
+- `GITHUB_EV_TOKEN` (opt) — dedicated PAT with `contents:write` on the EV repo; falls back to `GITHUB_TOKEN`.
+
+**Data model** (`worker/src/lib/ev-amc.ts`, `AmcRecord`):
+- `version: 1`
+- `contract`: `{ number, vendor, vendorContact:{ phone, email, website, address }, startDate, endDate, renewalReminderDays, annualFee|null, currency, coverage[], societyResponsibilities[], emergencyContact, notes, updatedAt, updatedBy }`. Dates are `YYYY-MM-DD`. `annualFee` is stored as a number in the given `currency` (default INR). `coverage[]` and `societyResponsibilities[]` are string bullet arrays, capped at 40 entries × 400 chars.
+- `documents`: `AmcDocument[]` — `{ id: 'EVAMC-XXXXXXXX', kind: 'contract'|'renewal'|'sla'|'invoice'|'inspection'|'photo'|'other', title, path, mime, bytes, uploadedAt, uploadedBy, archived?, archivedAt?, archivedBy? }`. Archive is soft-delete — the binary in the private repo stays intact so the audit trail survives; a naming-collision safe restore is one PATCH away.
+- `servicing`: `AmcServicingEntry[]` — `{ id: 'EVAMS-XXXXXXXX', date, kind: 'quarterly'|'annual'|'preventive'|'breakdown'|'inspection', performedBy, station?, notes, createdAt, createdBy }`. Delete is hard because the audit event preserves the trace.
+
+The empty scaffold returned on first read is pre-seeded with SunArth vendor details (Cello Platina 202 F.C. Road, Pune 411005; `+91-77977-98887`; `info@sunarth.com`; `https://www.sunarth.com`), 4 default coverage bullets, and 5 default society-side responsibilities so the editor starts from a filled-in template rather than a blank form.
+
+**Routes** (all mounted in `worker/src/routes/ev-charging.ts`, all `MANAGER+`, all audited as `ev.amc.*`):
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/ev/admin/amc` | Read record + `renewalDaysRemaining` chip data + storage-note string. |
+| `PUT` | `/ev/admin/amc` | Update contract fields (whitelist-validated). Preserves `documents[]` and `servicing[]`. |
+| `POST` | `/ev/admin/amc/documents` | Upload a scanned doc. Body: `{kind, title, mime, bytes, dataBase64}`. Server enforces MIME whitelist, size cap, and doc-count cap. |
+| `PATCH` | `/ev/admin/amc/documents/:id` | Toggle `archived` (soft-delete). Body: `{archived: boolean, title?}`. |
+| `POST` | `/ev/admin/amc/servicing` | Append a servicing log entry. Body: `{date, kind, performedBy, station?, notes?}`. |
+| `DELETE` | `/ev/admin/amc/servicing/:id` | Hard-remove a servicing log entry. Audited. |
+
+**Renewal ticker.** `daysUntilEnd(contract.endDate)` returns the number of days remaining and drives the chip on the section header. Colour bands: **red** for `< 30` or already expired, **amber** for `< 60`, **green** otherwise. The chip is hidden when `endDate` is empty.
+
+**UI**: single section on `docs/ev-admin.html` (`#evAmcSection`, `data-tsh-feature="FEATURE_TSH_EV_AMC"`), controller in `docs/assets/js/ev-amc.js` (`window.EvAmc.init()`), styles in `docs/assets/css/ev-charging.css` (`.tsh-ev-amc*` classes). Init sequence: `await Flags.ready()` → `Flags.ensureFeature('FEATURE_TSH_EV_CHARGING', …)` + `Flags.ensureFeature('FEATURE_TSH_EV_AMC', …)` → `Flags.ensureAuthorized('MANAGER')` → `GET /ev/admin/amc` → render. Never call `ensureFeature` without `await Flags.ready()` first (see user memory: *FEATURE_X disabled gate shows when flag is ON*).
+
+**Retention.** No automatic deletion. Editors archive individual documents; a full record purge is a manual `PUT /ev/admin/amc` with empty arrays plus a manual delete of the binaries in the EV repo. Because the section is committee-only and the private repo mirrors it, retention follows society-record policy rather than PII policy.

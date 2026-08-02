@@ -1698,6 +1698,11 @@
         detail: 'Sub-feature of EV Charging. When OFF, residents cannot open EV support tickets and the Support pill is hidden. Independent from the site-wide help / tool-issues path.',
         default: 'false',
       },
+      'FEATURE_TSH_EV_AMC': {
+        summary: 'Enable the editor-only AMC (Annual Maintenance Contract) records page.',
+        detail: 'Sub-feature of EV Charging. Adds an "AMC & maintenance records" section on the EV admin dashboard (MANAGER+). Editors record contract duration, coverage, society-side responsibilities, upload signed documents, and log servicing visits. Documents mirror to a private repo when GH_EV_REPO is configured.',
+        default: 'true',
+      },
     }; }
 
     function lookupHelp(formName) {
