@@ -77,37 +77,116 @@
 .tsh-ev-status-pill.tsh-ev-status-offline  { background: #fee2e2; color: #991b1b; }
 .tsh-ev-status-pill.tsh-ev-status-blackout { background: #fef3c7; color: #92400e; }
 
-/* ---- Multi-station picker (added 2026-08-02) ---------------------- */
-/* Container replaces the single-station bar when the site configures
-   `system.ev.stations`. Cards are grouped by kind (4W / 2W) into
-   labelled rows. */
-.tsh-ev-stations { display: flex; flex-direction: column; gap: 14px; margin-bottom: 16px; }
+/* ---- Multi-station picker (added 2026-08-02, glow refresh 2026-08-02) --
+   Container replaces the single-station bar when the site configures
+   `system.ev.stations`. Cards are grouped by kind (2W / 4W) into
+   labelled rows. Two-wheelers list FIRST because that mirrors the
+   physical placement in the parking area.
+
+   Visual language: "ultra-modern 3-D glow", tuned to the project's
+   gold theme (--c-primary). Each card is a glassmorphic tile with:
+     - Translucent surface (--c-svc-tile-bg) + backdrop-filter blur
+     - Gradient border via ::before pseudo (masks a rounded ring)
+     - Layered box-shadow (soft outer drop + inset highlight) for depth
+     - Elevation shift on hover (translateY + amplified shadow)
+     - "Aurora" gold ring + inner sheen when selected
+   All colours resolve from theme.css tokens so the picker adapts to
+   dark / light / medium tones automatically. */
+.tsh-ev-stations { display: flex; flex-direction: column; gap: 18px; margin-bottom: 20px; }
 .tsh-ev-stations-loading { padding: 12px 14px; }
-.tsh-ev-stations-group { display: flex; flex-direction: column; gap: 6px; }
+.tsh-ev-stations-group { display: flex; flex-direction: column; gap: 10px; }
 .tsh-ev-stations-group-label {
-  font-size: 12px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: .06em; opacity: .7; margin: 0 4px;
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .16em; margin: 0 4px;
+  color: color-mix(in srgb, var(--c-primary, #d4af37) 85%, var(--c-text, #1f2937));
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.tsh-ev-stations-group-label::before {
+  content: "";
+  width: 22px; height: 2px;
+  background: linear-gradient(90deg, var(--c-primary, #d4af37), transparent);
+  border-radius: 2px;
 }
 .tsh-ev-stations-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 12px;
+  gap: 16px;
 }
+
 .tsh-ev-station-card {
+  position: relative;
+  isolation: isolate;                     /* keep ::before/::after clipped */
   display: grid;
   grid-template-columns: 44px 1fr auto;
   gap: 12px;
   align-items: center;
-  padding: 12px 14px;
-  border: 1.5px solid var(--tsh-border, #e5e7eb);
-  border-radius: 12px;
-  background: var(--tsh-card, #fff);
+  padding: 14px 16px;
+  border: 1px solid var(--c-svc-tile-border, var(--c-border-soft, #e5e7eb));
+  border-radius: 16px;
+  background: var(--c-svc-tile-bg, var(--c-card-bg, #fff));
+  backdrop-filter: blur(10px) saturate(120%);
+  -webkit-backdrop-filter: blur(10px) saturate(120%);
   font: inherit;
-  color: inherit;
+  color: var(--c-text, inherit);
   text-align: left;
   cursor: pointer;
-  transition: border-color .15s ease, box-shadow .15s ease, transform .06s ease;
+  overflow: hidden;
+  /* Base 3-D shadow — a soft ambient drop + a 1px inner highlight so
+     the tile reads as an object floating a hair above the page. */
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.08) inset,
+    0 8px 24px -14px rgba(0, 0, 0, 0.25),
+    0 2px 6px -2px rgba(0, 0, 0, 0.10);
+  transition:
+    border-color .18s ease,
+    box-shadow .22s ease,
+    transform .18s cubic-bezier(.2, .8, .2, 1),
+    background .22s ease;
 }
+/* Gradient border ring — sits above the base border and lights up on
+   hover / selection. Uses conic-gradient for the "aurora" arc. */
+.tsh-ev-station-card::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: conic-gradient(
+    from 210deg,
+    color-mix(in srgb, var(--c-primary, #d4af37) 0%, transparent),
+    color-mix(in srgb, var(--c-primary, #d4af37) 60%, transparent) 25%,
+    color-mix(in srgb, var(--c-primary, #d4af37) 0%, transparent) 50%,
+    color-mix(in srgb, var(--c-primary, #d4af37) 45%, transparent) 75%,
+    color-mix(in srgb, var(--c-primary, #d4af37) 0%, transparent)
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  opacity: 0;
+  transition: opacity .22s ease;
+  pointer-events: none;
+  z-index: 2;
+}
+/* Diagonal shine sweep on hover — kept subtle, single-pass. */
+.tsh-ev-station-card::after {
+  content: "";
+  position: absolute;
+  top: 0; left: -60%;
+  width: 40%; height: 100%;
+  background: linear-gradient(
+    115deg,
+    transparent 0%,
+    color-mix(in srgb, var(--c-primary, #d4af37) 22%, transparent) 50%,
+    transparent 100%
+  );
+  transform: skewX(-16deg);
+  transition: left .55s ease;
+  pointer-events: none;
+  z-index: 1;
+}
+
 /* Cards that carry a product photo get a two-row layout: hero photo on
    top, info block + status pill below. Icon-only cards keep the compact
    three-column layout so operators can drop the image and everything
@@ -118,22 +197,28 @@
     "photo photo"
     "info  status";
   align-items: end;
-  padding: 0 0 12px 0;
+  padding: 0 0 14px 0;
 }
 .tsh-ev-station-card.tsh-ev-station-has-photo .tsh-ev-station-photo { grid-area: photo; }
-.tsh-ev-station-card.tsh-ev-station-has-photo .tsh-ev-station-info  { grid-area: info; padding: 0 14px; }
-.tsh-ev-station-card.tsh-ev-station-has-photo .tsh-ev-status-pill   { grid-area: status; margin: 0 14px; }
+.tsh-ev-station-card.tsh-ev-station-has-photo .tsh-ev-station-info  { grid-area: info; padding: 4px 16px 0; }
+.tsh-ev-station-card.tsh-ev-station-has-photo .tsh-ev-status-pill   { grid-area: status; margin: 0 16px; }
 .tsh-ev-station-photo {
   position: relative;
   aspect-ratio: 4 / 3;
-  border-top-left-radius: 10px;
-  border-top-right-radius: 10px;
+  border-top-left-radius: 15px;
+  border-top-right-radius: 15px;
   overflow: hidden;
-  /* Product photo lives on a soft gradient that echoes the SunArth
-     teal / white palette so the two hardware families read as a set. */
+  /* Photo backdrop — a warm gold-to-cream gradient so both hardware
+     families feel part of the project palette rather than the vendor's
+     teal palette. A soft inner ring adds depth around the render. */
   background:
-    radial-gradient(120% 80% at 50% 100%, rgba(255,255,255,0), rgba(0,0,0,.04)),
-    linear-gradient(135deg, #e6fbf6 0%, #f5f9fc 100%);
+    radial-gradient(60% 40% at 50% 20%,
+      color-mix(in srgb, var(--c-primary, #d4af37) 22%, transparent),
+      transparent 70%),
+    linear-gradient(160deg,
+      color-mix(in srgb, var(--c-primary, #d4af37) 8%, #ffffff) 0%,
+      color-mix(in srgb, var(--c-primary, #d4af37) 3%, #faf6ec) 100%);
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--c-primary, #d4af37) 22%, transparent);
 }
 .tsh-ev-station-photo img {
   position: absolute;
@@ -141,15 +226,17 @@
   width: 100%;
   height: 100%;
   object-fit: contain;
-  padding: 10px 10px 6px;
+  padding: 12px 12px 8px;
   box-sizing: border-box;
-  transition: transform .18s ease;
+  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.18));
+  transition: transform .25s cubic-bezier(.2, .8, .2, 1), filter .25s ease;
 }
 .tsh-ev-station-card:hover:not(:disabled) .tsh-ev-station-photo img {
-  transform: scale(1.03);
+  transform: translateY(-2px) scale(1.04);
+  filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.22));
 }
 /* If the photo failed to load the <img> is removed and this fallback
-   class is applied to the container — show a friendly icon instead. */
+   class is applied to the container — show a glowing bolt instead. */
 .tsh-ev-station-photo-fallback::after {
   content: "\f0e7"; /* fa-bolt */
   font-family: "Font Awesome 6 Free";
@@ -158,44 +245,243 @@
   inset: 0;
   display: grid;
   place-items: center;
-  color: color-mix(in srgb, var(--tsh-primary, #2563eb) 55%, transparent);
-  font-size: 40px;
+  color: var(--c-primary, #d4af37);
+  font-size: 44px;
+  filter: drop-shadow(0 0 12px color-mix(in srgb, var(--c-primary, #d4af37) 55%, transparent));
 }
 .tsh-ev-station-series {
   font-size: 12px;
   font-weight: 500;
-  color: color-mix(in srgb, var(--tsh-primary, #2563eb) 80%, #1f2937);
+  color: color-mix(in srgb, var(--c-primary, #d4af37) 75%, var(--c-text, #1f2937));
   margin-top: 2px;
+  letter-spacing: .01em;
 }
+
+/* Hover — lift the card, brighten the ring, sweep the shine. */
 .tsh-ev-station-card:hover:not(:disabled) {
-  border-color: color-mix(in srgb, var(--tsh-primary, #2563eb) 40%, var(--tsh-border, #e5e7eb));
-  box-shadow: 0 1px 6px rgba(0,0,0,.05);
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--c-primary, #d4af37) 45%, var(--c-svc-tile-border, var(--c-border-soft, #e5e7eb)));
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.10) inset,
+    0 22px 40px -22px color-mix(in srgb, var(--c-primary, #d4af37) 55%, transparent),
+    0 8px 18px -6px rgba(0, 0, 0, 0.20);
 }
+.tsh-ev-station-card:hover:not(:disabled)::before { opacity: 1; }
+.tsh-ev-station-card:hover:not(:disabled)::after { left: 130%; }
+
 .tsh-ev-station-card:focus-visible {
-  outline: 2px solid var(--tsh-primary, #2563eb);
-  outline-offset: 2px;
+  outline: 2px solid var(--c-primary, #d4af37);
+  outline-offset: 3px;
 }
-.tsh-ev-station-card:active:not(:disabled) { transform: translateY(1px); }
+.tsh-ev-station-card:active:not(:disabled) { transform: translateY(0); }
+
+/* Selected — persistent aurora ring + inner sheen + brighter photo bg. */
 .tsh-ev-station-card.tsh-ev-station-selected {
-  border-color: var(--tsh-primary, #2563eb);
-  background: color-mix(in srgb, var(--tsh-primary, #2563eb) 6%, var(--tsh-card, #fff));
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--tsh-primary, #2563eb) 20%, transparent);
+  border-color: transparent;
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--c-primary, #d4af37) 10%, transparent) 0%,
+      transparent 60%),
+    var(--c-svc-tile-bg, var(--c-card-bg, #fff));
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.14) inset,
+    0 0 0 1.5px color-mix(in srgb, var(--c-primary, #d4af37) 65%, transparent),
+    0 0 24px -2px color-mix(in srgb, var(--c-primary, #d4af37) 45%, transparent),
+    0 22px 42px -18px color-mix(in srgb, var(--c-primary, #d4af37) 40%, transparent);
+}
+.tsh-ev-station-card.tsh-ev-station-selected::before {
+  opacity: 1;
+  background: conic-gradient(
+    from 180deg,
+    color-mix(in srgb, var(--c-primary, #d4af37) 70%, transparent),
+    color-mix(in srgb, var(--c-primary, #d4af37) 20%, transparent) 30%,
+    color-mix(in srgb, var(--c-primary, #d4af37) 80%, transparent) 55%,
+    color-mix(in srgb, var(--c-primary, #d4af37) 25%, transparent) 80%,
+    color-mix(in srgb, var(--c-primary, #d4af37) 70%, transparent)
+  );
 }
 .tsh-ev-station-card.tsh-ev-station-selected .tsh-ev-station-photo {
   background:
-    radial-gradient(120% 80% at 50% 100%, rgba(255,255,255,0), rgba(0,0,0,.04)),
-    linear-gradient(135deg, #d6f5ec 0%, #e8f2ff 100%);
+    radial-gradient(70% 50% at 50% 20%,
+      color-mix(in srgb, var(--c-primary, #d4af37) 32%, transparent),
+      transparent 70%),
+    linear-gradient(160deg,
+      color-mix(in srgb, var(--c-primary, #d4af37) 14%, #ffffff) 0%,
+      color-mix(in srgb, var(--c-primary, #d4af37) 6%, #faf6ec) 100%);
 }
 .tsh-ev-station-card.tsh-ev-station-disabled {
-  opacity: .55;
+  opacity: .5;
   cursor: not-allowed;
+  filter: grayscale(0.35);
 }
 .tsh-ev-station-card.tsh-ev-station-disabled .tsh-ev-station-photo img {
   filter: grayscale(1);
 }
+.tsh-ev-station-card.tsh-ev-station-disabled::before,
+.tsh-ev-station-card.tsh-ev-station-disabled::after { display: none; }
+
+/* Icon-only cards (no product photo): the icon tile itself glows. */
 .tsh-ev-station-card .tsh-ev-station-icon {
   width: 44px; height: 44px;
   font-size: 20px;
+  background:
+    radial-gradient(60% 60% at 50% 40%,
+      color-mix(in srgb, var(--c-primary, #d4af37) 30%, transparent),
+      color-mix(in srgb, var(--c-primary, #d4af37) 8%, transparent) 70%);
+  color: var(--c-primary, #d4af37);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--c-primary, #d4af37) 25%, transparent),
+    0 6px 14px -6px color-mix(in srgb, var(--c-primary, #d4af37) 60%, transparent);
+}
+
+/* Respect reduced-motion users — kill the shine sweep + hover lift. */
+@media (prefers-reduced-motion: reduce) {
+  .tsh-ev-station-card,
+  .tsh-ev-station-card::after,
+  .tsh-ev-station-card::before,
+  .tsh-ev-station-photo img { transition: none; }
+  .tsh-ev-station-card:hover:not(:disabled) { transform: none; }
+  .tsh-ev-station-card:hover:not(:disabled)::after { left: -60%; }
+}
+
+/* ---- Maintenance state (added 2026-08-02, Phase 7) ----------------
+   Overrides the plain greyed-out `.tsh-ev-station-disabled` treatment
+   for stations that a Society Manager has explicitly flipped to
+   maintenance mode. We want the tile to STILL be visible (residents
+   know the machine exists) but clearly non-bookable — an amber
+   maintenance ring + a wrench overlay on the photo make the intent
+   obvious. The card is not fully greyed because the toggle button on
+   top has to stay legible for staff. */
+.tsh-ev-status-pill.tsh-ev-status-maintenance {
+  background: color-mix(in srgb, #f59e0b 22%, transparent);
+  color: #92400e;
+  box-shadow: 0 0 0 1px color-mix(in srgb, #f59e0b 60%, transparent);
+}
+.tsh-ev-station-card.tsh-ev-station-disabled {
+  /* Slightly muted, but not the .5 opacity we used before — the toggle
+     and the "reason" text need to remain readable. */
+  opacity: .78;
+  cursor: not-allowed;
+  filter: none;
+  border-color: color-mix(in srgb, #f59e0b 45%, var(--c-svc-tile-border, var(--c-border-soft, #e5e7eb)));
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.08) inset,
+    0 0 0 1px color-mix(in srgb, #f59e0b 35%, transparent),
+    0 8px 22px -14px color-mix(in srgb, #f59e0b 55%, transparent);
+}
+.tsh-ev-station-card.tsh-ev-station-disabled .tsh-ev-station-photo img {
+  filter: grayscale(.7) brightness(.95);
+}
+/* Wrench overlay sits above the photo but below the toggle. Only
+   painted for disabled cards (renderStationsBar decides). */
+.tsh-ev-maintenance-overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(60% 50% at 50% 50%,
+      color-mix(in srgb, #f59e0b 30%, transparent) 0%,
+      transparent 70%),
+    color-mix(in srgb, #000 15%, transparent);
+  color: #fff;
+  font-size: 42px;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, .35);
+  pointer-events: none;
+  z-index: 3;
+  animation: tshEvWrenchTilt 3s ease-in-out infinite;
+}
+@keyframes tshEvWrenchTilt {
+  0%, 100% { transform: rotate(-6deg); }
+  50%      { transform: rotate(6deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tsh-ev-maintenance-overlay { animation: none; }
+}
+
+/* "Reason" line — a small amber caption under the meta row. */
+.tsh-ev-station-reason {
+  margin-top: 4px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: color-mix(in srgb, #f59e0b 12%, transparent);
+  color: #92400e;
+  font-size: 12px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  line-height: 1.35;
+}
+.tsh-ev-station-reason i { font-size: 11px; }
+
+/* Staff-only maintenance toggle. Rendered as an accessible pill-switch
+   in the top-right of the card (photo cards) or the far right (icon
+   cards). Positioned absolutely so the resident-visible layout stays
+   unchanged when the toggle is not rendered. Click bubbles to the
+   parent radio button, which we stop in JS. */
+.tsh-ev-maintenance-toggle {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px 4px 4px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--c-primary, #d4af37) 30%, transparent);
+  background: color-mix(in srgb, #ffffff 90%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #1f2937;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: 0 4px 10px -4px rgba(0, 0, 0, .18);
+  transition: box-shadow .15s ease, transform .12s ease;
+}
+.tsh-ev-maintenance-toggle:hover { transform: translateY(-1px); }
+.tsh-ev-maintenance-toggle:focus-visible {
+  outline: 2px solid var(--c-primary, #d4af37);
+  outline-offset: 2px;
+}
+.tsh-ev-maintenance-toggle-track {
+  position: relative;
+  width: 32px;
+  height: 18px;
+  border-radius: 999px;
+  background: color-mix(in srgb, #16a34a 80%, transparent);
+  transition: background .18s ease;
+  flex: 0 0 auto;
+}
+.tsh-ev-maintenance-toggle-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .3);
+  transition: left .18s ease;
+}
+.tsh-ev-maintenance-toggle.is-maintenance .tsh-ev-maintenance-toggle-track {
+  background: color-mix(in srgb, #f59e0b 90%, transparent);
+}
+.tsh-ev-maintenance-toggle.is-maintenance .tsh-ev-maintenance-toggle-thumb {
+  left: 16px;
+}
+.tsh-ev-maintenance-toggle-label { line-height: 1; }
+.tsh-ev-maintenance-toggle.is-online .tsh-ev-maintenance-toggle-label { color: #15803d; }
+.tsh-ev-maintenance-toggle.is-maintenance .tsh-ev-maintenance-toggle-label { color: #92400e; }
+/* Compact width on small screens — drop the label to save space. */
+@media (max-width: 480px) {
+  .tsh-ev-maintenance-toggle-label { display: none; }
+  .tsh-ev-maintenance-toggle { padding: 4px; }
 }
 
 /* ---- Tab panels ---------------------------------------------------- */

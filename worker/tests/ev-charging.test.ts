@@ -1163,3 +1163,123 @@ describe('Phase 6 - Support tickets (FEATURE_TSH_EV_SUPPORT)', () => {
     expect(good.status).toBe(200);
   });
 });
+
+// -------------------------------------------------------------------------
+// PATCH /ev/stations/:id — Phase 7 online/offline toggle (added 2026-08-02)
+// -------------------------------------------------------------------------
+describe('PATCH /ev/stations/:id — maintenance toggle', () => {
+  const seedStations = () => {
+    // Mirror the two-tier config surface: /ev/config resolves via the
+    // loader (systemOverrides) while the PATCH endpoint reads + writes
+    // config/site.json directly (files map).
+    const stations = [
+      { id: 'ev-2w-1', kind: '2W', name: '2-Wheeler Wallbox #1', enabled: true },
+      { id: 'ev-4w-1', kind: '4W', name: '4-Wheeler DCFC #1',    enabled: true },
+    ];
+    systemOverrides = { ev: { stations } };
+    files.set('config/site.json', {
+      sha: 'sha-seed',
+      content: JSON.stringify({ system: { ev: { stations } } }, null, 2),
+    });
+  };
+
+  it('rejects residents (403)', async () => {
+    seedStations();
+    const r = await send('PATCH', '/ev/stations/ev-2w-1', { enabled: false }, 'resident1@x.com');
+    expect(r.status).toBe(403);
+  });
+
+  it('rejects anonymous callers (401)', async () => {
+    seedStations();
+    const r = await send('PATCH', '/ev/stations/ev-2w-1', { enabled: false });
+    expect(r.status).toBe(401);
+  });
+
+  it('rejects missing/invalid enabled body (400)', async () => {
+    seedStations();
+    const r = await send('PATCH', '/ev/stations/ev-2w-1', {}, 'mgr@x.com');
+    expect(r.status).toBe(400);
+  });
+
+  it('returns 404 when the station id does not exist', async () => {
+    seedStations();
+    const r = await send('PATCH', '/ev/stations/nonexistent', { enabled: false }, 'mgr@x.com');
+    expect(r.status).toBe(404);
+  });
+
+  it('manager can flip a station to maintenance with a custom reason', async () => {
+    seedStations();
+    const r = await send(
+      'PATCH', '/ev/stations/ev-2w-1',
+      { enabled: false, maintenanceReason: 'Charging cable damaged — vendor visit scheduled' },
+      'mgr@x.com',
+    );
+    expect(r.status).toBe(200);
+    const j = await r.json() as any;
+    expect(j.data.station.enabled).toBe(false);
+    expect(j.data.station.maintenanceReason).toBe('Charging cable damaged — vendor visit scheduled');
+    // Config file was rewritten with the new state.
+    const site = JSON.parse(files.get('config/site.json')!.content);
+    expect(site.system.ev.stations[0].enabled).toBe(false);
+    expect(site.system.ev.stations[0].maintenanceReason).toBe('Charging cable damaged — vendor visit scheduled');
+    // Sibling station untouched.
+    expect(site.system.ev.stations[1].enabled).toBe(true);
+    expect(site.system.ev.stations[1].maintenanceReason).toBeUndefined();
+  });
+
+  it('defaults the reason to "Temporarily unavailable" when none is supplied', async () => {
+    seedStations();
+    const r = await send('PATCH', '/ev/stations/ev-4w-1', { enabled: false }, 'mgr@x.com');
+    expect(r.status).toBe(200);
+    const j = await r.json() as any;
+    expect(j.data.station.enabled).toBe(false);
+    expect(j.data.station.maintenanceReason).toBe('Temporarily unavailable');
+  });
+
+  it('re-enabling a station clears the maintenance reason', async () => {
+    // Seed with the station already in maintenance so we can flip back on.
+    const stations = [
+      { id: 'ev-2w-1', kind: '2W', name: '2-Wheeler Wallbox #1',
+        enabled: false, maintenanceReason: 'Awaiting vendor' },
+    ];
+    systemOverrides = { ev: { stations } };
+    files.set('config/site.json', {
+      sha: 'sha-seed', content: JSON.stringify({ system: { ev: { stations } } }, null, 2),
+    });
+    const r = await send('PATCH', '/ev/stations/ev-2w-1', { enabled: true }, 'mgr@x.com');
+    expect(r.status).toBe(200);
+    const j = await r.json() as any;
+    expect(j.data.station.enabled).toBe(true);
+    expect(j.data.station.maintenanceReason).toBeUndefined();
+    const site = JSON.parse(files.get('config/site.json')!.content);
+    expect(site.system.ev.stations[0].enabled).toBe(true);
+    expect(site.system.ev.stations[0].maintenanceReason).toBeUndefined();
+  });
+
+  it('preserves unknown vendor metadata (image, series, capacityKw) on toggle', async () => {
+    const stations = [{
+      id: 'ev-4w-1', kind: '4W', name: 'SunArth DCFC',
+      enabled: true, image: './x.png', series: 'UltraPro',
+      capacityKw: 80, connector: 'CCS-2',
+    }];
+    systemOverrides = { ev: { stations } };
+    files.set('config/site.json', {
+      sha: 'sha-seed', content: JSON.stringify({ system: { ev: { stations } } }, null, 2),
+    });
+    const r = await send('PATCH', '/ev/stations/ev-4w-1', { enabled: false }, 'mgr@x.com');
+    expect(r.status).toBe(200);
+    const site = JSON.parse(files.get('config/site.json')!.content);
+    const s = site.system.ev.stations[0];
+    expect(s.enabled).toBe(false);
+    expect(s.image).toBe('./x.png');
+    expect(s.series).toBe('UltraPro');
+    expect(s.capacityKw).toBe(80);
+    expect(s.connector).toBe('CCS-2');
+  });
+
+  it('committee members can also toggle', async () => {
+    seedStations();
+    const r = await send('PATCH', '/ev/stations/ev-2w-1', { enabled: false }, 'cmt@x.com');
+    expect(r.status).toBe(200);
+  });
+});

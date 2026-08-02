@@ -57,24 +57,31 @@
       host.innerHTML = '<div class="tsh-sub">No chargers configured. Ask an admin to add one under Settings → EV.</div>';
       return;
     }
-    // Group by kind so 4-wheeler and 2-wheeler chargers render in
-    // separate rows for at-a-glance parsing.
+    // Group by kind so 2-wheeler and 4-wheeler chargers render in
+    // separate rows for at-a-glance parsing. 2-wheeler chargers list
+    // FIRST because that matches the physical placement in the parking
+    // area (residents walking in encounter the 2W wallboxes before the
+    // 4W DC-fast bays).
     const groups = new Map();
     stations.forEach((s) => {
       const k = s && s.kind ? String(s.kind).toUpperCase() : 'OTHER';
       if (!groups.has(k)) groups.set(k, []);
       groups.get(k).push(s);
     });
-    const order = ['4W', '2W', 'OTHER'];
-    const labels = { '4W': '4-Wheeler chargers', '2W': '2-Wheeler chargers', 'OTHER': 'Chargers' };
+    const order = ['2W', '4W', 'OTHER'];
+    const labels = { '2W': '2-Wheeler chargers', '4W': '4-Wheeler chargers', 'OTHER': 'Chargers' };
     const html = order
       .filter((k) => groups.has(k))
       .map((k) => {
         const rows = groups.get(k).map((s) => {
           const on = s && s.enabled !== false;
           const isSelected = String(s.id) === String(selectedId);
-          const status = on ? 'ONLINE' : 'OFFLINE';
-          const statusCls = on ? 'tsh-ev-status-online' : 'tsh-ev-status-offline';
+          const reason = !on ? String(s.maintenanceReason || 'Temporarily unavailable') : '';
+          // "Under maintenance" is the resident-friendly framing for a
+          // disabled station — it makes the intent explicit (present
+          // but not bookable) instead of a bare "offline" label.
+          const status = on ? 'ONLINE' : 'UNDER MAINTENANCE';
+          const statusCls = on ? 'tsh-ev-status-online' : 'tsh-ev-status-maintenance';
           const cardCls = 'tsh-ev-station-card'
             + (isSelected ? ' tsh-ev-station-selected' : '')
             + (on ? '' : ' tsh-ev-station-disabled')
@@ -87,16 +94,46 @@
             ? '<div class="tsh-ev-station-photo">'
               +   '<img src="' + esc(s.image) + '" alt="' + esc(altText) + '" loading="lazy" decoding="async"'
               +   ' onerror="this.parentNode.classList.add(\'tsh-ev-station-photo-fallback\');this.remove();" />'
+              +   (!on
+                    ? '<div class="tsh-ev-maintenance-overlay" aria-hidden="true"><i class="fas fa-screwdriver-wrench"></i></div>'
+                    : '')
               + '</div>'
             : '<div class="tsh-ev-station-icon"><i class="' + stationIconClass(s) + '"></i></div>';
           const seriesLine = s.series
             ? '<div class="tsh-ev-station-series">' + esc(s.series) + '</div>'
             : '';
+          const reasonLine = !on
+            ? '<div class="tsh-ev-station-reason" role="note">'
+              + '<i class="fas fa-triangle-exclamation" aria-hidden="true"></i> '
+              + esc(reason)
+              + '</div>'
+            : '';
+          // Staff-only toggle. Rendered as a separate button OUTSIDE
+          // the radio button so its click doesn't fire the selection
+          // handler (we stop propagation in the click wiring below).
+          const toggle = isStaff
+            ? '<button type="button" class="tsh-ev-maintenance-toggle'
+              + (on ? ' is-online' : ' is-maintenance')
+              + '"'
+              + ' data-ev-station-toggle="' + esc(s.id) + '"'
+              + ' aria-pressed="' + (on ? 'false' : 'true') + '"'
+              + ' title="' + (on
+                  ? 'Mark this charger as under maintenance (residents will not be able to book it).'
+                  : 'Bring this charger back online.'
+                ) + '">'
+              +   '<span class="tsh-ev-maintenance-toggle-track">'
+              +     '<span class="tsh-ev-maintenance-toggle-thumb"></span>'
+              +   '</span>'
+              +   '<span class="tsh-ev-maintenance-toggle-label">'
+              +     (on ? 'Online' : 'Maintenance')
+              +   '</span>'
+              + '</button>'
+            : '';
           return ''
             + '<button type="button" class="' + cardCls + '"'
             + ' role="radio" aria-checked="' + (isSelected ? 'true' : 'false') + '"'
             + ' data-ev-station-id="' + esc(s.id) + '"'
-            + (on ? '' : ' disabled') + '>'
+            + (on ? '' : ' disabled aria-disabled="true"') + '>'
             +   media
             +   '<div class="tsh-ev-station-info">'
             +     '<div class="tsh-ev-station-name">' + esc(s.name || '—') + '</div>'
@@ -105,8 +142,10 @@
             +       (s.location ? '<span><i class="fas fa-location-dot"></i> ' + esc(s.location) + '</span>' : '')
             +       (stationSubtitle(s) ? '<span><i class="fas fa-bolt"></i> ' + esc(stationSubtitle(s)) + '</span>' : '')
             +     '</div>'
+            +     reasonLine
             +   '</div>'
             +   '<span class="tsh-ev-status-pill ' + statusCls + '">' + status + '</span>'
+            + toggle
             + '</button>';
         }).join('');
         // Only show the section label when there are 2+ kinds to distinguish.
@@ -131,6 +170,67 @@
         refreshAvailability();
       });
     });
+    // Wire the staff maintenance toggle — sits above the card so its
+    // click bubbles up; stopPropagation prevents the parent radio from
+    // treating it as a selection change.
+    host.querySelectorAll('[data-ev-station-toggle]').forEach((btn) => {
+      btn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        ev.preventDefault();
+        const id = btn.getAttribute('data-ev-station-toggle');
+        if (id) toggleStationMaintenance(id);
+      });
+    });
+  }
+
+  // Staff-only. Flips a station between ONLINE and UNDER MAINTENANCE
+  // via PATCH /ev/stations/:id. When disabling, prompts for a short
+  // human-readable reason so residents see WHY the charger is out.
+  async function toggleStationMaintenance(id) {
+    const s = stationsList.find((x) => String(x.id) === String(id));
+    if (!s) return;
+    const willEnable = s.enabled === false;   // currently disabled → re-enable
+    let reason;
+    if (!willEnable) {
+      // eslint-disable-next-line no-alert -- lightweight editor tool
+      reason = root.prompt(
+        'Mark "' + (s.name || id) + '" as under maintenance.\n\n'
+        + 'Reason shown to residents (max 200 chars):',
+        s.maintenanceReason || 'Temporarily unavailable',
+      );
+      if (reason === null) return;   // cancelled
+      reason = String(reason || '').trim().slice(0, 200);
+    }
+    const body = { enabled: willEnable };
+    if (!willEnable && reason) body.maintenanceReason = reason;
+    try {
+      const res = await root.Api.patch('/ev/stations/' + encodeURIComponent(id), body);
+      const data = res && res.ok ? res.data : res;
+      const updated = data && data.station ? data.station : null;
+      if (updated) {
+        // Splice the updated station into the in-memory list so we do
+        // not have to round-trip /ev/config just for the label change.
+        const idx = stationsList.findIndex((x) => String(x.id) === String(id));
+        if (idx !== -1) stationsList[idx] = { ...stationsList[idx], ...updated };
+      }
+      renderStationsBar(stationsList, stationId);
+      // If the station that just went into maintenance was the one
+      // currently selected, refresh availability so the booking form
+      // reflects the new disabled state.
+      if (String(id) === String(stationId)) refreshAvailability();
+      if (root.UI && root.UI.toast) {
+        root.UI.toast(
+          willEnable
+            ? (s.name || id) + ' is back online.'
+            : (s.name || id) + ' is now under maintenance.',
+          { kind: willEnable ? 'success' : 'warn' },
+        );
+      }
+    } catch (e) {
+      if (root.UI && root.UI.toast) {
+        root.UI.toast('Could not update charger: ' + (e && e.message || e), { kind: 'danger' });
+      }
+    }
   }
 
   function renderGuidelines(list) {
@@ -205,6 +305,10 @@
   // in `renderStationsBar`. Kept in memory so the receipt / summary
   // views can resolve station metadata by id without another round-trip.
   let stationsList  = [];
+  // MANAGER+ role snapshot resolved once at bootstrap. Used by the
+  // station renderer to decide whether to draw the maintenance toggle.
+  // Read-only for the rest of the module.
+  let isStaff = false;
   // Currently selected slot range on the grid: [startMin, endMin) in local
   // minutes-since-midnight IST. Null when nothing is selected.
   let selection = null;
@@ -649,6 +753,15 @@
     }
     const data = payload && payload.ok ? payload.data : payload;
     if (!data) return;
+    // Resolve staff-ness once so `renderStationsBar` can decide whether
+    // to render the maintenance toggle. Failure defaults to false (no
+    // toggle rendered) — never crash the page for a whoami hiccup.
+    try {
+      if (root.Flags && root.Flags.whoami) {
+        const who = await root.Flags.whoami();
+        isStaff = !!(who && root.Flags.isAtLeast && root.Flags.isAtLeast(who.primary, 'MANAGER'));
+      }
+    } catch (_e) { isStaff = false; }
     applySubFlagVisibility(data.subFlags || {});
     // Prime the booking context first so `stationId` is set before we
     // paint the stations bar (which uses the selection to highlight).

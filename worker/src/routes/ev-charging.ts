@@ -1168,4 +1168,94 @@ ${result.topFlats.map((t) => `<tr><td>${escHtml(t.flat)}</td><td>${t.bookings}</
     await writeAudit(ctx.env, { actor: email, action: 'ev.support.status', target: id, detail: `${it.status}->${nextStatus}` });
     return ok(ctx.env, ctx.req, updated);
   });
+
+  // ---- Phase 7: Station online/offline toggle (2026-08-02) ----------------
+  // PATCH /ev/stations/:id — MANAGER+ can flip a station between ONLINE
+  // and UNDER MAINTENANCE without leaving the page. Persists directly to
+  // system.ev.stations[i] in config/site.json so the change is durable
+  // and visible to every visitor immediately (subject to the 60s config
+  // cache). Kept narrow (only `enabled` + optional `maintenanceReason`)
+  // so operators can toggle without accidentally clobbering other
+  // station metadata (image, series, capacityKw, etc.).
+  //
+  // Body:
+  //   { enabled: boolean, maintenanceReason?: string }
+  // When enabled=false and no reason supplied, defaults to "Temporarily
+  // unavailable". When enabled=true, the maintenanceReason field is
+  // cleared so the next disable can supply a fresh reason.
+  r.patch('/ev/stations/:id', async (ctx: Ctx, params: Record<string, string>) => {
+    ensureAllowed(ctx, {
+      flags: [FEATURE],
+      roles: ['MANAGER', 'COMMITTEE', 'ADMIN'],
+      requireIdentity: true,
+    });
+    const id = String(params['id'] || '').trim();
+    if (!id) throw new BadRequest('station id is required');
+    const body = await parseJson<Record<string, unknown>>(ctx.req);
+    if (typeof body['enabled'] !== 'boolean') {
+      throw new BadRequest('enabled must be a boolean');
+    }
+    const nextEnabled = body['enabled'] as boolean;
+    const nextReason  = nextEnabled
+      ? ''
+      : (optStr(body['maintenanceReason'], 'maintenanceReason', { max: 200 })
+          ?? 'Temporarily unavailable');
+
+    const siteFile = await getFile(ctx.env, 'config/site.json');
+    if (!siteFile) throw new BadRequest('config/site.json not found');
+    let site: Record<string, unknown>;
+    try { site = JSON.parse(siteFile.content) as Record<string, unknown>; }
+    catch { throw new BadRequest('config/site.json is not valid JSON'); }
+
+    const system = (site['system'] && typeof site['system'] === 'object')
+      ? site['system'] as Record<string, unknown>
+      : {};
+    const ev = (system['ev'] && typeof system['ev'] === 'object')
+      ? system['ev'] as Record<string, unknown>
+      : {};
+    const rawStations = ev['stations'];
+    if (!Array.isArray(rawStations) || rawStations.length === 0) {
+      throw new NotFound('no stations configured');
+    }
+    const idx = rawStations.findIndex((s: unknown) =>
+      s && typeof s === 'object' && String((s as Record<string, unknown>)['id'] ?? '') === id,
+    );
+    if (idx === -1) throw new NotFound(`station not found: ${id}`);
+
+    const before = rawStations[idx] as Record<string, unknown>;
+    const updated: Record<string, unknown> = { ...before, enabled: nextEnabled };
+    if (nextEnabled) {
+      // Clear the maintenance reason on re-enable so a stale message
+      // does not linger.
+      delete updated['maintenanceReason'];
+    } else {
+      updated['maintenanceReason'] = nextReason;
+    }
+    // Short-circuit if nothing actually changed — avoids a no-op commit.
+    if (
+      (before['enabled'] !== false) === nextEnabled &&
+      String(before['maintenanceReason'] ?? '') === nextReason
+    ) {
+      return ok(ctx.env, ctx.req, { station: updated });
+    }
+    const nextStations = rawStations.slice();
+    nextStations[idx] = updated;
+    ev['stations'] = nextStations;
+    system['ev']   = ev;
+    site['system'] = system;
+
+    const actor = ctx.identity!.email;
+    const serialised = JSON.stringify(site, null, 2) + '\n';
+    const label = nextEnabled ? 'online' : 'maintenance';
+    await putFile(
+      ctx.env, 'config/site.json', serialised,
+      `ev: station ${id} → ${label} by ${actor}`,
+      actor, siteFile.sha,
+    );
+    await writeAudit(ctx.env, {
+      actor, action: 'ev.station.toggle', target: id,
+      detail: nextEnabled ? 'online' : `maintenance: ${nextReason}`,
+    });
+    return ok(ctx.env, ctx.req, { station: updated });
+  });
 };
