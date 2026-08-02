@@ -108,30 +108,28 @@
   border-radius: 2px;
 }
 .tsh-ev-stations-row {
-  /* Compact single-row layout — cards are pinned between 150-200px so
-     they stay SMALL regardless of how many stations exist. Earlier we
-     used `1fr` as the max which caused a fleet of 2 to stretch across
-     the whole row (each card ate half the width). auto-fill + a hard
-     200px max keeps every card the same tidy size. */
+  /* Responsive single-row layout — cards pinned between 160-220px so
+     the whole fleet stays on one row at desktop widths and wraps
+     naturally on tablets / phones. auto-fill keeps unused tracks
+     collapsed so 2 stations don't stretch across the whole row. */
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 200px));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 220px));
+  gap: 14px;
   justify-content: start;
 }
 
 .tsh-ev-station-card {
   position: relative;
   isolation: isolate;                     /* keep ::before/::after clipped */
-  display: grid;
-  grid-template-columns: 36px 1fr auto;
-  gap: 8px;
-  align-items: center;
-  padding: 10px 12px;
+  /* Portrait poster tile. The product photo fills the whole tile as an
+     opaque background; text overlays sit on top of a dark gradient
+     scrim at the bottom. Same aesthetic as a music-app album card. */
+  aspect-ratio: 3 / 4;
+  display: block;
+  padding: 0;
   border: 1px solid var(--c-svc-tile-border, var(--c-border-soft, #e5e7eb));
-  border-radius: 14px;
+  border-radius: 16px;
   background: var(--c-svc-tile-bg, var(--c-card-bg, #fff));
-  backdrop-filter: blur(10px) saturate(120%);
-  -webkit-backdrop-filter: blur(10px) saturate(120%);
   font: inherit;
   font-size: 12px;
   color: var(--c-text, inherit);
@@ -197,28 +195,78 @@
   z-index: 1;
 }
 
-/* Cards that carry a product photo get a two-row layout: hero photo on
-   top, info block + status pill below. Icon-only cards keep the compact
-   three-column layout so operators can drop the image and everything
-   still fits. */
-.tsh-ev-station-card.tsh-ev-station-has-photo {
-  grid-template-columns: 1fr auto;
-  grid-template-areas:
-    "photo photo"
-    "info  status";
-  align-items: end;
-  padding: 0 0 8px 0;
+/* ---- Poster tile layout (photo-backed cards) ------------------------
+   Full-bleed product photo as the tile background, dark gradient scrim
+   at the bottom, and text overlaid on top of the scrim. Status pill
+   floats top-right. Info block sticks to the bottom edge. No margins,
+   no padding on the card — everything is absolutely positioned so the
+   text always sits over the darkest part of the scrim, keeping it
+   legible regardless of the underlying photo. */
+.tsh-ev-station-card.tsh-ev-station-has-photo .tsh-ev-station-photo {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
 }
-.tsh-ev-station-card.tsh-ev-station-has-photo .tsh-ev-station-photo { grid-area: photo; }
-.tsh-ev-station-card.tsh-ev-station-has-photo .tsh-ev-station-info  { grid-area: info; padding: 4px 10px 0; }
-.tsh-ev-station-card.tsh-ev-station-has-photo .tsh-ev-status-pill   { grid-area: status; margin: 0 10px; }
+.tsh-ev-station-card.tsh-ev-station-has-photo .tsh-ev-station-info {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
+  /* Dark scrim so light-text overlays stay readable on any photo. Fades
+     from transparent at the top to a deep charcoal at the bottom. */
+  padding: 28px 12px 12px;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(15, 17, 26, 0.55) 45%,
+    rgba(10, 11, 18, 0.88) 100%
+  );
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.tsh-ev-station-card.tsh-ev-station-has-photo .tsh-ev-station-name {
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: .005em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+}
+.tsh-ev-station-card.tsh-ev-station-has-photo .tsh-ev-station-series {
+  color: color-mix(in srgb, var(--c-primary, #d4af37) 90%, #ffffff);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.65);
+  margin-top: 2px;
+}
+.tsh-ev-station-card.tsh-ev-station-has-photo .tsh-ev-station-meta {
+  margin-top: 4px;
+  font-size: 10.5px;
+  color: rgba(255, 255, 255, 0.88);
+  gap: 6px 10px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.65);
+}
+.tsh-ev-station-card.tsh-ev-station-has-photo .tsh-ev-station-meta i {
+  color: color-mix(in srgb, var(--c-primary, #d4af37) 75%, #ffffff);
+  opacity: 1;
+}
+.tsh-ev-station-card.tsh-ev-station-has-photo .tsh-ev-status-pill {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 4;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
 .tsh-ev-station-photo {
   position: relative;
-  /* Portrait tile — matches typical wallbox proportions (taller than
-     wide). The image below uses object-fit: cover so it stretches
-     edge-to-edge and fills the whole rectangle instead of floating in
-     the middle with a fat whitespace halo. */
-  aspect-ratio: 4 / 5;
   overflow: hidden;
   background: transparent;
 }
@@ -227,20 +275,19 @@
   inset: 0;
   width: 100%;
   height: 100%;
-  /* cover = image FILLS the tile edge-to-edge, no letterbox. Any minor
-     crop at the sides is preferable to the huge cream margins we had
-     with contain + padding. */
+  /* cover — image FILLS the tile edge-to-edge. Poster look. */
   object-fit: cover;
   object-position: center;
   padding: 0;
   box-sizing: border-box;
-  mix-blend-mode: multiply;
-  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.18));
-  transition: transform .25s cubic-bezier(.2, .8, .2, 1), filter .25s ease;
+  /* Slightly muted so the overlay text pops without needing a full
+     scrim across the whole tile. Hover restores full colour. */
+  filter: saturate(1.05) brightness(0.94);
+  transition: transform .35s cubic-bezier(.2, .8, .2, 1), filter .3s ease;
 }
 .tsh-ev-station-card:hover:not(:disabled) .tsh-ev-station-photo img {
-  transform: scale(1.04);
-  filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.26));
+  transform: scale(1.06);
+  filter: saturate(1.15) brightness(1);
 }
 /* If the photo failed to load the <img> is removed and this fallback
    class is applied to the container — show a glowing bolt instead. */
@@ -329,7 +376,18 @@
 .tsh-ev-station-card.tsh-ev-station-disabled::before,
 .tsh-ev-station-card.tsh-ev-station-disabled::after { display: none; }
 
-/* Icon-only cards (no product photo): the icon tile itself glows. */
+/* Icon-only cards (no product photo): compact horizontal chip layout.
+   These are a fallback for stations whose config omits the image URL —
+   real deployments almost always ship photos, but we keep the layout
+   defined so the page doesn't collapse if someone drops the image. */
+.tsh-ev-station-card:not(.tsh-ev-station-has-photo) {
+  aspect-ratio: auto;
+  display: grid;
+  grid-template-columns: 36px 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 12px;
+}
 .tsh-ev-station-card .tsh-ev-station-icon {
   width: 44px; height: 44px;
   font-size: 20px;
@@ -424,33 +482,41 @@
   line-height: 1.35;
 }
 .tsh-ev-station-reason i { font-size: 11px; }
+/* On a poster tile the reason sits on the dark scrim — needs a warm
+   amber pill with light text to stay legible. */
+.tsh-ev-station-card.tsh-ev-station-has-photo .tsh-ev-station-reason {
+  background: color-mix(in srgb, #f59e0b 45%, rgba(0, 0, 0, 0.4));
+  color: #fff7ed;
+  font-size: 10.5px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
 
 /* Staff-only maintenance toggle. Rendered as an accessible pill-switch
-   in the top-right of the card (photo cards) or the far right (icon
-   cards). Positioned absolutely so the resident-visible layout stays
-   unchanged when the toggle is not rendered. Click bubbles to the
-   parent radio button, which we stop in JS. */
+   in the top-LEFT of the card (the top-right is claimed by the status
+   pill on poster tiles). Positioned absolutely so the resident-visible
+   layout stays unchanged when the toggle is not rendered. Click bubbles
+   to the parent radio button, which we stop in JS. */
 .tsh-ev-maintenance-toggle {
   position: absolute;
-  top: 10px;
-  right: 12px;
-  z-index: 4;
+  top: 8px;
+  left: 8px;
+  z-index: 5;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 10px 4px 4px;
+  gap: 6px;
+  padding: 3px 8px 3px 3px;
   border-radius: 999px;
   border: 1px solid color-mix(in srgb, var(--c-primary, #d4af37) 30%, transparent);
-  background: color-mix(in srgb, #ffffff 90%, transparent);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   color: #1f2937;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: .05em;
   text-transform: uppercase;
   cursor: pointer;
-  box-shadow: 0 4px 10px -4px rgba(0, 0, 0, .18);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .22);
   transition: box-shadow .15s ease, transform .12s ease;
 }
 .tsh-ev-maintenance-toggle:hover { transform: translateY(-1px); }
