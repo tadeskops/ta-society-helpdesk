@@ -54,9 +54,9 @@ vi.mock('../src/config/loader.ts', async () => {
         features: {
           ...DEFAULT_CONFIG.features,
           FEATURE_DAILY_TURNSTILE: false,
-          // Master flag defaults OFF; individual tests flip it via
-          // featureOverrides. Sub-flags stay at their DEFAULT_CONFIG
-          // values (booking on, receipt on, admin on, everything else off).
+          // Sub-flags stay at their DEFAULT_CONFIG values (all EV
+          // flags on by default). Individual tests flip flags via
+          // featureOverrides when they need a specific gate scenario.
           ...featureOverrides,
         },
         system: { ...DEFAULT_CONFIG.system, ...systemOverrides },
@@ -111,7 +111,8 @@ beforeEach(() => {
 
 describe('GET /ev/config — master flag', () => {
   it('returns feature-disabled (503) when FEATURE_TSH_EV_CHARGING is OFF', async () => {
-    // Master defaults off; leave overrides empty.
+    // Explicitly flip the master flag OFF for this scenario.
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: false };
     const r = await send('GET', '/ev/config', undefined, 'resident1@x.com');
     expect(r.status).toBe(503);
     const j = await r.json() as any;
@@ -150,14 +151,15 @@ describe('GET /ev/config — sub-flags surface', () => {
     const r = await send('GET', '/ev/config', undefined, 'mgr@x.com');
     expect(r.status).toBe(200);
     const { data } = await r.json() as any;
-    // DEFAULT_CONFIG seeds these three ON and the rest OFF.
+    // DEFAULT_CONFIG seeds every EV flag ON so the module ships fully
+    // enabled out of the box.
     expect(data.subFlags.booking).toBe(true);
     expect(data.subFlags.receipt).toBe(true);
     expect(data.subFlags.adminDashboard).toBe(true);
-    expect(data.subFlags.autoReports).toBe(false);
-    expect(data.subFlags.rfid).toBe(false);
-    expect(data.subFlags.registration).toBe(false);
-    expect(data.subFlags.support).toBe(false);
+    expect(data.subFlags.autoReports).toBe(true);
+    expect(data.subFlags.rfid).toBe(true);
+    expect(data.subFlags.registration).toBe(true);
+    expect(data.subFlags.support).toBe(true);
   });
 
   it('honours an admin-flipped sub-flag override', async () => {
@@ -217,6 +219,7 @@ const istDate = (offsetDays = 0): string => {
 
 describe('GET /ev/availability', () => {
   it('returns feature-disabled (503) when the master flag is OFF', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: false };
     const r = await send('GET', '/ev/availability', undefined, 'resident1@x.com');
     expect(r.status).toBe(503);
   });
@@ -453,6 +456,7 @@ describe('GET /ev/receipt/:id', () => {
   };
 
   it('returns feature-disabled (503) when master flag is OFF', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: false };
     const r = await send('GET', '/ev/receipt/EV-0102261200', undefined, 'resident1@x.com');
     expect(r.status).toBe(503);
   });
@@ -552,6 +556,7 @@ describe('GET /ev/admin/dashboard', () => {
   };
 
   it('returns feature-disabled (503) when master flag is OFF', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: false };
     const r = await send('GET', '/ev/admin/dashboard?period=w', undefined, 'mgr@x.com');
     expect(r.status).toBe(503);
   });
@@ -649,6 +654,7 @@ describe('GET /ev/admin/export', () => {
 
 describe('POST /ev/admin/mirror', () => {
   it('returns 503 when master flag is OFF', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: false };
     const r = await send('POST', '/ev/admin/mirror', {}, 'dev@x.com');
     expect(r.status).toBe(503);
   });

@@ -347,14 +347,14 @@ export const DEFAULT_CONFIG: SiteConfig = {
     //  • RFID              — Phase 6. RFID request lifecycle.
     //  • REGISTRATION      — Phase 6. Pre-registration workflow.
     //  • SUPPORT           — Phase 6. Support ticket taxonomy (12 cats).
-    FEATURE_TSH_EV_CHARGING:                 false,
+    FEATURE_TSH_EV_CHARGING:                 true,
     FEATURE_TSH_EV_BOOKING:                  true,
     FEATURE_TSH_EV_RECEIPT:                  true,
     FEATURE_TSH_EV_ADMIN_DASHBOARD:          true,
-    FEATURE_TSH_EV_AUTO_REPORTS:             false,
-    FEATURE_TSH_EV_RFID:                     false,
-    FEATURE_TSH_EV_REGISTRATION:             false,
-    FEATURE_TSH_EV_SUPPORT:                  false,
+    FEATURE_TSH_EV_AUTO_REPORTS:             true,
+    FEATURE_TSH_EV_RFID:                     true,
+    FEATURE_TSH_EV_REGISTRATION:             true,
+    FEATURE_TSH_EV_SUPPORT:                  true,
     // DEPRECATED (2026-07-12): under the new strict 8-tier hierarchy
     // SECRETARY sits ABOVE TREASURER in the precedence chain and
     // inherits treasury view naturally, so this flag is a no-op. It is
