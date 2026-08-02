@@ -674,6 +674,41 @@
   border-style: dashed;
   opacity: .75;
 }
+/* Warn chip — used for the "vacate the bay N min early" reminder in
+   the policy bar so it stands out from the neutral quota chips. */
+.tsh-ev-chip.tsh-ev-chip-warn {
+  background: color-mix(in srgb, #f59e0b 14%, var(--c-card-bg, #fff));
+  border-color: color-mix(in srgb, #f59e0b 55%, transparent);
+  color: color-mix(in srgb, #b45309 85%, #1f2937);
+  font-weight: 500;
+}
+.tsh-ev-chip.tsh-ev-chip-warn i { opacity: 1; color: #b45309; }
+
+/* Personalised "please vacate by HH:MM" callout under the booking
+   summary. Amber, prominent, but not alarming — this is a reminder,
+   not an error state. */
+.tsh-ev-vacate-notice {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: color-mix(in srgb, #f59e0b 12%, var(--c-card-bg, #fff));
+  border: 1px solid color-mix(in srgb, #f59e0b 50%, transparent);
+  border-left: 4px solid #f59e0b;
+  color: var(--c-text, #1f2937);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.tsh-ev-vacate-notice i {
+  color: #b45309;
+  margin-right: 4px;
+}
+.tsh-ev-vacate-notice strong { color: #92400e; }
+.tsh-ev-vacate-notice .tsh-sub {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--c-text-faint, #6b7280);
+}
 
 .tsh-ev-book-toolbar {
   display: flex;

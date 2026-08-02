@@ -34,7 +34,7 @@ export interface ReceiptsArchiveConfig {
 
 export const DEFAULT_ARCHIVE_CONFIG: ReceiptsArchiveConfig = {
   enabled: true,
-  perReceiptPath: '{facilityCodeLower}/{id}.pdf',
+  perReceiptPath: '{facilityCodeLower}/{flat}_{date}_{startTime}_{durationMin}min.pdf',
   rollup: {
     enabled: true,
     period: 'monthly',
@@ -52,6 +52,13 @@ export const DEFAULT_ARCHIVE_CONFIG: ReceiptsArchiveConfig = {
  *   {month}              07
  *   {day}                07
  *   {yearMonth}          2026-07
+ *   {date}               2026-07-07
+ *   {flat}               A-1204   (path-safe: letters/digits/dash only;
+ *                                  falls back to "unknown" if missing)
+ *   {startTime}          1830     (HH:MM without colon, IST minutes-of-day)
+ *   {endTime}            2030
+ *   {durationMin}        120      (integer minutes)
+ *   {durationHM}         2h00m    (compact hh?m form; 0h30m, 1h15m, 2h00m)
  *   {period}             monthly | quarterly | yearly (rollup only)
  *   {periodKey}          2026-07 | 2026-Q3 | 2026    (rollup only)
  */
@@ -61,6 +68,25 @@ export const renderPathTemplate = (
   tpl: string,
   vars: Record<string, string>,
 ): string => tpl.replace(PLACEHOLDERS_RE, (_full, key: string) => vars[key] ?? '');
+
+/**
+ * Normalise a flat / unit string for use inside a file path. Keeps
+ * letters, digits and dash; collapses whitespace and slashes to `-`;
+ * strips anything else; upper-cases so `a-101` and `A-101` collapse to
+ * the same folder. Returns 'unknown' when the input is empty or has no
+ * usable characters left after cleaning.
+ */
+export const sanitizeFlatForPath = (raw: string | undefined | null): string => {
+  const s = (raw || '').trim();
+  if (!s) return 'unknown';
+  const cleaned = s
+    .replace(/[\s/\\]+/g, '-')       // spaces + slashes -> dash
+    .replace(/[^A-Za-z0-9\-]/g, '')  // drop everything else
+    .replace(/-+/g, '-')             // collapse repeats
+    .replace(/^-+|-+$/g, '');        // trim leading/trailing dashes
+  const upper = cleaned.toUpperCase();
+  return upper || 'unknown';
+};
 
 /**
  * Compute the archive path for a given reservation using the resolved
@@ -73,6 +99,12 @@ export const archivePathFor = (
 ): string => {
   const code = facilityCode(f);
   const [y, m, d] = r.date.split('-');
+  const durationMin = Math.max(0, (r.endMin ?? 0) - (r.startMin ?? 0));
+  const hh = Math.floor(durationMin / 60);
+  const mm = durationMin % 60;
+  const durationHM = `${hh}h${String(mm).padStart(2, '0')}m`;
+  const startTime = formatHHMM(r.startMin ?? 0).replace(':', '');
+  const endTime   = formatHHMM(r.endMin ?? 0).replace(':', '');
   const vars: Record<string, string> = {
     facilityCode: code,
     facilityCodeLower: code.toLowerCase(),
@@ -82,6 +114,12 @@ export const archivePathFor = (
     month: m || '',
     day: d || '',
     yearMonth: `${y}-${m}`,
+    date: r.date,
+    flat: sanitizeFlatForPath(r.owner?.flat),
+    startTime,
+    endTime,
+    durationMin: String(durationMin),
+    durationHM,
   };
   const tpl = cfg.perReceiptPath || DEFAULT_ARCHIVE_CONFIG.perReceiptPath;
   const out = renderPathTemplate(tpl, vars);

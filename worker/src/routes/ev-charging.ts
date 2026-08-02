@@ -425,6 +425,11 @@ export const mountEvCharging = (r: Router): void => {
         openMin: policy.openMin,
         closeMin: policy.closeMin,
         advanceWindowDays: policy.advanceWindowDays,
+        // Cross-booking buffer: the resident must vacate the bay this
+        // many minutes BEFORE their slot's nominal end so the next
+        // booking can plug in on time. Surfaced so the UI can render
+        // the "vacate by HH:MM" reminder next to the booking summary.
+        bufferMinutes: policy.bufferMinutes,
         maxActivePerFlat: policy.maxActivePerFlat,
         maxTotalBookingsPerFlat: policy.maxTotalBookingsPerFlat,
         maxDailyMinutesPerFlat: policy.maxDailyMinutesPerFlat,

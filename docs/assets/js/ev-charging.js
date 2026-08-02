@@ -392,6 +392,17 @@
     if (Number.isFinite(p.maxDurationMinutes)) {
       chips.push('<span class="tsh-ev-chip"><i class="fas fa-hourglass-half"></i> Max <strong>' + p.maxDurationMinutes + ' min</strong> per slot</span>');
     }
+    // Vacate-early notice — the buffer minutes between bookings only
+    // works if residents actually unplug and roll out before their
+    // slot ends. Show it as a warn-styled chip so it stands out.
+    if (Number.isFinite(p.bufferMinutes) && p.bufferMinutes > 0) {
+      chips.push(
+        '<span class="tsh-ev-chip tsh-ev-chip-warn" title="Please unplug and move your EV so the next booking can start on time">' +
+        '<i class="fas fa-triangle-exclamation"></i> ' +
+        'Vacate the bay <strong>' + p.bufferMinutes + ' min</strong> before your slot ends' +
+        '</span>',
+      );
+    }
     if (Number.isFinite(p.maxDailyMinutesPerFlat) && p.maxDailyMinutesPerFlat > 0) {
       chips.push('<span class="tsh-ev-chip"><i class="fas fa-clock"></i> Max <strong>' + p.maxDailyMinutesPerFlat + ' min/day</strong> per flat</span>');
     }
@@ -524,6 +535,22 @@
     sum.innerHTML = '<i class="fas fa-clock"></i> <strong>' + esc(date) + '</strong> · '
       + minsToHHMM(selection.start) + '–' + minsToHHMM(selection.end)
       + ' <span class="tsh-sub">(' + (selection.end - selection.start) + ' min)</span>';
+    // Personalised vacate-early reminder. Anchored to the resident's
+    // actual end time so it's unambiguous (no "5 min before X" mental
+    // math). Uses the same bufferMinutes surfaced by /ev/availability.
+    const buf = bookingPolicy && Number.isFinite(bookingPolicy.bufferMinutes)
+      ? bookingPolicy.bufferMinutes : 0;
+    if (buf > 0) {
+      const vacateBy = Math.max(selection.start, selection.end - buf);
+      sum.innerHTML += ''
+        + '<div class="tsh-ev-vacate-notice" role="note">'
+        +   '<i class="fas fa-triangle-exclamation"></i> '
+        +   '<strong>Please vacate the bay by ' + minsToHHMM(vacateBy) + '</strong> '
+        +   '<span class="tsh-sub">(' + buf + ' min before your slot ends) '
+        +   'so the next resident can plug in on time. '
+        +   'Late clearance blocks the following booking and may attract a warning.</span>'
+        + '</div>';
+    }
     // Pre-fill owner name from Auth if empty.
     const nameEl = $('#evOwnerName');
     if (nameEl && !nameEl.value && root.Auth && root.Auth.identity) {
