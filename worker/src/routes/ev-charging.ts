@@ -36,6 +36,7 @@ import {
   resolveAnalyticsRange, aggregateEvBookings, bookingsToCsv,
   type EvBooking, type EvBookingStatus, type EvAnalyticsPeriod,
 } from '../lib/ev-booking.ts';
+import { runEvMirror } from '../lib/ev-mirror.ts';
 
 // Master flag — every /ev/* handler passes it via ensureAllowed({ flags }).
 export const FEATURE = 'FEATURE_TSH_EV_CHARGING';
@@ -620,5 +621,42 @@ ${result.topFlats.map((t) => `<tr><td>${escHtml(t.flat)}</td><td>${t.bookings}</
         'content-disposition': `inline; filename="ev-report_${stamp}.html"`,
       },
     });
+  });
+
+  // ---- Phase 5: mirror / auto reports ------------------------------------
+  // POST /ev/admin/mirror — ADMIN only. Kicks off the monthly report + CSV
+  // mirror job manually. Body: { month?: 'YYYY-MM' } (default = previous
+  // full IST month). Gated by FEATURE_TSH_EV_CHARGING + FEATURE_TSH_EV_AUTO_REPORTS.
+  //
+  // See tsh_requirement.md §23.9 for the private-repo variant. The current
+  // implementation writes to `backups/ev/YYYY-MM/{report.md,bookings.csv}`
+  // in the same public repo; the private-repo split is a follow-up once
+  // the ops grant is completed.
+  r.post('/ev/admin/mirror', async (ctx: Ctx) => {
+    ensureAllowed(ctx, {
+      flags: [FEATURE, FEATURE_AUTO_REPORTS],
+      requireIdentity: true,
+      roles: ['ADMIN'],
+    });
+    const body = await parseJson<{ month?: unknown }>(ctx.req).catch(() => ({} as { month?: unknown }));
+    const month = optStr((body as { month?: unknown }).month, 'month', { max: 7 });
+    if (month && !/^\d{4}-\d{2}$/.test(month)) {
+      throw new BadRequest('month must be YYYY-MM');
+    }
+    const ev = resolveEvConfig(ctx);
+    const { items } = await loadEvBookings(ctx);
+    const actorEmail = String(ctx.identity?.email || 'worker@tadeskops.local');
+    const result = await runEvMirror(ctx.env, items, {
+      month,
+      stationName: String(ev.station.name ?? 'EV Charger'),
+      authorEmail: actorEmail,
+    });
+    await writeAudit(ctx.env, {
+      actor: actorEmail,
+      action: 'ev.mirror.run',
+      target: result.ran ? result.month : (month || 'auto'),
+      detail: result.ran ? `changed=${result.changed} bookings=${result.bookings}` : `skipped: ${result.reason}`,
+    });
+    return ok(ctx.env, ctx.req, result);
   });
 };

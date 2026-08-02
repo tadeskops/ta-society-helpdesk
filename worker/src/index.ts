@@ -13,6 +13,9 @@ import { loadConfig } from './config/loader.ts';
 import { buildRouter } from './routes/index.ts';
 import { scheduledBackup, archiveMonthly } from './routes/backup.ts';
 import { runAutoAssignSweep } from './routes/issues.ts';
+import { runEvMirror } from './lib/ev-mirror.ts';
+import { getJson } from './github/client.ts';
+import { isFeatureOn } from './config/defaults.ts';
 
 const router = buildRouter();
 
@@ -88,6 +91,25 @@ export default {
           });
         } catch (e) {
           log.error(env, 'cron_auto_assign_failed', { err: String((e as Error).stack ?? e) });
+        }
+        try {
+          // EV auto-mirror: only fires when both master flag +
+          // FEATURE_TSH_EV_AUTO_REPORTS are on. Idempotent (write only on
+          // content change), so extra cron ticks are harmless.
+          const { config } = await loadConfig(env);
+          const master = 'FEATURE_TSH_EV_CHARGING';
+          const sub    = 'FEATURE_TSH_EV_AUTO_REPORTS';
+          if (isFeatureOn(config, master) && isFeatureOn(config, sub)) {
+            const evBookFile = await getJson<{ version: number; items: unknown[] }>(env, 'config/ev-bookings.json').catch(() => undefined);
+            const items = Array.isArray(evBookFile?.items) ? (evBookFile!.items as any[]) : [];
+            const sysEv = (config.system as Record<string, unknown>).ev as Record<string, unknown> | undefined;
+            const station = (sysEv?.['station'] ?? {}) as Record<string, unknown>;
+            const stationName = String(station['name'] ?? 'EV Charger');
+            const result = await runEvMirror(env, items, { stationName });
+            log.info(env, 'cron_ev_mirror_result', { ...result });
+          }
+        } catch (e) {
+          log.error(env, 'cron_ev_mirror_failed', { err: String((e as Error).stack ?? e) });
         }
       })(),
     );

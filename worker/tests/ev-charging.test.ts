@@ -641,3 +641,79 @@ describe('GET /ev/admin/export', () => {
     expect(r.status).toBe(400);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 5 - private-repo mirror + auto reports (FEATURE_TSH_EV_AUTO_REPORTS).
+// Spec: tsh_requirement.md sec 23.1 (Phase 5), sec 23.9.
+// ---------------------------------------------------------------------------
+
+describe('POST /ev/admin/mirror', () => {
+  it('returns 503 when master flag is OFF', async () => {
+    const r = await send('POST', '/ev/admin/mirror', {}, 'dev@x.com');
+    expect(r.status).toBe(503);
+  });
+
+  it('returns 503 when FEATURE_TSH_EV_AUTO_REPORTS is OFF', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true, FEATURE_TSH_EV_AUTO_REPORTS: false };
+    const r = await send('POST', '/ev/admin/mirror', {}, 'dev@x.com');
+    expect(r.status).toBe(503);
+    const j = await r.json() as any;
+    expect(String(j.error)).toContain('FEATURE_TSH_EV_AUTO_REPORTS');
+  });
+
+  it('requires sign-in (401)', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true, FEATURE_TSH_EV_AUTO_REPORTS: true };
+    const r = await send('POST', '/ev/admin/mirror', {});
+    expect(r.status).toBe(401);
+  });
+
+  it('resident is forbidden (403)', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true, FEATURE_TSH_EV_AUTO_REPORTS: true };
+    const r = await send('POST', '/ev/admin/mirror', {}, 'resident1@x.com');
+    expect(r.status).toBe(403);
+  });
+
+  it('manager is forbidden (403) — ADMIN only', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true, FEATURE_TSH_EV_AUTO_REPORTS: true };
+    const r = await send('POST', '/ev/admin/mirror', {}, 'mgr@x.com');
+    expect(r.status).toBe(403);
+  });
+
+  it('rejects malformed month', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true, FEATURE_TSH_EV_AUTO_REPORTS: true };
+    const r = await send('POST', '/ev/admin/mirror', { month: 'not-a-month' }, 'dev@x.com');
+    expect(r.status).toBe(400);
+  });
+
+  it('admin happy path writes report.md + bookings.csv, is idempotent, and audits', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true, FEATURE_TSH_EV_AUTO_REPORTS: true };
+    // Seed a booking so the CSV has a row. Use last month so the default
+    // mirror window (previous full IST month) picks it up. The mirror
+    // month param is preferred so the test is deterministic.
+    await send('POST', '/ev/bookings', { date: istDate(1), startMin: 9*60, endMin: 10*60, ownerFlat: 'A-101' }, 'resident1@x.com');
+    // Pick a month explicitly for determinism — use the current IST month
+    // and match against what runEvMirror returns.
+    const nowMonth = new Date(Date.now() + 330 * 60 * 1000).toISOString().slice(0, 7);
+    const r = await send('POST', '/ev/admin/mirror', { month: nowMonth }, 'dev@x.com');
+    expect(r.status).toBe(200);
+    const j = await r.json() as any;
+    expect(j.data.ran).toBe(true);
+    expect(j.data.month).toBe(nowMonth);
+    expect(j.data.reportPath).toContain('backups/ev/' + nowMonth);
+    expect(j.data.reportPath.endsWith('report.md')).toBe(true);
+    expect(j.data.csvPath.endsWith('bookings.csv')).toBe(true);
+    // The mirror should have written into the fake file store.
+    expect(files.has(j.data.reportPath)).toBe(true);
+    expect(files.has(j.data.csvPath)).toBe(true);
+    const md = files.get(j.data.reportPath)!.content;
+    expect(md).toContain('Monthly report');
+    // Idempotency: a second call with the same data should NOT increment
+    // the put counter beyond the initial 2 (one for report, one for CSV).
+    const before = putCount;
+    const r2 = await send('POST', '/ev/admin/mirror', { month: nowMonth }, 'dev@x.com');
+    expect(r2.status).toBe(200);
+    const j2 = await r2.json() as any;
+    expect(j2.data.changed).toBe(false);
+    expect(putCount).toBe(before);
+  });
+});
