@@ -10,17 +10,6 @@
         <span class="tsh-brand-tag">Society Help Desk</span>
       </span>
     </a>
-    <!-- Mobile-only Instagram shortcut. On mobile the full "@theaddress_society"
-         row in the footer is hidden (see mobile-landing.css) and this compact
-         icon takes its place near the brand. Hidden above 640px via
-         [data-tsh-mobile-only]. -->
-    <a class="tsh-header-ig" data-tsh-mobile-only
-       href="https://www.instagram.com/theaddress_society"
-       rel="noopener" target="_blank"
-       aria-label="Follow @theaddress_society on Instagram"
-       title="Follow @theaddress_society on Instagram">
-      <i class="fab fa-instagram" aria-hidden="true"></i>
-    </a>
     <nav id="tshPrimaryNav" class="tsh-nav" aria-label="Primary">
       <a href="./index.html" data-tsh-nav="home" title="Home" data-tsh-tip="Home"><i class="fas fa-house"></i>Home</a>
       <a href="./daily-report.html" data-tsh-nav="report" title="Report an issue" data-tsh-tip="Report"><i class="fas fa-pen-to-square"></i>Report</a>
@@ -32,6 +21,20 @@
       <a data-tsh-role-link="ADMIN" href="./settings.html"            hidden title="Site settings" data-tsh-tip="Settings"><i class="fas fa-sliders"></i>Settings</a>
     </nav>
     <div class="tsh-userbox" data-tsh-userbox>
+      <!-- Mobile-only Instagram shortcut. On mobile the full
+           "@theaddress_society" row in the footer is hidden (see
+           mobile-landing.css) and this compact icon takes its place
+           as the first icon in the userbox strip so all header icons
+           (IG + bell + download + sign-in/out) live on the SAME row
+           instead of Instagram floating alone above the strip.
+           Hidden above 640px via [data-tsh-mobile-only]. -->
+      <a class="tsh-header-ig" data-tsh-mobile-only
+         href="https://www.instagram.com/theaddress_society"
+         rel="noopener" target="_blank"
+         aria-label="Follow @theaddress_society on Instagram"
+         title="Follow @theaddress_society on Instagram">
+        <i class="fab fa-instagram" aria-hidden="true"></i>
+      </a>
       <span data-tsh-user class="tsh-user-anon" tabindex="0" aria-label="Account"><span class="tsh-user-text"> Not signed in</span></span>
       <button type="button" class="tsh-btn tsh-btn-ghost tsh-btn-icon tsh-btn-iconxs tsh-bell" data-tsh-notify-bell hidden aria-label="Notifications" title="Notifications" data-tsh-tip="Notifications"><i class="fas fa-bell" aria-hidden="true"></i><span class="tsh-bell-badge" data-tsh-notify-count hidden>0</span></button>
       <a class="tsh-btn tsh-btn-ghost tsh-btn-icon tsh-btn-iconxs" data-tsh-download-latest hidden target="_blank" rel="noopener" aria-label="Download latest TSH_Report.pdf" title="Download latest TSH_Report.pdf" data-tsh-tip="Download latest TSH_Report.pdf"><i class="fas fa-cloud-arrow-down" aria-hidden="true"></i><span class="tsh-btn-label">Latest</span></a>
