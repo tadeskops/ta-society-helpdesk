@@ -1223,6 +1223,8 @@ All routes: JWT-required, gated by `FEATURE_TSH_RESERVATIONS`.
 | GET | `/receipts/archive/:id` | owner or MANAGER+ | Stream a stored receipt PDF via the worker (never a public raw URL) — mirrors the payment-proof access pattern (§18.6). |
 | POST | `/receipts/archive/:id/rebuild` | MANAGER+ | Regenerate the receipt PDF from the current template + reservation snapshot; audit line `receipt:rebuild`. |
 
+**Archive filename template.** `system.receiptsArchive.perReceiptPath` controls where each generated PDF lands in the private receipts repo. Default template is `{facilityCodeLower}/{flat}_{date}_{startTime}_{durationMin}min.pdf` — e.g. `ch/A-1204_2026-08-02_1830_120min.pdf` — so files are self-describing (flat + date + time + duration) without opening them. Placeholders accepted: `{facilityCode}`, `{facilityCodeLower}`, `{facilityId}`, `{id}`, `{year}`, `{month}`, `{day}`, `{yearMonth}`, `{date}`, `{flat}` (path-sanitised, upper-case, falls back to `unknown`), `{startTime}` / `{endTime}` (HH:MM without colon), `{durationMin}`, `{durationHM}`. Admins can override the template from Settings → Booking receipt archive.
+
 ### 18.3 UI
 
 See §8.8. Three tabs: **Book / My reservations / Manage** (staff-only). Mobile-first cards, inline approve/reject, one universal search on the manage queue.
@@ -1556,7 +1558,9 @@ Settings page renders one group per sub-flag with ON/OFF summary copy (existing 
     "ev": {
       "station":         { "id": "ev-1", "name": "EV Charger #1", "location": "Basement 1", "capacityKw": 7.4, "enabled": true },
       "booking":         { "stepMinutes": 30, "minDurationMinutes": 30, "maxDurationMinutes": 180,
-                           "bufferMinutes": 5, "advanceWindowDays": 7, "maxActivePerFlat": 1,
+                           "bufferMinutes": 5, "advanceWindowDays": 7,
+                           "maxActivePerFlat": 1,
+                           "maxTotalBookingsPerFlat": null, "maxDailyMinutesPerFlat": null,
                            "openMin": 360, "closeMin": 1380, "requiresApproval": false, "blackoutDates": [] },
       "usageGuidelines": [ "Book a slot before you plug in.", "…" ],
       "provider":        { "name": "", "androidUrl": "", "iosUrl": "", "website": "", "email": "", "tollFree": "" },
@@ -1567,6 +1571,10 @@ Settings page renders one group per sub-flag with ON/OFF summary copy (existing 
   }
 }
 ```
+
+`bufferMinutes` is surfaced to the resident on the booking page (policy chip + a personalised "Please vacate the bay by HH:MM" callout under the selected slot) so the buffer between back-to-back bookings works in practice — the next resident can plug in on time.
+
+`maxActivePerFlat` caps active bookings **per charger** for the flat; `maxTotalBookingsPerFlat` (nullable — `null` = unlimited) caps active bookings **across every charger** for the flat; `maxDailyMinutesPerFlat` (nullable) caps the total booked minutes for the flat on a single date. All three regulate usage against the mandatory `ownerFlat` field on `POST /ev/bookings`.
 
 Editors (MANAGER+) can tune every field via the Settings page (Phase 4). No `ev.*` field is required for the master flag to flip on — worker fills defaults from `DEFAULT_CONFIG.system.ev` (see `worker/src/config/defaults.ts`).
 
@@ -1579,11 +1587,12 @@ All routes live under `/ev/*`. Master flag guards each.
 | Method | Path | Phase | Role | Purpose |
 |---|---|---|---|---|
 | GET  | `/ev/config`                              | 1 | any signed-in | Returns `ev` block + summary (booking count, registered vehicles) |
-| GET  | `/ev/availability?from=&to=&stationId=`  | 2 | RESIDENT+ | Slot availability per day |
+| GET  | `/ev/availability?from=&to=&stationId=`  | 2 | RESIDENT+ | Slot availability per day; also returns `policy.bufferMinutes` for the vacate-early UI reminder |
 | GET  | `/ev/bookings?scope=own\|all`             | 2 | RESIDENT (own) / MANAGER+ (all) | List bookings |
 | GET  | `/ev/bookings/:id`                        | 2 | owner / MANAGER+ | Details |
-| POST | `/ev/bookings`                            | 2 | RESIDENT+ | Create booking |
+| POST | `/ev/bookings`                            | 2 | RESIDENT+ | Create booking; body **must** include `ownerFlat` (letters/digits, normalized case/space-insensitive); server enforces `maxActivePerFlat`, `maxTotalBookingsPerFlat` and `maxDailyMinutesPerFlat` against that value |
 | PATCH| `/ev/bookings/:id`                        | 2 | owner (cancel) / MANAGER+ (any status) | Status transition |
+| PATCH| `/ev/stations/:id`                        | 2 | MANAGER+ | Toggle a charger between `enabled` (online) and `maintenance` mode; optional `maintenanceReason`. Blocks new bookings without touching existing ones. |
 | GET  | `/ev/receipt/:id`                         | 3 | owner / MANAGER+ | Receipt data (JSON) |
 | GET  | `/ev/admin/dashboard?period=w\|m\|q\|y`   | 4 | MANAGER+ | Aggregate KPIs |
 | GET  | `/ev/admin/export?period=&format=csv\|pdf`| 4 | MANAGER+ | Download report |

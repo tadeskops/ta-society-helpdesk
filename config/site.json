@@ -523,7 +523,7 @@
     "receiptTheme": "default",
     "receiptsArchive": {
       "enabled": true,
-      "perReceiptPath": "{facilityCodeLower}/{id}.pdf",
+      "perReceiptPath": "{facilityCodeLower}/{flat}_{date}_{startTime}_{durationMin}min.pdf",
       "rollup": {
         "enabled": true,
         "period": "monthly",
