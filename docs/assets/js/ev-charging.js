@@ -69,7 +69,6 @@
       groups.get(k).push(s);
     });
     const order = ['2W', '4W', 'OTHER'];
-    const labels = { '2W': '2-Wheeler chargers', '4W': '4-Wheeler chargers', 'OTHER': 'Chargers' };
     const html = order
       .filter((k) => groups.has(k))
       .map((k) => {
@@ -148,16 +147,15 @@
             + toggle
             + '</button>';
         }).join('');
-        // Only show the section label when there are 2+ kinds to distinguish.
-        const showLabel = groups.size > 1;
-        return ''
-          + '<div class="tsh-ev-stations-group">'
-          + (showLabel ? '<h2 class="tsh-ev-stations-group-label">' + esc(labels[k]) + '</h2>' : '')
-          +   '<div class="tsh-ev-stations-row">' + rows + '</div>'
-          + '</div>';
+        return rows;
       })
       .join('');
-    host.innerHTML = html;
+    // Emit ALL cards into a SINGLE row so 2W and 4W chargers sit
+    // shoulder-to-shoulder at desktop widths (product photo already
+    // makes the type obvious; per-type headings were noisy for a fleet
+    // of ~4 stations). Cards are ordered 2W-first via `order` above so
+    // physical parking order still holds.
+    host.innerHTML = '<div class="tsh-ev-stations-row">' + html + '</div>';
     // Wire click → selection change. Disabled cards ignore clicks (they
     // carry the native `disabled` attribute so the browser also blocks
     // keyboard activation).
