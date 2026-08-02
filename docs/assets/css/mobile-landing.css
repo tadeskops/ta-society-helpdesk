@@ -33,10 +33,21 @@
   /* --- Visibility toggles ------------------------------------------ */
   .tsh-page-landing [data-tsh-desktop-only] { display: none !important; }
 
-  /* Header primary-nav icons that duplicate the fixed bottom tab-bar
-     (Home / Report / Board / Directory) are redundant on mobile.
-     Manager-only icons (My reports, Dashboard, Manage, Settings) stay
-     visible because they aren't reachable from the tab-bar. */
+  /* Hide the entire header .tsh-nav on mobile. It has
+     `flex: 0 0 100%` from theme.css so it always occupies its own
+     100%-wide row inside .tsh-header-inner, which was creating a
+     phantom empty row between the brand and the userbox and forcing
+     the userbox to wrap to a third visible row. All its links are
+     covered on mobile by the fixed bottom tab-bar (Home / Report /
+     Board / Directory) and the "+" bottom sheet (My reports and
+     the other quick-actions). Manager admin links (Dashboard /
+     Manage / Settings) are desktop-only for now. */
+  .tsh-header-inner > .tsh-nav {
+    display: none !important;
+  }
+
+  /* Also hide the individual header-nav items in case some future
+     stylesheet un-hides the parent nav. Kept as a defensive layer. */
   .tsh-nav > a[data-tsh-nav="home"],
   .tsh-nav > a[data-tsh-nav="report"],
   .tsh-nav > a[data-tsh-nav="board"],
@@ -44,29 +55,22 @@
     display: none !important;
   }
 
-  /* --- One-row header layout (2026-08-03) --------------------------
-     Fit brand + IG + bell + download + sign-in/out on a SINGLE row.
-     Before this: the brand text was too wide (40px logo + "The Address"
-     at 1.125rem + "Society Help Desk" subtitle) so the userbox wrapped
-     to a second row. Fix by shrinking the brand:
-       - Smaller logo (32px vs 40px).
-       - Hide the "Society Help Desk" subtitle (already implied by the
-         .tsh-brand-name and the page title; not worth a whole line on
-         a phone).
-       - Slightly smaller brand-name font.
-       - Let the brand shrink (flex: 1 1 auto + min-width: 0 + ellipsis).
-       - Tighten header padding + gap so every pixel matters.
-     Result: brand + 4 icons all live on row 1; the RESIDENT chip still
-     wraps to a second (compact) row via its own order: 10 / flex-basis
-     rule in theme.css. */
+  /* --- Compact mobile header (2026-08-03) --------------------------
+     With the nav hidden, .tsh-header-inner now has just two visible
+     flex children: .tsh-brand and .tsh-userbox. On a 375-400 px
+     iPhone width they easily fit on one row once the wordy subtitle
+     is dropped and the logo shrinks slightly. NOTE: do NOT set
+     `flex-wrap: nowrap` on .tsh-header-inner — that combines badly
+     with theme.css's `.tsh-nav { flex: 0 0 100% }` (which is still
+     applied even when nav is display:none in the box tree from some
+     UAs) and, more importantly, collapses .tsh-brand to width 0 if
+     ever a wider sibling shows up. Leave wrap on and just make the
+     brand narrow enough that no wrap is needed. */
   .tsh-header-inner {
     padding: var(--sp-2) var(--sp-3);
     gap: var(--sp-2);
-    flex-wrap: nowrap;   /* forces brand to shrink instead of wrapping the userbox */
   }
   .tsh-brand {
-    flex: 1 1 auto;
-    min-width: 0;
     gap: var(--sp-2);
   }
   .tsh-brand img {
@@ -77,12 +81,7 @@
     font-size: 0.95rem;
     line-height: 1.15;
   }
-  .tsh-brand-tag { display: none; }   /* subtitle redundant on phones */
-  .tsh-userbox {
-    flex: 0 0 auto;
-    gap: 4px;
-    flex-wrap: wrap;    /* only the RESIDENT chip wraps to row 2 */
-  }
+  .tsh-brand-tag { display: none; }   /* "Society Help Desk" subtitle redundant on phones */
 
   /* Mobile-only Instagram icon inside the userbox. The full text row in
      the footer is redundant on phones and the icon here keeps a one-tap
