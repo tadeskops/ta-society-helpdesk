@@ -149,3 +149,4 @@
 {"at":"2026-08-01T09:40:56.653Z","actor":"ta.deskops@gmail.com","action":"vehicles:put","target":"config/vehicles.json","detail":"count=2"}
 {"at":"2026-08-01T11:28:01.539Z","actor":"ta.deskops@gmail.com","action":"vehicles:delete","target":"config/vehicles.json","detail":"id=veh-b805-mhxxab1234 flat=B805 regNo=MHXXAB1234"}
 {"at":"2026-08-01T18:51:28.233Z","actor":"ta.deskops@gmail.com","action":"vehicles:flat-parking-set","target":"config/vehicles.json","detail":"flat=B805 parkingNos=105"}
+{"at":"2026-08-02T06:58:44.366Z","actor":"ta.deskops@gmail.com","action":"ev.station.toggle","target":"ev-2w-1","detail":"maintenance: Temporarily unavailable"}
