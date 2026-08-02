@@ -530,6 +530,18 @@
       const id = root.Auth.identity();
       if (id && id.name) nameEl.value = id.name;
     }
+    // Pre-fill flat / unit from localStorage if we've seen the resident
+    // book before. The flat number drives the per-flat booking limits
+    // enforced server-side (maxActivePerFlat / maxTotalBookingsPerFlat
+    // / maxDailyMinutesPerFlat), so remembering it saves residents from
+    // retyping "A-1204" every time they open the page.
+    const flatEl = $('#evOwnerFlat');
+    if (flatEl && !flatEl.value) {
+      try {
+        const stored = root.localStorage && root.localStorage.getItem('tsh:ev:lastFlat');
+        if (stored) flatEl.value = stored;
+      } catch (_e) { /* localStorage may throw in private mode — ignore */ }
+    }
   }
 
   async function onBookSubmit(ev) {
@@ -554,6 +566,12 @@
       });
       const item = payload && payload.data ? payload.data.item : null;
       toast(item && item.status === 'pending' ? 'Booking submitted — awaiting approval' : 'Slot booked!', { kind: 'success' });
+      // Remember the flat for the next visit so the resident doesn't
+      // have to retype it. Only cached on SUCCESS so we don't persist
+      // typos or a value that just failed server-side validation.
+      try {
+        if (root.localStorage) root.localStorage.setItem('tsh:ev:lastFlat', ownerFlat);
+      } catch (_e) { /* private-mode etc — ignore */ }
       clearSelection();
       const form = $('#evBookForm');
       if (form) form.reset();

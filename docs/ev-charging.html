@@ -84,8 +84,17 @@
           <div class="tsh-ev-book-summary" id="evBookSummary"></div>
           <div class="tsh-ev-book-fields">
             <label>
-              <span>Flat / Unit <span class="tsh-req">*</span></span>
-              <input type="text" id="evOwnerFlat" required maxlength="20" placeholder="e.g. A-101" />
+              <span>Flat / Unit <span class="tsh-req" aria-hidden="true">*</span></span>
+              <input type="text" id="evOwnerFlat" required aria-required="true"
+                     autocomplete="off" maxlength="20"
+                     pattern="[A-Za-z0-9\-\/ ]{1,20}"
+                     title="Letters, digits, dash, slash and spaces (e.g. A-101)"
+                     placeholder="e.g. A-101" />
+              <small class="tsh-hint" id="evOwnerFlatHint">
+                Required. Bookings are counted per flat — daily minutes,
+                concurrent slots and per-charger caps are enforced against
+                this number.
+              </small>
             </label>
             <label>
               <span>Your name</span>
@@ -157,7 +166,7 @@
   <script src="./assets/js/flags.js?v=19"></script>
   <script src="./assets/js/ui.js?v=53"></script>
   <script src="./assets/js/mobile-landing.js?v=9"></script>
-  <script src="./assets/js/ev-charging.js?v=9"></script>
+  <script src="./assets/js/ev-charging.js?v=10"></script>
   <script>
   (async () => {
     await Partials.mount();
