@@ -432,13 +432,12 @@
           "name": "SunArth 2-Wheeler Point #1",
           "location": "Basement — 2-wheeler bay 1",
           "capacityKw": 3.3,
-          "enabled": false,
+          "enabled": true,
           "kind": "2W",
           "currentType": "AC",
           "connector": "Bharat AC-001",
           "image": "./assets/images/ev/sunarth-acwallbox-2w.png",
-          "series": "AC Wallbox Series — 3.3 kW · 3 sockets",
-          "maintenanceReason": "Temporarily unavailable"
+          "series": "AC Wallbox Series — 3.3 kW · 3 sockets"
         },
         {
           "id": "ev-2w-2",
