@@ -108,13 +108,15 @@
   border-radius: 2px;
 }
 .tsh-ev-stations-row {
-  /* Compact single-row layout — cards shrink to ~140px min so the full
-     fleet fits on one line at desktop widths and wraps only on small
-     phones. Editors asked for "all in one row in small size" rather
-     than the earlier hero-tile treatment. */
+  /* Compact single-row layout — cards are pinned between 150-200px so
+     they stay SMALL regardless of how many stations exist. Earlier we
+     used `1fr` as the max which caused a fleet of 2 to stretch across
+     the whole row (each card ate half the width). auto-fill + a hard
+     200px max keeps every card the same tidy size. */
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 200px));
+  gap: 12px;
+  justify-content: start;
 }
 
 .tsh-ev-station-card {
@@ -212,12 +214,12 @@
 .tsh-ev-station-card.tsh-ev-station-has-photo .tsh-ev-status-pill   { grid-area: status; margin: 0 10px; }
 .tsh-ev-station-photo {
   position: relative;
-  aspect-ratio: 1 / 1;
+  /* Portrait tile — matches typical wallbox proportions (taller than
+     wide). The image below uses object-fit: cover so it stretches
+     edge-to-edge and fills the whole rectangle instead of floating in
+     the middle with a fat whitespace halo. */
+  aspect-ratio: 4 / 5;
   overflow: hidden;
-  /* Transparent photo surface — the image spreads edge-to-edge so
-     the product hardware fills the tile. No gold gradient panel; the
-     card's own translucent surface shows through, matching the "3-D
-     chip floating on the page" bevel treatment. */
   background: transparent;
 }
 .tsh-ev-station-photo img {
@@ -225,20 +227,20 @@
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: contain;
-  /* No inner padding — image spreads full-bleed across the photo cell. */
-  padding: 4px;
+  /* cover = image FILLS the tile edge-to-edge, no letterbox. Any minor
+     crop at the sides is preferable to the huge cream margins we had
+     with contain + padding. */
+  object-fit: cover;
+  object-position: center;
+  padding: 0;
   box-sizing: border-box;
-  /* Multiply blend keeps the transparent PNG playing nicely with the
-     card's translucent tint (dark & light themes both handled), so we
-     don't get a milky halo around the product. */
   mix-blend-mode: multiply;
-  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.22));
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.18));
   transition: transform .25s cubic-bezier(.2, .8, .2, 1), filter .25s ease;
 }
 .tsh-ev-station-card:hover:not(:disabled) .tsh-ev-station-photo img {
-  transform: translateY(-2px) scale(1.05);
-  filter: drop-shadow(0 10px 16px rgba(0, 0, 0, 0.28));
+  transform: scale(1.04);
+  filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.26));
 }
 /* If the photo failed to load the <img> is removed and this fallback
    class is applied to the container — show a glowing bolt instead. */
