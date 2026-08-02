@@ -59,10 +59,14 @@
     //    throw and break the page.
     (function () {
       try {
-        const btn = document.querySelector('[data-tsh-report-open]');
-        if (!btn) return;
-
-        btn.addEventListener('click', async () => {
+        // Wire every element carrying `data-tsh-report-open` — the
+        // footer button ships one, but pages may add extras (e.g. the
+        // Support tile in the "All services" grid on index.html). We
+        // dedupe via a WeakSet so re-injected partials don't double-bind.
+        const bound = new WeakSet();
+        const openReporter = async (ev) => {
+          // Prevent default navigation when wired onto <a href="#">.
+          if (ev && typeof ev.preventDefault === 'function') ev.preventDefault();
           const UI = window.UI;
           const Api = window.Api;
           const Auth = window.Auth;
@@ -187,7 +191,21 @@
               actions: [{ label: 'Close', value: null, primary: true }],
             });
           } catch (_e) { /* confirmation modal is best-effort */ }
-        });
+        };
+        // Bind now for existing elements, then observe for late arrivals
+        // (e.g. included partials, mobile-landing bottom-sheet items).
+        const bindAll = () => {
+          document.querySelectorAll('[data-tsh-report-open]').forEach((el) => {
+            if (bound.has(el)) return;
+            bound.add(el);
+            el.addEventListener('click', openReporter);
+          });
+        };
+        bindAll();
+        // Re-scan on load-order-independent events. `data-include` is
+        // the site's own partial-include marker (see ui.js).
+        window.addEventListener('DOMContentLoaded', bindAll);
+        document.addEventListener('tsh:partials-loaded', bindAll);
       } catch (_e) { /* never break the footer */ }
     })();
   </script>

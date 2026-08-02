@@ -142,7 +142,7 @@
           <summary><i class="fas fa-wallet" aria-hidden="true"></i> Bookings &amp; Money</summary>
           <ul class="tsh-svc-list">
             <li><a class="tsh-svc-row" href="./reservations.html" data-tsh-feature="FEATURE_TSH_RESERVATIONS"><i class="fas fa-calendar-check" aria-hidden="true"></i><span>Reserve a space</span></a></li>
-            <li><a class="tsh-svc-row" href="./reservations.html#mine" data-tsh-feature="FEATURE_TSH_RESERVATIONS"><i class="fas fa-user-clock" aria-hidden="true"></i><span>My reservations</span></a></li>
+            <li><a class="tsh-svc-row" href="./ev-charging.html" data-tsh-feature="FEATURE_TSH_EV_CHARGING"><i class="fas fa-charging-station" aria-hidden="true"></i><span>EV charging</span></a></li>
             <li><a class="tsh-svc-row" href="./treasury.html" data-tsh-feature="FEATURE_TREASURY"><i class="fas fa-money-check-dollar" aria-hidden="true"></i><span>Treasury &amp; reimbursements</span></a></li>
           </ul>
         </details>
@@ -154,7 +154,6 @@
             <li><a class="tsh-svc-row" href="./directory.html#managers" data-tsh-feature="FEATURE_DAILY_DIRECTORY"><i class="fas fa-user-tie" aria-hidden="true"></i><span>Society managers</span></a></li>
             <li><a class="tsh-svc-row" href="./directory.html#vendors" data-tsh-feature="FEATURE_DAILY_DIRECTORY"><i class="fas fa-address-card" aria-hidden="true"></i><span>Vendors</span></a></li>
             <li><a class="tsh-svc-row" href="./vehicles.html" data-tsh-feature="FEATURE_TSH_VEHICLES"><i class="fas fa-car-side" aria-hidden="true"></i><span>Vehicle registry</span></a></li>
-            <li><a class="tsh-svc-row" href="./ev-charging.html" data-tsh-feature="FEATURE_TSH_EV_CHARGING"><i class="fas fa-charging-station" aria-hidden="true"></i><span>EV charging</span></a></li>
           </ul>
         </details>
 
@@ -163,6 +162,16 @@
           <ul class="tsh-svc-list">
             <li><a class="tsh-svc-row" href="./daily-report.html"><i class="fas fa-screwdriver-wrench" aria-hidden="true"></i><span>Report a daily issue</span></a></li>
             <li><a class="tsh-svc-row" data-tsh-handover-link href="#" hidden><i class="fas fa-building" aria-hidden="true"></i><span>Report a handover issue</span></a></li>
+            <!-- Reuses the footer's site-bug modal (any element carrying
+                 data-tsh-report-open is wired by partials/footer.html).
+                 Hover tooltip scopes the intent so residents don't file
+                 daily helpdesk issues here. -->
+            <li><a class="tsh-svc-row" href="#" data-tsh-report-open
+                   role="button"
+                   aria-haspopup="dialog"
+                   title="Only for reporting bugs or issues you're facing with this website tool itself. Does not create a society helpdesk ticket."
+                   aria-label="Report a website tool bug — for website/tool issues only, not helpdesk tickets">
+                <i class="fas fa-bug" aria-hidden="true"></i><span>Report site bug</span></a></li>
           </ul>
         </details>
       </div>
