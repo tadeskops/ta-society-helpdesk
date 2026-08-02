@@ -418,11 +418,35 @@
     text-decoration: none;
     border-radius: var(--rad-md);
     min-height: 56px;
+    /* iOS single-tap fixes (added 2026-08-02).
+       - touch-action: manipulation removes the 300ms double-tap-to-zoom
+         wait so a single tap fires immediately.
+       - -webkit-tap-highlight-color gives a visible touch feedback so
+         users see their tap was registered.
+       - cursor: pointer is a hint iOS uses to treat the element as
+         "clickable" and skip its own tap heuristics on some versions.
+       Without these, iOS held the tap 300ms and often decided it was a
+       gesture-detection candidate; only a long-press bypassed the wait. */
+    touch-action: manipulation;
+    cursor: pointer;
+    -webkit-tap-highlight-color: rgba(212, 175, 55, 0.28);
+    -webkit-user-select: none;
+    user-select: none;
   }
-  .tsh-mob-sheet-list a:hover,
+  /* Guard hover behind (hover: hover) so touch devices never enter the
+     iOS sticky-hover-first-touch state where the first tap only applies
+     the hover style and a second tap is needed to navigate. */
+  @media (hover: hover) {
+    .tsh-mob-sheet-list a:hover {
+      background: rgba(212, 175, 55, 0.14);
+    }
+  }
   .tsh-mob-sheet-list a:focus-visible {
     background: rgba(212, 175, 55, 0.14);
     outline: none;
+  }
+  .tsh-mob-sheet-list a:active {
+    background: rgba(212, 175, 55, 0.22);
   }
   .tsh-mob-sheet-icon {
     width: 40px;
