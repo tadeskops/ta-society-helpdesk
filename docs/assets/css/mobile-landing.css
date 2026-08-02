@@ -44,6 +44,46 @@
     display: none !important;
   }
 
+  /* --- One-row header layout (2026-08-03) --------------------------
+     Fit brand + IG + bell + download + sign-in/out on a SINGLE row.
+     Before this: the brand text was too wide (40px logo + "The Address"
+     at 1.125rem + "Society Help Desk" subtitle) so the userbox wrapped
+     to a second row. Fix by shrinking the brand:
+       - Smaller logo (32px vs 40px).
+       - Hide the "Society Help Desk" subtitle (already implied by the
+         .tsh-brand-name and the page title; not worth a whole line on
+         a phone).
+       - Slightly smaller brand-name font.
+       - Let the brand shrink (flex: 1 1 auto + min-width: 0 + ellipsis).
+       - Tighten header padding + gap so every pixel matters.
+     Result: brand + 4 icons all live on row 1; the RESIDENT chip still
+     wraps to a second (compact) row via its own order: 10 / flex-basis
+     rule in theme.css. */
+  .tsh-header-inner {
+    padding: var(--sp-2) var(--sp-3);
+    gap: var(--sp-2);
+    flex-wrap: nowrap;   /* forces brand to shrink instead of wrapping the userbox */
+  }
+  .tsh-brand {
+    flex: 1 1 auto;
+    min-width: 0;
+    gap: var(--sp-2);
+  }
+  .tsh-brand img {
+    height: 32px;
+    width: 32px;
+  }
+  .tsh-brand-name {
+    font-size: 0.95rem;
+    line-height: 1.15;
+  }
+  .tsh-brand-tag { display: none; }   /* subtitle redundant on phones */
+  .tsh-userbox {
+    flex: 0 0 auto;
+    gap: 4px;
+    flex-wrap: wrap;    /* only the RESIDENT chip wraps to row 2 */
+  }
+
   /* Mobile-only Instagram icon inside the userbox. The full text row in
      the footer is redundant on phones and the icon here keeps a one-tap
      shortcut without eating vertical space. Sized to match the
@@ -56,12 +96,12 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 36px;
-    height: 36px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
     color: var(--c-primary);
     text-decoration: none;
-    font-size: 18px;
+    font-size: 16px;
     /* Sits to the LEFT of the .tsh-btn-* icons because it has no
        `order` set (defaults to 0), while userbox buttons have
        `order: 1` (see theme.css .tsh-userbox > .tsh-btn). */
