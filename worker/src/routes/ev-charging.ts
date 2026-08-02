@@ -90,6 +90,7 @@ const mergeShallow = <T extends Record<string, unknown>>(
 // leaf without dropping the whole sibling set.
 const resolveEvConfig = (ctx: Ctx): {
   station: Record<string, unknown>;
+  stations: Array<Record<string, unknown>>;
   booking: Record<string, unknown>;
   usageGuidelines: string[];
   provider: Record<string, unknown>;
@@ -129,7 +130,29 @@ const resolveEvConfig = (ctx: Ctx): {
         .map((r) => ({ q: String(r['q'] ?? ''), a: String(r['a'] ?? '') }))
         .filter((r) => r.q && r.a)
     : [];
-  return { station, booking, usageGuidelines, provider, faqs, helpline, reports };
+
+  // Multi-station support: `system.ev.stations` (plural) is authoritative
+  // if present. When absent, we synthesize a single-item list from
+  // `station` (singular) so single-charger deployments keep working.
+  // Each entry is normalized to guarantee `id`, `name`, `enabled` are
+  // present. Unknown keys pass through so admins can attach vendor
+  // metadata (model, connector, currentType, kind) without a code change.
+  const rawStations = (src['stations'] ?? defaults['stations']);
+  const stationList: Array<Record<string, unknown>> = Array.isArray(rawStations)
+    ? rawStations
+        .filter((r): r is Record<string, unknown> => !!r && typeof r === 'object')
+        .map((r, i) => {
+          const id = String(r['id'] ?? `ev-${i + 1}`).trim() || `ev-${i + 1}`;
+          const name = String(r['name'] ?? `EV Charger #${i + 1}`).trim() || `EV Charger #${i + 1}`;
+          const enabled = r['enabled'] !== false;
+          return { ...r, id, name, enabled };
+        })
+    : [];
+  const stations = stationList.length > 0 ? stationList : [station as Record<string, unknown>];
+  // Re-point `station` at the first entry so downstream callers keep
+  // seeing a consistent "default station" without extra plumbing.
+  const primaryStation = stations[0] ?? station;
+  return { station: primaryStation, stations, booking, usageGuidelines, provider, faqs, helpline, reports };
 };
 
 // ---- Storage: config/ev-bookings.json --------------------------------------
@@ -333,6 +356,7 @@ export const mountEvCharging = (r: Router): void => {
     };
     return ok(ctx.env, ctx.req, {
       station:         ev.station,
+      stations:        ev.stations,
       booking:         ev.booking,
       usageGuidelines: ev.usageGuidelines,
       provider:        ev.provider,
@@ -376,6 +400,13 @@ export const mountEvCharging = (r: Router): void => {
     const policy = effectiveBookingPolicy(ev.booking);
     const wantedStation = (params.get('stationId') ?? String((ev.station as Record<string, unknown>)['id'] ?? '')).trim();
     const stationId = wantedStation || String((ev.station as Record<string, unknown>)['id'] ?? 'ev-1');
+    // If a stationId was explicitly requested, ensure it's one of the
+    // configured chargers. Callers omitting the param get the default
+    // (first) station's grid.
+    const stationIds = ev.stations.map((s) => String((s as Record<string, unknown>)['id'] ?? ''));
+    if (params.get('stationId') !== null && stationIds.length > 0 && !stationIds.includes(stationId)) {
+      throw new BadRequest(`unknown stationId "${stationId}"`);
+    }
     const { items } = await loadEvBookings(ctx);
     const days: Array<{ date: string; slots: ReturnType<typeof computeAvailability> }> = [];
     for (let i = 0; i < spanDays; i++) {
@@ -463,7 +494,16 @@ export const mountEvCharging = (r: Router): void => {
     const policy = effectiveBookingPolicy(ev.booking);
     const configuredStationId = String((ev.station as Record<string, unknown>)['id'] ?? 'ev-1');
     const stationId = (optStr(body['stationId'], 'stationId', { max: 40 }) ?? configuredStationId) || configuredStationId;
-    if ((ev.station as Record<string, unknown>)['enabled'] === false) {
+    // Multi-station guard: when the site has a `stations` array, only
+    // allow ids that are in it. Single-station deployments (stations is
+    // a 1-item list synthesized from `station`) still accept the
+    // legacy default id.
+    const stationIds = ev.stations.map((s) => String((s as Record<string, unknown>)['id'] ?? ''));
+    if (stationIds.length > 0 && !stationIds.includes(stationId)) {
+      throw new BadRequest(`unknown stationId "${stationId}"`);
+    }
+    const stationEntry = ev.stations.find((s) => String((s as Record<string, unknown>)['id'] ?? '') === stationId) ?? ev.station;
+    if ((stationEntry as Record<string, unknown>)['enabled'] === false) {
       throw new BadRequest('EV charger is currently offline');
     }
     validateBookingWindow(policy, date, Date.now());

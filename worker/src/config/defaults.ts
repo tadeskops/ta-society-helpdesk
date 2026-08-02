@@ -151,6 +151,31 @@ export interface SiteConfig {
         capacityKw?: number;
         enabled?: boolean;
       };
+      /**
+       * Multi-station support (added 2026-08-02). When present and
+       * non-empty, this array is the authoritative list of chargers on
+       * the premises and drives the resident-facing station picker.
+       * The legacy `station` block is treated as a synonym for the
+       * first element when this array is absent, so single-station
+       * deployments keep working unchanged.
+       *
+       * `kind` disambiguates 4-wheeler vs 2-wheeler chargers so the UI
+       * can group them into two rows.
+       * `currentType` (AC/DC) and `connector` are advisory strings
+       * shown on the station card and receipt. `model` is the vendor
+       * model code (e.g. SunArth "DCFC-080-CCA00-SA-CP-AE").
+       */
+      stations?: Array<{
+        id?: string;
+        name?: string;
+        location?: string;
+        capacityKw?: number;
+        enabled?: boolean;
+        kind?: '4W' | '2W';
+        currentType?: 'AC' | 'DC';
+        connector?: string;
+        model?: string;
+      }>;
       booking?: {
         stepMinutes?: number;
         minDurationMinutes?: number;

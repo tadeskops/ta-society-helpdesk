@@ -32,20 +32,90 @@
 
   // ---- Render helpers ------------------------------------------------------
 
-  function renderStationBar(station) {
-    const nameEl = $('[data-ev-station-name]');
-    const locEl  = $('[data-ev-station-location]');
-    const capEl  = $('[data-ev-station-capacity]');
-    const statEl = $('[data-ev-station-status]');
-    if (nameEl) nameEl.textContent = station && station.name  ? station.name  : '—';
-    if (locEl)  locEl.innerHTML    = '<i class="fas fa-location-dot"></i> ' + esc(station && station.location ? station.location : '—');
-    const kw = station && Number.isFinite(station.capacityKw) ? station.capacityKw : null;
-    if (capEl)  capEl.innerHTML    = '<i class="fas fa-bolt"></i> ' + (kw !== null ? kw + ' kW' : '—');
-    if (statEl) {
-      const on = !!(station && station.enabled);
-      statEl.textContent = on ? 'Online' : 'Offline';
-      statEl.className   = 'tsh-ev-status-pill ' + (on ? 'tsh-ev-status-online' : 'tsh-ev-status-offline');
+  // Icon shown on each station card, chosen from `kind`. Falls back to
+  // a generic plug for stations without a declared kind.
+  function stationIconClass(station) {
+    const k = station && station.kind ? String(station.kind).toUpperCase() : '';
+    if (k === '4W') return 'fas fa-car';
+    if (k === '2W') return 'fas fa-motorcycle';
+    return 'fas fa-plug';
+  }
+
+  function stationSubtitle(station) {
+    if (!station) return '';
+    const parts = [];
+    if (station.currentType) parts.push(String(station.currentType));
+    if (Number.isFinite(station.capacityKw)) parts.push(station.capacityKw + ' kW');
+    if (station.connector) parts.push(String(station.connector));
+    return parts.join(' · ');
+  }
+
+  function renderStationsBar(stations, selectedId) {
+    const host = $('#evStationsBar');
+    if (!host) return;
+    if (!Array.isArray(stations) || stations.length === 0) {
+      host.innerHTML = '<div class="tsh-sub">No chargers configured. Ask an admin to add one under Settings → EV.</div>';
+      return;
     }
+    // Group by kind so 4-wheeler and 2-wheeler chargers render in
+    // separate rows for at-a-glance parsing.
+    const groups = new Map();
+    stations.forEach((s) => {
+      const k = s && s.kind ? String(s.kind).toUpperCase() : 'OTHER';
+      if (!groups.has(k)) groups.set(k, []);
+      groups.get(k).push(s);
+    });
+    const order = ['4W', '2W', 'OTHER'];
+    const labels = { '4W': '4-Wheeler chargers', '2W': '2-Wheeler chargers', 'OTHER': 'Chargers' };
+    const html = order
+      .filter((k) => groups.has(k))
+      .map((k) => {
+        const rows = groups.get(k).map((s) => {
+          const on = s && s.enabled !== false;
+          const isSelected = String(s.id) === String(selectedId);
+          const status = on ? 'ONLINE' : 'OFFLINE';
+          const statusCls = on ? 'tsh-ev-status-online' : 'tsh-ev-status-offline';
+          const cardCls = 'tsh-ev-station-card'
+            + (isSelected ? ' tsh-ev-station-selected' : '')
+            + (on ? '' : ' tsh-ev-station-disabled');
+          return ''
+            + '<button type="button" class="' + cardCls + '"'
+            + ' role="radio" aria-checked="' + (isSelected ? 'true' : 'false') + '"'
+            + ' data-ev-station-id="' + esc(s.id) + '"'
+            + (on ? '' : ' disabled') + '>'
+            +   '<div class="tsh-ev-station-icon"><i class="' + stationIconClass(s) + '"></i></div>'
+            +   '<div class="tsh-ev-station-info">'
+            +     '<div class="tsh-ev-station-name">' + esc(s.name || '—') + '</div>'
+            +     '<div class="tsh-ev-station-meta">'
+            +       (s.location ? '<span><i class="fas fa-location-dot"></i> ' + esc(s.location) + '</span>' : '')
+            +       (stationSubtitle(s) ? '<span><i class="fas fa-bolt"></i> ' + esc(stationSubtitle(s)) + '</span>' : '')
+            +     '</div>'
+            +   '</div>'
+            +   '<span class="tsh-ev-status-pill ' + statusCls + '">' + status + '</span>'
+            + '</button>';
+        }).join('');
+        // Only show the section label when there are 2+ kinds to distinguish.
+        const showLabel = groups.size > 1;
+        return ''
+          + '<div class="tsh-ev-stations-group">'
+          + (showLabel ? '<h2 class="tsh-ev-stations-group-label">' + esc(labels[k]) + '</h2>' : '')
+          +   '<div class="tsh-ev-stations-row">' + rows + '</div>'
+          + '</div>';
+      })
+      .join('');
+    host.innerHTML = html;
+    // Wire click → selection change. Disabled cards ignore clicks (they
+    // carry the native `disabled` attribute so the browser also blocks
+    // keyboard activation).
+    host.querySelectorAll('[data-ev-station-id]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-ev-station-id');
+        if (!id || String(id) === String(stationId)) return;
+        stationId = id;
+        renderStationsBar(stationsList, stationId);
+        refreshAvailability();
+      });
+    });
   }
 
   function renderGuidelines(list) {
@@ -116,6 +186,10 @@
   // Populated by GET /ev/config so the grid respects site policy.
   let bookingPolicy = null;
   let stationId     = null;
+  // Full list of stations from /ev/config. Rendered as clickable cards
+  // in `renderStationsBar`. Kept in memory so the receipt / summary
+  // views can resolve station metadata by id without another round-trip.
+  let stationsList  = [];
   // Currently selected slot range on the grid: [startMin, endMin) in local
   // minutes-since-midnight IST. Null when nothing is selected.
   let selection = null;
@@ -134,7 +208,16 @@
 
   function primeBookingContext(cfg) {
     bookingPolicy = cfg && cfg.booking ? cfg.booking : null;
-    stationId     = cfg && cfg.station && cfg.station.id ? cfg.station.id : 'ev-1';
+    // Prefer the `stations` array (multi-charger); fall back to a
+    // single-item list synthesized from the legacy `station` block.
+    const rawStations = cfg && Array.isArray(cfg.stations) && cfg.stations.length > 0
+      ? cfg.stations
+      : (cfg && cfg.station ? [cfg.station] : []);
+    stationsList = rawStations.filter((s) => s && s.id);
+    // Pick the first enabled station as the default selection; if all
+    // are offline, still show the first so the resident sees the state.
+    const firstEnabled = stationsList.find((s) => s.enabled !== false);
+    stationId = firstEnabled ? firstEnabled.id : (stationsList[0] ? stationsList[0].id : 'ev-1');
     const dateEl = $('#evDate');
     if (dateEl && !dateEl.value) {
       dateEl.value = todayIstYmd();
@@ -286,6 +369,7 @@
     try {
       const payload = await root.Api.post('/ev/bookings', {
         date, startMin: selection.start, endMin: selection.end,
+        stationId,
         ownerFlat, ownerName: ownerName || undefined,
         notes: notes || undefined,
       });
@@ -506,14 +590,26 @@
     const data = payload && payload.ok ? payload.data : payload;
     if (!data) return;
     applySubFlagVisibility(data.subFlags || {});
-    renderStationBar(data.station || {});
+    // Prime the booking context first so `stationId` is set before we
+    // paint the stations bar (which uses the selection to highlight).
+    if (data.subFlags && data.subFlags.booking) {
+      primeBookingContext(data);
+    } else {
+      // Booking is off — still populate stationsList so the read-only
+      // cards render for informational purposes.
+      const rawStations = Array.isArray(data.stations) && data.stations.length > 0
+        ? data.stations
+        : (data.station ? [data.station] : []);
+      stationsList = rawStations.filter((s) => s && s.id);
+      stationId = stationsList[0] ? stationsList[0].id : null;
+    }
+    renderStationsBar(stationsList, stationId);
     renderGuidelines(data.usageGuidelines || []);
     renderFaqs(data.faqs || []);
     wirePills();
-    // Phase 2: booking UI. Only prime + fetch when the sub-flag is on.
+    // Phase 2: booking UI. Kick off initial availability render on the
+    // default (Book) tab once the context is primed above.
     if (data.subFlags && data.subFlags.booking) {
-      primeBookingContext(data);
-      // Kick off initial availability render on the default (Book) tab.
       await refreshAvailability();
     }
   }
@@ -545,5 +641,5 @@
     await syncGate();
   }
 
-  root.EvCharging = { init, _renderStationBar: renderStationBar, _SUB_FLAG_MAP: SUB_FLAG_MAP };
+  root.EvCharging = { init, _renderStationsBar: renderStationsBar, _SUB_FLAG_MAP: SUB_FLAG_MAP };
 })(window);

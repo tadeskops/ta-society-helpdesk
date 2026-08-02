@@ -200,6 +200,70 @@ describe('GET /ev/config — site.json overrides', () => {
     expect(data.helpline.directoryEntryId).toBe('dir-42');
     expect(data.reports.mirrorCron).toBe('weekly');
   });
+
+  it('synthesizes a single-item stations array when only the legacy `station` block is present', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true };
+    systemOverrides = {
+      ev: {
+        station: { id: 'ev-legacy', name: 'Legacy Charger', location: 'B1', capacityKw: 7.4, enabled: true },
+      },
+    };
+    const r = await send('GET', '/ev/config', undefined, 'resident1@x.com');
+    const { data } = await r.json() as any;
+    expect(Array.isArray(data.stations)).toBe(true);
+    expect(data.stations).toHaveLength(1);
+    expect(data.stations[0].id).toBe('ev-legacy');
+    // `station` (singular) always mirrors stations[0] for back-compat.
+    expect(data.station.id).toBe('ev-legacy');
+  });
+
+  it('exposes a multi-station `stations` array (4-charger SunArth setup)', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true };
+    systemOverrides = {
+      ev: {
+        stations: [
+          { id: 'ev-4w-1', name: 'SunArth DC Fast Charger #1', location: 'Basement — 4W bay 1', capacityKw: 80, kind: '4W', currentType: 'DC', connector: 'CCS-2', enabled: true },
+          { id: 'ev-4w-2', name: 'SunArth DC Fast Charger #2', location: 'Basement — 4W bay 2', capacityKw: 80, kind: '4W', currentType: 'DC', connector: 'CCS-2', enabled: true },
+          { id: 'ev-2w-1', name: 'SunArth 2-Wheeler Point #1', location: 'Basement — 2W bay 1', capacityKw: 3.3, kind: '2W', currentType: 'AC', connector: 'Bharat AC-001', enabled: true },
+          { id: 'ev-2w-2', name: 'SunArth 2-Wheeler Point #2', location: 'Basement — 2W bay 2', capacityKw: 3.3, kind: '2W', currentType: 'AC', connector: 'Bharat AC-001', enabled: true },
+        ],
+      },
+    };
+    const r = await send('GET', '/ev/config', undefined, 'resident1@x.com');
+    const { data } = await r.json() as any;
+    expect(data.stations).toHaveLength(4);
+    expect(data.stations.map((s: any) => s.id)).toEqual(['ev-4w-1', 'ev-4w-2', 'ev-2w-1', 'ev-2w-2']);
+    // Vendor metadata (kind/currentType/connector) passes through untouched.
+    expect(data.stations[0].kind).toBe('4W');
+    expect(data.stations[0].capacityKw).toBe(80);
+    expect(data.stations[2].kind).toBe('2W');
+    expect(data.stations[2].capacityKw).toBe(3.3);
+    // Legacy `station` (singular) points at the first entry.
+    expect(data.station.id).toBe('ev-4w-1');
+  });
+
+  it('normalises malformed station entries (missing id / name / enabled)', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true };
+    systemOverrides = {
+      ev: {
+        stations: [
+          { name: 'No-id charger', capacityKw: 22 },              // missing id
+          { id: '', name: 'Blank id', capacityKw: 7.4 },          // blank id
+          { id: 'ev-3', capacityKw: 3.3 },                        // missing name
+          { id: 'ev-off', name: 'Offline', enabled: false },      // enabled respected
+        ],
+      },
+    };
+    const r = await send('GET', '/ev/config', undefined, 'resident1@x.com');
+    const { data } = await r.json() as any;
+    expect(data.stations).toHaveLength(4);
+    expect(data.stations[0].id).toBe('ev-1');   // synthesized id from index
+    expect(data.stations[1].id).toBe('ev-2');   // blank replaced
+    expect(data.stations[2].name).toBe('EV Charger #3');   // synthesized name
+    expect(data.stations[3].enabled).toBe(false); // explicit false preserved
+    // All others default to enabled: true (missing property counts as on).
+    expect(data.stations[0].enabled).toBe(true);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -348,6 +412,99 @@ describe('POST /ev/bookings — happy path & guardrails', () => {
     expect(r.status).toBe(200);
     const { data } = await r.json() as any;
     expect(data.item.status).toBe('pending');
+  });
+});
+
+describe('POST /ev/bookings — multi-station', () => {
+  const fourStationEv = {
+    stations: [
+      { id: 'ev-4w-1', name: 'SunArth 4W-1', capacityKw: 80, kind: '4W', enabled: true },
+      { id: 'ev-4w-2', name: 'SunArth 4W-2', capacityKw: 80, kind: '4W', enabled: true },
+      { id: 'ev-2w-1', name: 'SunArth 2W-1', capacityKw: 3.3, kind: '2W', enabled: true },
+      { id: 'ev-2w-2', name: 'SunArth 2W-2', capacityKw: 3.3, kind: '2W', enabled: false },
+    ],
+  };
+
+  const validBody = (overrides: Record<string, unknown> = {}) => ({
+    date: istDate(1),
+    startMin: 9 * 60,
+    endMin: 10 * 60,
+    ownerFlat: 'A-101',
+    ...overrides,
+  });
+
+  it('accepts a booking against any configured stationId', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true };
+    systemOverrides = { ev: fourStationEv };
+    const r = await send('POST', '/ev/bookings', validBody({ stationId: 'ev-4w-2' }), 'resident1@x.com');
+    expect(r.status).toBe(200);
+    const { data } = await r.json() as any;
+    expect(data.item.stationId).toBe('ev-4w-2');
+  });
+
+  it('rejects a booking against an unknown stationId', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true };
+    systemOverrides = { ev: fourStationEv };
+    const r = await send('POST', '/ev/bookings', validBody({ stationId: 'ev-does-not-exist' }), 'resident1@x.com');
+    expect(r.status).toBe(400);
+    const j = await r.json() as any;
+    expect(String(j.error)).toContain('unknown stationId');
+  });
+
+  it('rejects a booking against a disabled station', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true };
+    systemOverrides = { ev: fourStationEv };
+    const r = await send('POST', '/ev/bookings', validBody({ stationId: 'ev-2w-2' }), 'resident1@x.com');
+    expect(r.status).toBe(400);
+    const j = await r.json() as any;
+    expect(String(j.error)).toContain('offline');
+  });
+
+  it('allows the same slot to be booked concurrently on two different stations', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true };
+    systemOverrides = { ev: fourStationEv };
+    const first  = await send('POST', '/ev/bookings', validBody({ stationId: 'ev-4w-1' }), 'resident1@x.com');
+    expect(first.status).toBe(200);
+    const second = await send('POST', '/ev/bookings', validBody({ stationId: 'ev-4w-2', ownerFlat: 'B-202' }), 'mgr@x.com');
+    expect(second.status).toBe(200);
+    // Bookings live on independent stations, so the maxActivePerFlat quota
+    // is enforced per-station and both are confirmed.
+    const first2  = await first.json() as any;
+    const second2 = await second.json() as any;
+    expect(first2.data.item.stationId).toBe('ev-4w-1');
+    expect(second2.data.item.stationId).toBe('ev-4w-2');
+  });
+});
+
+describe('GET /ev/availability — multi-station', () => {
+  it('rejects an unknown stationId query param', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true };
+    systemOverrides = { ev: {
+      stations: [
+        { id: 'ev-4w-1', name: 'SunArth 4W-1', capacityKw: 80, kind: '4W', enabled: true },
+      ],
+    } };
+    const today = istDate(0);
+    const r = await send('GET', `/ev/availability?from=${today}&to=${today}&stationId=bogus`, undefined, 'resident1@x.com');
+    expect(r.status).toBe(400);
+    const j = await r.json() as any;
+    expect(String(j.error)).toContain('unknown stationId');
+  });
+
+  it('returns availability for a configured stationId', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true };
+    systemOverrides = { ev: {
+      stations: [
+        { id: 'ev-4w-1', name: 'SunArth 4W-1', capacityKw: 80, kind: '4W', enabled: true },
+        { id: 'ev-2w-1', name: 'SunArth 2W-1', capacityKw: 3.3, kind: '2W', enabled: true },
+      ],
+    } };
+    const today = istDate(0);
+    const r = await send('GET', `/ev/availability?from=${today}&to=${today}&stationId=ev-2w-1`, undefined, 'resident1@x.com');
+    expect(r.status).toBe(200);
+    const { data } = await r.json() as any;
+    expect(data.stationId).toBe('ev-2w-1');
+    expect(Array.isArray(data.days)).toBe(true);
   });
 });
 

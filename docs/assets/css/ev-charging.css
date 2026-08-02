@@ -77,6 +77,60 @@
 .tsh-ev-status-pill.tsh-ev-status-offline  { background: #fee2e2; color: #991b1b; }
 .tsh-ev-status-pill.tsh-ev-status-blackout { background: #fef3c7; color: #92400e; }
 
+/* ---- Multi-station picker (added 2026-08-02) ---------------------- */
+/* Container replaces the single-station bar when the site configures
+   `system.ev.stations`. Cards are grouped by kind (4W / 2W) into
+   labelled rows. */
+.tsh-ev-stations { display: flex; flex-direction: column; gap: 14px; margin-bottom: 16px; }
+.tsh-ev-stations-loading { padding: 12px 14px; }
+.tsh-ev-stations-group { display: flex; flex-direction: column; gap: 6px; }
+.tsh-ev-stations-group-label {
+  font-size: 12px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .06em; opacity: .7; margin: 0 4px;
+}
+.tsh-ev-stations-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 10px;
+}
+.tsh-ev-station-card {
+  display: grid;
+  grid-template-columns: 44px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border: 1.5px solid var(--tsh-border, #e5e7eb);
+  border-radius: 12px;
+  background: var(--tsh-card, #fff);
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .15s ease, box-shadow .15s ease, transform .06s ease;
+}
+.tsh-ev-station-card:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--tsh-primary, #2563eb) 40%, var(--tsh-border, #e5e7eb));
+  box-shadow: 0 1px 6px rgba(0,0,0,.05);
+}
+.tsh-ev-station-card:focus-visible {
+  outline: 2px solid var(--tsh-primary, #2563eb);
+  outline-offset: 2px;
+}
+.tsh-ev-station-card:active:not(:disabled) { transform: translateY(1px); }
+.tsh-ev-station-card.tsh-ev-station-selected {
+  border-color: var(--tsh-primary, #2563eb);
+  background: color-mix(in srgb, var(--tsh-primary, #2563eb) 6%, var(--tsh-card, #fff));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--tsh-primary, #2563eb) 20%, transparent);
+}
+.tsh-ev-station-card.tsh-ev-station-disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+.tsh-ev-station-card .tsh-ev-station-icon {
+  width: 44px; height: 44px;
+  font-size: 20px;
+}
+
 /* ---- Tab panels ---------------------------------------------------- */
 .tsh-ev-tab-panel { margin-top: 8px; }
 

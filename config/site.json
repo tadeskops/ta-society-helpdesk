@@ -394,12 +394,56 @@
     },
     "ev": {
       "station": {
-        "id": "ev-1",
-        "name": "EV Charger #1",
-        "location": "Basement 1",
-        "capacityKw": 7.4,
+        "id": "ev-4w-1",
+        "name": "SunArth DC Fast Charger #1",
+        "location": "Basement — 4-wheeler bay 1",
+        "capacityKw": 80,
         "enabled": true
       },
+      "stations": [
+        {
+          "id": "ev-4w-1",
+          "name": "SunArth DC Fast Charger #1",
+          "location": "Basement — 4-wheeler bay 1",
+          "capacityKw": 80,
+          "enabled": true,
+          "kind": "4W",
+          "currentType": "DC",
+          "connector": "CCS-2",
+          "model": "DCFC-080-CCA00-SA-CP-AE"
+        },
+        {
+          "id": "ev-4w-2",
+          "name": "SunArth DC Fast Charger #2",
+          "location": "Basement — 4-wheeler bay 2",
+          "capacityKw": 80,
+          "enabled": true,
+          "kind": "4W",
+          "currentType": "DC",
+          "connector": "CCS-2",
+          "model": "DCFC-080-CCA00-SA-CP-AE"
+        },
+        {
+          "id": "ev-2w-1",
+          "name": "SunArth 2-Wheeler Point #1",
+          "location": "Basement — 2-wheeler bay 1",
+          "capacityKw": 3.3,
+          "enabled": true,
+          "kind": "2W",
+          "currentType": "AC",
+          "connector": "Bharat AC-001"
+        },
+        {
+          "id": "ev-2w-2",
+          "name": "SunArth 2-Wheeler Point #2",
+          "location": "Basement — 2-wheeler bay 2",
+          "capacityKw": 3.3,
+          "enabled": true,
+          "kind": "2W",
+          "currentType": "AC",
+          "connector": "Bharat AC-001"
+        }
+      ],
       "booking": {
         "stepMinutes": 30,
         "minDurationMinutes": 30,
@@ -414,18 +458,42 @@
       },
       "usageGuidelines": [
         "Book a slot before you plug in. Walk-ups are not guaranteed.",
-        "Sessions auto-end at your booked end-time. Please unplug promptly.",
-        "Report faults via the Support tab so the next resident is not blocked."
+        "Ensure sufficient e-wallet balance in the SunArth EV Charging App before starting.",
+        "Lock your vehicle, apply the handbrake, and connect the charging gun securely.",
+        "Scan the gun's QR and pay for the desired duration/units in the app. RFID card users may tap instead.",
+        "Sessions auto-end at your booked end-time. Please unplug promptly and re-holster the gun.",
+        "Report faults via the Support tab or the SunArth toll-free number so the next resident isn't blocked."
       ],
       "provider": {
-        "name": "",
+        "name": "SunArth Technologies",
         "androidUrl": "",
         "iosUrl": "",
-        "website": "",
-        "email": "",
-        "tollFree": ""
+        "website": "https://www.sunarth.com",
+        "email": "info@sunarth.com",
+        "tollFree": "7797798887"
       },
-      "faqs": [],
+      "faqs": [
+        {
+          "q": "How do I pay for a charging session?",
+          "a": "Payment is directly with SunArth via the SunArth EV Charging Mobile App e-wallet. The society does not collect any charging fees."
+        },
+        {
+          "q": "Which app do I need to install?",
+          "a": "Download 'SunArth EV Charging' from Google Play or the App Store, register with your mobile number, and top up your e-wallet before starting a session."
+        },
+        {
+          "q": "Can I use an RFID card instead of the app?",
+          "a": "Yes — request a SunArth RFID card via the RFID tab. Tap it on the charger's reader to start, and tap again to end the session."
+        },
+        {
+          "q": "Whom do I contact if a charger is faulty?",
+          "a": "Raise it under the Support tab, or call SunArth toll-free at 7797798887 / email info@sunarth.com."
+        },
+        {
+          "q": "What is the difference between the 4-wheeler and 2-wheeler chargers?",
+          "a": "The 4-wheeler bays are 80 kW DC fast chargers (CCS-2 connector). The 2-wheeler bays are 3.3 kW AC slow chargers (Bharat AC-001). Pick the row that matches your vehicle."
+        }
+      ],
       "helpline": {
         "directoryEntryId": ""
       },

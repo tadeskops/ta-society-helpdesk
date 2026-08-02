@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="./assets/css/theme.css?v=87" />
   <link rel="stylesheet" href="./assets/css/mobile-landing.css?v=14" />
-  <link rel="stylesheet" href="./assets/css/ev-charging.css?v=4" />
+  <link rel="stylesheet" href="./assets/css/ev-charging.css?v=5" />
 </head>
 <body class="tsh-page">
   <div data-include="header"></div>
@@ -56,20 +56,11 @@
         <button type="button" class="tsh-ev-pill" role="tab" aria-selected="false" data-ev-tab="faq"><i class="fas fa-circle-question"></i> FAQ</button>
       </nav>
 
-      <!-- Station bar: name / location / capacity / status. Always visible
-           when the master flag is on. Populated from GET /ev/config. -->
-      <div class="tsh-ev-station-bar" id="evStationBar" aria-live="polite">
-        <div class="tsh-ev-station-icon"><i class="fas fa-plug"></i></div>
-        <div class="tsh-ev-station-info">
-          <div class="tsh-ev-station-name" data-ev-station-name>—</div>
-          <div class="tsh-ev-station-meta">
-            <span data-ev-station-location><i class="fas fa-location-dot"></i> —</span>
-            <span data-ev-station-capacity><i class="fas fa-bolt"></i> —</span>
-          </div>
-        </div>
-        <div class="tsh-ev-station-status">
-          <span class="tsh-ev-status-pill" data-ev-station-status>Loading…</span>
-        </div>
+      <!-- Stations picker: one card per configured charger. Populated
+           from GET /ev/config → data.stations. Clicking a card selects
+           it and the booking grid below re-renders for that station. -->
+      <div class="tsh-ev-stations" id="evStationsBar" aria-live="polite" role="radiogroup" aria-label="Select a charging station">
+        <div class="tsh-ev-stations-loading tsh-sub">Loading chargers…</div>
       </div>
 
       <!-- BOOK panel (Phase 2): availability grid + booking form. Gated by
@@ -165,7 +156,7 @@
   <script src="./assets/js/flags.js?v=19"></script>
   <script src="./assets/js/ui.js?v=53"></script>
   <script src="./assets/js/mobile-landing.js?v=9"></script>
-  <script src="./assets/js/ev-charging.js?v=3"></script>
+  <script src="./assets/js/ev-charging.js?v=4"></script>
   <script>
   (async () => {
     await Partials.mount();
