@@ -200,11 +200,82 @@
       el.dataset.tshSheetWired = '1';
       el.addEventListener('click', closeSheet);
     });
-    // Auto-close after navigating from a sheet row.
+    // Auto-close + iOS single-tap fallback.
+    //
+    // Historically: `a.addEventListener('click', () => setTimeout(closeSheet, 0));`
+    // On iOS Safari (16-17 reproducible) that single click sometimes never
+    // fires when the anchor sits inside a freshly-opened bottom sheet —
+    // Safari eats the touch as a candidate for its own gesture heuristics
+    // (double-tap-zoom, sticky-hover-first-touch, context-menu preview).
+    // A long-press or a second tap does work, which is exactly what the
+    // user reports.
+    //
+    // Fix (mirrors the header-icon fallback in ui.js#bindIconActivation):
+    //   - touchstart records the initial Y so we can distinguish a tap
+    //     from a scroll swipe (the sheet CAN be scrollable if list is long).
+    //   - touchend, if the finger barely moved, cancels the pending
+    //     synthetic click (preventDefault) and navigates programmatically
+    //     via window.location — that path is unconditional and reliable.
+    //   - click still runs as a fallback for desktop / touchend-that-didn't
+    //     -preventDefault paths.  De-duped via lastNavAt so we never fire
+    //     twice for a single gesture.
     sheet.querySelectorAll('a[href]').forEach((a) => {
       if (a.dataset.tshSheetWired) return;
       a.dataset.tshSheetWired = '1';
-      a.addEventListener('click', () => setTimeout(closeSheet, 0));
+
+      let lastNavAt = 0;
+      let touchStartY = null;
+      let touchStartX = null;
+
+      const doNav = (href) => {
+        const now = Date.now();
+        if (now - lastNavAt < 700) return;
+        lastNavAt = now;
+        // Close the sheet in the next tick so the current handler can
+        // finish; navigation is fired synchronously below.
+        setTimeout(closeSheet, 0);
+        // Same-page hash link => let the browser handle it; otherwise
+        // assign to force navigation even if click was preventDefault'd.
+        try { window.location.assign(href); }
+        catch (_e) { window.location.href = href; }
+      };
+
+      a.addEventListener('touchstart', (ev) => {
+        if (ev.touches && ev.touches[0]) {
+          touchStartY = ev.touches[0].clientY;
+          touchStartX = ev.touches[0].clientX;
+        }
+      }, { passive: true });
+
+      a.addEventListener('touchend', (ev) => {
+        const t = ev.changedTouches && ev.changedTouches[0];
+        if (!t || touchStartY === null) return;
+        const dy = Math.abs(t.clientY - touchStartY);
+        const dx = Math.abs(t.clientX - touchStartX);
+        touchStartY = touchStartX = null;
+        // Movement > 10px => this was a scroll, not a tap.
+        if (dy > 10 || dx > 10) return;
+        const href = a.getAttribute('href');
+        if (!href) return;
+        // Suppress the synthetic click that would otherwise follow so
+        // we don't double-fire and so iOS can't drop it.
+        ev.preventDefault();
+        doNav(href);
+      }, { passive: false });
+
+      // Desktop + defensive fallback.
+      a.addEventListener('click', (ev) => {
+        const now = Date.now();
+        if (now - lastNavAt < 700) {
+          // touchend already navigated; swallow this click so the
+          // browser's default doesn't produce a second history entry.
+          ev.preventDefault();
+          return;
+        }
+        lastNavAt = now;
+        setTimeout(closeSheet, 0);
+        // Let the browser's default click follow the href.
+      });
     });
     if (!document.body.dataset.tshSheetEsc) {
       document.body.dataset.tshSheetEsc = '1';
