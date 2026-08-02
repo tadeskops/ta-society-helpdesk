@@ -484,6 +484,10 @@
       },
       "faqs": [
         {
+          "q": "Where is the SunArth EV Charging mobile app manual?",
+          "a": "Open the SunArth EV Charging app → Menu (☰) → Help → User Guide. The same guide is downloadable as a PDF from https://www.sunarth.com under Support → Downloads. Tap the floating SunArth Chat button on this page to reach their AI assistant if you can't find it."
+        },
+        {
           "q": "How do I pay for a charging session?",
           "a": "Payment is directly with SunArth via the SunArth EV Charging Mobile App e-wallet. The society does not collect any charging fees."
         },
@@ -497,7 +501,7 @@
         },
         {
           "q": "Whom do I contact if a charger is faulty?",
-          "a": "Raise it under the Support tab, or call SunArth toll-free at 7797798887 / email info@sunarth.com."
+          "a": "Raise it under the Support tab, tap the SunArth Chat button for direct WhatsApp / call / email, or reach SunArth Technologies at Cello Platina 202, F.C. Road, Pune 411005, +91-77977-98887 / 98881, info@sunarth.com."
         },
         {
           "q": "What is the difference between the 4-wheeler and 2-wheeler chargers?",

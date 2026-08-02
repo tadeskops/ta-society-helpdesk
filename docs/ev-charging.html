@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="./assets/css/theme.css?v=87" />
   <link rel="stylesheet" href="./assets/css/mobile-landing.css?v=14" />
   <link rel="stylesheet" href="./assets/css/ev-charging.css?v=14" />
+  <link rel="stylesheet" href="./assets/css/sunarth-support.css?v=1" />
 </head>
 <body class="tsh-page">
   <div data-include="header"></div>
@@ -228,6 +229,10 @@
 
       <!-- FAQ panel: rendered from ev.faqs when non-empty. -->
       <section class="tsh-ev-tab-panel" data-ev-panel="faq" hidden>
+        <div class="tsh-ev-faq-cta">
+          <p class="tsh-sub" style="margin:0;">Still stuck? The SunArth AI consultant on <a href="https://www.sunarth.com" target="_blank" rel="noopener">sunarth.com</a> answers common EV charger questions instantly. The Mobile App manual is available inside the app under <strong>Menu → Help → User Guide</strong>.</p>
+          <button type="button" class="tsh-sunarth-inline" id="evFaqSunarthBtn"><i class="fas fa-comments"></i> Talk to SunArth</button>
+        </div>
         <div class="tsh-ev-faq-list" id="evFaqList">
           <p class="tsh-sub">No FAQs configured yet. Ask an admin to add them via Settings → EV charging.</p>
         </div>
@@ -256,12 +261,18 @@
   <script src="./assets/js/ui.js?v=53"></script>
   <script src="./assets/js/mobile-landing.js?v=9"></script>
   <script src="./assets/js/ev-charging.js?v=12"></script>
+  <script src="./assets/js/sunarth-support.js?v=1"></script>
   <script>
   (async () => {
     await Partials.mount();
     await Auth.init({ clientId: window.TSH_GOOGLE_CLIENT_ID });
     UI.bindHeader();
     EvCharging.init();
+    // Mount the SunArth chat launcher — floating button + FAQ tab pill.
+    if (window.SunarthSupport) {
+      SunarthSupport.mount({ fab: true });
+      SunarthSupport.mount({ selector: '#evFaqSunarthBtn' });
+    }
     // Re-render on auth change so the sign-in gate and station bar update
     // without a full page reload.
     Auth.onChange(() => EvCharging.init());

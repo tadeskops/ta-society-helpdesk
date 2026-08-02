@@ -1,0 +1,237 @@
+/* TSH — Sunarth support widget (Phase 6b). Reusable floating chat launcher
+   + contact modal shown on the EV page and the Directory page. Provides:
+     - "SunArth AI" chat launcher (opens https://www.sunarth.com in a new tab)
+     - Direct WhatsApp button (+91-77977 98881)
+     - Call buttons for both landlines (+91-77977 98887 / 98881)
+     - Email + address
+   All styles are scoped under .tsh-sunarth-* so they don't leak into other
+   components. Colours use the site design tokens where available. */
+
+.tsh-sunarth-fab {
+  position: fixed;
+  right: 20px;
+  bottom: 96px; /* clear the mobile bottom-nav */
+  z-index: 900;
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 18px 12px 14px;
+  border: 0;
+  border-radius: 999px;
+  color: #fff;
+  background: linear-gradient(135deg, #0f766e, #059669);
+  box-shadow: 0 10px 24px rgba(5, 150, 105, 0.35), 0 2px 6px rgba(15, 23, 42, 0.25);
+  font: inherit; font-weight: 600; font-size: 14px;
+  cursor: pointer;
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+.tsh-sunarth-fab:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 30px rgba(5, 150, 105, 0.45), 0 3px 8px rgba(15, 23, 42, 0.28);
+}
+.tsh-sunarth-fab:focus-visible {
+  outline: 3px solid rgba(15, 118, 110, 0.5);
+  outline-offset: 3px;
+}
+.tsh-sunarth-fab i.tsh-sunarth-fab-icon {
+  display: inline-flex;
+  align-items: center; justify-content: center;
+  width: 30px; height: 30px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.16);
+  font-size: 15px;
+}
+.tsh-sunarth-fab-label { line-height: 1.1; white-space: nowrap; }
+
+/* Compact inline "Talk to SunArth" pill — used inside cards (e.g. the EV
+   FAQ tab and the Directory management-committee section). */
+.tsh-sunarth-inline {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #0f766e, #059669);
+  color: #fff;
+  border: 0;
+  font: inherit; font-weight: 600; font-size: 13px;
+  cursor: pointer;
+  box-shadow: 0 6px 14px rgba(5, 150, 105, 0.28);
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+.tsh-sunarth-inline:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(5, 150, 105, 0.35);
+}
+.tsh-sunarth-inline i { font-size: 12px; }
+
+@media (max-width: 640px) {
+  .tsh-sunarth-fab {
+    right: 12px;
+    bottom: 84px;
+    padding: 10px 16px 10px 12px;
+    font-size: 13px;
+  }
+  .tsh-sunarth-fab i.tsh-sunarth-fab-icon { width: 26px; height: 26px; font-size: 13px; }
+}
+
+/* ---- Modal --------------------------------------------------------------- */
+
+.tsh-sunarth-overlay {
+  position: fixed; inset: 0;
+  background: rgba(15, 23, 42, 0.65);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1300;
+  padding: 20px;
+  overflow-y: auto;
+  animation: tsh-sunarth-fade .18s ease-out;
+}
+@keyframes tsh-sunarth-fade { from { opacity: 0; } to { opacity: 1; } }
+
+.tsh-sunarth-card {
+  background: #fff;
+  border-radius: 18px;
+  width: 100%;
+  max-width: 460px;
+  overflow: hidden;
+  color: #0f172a;
+  box-shadow: 0 24px 48px rgba(0,0,0,.35);
+  animation: tsh-sunarth-pop .22s cubic-bezier(.22,.61,.36,1);
+}
+@keyframes tsh-sunarth-pop {
+  from { opacity: 0; transform: translateY(12px) scale(.98); }
+  to   { opacity: 1; transform: translateY(0)   scale(1); }
+}
+
+.tsh-sunarth-card-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px;
+  padding: 18px 20px;
+  color: #fff;
+  background: linear-gradient(135deg, #0f766e, #059669);
+}
+.tsh-sunarth-brand {
+  display: flex; align-items: center; gap: 12px;
+}
+.tsh-sunarth-brand-mark {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 40px; height: 40px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.18);
+  font-size: 20px;
+}
+.tsh-sunarth-brand h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+}
+.tsh-sunarth-brand p {
+  margin: 2px 0 0;
+  font-size: 12px;
+  opacity: .85;
+}
+.tsh-sunarth-close {
+  background: rgba(255,255,255,0.15);
+  color: #fff;
+  border: 0;
+  width: 34px; height: 34px;
+  border-radius: 999px;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s ease;
+}
+.tsh-sunarth-close:hover { background: rgba(255,255,255,0.28); }
+
+.tsh-sunarth-body { padding: 18px 20px 20px; }
+
+.tsh-sunarth-primary {
+  display: flex;
+  align-items: center; gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  margin: 0 0 14px;
+  border: 0;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #1e40af, #0ea5e9);
+  color: #fff;
+  font: inherit; font-weight: 600; font-size: 15px;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(30, 64, 175, 0.28);
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.tsh-sunarth-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 26px rgba(30, 64, 175, 0.38);
+}
+.tsh-sunarth-primary i.tsh-sunarth-primary-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 38px; height: 38px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.18);
+  font-size: 18px;
+}
+.tsh-sunarth-primary-text { display: flex; flex-direction: column; text-align: left; }
+.tsh-sunarth-primary-text strong { font-size: 15px; }
+.tsh-sunarth-primary-text small { opacity: .85; font-size: 11px; }
+
+.tsh-sunarth-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 6px 0 14px;
+}
+.tsh-sunarth-action {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #0f172a;
+  text-decoration: none;
+  font: inherit; font-size: 13px; font-weight: 500;
+  transition: border-color .15s ease, background .15s ease, transform .15s ease;
+}
+.tsh-sunarth-action:hover {
+  border-color: #94a3b8;
+  background: #f8fafc;
+  transform: translateY(-1px);
+}
+.tsh-sunarth-action i {
+  width: 26px; height: 26px;
+  border-radius: 8px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 14px;
+}
+.tsh-sunarth-action-whatsapp i { background: #25d366; color: #fff; }
+.tsh-sunarth-action-call i     { background: #2563eb; color: #fff; }
+.tsh-sunarth-action-email i    { background: #b45309; color: #fff; }
+.tsh-sunarth-action-site i     { background: #0f766e; color: #fff; }
+.tsh-sunarth-action-text { display: flex; flex-direction: column; line-height: 1.2; }
+.tsh-sunarth-action-text strong { font-size: 13px; }
+.tsh-sunarth-action-text small  { font-size: 11px; opacity: .7; }
+
+.tsh-sunarth-address {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 12px;
+  line-height: 1.5;
+  display: flex; gap: 10px; align-items: flex-start;
+}
+.tsh-sunarth-address i {
+  color: #0f766e;
+  font-size: 14px;
+  margin-top: 1px;
+}
+.tsh-sunarth-address strong { display: block; color: #0f172a; font-size: 13px; margin-bottom: 2px; }
+
+.tsh-sunarth-footnote {
+  margin: 12px 0 0;
+  font-size: 11px;
+  color: #64748b;
+  text-align: center;
+}
+.tsh-sunarth-footnote a { color: #0f766e; text-decoration: underline; }
+
+@media (max-width: 480px) {
+  .tsh-sunarth-actions { grid-template-columns: 1fr; }
+}

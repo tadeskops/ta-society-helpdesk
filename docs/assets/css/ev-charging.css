@@ -580,6 +580,19 @@
 .tsh-ev-placeholder .tsh-sub { max-width: 520px; margin: 4px auto 0; }
 
 /* ---- FAQ list ------------------------------------------------------ */
+.tsh-ev-faq-cta {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, #059669 22%, transparent);
+  background: color-mix(in srgb, #059669 6%, var(--tsh-card, #fff));
+  margin-bottom: 12px;
+}
+.tsh-ev-faq-cta > .tsh-sub {
+  flex: 1 1 320px;
+  line-height: 1.5;
+}
+.tsh-ev-faq-cta a { color: #0f766e; text-decoration: underline; }
 .tsh-ev-faq-list { display: flex; flex-direction: column; gap: 8px; }
 .tsh-ev-faq-item {
   border: 1px solid var(--tsh-border, #e5e7eb);
