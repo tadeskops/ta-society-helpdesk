@@ -717,3 +717,166 @@ describe('POST /ev/admin/mirror', () => {
     expect(putCount).toBe(before);
   });
 });
+
+// ===========================================================================
+// Phase 6 - RFID + Registration + Support (three lifecycles).
+// Spec: tsh_requirement.md sec 23.1 (Phase 6).
+// ===========================================================================
+
+describe('Phase 6 - RFID lifecycle (FEATURE_TSH_EV_RFID)', () => {
+  it('flag off -> 503', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true, FEATURE_TSH_EV_RFID: false };
+    const r = await send('POST', '/ev/rfid', { type: 'issue-new', ownerFlat: 'A-101' }, 'resident1@x.com');
+    expect(r.status).toBe(503);
+    expect(String((await r.json() as any).error)).toContain('FEATURE_TSH_EV_RFID');
+  });
+
+  it('anonymous -> 401', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true, FEATURE_TSH_EV_RFID: true };
+    const r = await send('POST', '/ev/rfid', { type: 'issue-new', ownerFlat: 'A-101' });
+    expect(r.status).toBe(401);
+  });
+
+  it('resident can file an RFID request and read it back via scope=own', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true, FEATURE_TSH_EV_RFID: true };
+    const r = await send('POST', '/ev/rfid', {
+      type: 'issue-new', ownerFlat: 'A-101', vehiclePlate: 'MH-12-AB-1234',
+    }, 'resident1@x.com');
+    expect(r.status).toBe(200);
+    const j = await r.json() as any;
+    expect(j.data.id).toMatch(/^EVRF-[A-Z0-9]{8}$/);
+    expect(j.data.status).toBe('pending');
+    expect(j.data.vehiclePlate).toBe('MH-12-AB-1234');
+    const list = await send('GET', '/ev/rfid?scope=own', undefined, 'resident1@x.com');
+    const lj = await list.json() as any;
+    expect(lj.data.items.length).toBe(1);
+  });
+
+  it('resident cannot view all requests via scope=all', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true, FEATURE_TSH_EV_RFID: true };
+    const r = await send('GET', '/ev/rfid?scope=all', undefined, 'resident1@x.com');
+    expect(r.status).toBe(403);
+  });
+
+  it('manager can approve then mark issued; resident cannot skip statuses', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true, FEATURE_TSH_EV_RFID: true };
+    const created = await send('POST', '/ev/rfid', {
+      type: 'replace-lost', ownerFlat: 'A-101',
+    }, 'resident1@x.com');
+    const id = (await created.json() as any).data.id;
+    // Resident cannot approve.
+    const bad = await send('PATCH', '/ev/rfid/' + id, { status: 'approved' }, 'resident1@x.com');
+    expect(bad.status).toBe(403);
+    // Manager approves.
+    const ok1 = await send('PATCH', '/ev/rfid/' + id, { status: 'approved' }, 'mgr@x.com');
+    expect(ok1.status).toBe(200);
+    // Manager marks issued with card code.
+    const ok2 = await send('PATCH', '/ev/rfid/' + id, { status: 'issued', cardCode: 'CARD-42' }, 'mgr@x.com');
+    expect(ok2.status).toBe(200);
+    const j2 = await ok2.json() as any;
+    expect(j2.data.cardCode).toBe('CARD-42');
+    // No transition beyond 'issued'.
+    const bad2 = await send('PATCH', '/ev/rfid/' + id, { status: 'rejected' }, 'mgr@x.com');
+    expect(bad2.status).toBe(400);
+  });
+
+  it('rejects unknown RFID type', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true, FEATURE_TSH_EV_RFID: true };
+    const r = await send('POST', '/ev/rfid', { type: 'do-magic', ownerFlat: 'A-101' }, 'resident1@x.com');
+    expect(r.status).toBe(400);
+  });
+});
+
+describe('Phase 6 - Vehicle registration (FEATURE_TSH_EV_REGISTRATION)', () => {
+  it('flag off -> 503', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true, FEATURE_TSH_EV_REGISTRATION: false };
+    const r = await send('POST', '/ev/registration', { ownerFlat: 'A-101', vehicle: { plate: 'MH12AB1234' } }, 'resident1@x.com');
+    expect(r.status).toBe(503);
+  });
+
+  it('registers a vehicle and normalises the plate', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true, FEATURE_TSH_EV_REGISTRATION: true };
+    const r = await send('POST', '/ev/registration', {
+      ownerFlat: 'A-101',
+      vehicle: { plate: '  mh12ab1234  ', make: 'Tata', model: 'Nexon EV', batteryKwh: 30, connectorType: 'CCS2' },
+    }, 'resident1@x.com');
+    expect(r.status).toBe(200);
+    const j = await r.json() as any;
+    expect(j.data.vehicle.plate).toBe('MH12AB1234');
+    expect(j.data.vehicle.make).toBe('Tata');
+    expect(j.data.status).toBe('active');
+  });
+
+  it('rejects duplicate active plate for same owner', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true, FEATURE_TSH_EV_REGISTRATION: true };
+    await send('POST', '/ev/registration', { ownerFlat: 'A-101', vehicle: { plate: 'MH12AB1234' } }, 'resident1@x.com');
+    const r = await send('POST', '/ev/registration', { ownerFlat: 'A-101', vehicle: { plate: 'MH12AB1234' } }, 'resident1@x.com');
+    expect(r.status).toBe(400);
+  });
+
+  it('rejects malformed plate', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true, FEATURE_TSH_EV_REGISTRATION: true };
+    const r = await send('POST', '/ev/registration', { ownerFlat: 'A-101', vehicle: { plate: 'x' } }, 'resident1@x.com');
+    expect(r.status).toBe(400);
+  });
+
+  it('can deactivate own registration', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true, FEATURE_TSH_EV_REGISTRATION: true };
+    const created = await send('POST', '/ev/registration', { ownerFlat: 'A-101', vehicle: { plate: 'MH12AB1234' } }, 'resident1@x.com');
+    const id = (await created.json() as any).data.id;
+    const upd = await send('PATCH', '/ev/registration/' + id, { status: 'inactive' }, 'resident1@x.com');
+    expect(upd.status).toBe(200);
+    expect((await upd.json() as any).data.status).toBe('inactive');
+  });
+});
+
+describe('Phase 6 - Support tickets (FEATURE_TSH_EV_SUPPORT)', () => {
+  it('flag off -> 503', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true, FEATURE_TSH_EV_SUPPORT: false };
+    const r = await send('POST', '/ev/support', { category: 'other', subject: 's', message: 'm', ownerFlat: 'A-101' }, 'resident1@x.com');
+    expect(r.status).toBe(503);
+  });
+
+  it('opens a ticket with a known category', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true, FEATURE_TSH_EV_SUPPORT: true };
+    const r = await send('POST', '/ev/support', {
+      category: 'card-not-working', subject: 'Card beeps red', message: 'It buzzes for 5 seconds then stops.', ownerFlat: 'A-101',
+    }, 'resident1@x.com');
+    expect(r.status).toBe(200);
+    const j = await r.json() as any;
+    expect(j.data.id).toMatch(/^EVSP-[A-Z0-9]{8}$/);
+    expect(j.data.status).toBe('open');
+    expect(j.data.category).toBe('card-not-working');
+  });
+
+  it('rejects unknown category', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true, FEATURE_TSH_EV_SUPPORT: true };
+    const r = await send('POST', '/ev/support', { category: 'aliens', subject: 's', message: 'm', ownerFlat: 'A-101' }, 'resident1@x.com');
+    expect(r.status).toBe(400);
+  });
+
+  it('manager can advance to in-progress then resolved with a note', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true, FEATURE_TSH_EV_SUPPORT: true };
+    const created = await send('POST', '/ev/support', {
+      category: 'billing-issue', subject: 'Overcharged', message: 'Charged twice for one session.', ownerFlat: 'A-101',
+    }, 'resident1@x.com');
+    const id = (await created.json() as any).data.id;
+    const step1 = await send('PATCH', '/ev/support/' + id, { status: 'in-progress' }, 'mgr@x.com');
+    expect(step1.status).toBe(200);
+    const step2 = await send('PATCH', '/ev/support/' + id, { status: 'resolved', resolutionNote: 'Refunded 100 INR' }, 'mgr@x.com');
+    expect(step2.status).toBe(200);
+    expect((await step2.json() as any).data.resolutionNote).toBe('Refunded 100 INR');
+  });
+
+  it('resident cannot approve resolutions, only close their own', async () => {
+    featureOverrides = { FEATURE_TSH_EV_CHARGING: true, FEATURE_TSH_EV_SUPPORT: true };
+    const created = await send('POST', '/ev/support', {
+      category: 'general-feedback', subject: 'suggestion', message: 'add signage', ownerFlat: 'A-101',
+    }, 'resident1@x.com');
+    const id = (await created.json() as any).data.id;
+    const bad = await send('PATCH', '/ev/support/' + id, { status: 'resolved' }, 'resident1@x.com');
+    expect(bad.status).toBe(403);
+    const good = await send('PATCH', '/ev/support/' + id, { status: 'closed' }, 'resident1@x.com');
+    expect(good.status).toBe(200);
+  });
+});

@@ -37,6 +37,16 @@ import {
   type EvBooking, type EvBookingStatus, type EvAnalyticsPeriod,
 } from '../lib/ev-booking.ts';
 import { runEvMirror } from '../lib/ev-mirror.ts';
+import {
+  RFID_TYPES, RFID_STATUSES, RFID_ID_RE, RFID_MAX_ACTIVE_ITEMS,
+  REG_STATUSES, REG_ID_RE, REG_MAX_ACTIVE_ITEMS,
+  SUPPORT_CATEGORIES, SUPPORT_STATUSES, SUPPORT_ID_RE, SUPPORT_MAX_ACTIVE_ITEMS,
+  nextRfidId, canTransitionRfid, nextRegId, nextSupportId, canTransitionSupport,
+  normalizePlate,
+  type RfidRequest,
+  type EvRegistration,
+  type SupportTicket,
+} from '../lib/ev-lifecycle.ts';
 
 // Master flag — every /ev/* handler passes it via ensureAllowed({ flags }).
 export const FEATURE = 'FEATURE_TSH_EV_CHARGING';
@@ -135,6 +145,7 @@ const invalidateEvBookings = (): void => { evBookCache = undefined; };
 /** Test-only reset — mirrors _resetReservationCachesForTests. */
 export const _resetEvChargingCachesForTests = (): void => {
   evBookCache = undefined;
+  _resetPhase6Caches();
 };
 
 const loadEvBookings = async (ctx: Ctx): Promise<{ items: EvBooking[]; sha?: string }> => {
@@ -182,6 +193,116 @@ const saveEvBookings = async (
   const body = JSON.stringify({ version: 1, items }, null, 2) + '\n';
   await putFile(ctx.env, EV_BOOK_PATH, body, `ev-bookings: ${reason} by ${actor}`, actor, sha);
   invalidateEvBookings();
+};
+
+// ---- Phase 6 storage: RFID / Registration / Support ------------------------
+// Same bounded-file pattern; separate 60 s in-memory caches so a heavy
+// RFID list doesn't invalidate the booking cache. All three helpers
+// share a small `loadListFile` helper for the common
+// { version, items } round-trip.
+
+const EV_RFID_PATH     = 'config/ev-rfid-requests.json';
+const EV_REG_PATH      = 'config/ev-registrations.json';
+const EV_SUPPORT_PATH  = 'config/ev-support-tickets.json';
+
+interface ListCache<T> { value: { version: number; items: T[] }; sha?: string; expiresAt: number }
+let rfidCache:    ListCache<RfidRequest>   | undefined;
+let regCache:     ListCache<EvRegistration>| undefined;
+let supportCache: ListCache<SupportTicket> | undefined;
+
+const invalidateRfid    = (): void => { rfidCache    = undefined; };
+const invalidateReg     = (): void => { regCache     = undefined; };
+const invalidateSupport = (): void => { supportCache = undefined; };
+
+// Extend the test-only reset so Phase 6 caches also clear between tests.
+const _resetPhase6Caches = (): void => {
+  rfidCache = undefined;
+  regCache = undefined;
+  supportCache = undefined;
+};
+
+const loadListFile = async <T>(
+  ctx: Ctx,
+  path: string,
+  cache: ListCache<T> | undefined,
+): Promise<{ items: T[]; sha?: string; cache: ListCache<T> }> => {
+  const now = Date.now();
+  if (cache && cache.expiresAt > now) {
+    const out: { items: T[]; sha?: string; cache: ListCache<T> } = { items: cache.value.items, cache };
+    if (cache.sha !== undefined) out.sha = cache.sha;
+    return out;
+  }
+  const ttl = tunable(ctx.config, 'EV_BOOKINGS_CACHE_SECONDS', 60) * 1000;
+  const f = await getFile(ctx.env, path);
+  if (!f) {
+    const c: ListCache<T> = { value: { version: 1, items: [] }, expiresAt: now + ttl };
+    return { items: [], cache: c };
+  }
+  try {
+    const parsed = JSON.parse(f.content) as { version?: number; items?: T[] };
+    const items = Array.isArray(parsed.items) ? parsed.items : [];
+    const c: ListCache<T> = {
+      value: { version: parsed.version ?? 1, items },
+      expiresAt: now + ttl,
+      ...(f.sha !== undefined ? { sha: f.sha } : {}),
+    };
+    const out: { items: T[]; sha?: string; cache: ListCache<T> } = { items, cache: c };
+    if (f.sha !== undefined) out.sha = f.sha;
+    return out;
+  } catch {
+    const c: ListCache<T> = { value: { version: 1, items: [] }, expiresAt: now + ttl };
+    return { items: [], cache: c };
+  }
+};
+
+const saveListFile = async <T>(
+  ctx: Ctx,
+  path: string,
+  items: T[],
+  sha: string | undefined,
+  actor: string,
+  reason: string,
+  invalidate: () => void,
+): Promise<void> => {
+  const body = JSON.stringify({ version: 1, items }, null, 2) + '\n';
+  await putFile(ctx.env, path, body, `${path.replace('config/', '')}: ${reason} by ${actor}`, actor, sha);
+  invalidate();
+};
+
+const loadRfidRequests = async (ctx: Ctx): Promise<{ items: RfidRequest[]; sha?: string }> => {
+  const { items, sha, cache } = await loadListFile<RfidRequest>(ctx, EV_RFID_PATH, rfidCache);
+  rfidCache = cache;
+  const out: { items: RfidRequest[]; sha?: string } = { items };
+  if (sha !== undefined) out.sha = sha;
+  return out;
+};
+const saveRfidRequests = async (ctx: Ctx, items: RfidRequest[], sha: string | undefined, actor: string, reason: string): Promise<void> => {
+  if (items.length > RFID_MAX_ACTIVE_ITEMS) throw new BadRequest(`ev-rfid file is full (${items.length}/${RFID_MAX_ACTIVE_ITEMS})`);
+  await saveListFile(ctx, EV_RFID_PATH, items, sha, actor, reason, invalidateRfid);
+};
+
+const loadRegistrations = async (ctx: Ctx): Promise<{ items: EvRegistration[]; sha?: string }> => {
+  const { items, sha, cache } = await loadListFile<EvRegistration>(ctx, EV_REG_PATH, regCache);
+  regCache = cache;
+  const out: { items: EvRegistration[]; sha?: string } = { items };
+  if (sha !== undefined) out.sha = sha;
+  return out;
+};
+const saveRegistrations = async (ctx: Ctx, items: EvRegistration[], sha: string | undefined, actor: string, reason: string): Promise<void> => {
+  if (items.length > REG_MAX_ACTIVE_ITEMS) throw new BadRequest(`ev-registrations file is full (${items.length}/${REG_MAX_ACTIVE_ITEMS})`);
+  await saveListFile(ctx, EV_REG_PATH, items, sha, actor, reason, invalidateReg);
+};
+
+const loadSupportTickets = async (ctx: Ctx): Promise<{ items: SupportTicket[]; sha?: string }> => {
+  const { items, sha, cache } = await loadListFile<SupportTicket>(ctx, EV_SUPPORT_PATH, supportCache);
+  supportCache = cache;
+  const out: { items: SupportTicket[]; sha?: string } = { items };
+  if (sha !== undefined) out.sha = sha;
+  return out;
+};
+const saveSupportTickets = async (ctx: Ctx, items: SupportTicket[], sha: string | undefined, actor: string, reason: string): Promise<void> => {
+  if (items.length > SUPPORT_MAX_ACTIVE_ITEMS) throw new BadRequest(`ev-support file is full (${items.length}/${SUPPORT_MAX_ACTIVE_ITEMS})`);
+  await saveListFile(ctx, EV_SUPPORT_PATH, items, sha, actor, reason, invalidateSupport);
 };
 
 // ---- Small helpers ---------------------------------------------------------
@@ -658,5 +779,322 @@ ${result.topFlats.map((t) => `<tr><td>${escHtml(t.flat)}</td><td>${t.bookings}</
       detail: result.ran ? `changed=${result.changed} bookings=${result.bookings}` : `skipped: ${result.reason}`,
     });
     return ok(ctx.env, ctx.req, result);
+  });
+
+  // ==========================================================================
+  //  Phase 6 — RFID lifecycle + Registration + Support ticket taxonomy.
+  //  Three flag families, three data files. Same bounded-file pattern as
+  //  ev-bookings.json. Spec: tsh_requirement.md §23.1 (Phase 6).
+  // ==========================================================================
+
+  // ---- RFID: config/ev-rfid-requests.json ----------------------------------
+
+  r.post('/ev/rfid', async (ctx: Ctx) => {
+    ensureAllowed(ctx, {
+      flags: [FEATURE, FEATURE_RFID],
+      requireIdentity: true,
+      roles: RESIDENT_UP,
+    });
+    const body = await parseJson<{ type?: unknown; vehiclePlate?: unknown; cardCode?: unknown; notes?: unknown; ownerFlat?: unknown; ownerName?: unknown }>(ctx.req);
+    const type = oneOf(body.type, 'type', RFID_TYPES);
+    const vehiclePlate = optStr(body.vehiclePlate, 'vehiclePlate', { max: 20 });
+    if (vehiclePlate && !normalizePlate(vehiclePlate)) {
+      throw new BadRequest('vehiclePlate is malformed');
+    }
+    const cardCode = optStr(body.cardCode, 'cardCode', { max: 40 });
+    const notes    = optStr(body.notes, 'notes', { max: 500 });
+    const flat     = normalizeFlat(String(body.ownerFlat ?? ''));
+    if (!flat) throw new BadRequest('ownerFlat is required');
+    const email = ctx.identity!.email;
+    const name  = optStr(body.ownerName, 'ownerName', { max: 80 }) || (ctx.identity!.name || email);
+
+    const store = await loadRfidRequests(ctx);
+    if (store.items.length >= RFID_MAX_ACTIVE_ITEMS) {
+      throw new BadRequest(`ev-rfid file is full (${store.items.length}/${RFID_MAX_ACTIVE_ITEMS})`);
+    }
+    const nowIso = new Date().toISOString();
+    const item: RfidRequest = {
+      id: nextRfidId(),
+      type,
+      status: 'pending',
+      owner: { email, name, flat },
+      ...(vehiclePlate ? { vehiclePlate: normalizePlate(vehiclePlate)! } : {}),
+      ...(cardCode ? { cardCode } : {}),
+      ...(notes ? { notes } : {}),
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    };
+    const next = store.items.concat(item);
+    await saveRfidRequests(ctx, next, store.sha, email, `create rfid ${item.id}`);
+    await writeAudit(ctx.env, { actor: email, action: 'ev.rfid.create', target: item.id, detail: `type=${type}` });
+    return ok(ctx.env, ctx.req, item);
+  });
+
+  r.get('/ev/rfid', async (ctx: Ctx) => {
+    ensureAllowed(ctx, {
+      flags: [FEATURE, FEATURE_RFID],
+      requireIdentity: true,
+      roles: RESIDENT_UP,
+    });
+    const url = new URL(ctx.req.url);
+    const scope = (url.searchParams.get('scope') || 'own').toLowerCase();
+    if (!['own', 'all'].includes(scope)) throw new BadRequest('scope must be own|all');
+    if (scope === 'all' && !isStaff(ctx)) throw new Forbidden('scope=all requires Manager+');
+    const { items } = await loadRfidRequests(ctx);
+    const email = ctx.identity!.email;
+    const filtered = scope === 'all' ? items : items.filter((it) => it.owner.email === email);
+    filtered.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+    return ok(ctx.env, ctx.req, { items: filtered });
+  });
+
+  r.patch('/ev/rfid/:id', async (ctx: Ctx, params: Record<string, string>) => {
+    ensureAllowed(ctx, {
+      flags: [FEATURE, FEATURE_RFID],
+      requireIdentity: true,
+      roles: RESIDENT_UP,
+    });
+    const id = String(params.id || '');
+    if (!RFID_ID_RE.test(id)) throw new BadRequest('bad id');
+    const body = await parseJson<{ status?: unknown; cardCode?: unknown; notes?: unknown }>(ctx.req);
+    const nextStatus = oneOf(body.status, 'status', RFID_STATUSES);
+    const cardCode   = optStr(body.cardCode, 'cardCode', { max: 40 });
+    const notes      = optStr(body.notes, 'notes', { max: 500 });
+
+    const { items, sha } = await loadRfidRequests(ctx);
+    const idx = items.findIndex((it) => it.id === id);
+    if (idx < 0) throw new NotFound('rfid request not found');
+    const it = items[idx]!;
+    const email = ctx.identity!.email;
+    // Residents can only cancel their own pending request. Staff can drive
+    // the rest of the lifecycle.
+    const staff = isStaff(ctx);
+    const owner = it.owner.email === email;
+    if (!staff && !owner) throw new Forbidden('not your request');
+    if (!staff && nextStatus !== 'cancelled') throw new Forbidden('residents may only cancel');
+    if (!canTransitionRfid(it.status, nextStatus)) {
+      throw new BadRequest(`cannot go from ${it.status} to ${nextStatus}`);
+    }
+    const updated: RfidRequest = {
+      ...it,
+      status: nextStatus,
+      ...(cardCode ? { cardCode } : {}),
+      ...(notes ? { notes } : {}),
+      ...(staff ? { reviewedBy: email } : {}),
+      updatedAt: new Date().toISOString(),
+    };
+    const next = items.slice();
+    next[idx] = updated;
+    await saveRfidRequests(ctx, next, sha, email, `${nextStatus} rfid ${id}`);
+    await writeAudit(ctx.env, { actor: email, action: 'ev.rfid.status', target: id, detail: `${it.status}->${nextStatus}` });
+    return ok(ctx.env, ctx.req, updated);
+  });
+
+  // ---- Registration: config/ev-registrations.json --------------------------
+
+  r.post('/ev/registration', async (ctx: Ctx) => {
+    ensureAllowed(ctx, {
+      flags: [FEATURE, FEATURE_REGISTRATION],
+      requireIdentity: true,
+      roles: RESIDENT_UP,
+    });
+    const body = await parseJson<{ vehicle?: unknown; ownerFlat?: unknown; ownerName?: unknown; notes?: unknown }>(ctx.req);
+    const vRaw = body.vehicle as Record<string, unknown> | undefined;
+    if (!vRaw || typeof vRaw !== 'object') throw new BadRequest('vehicle is required');
+    const plate = normalizePlate(vRaw['plate']);
+    if (!plate) throw new BadRequest('vehicle.plate is required (letters, digits, hyphens; 4..20 chars)');
+    const make  = optStr(vRaw['make'],  'vehicle.make',  { max: 40 });
+    const model = optStr(vRaw['model'], 'vehicle.model', { max: 60 });
+    const connectorType = optStr(vRaw['connectorType'], 'vehicle.connectorType', { max: 20 });
+    const batteryRaw = vRaw['batteryKwh'];
+    let batteryKwh: number | undefined;
+    if (batteryRaw !== undefined && batteryRaw !== null && batteryRaw !== '') {
+      batteryKwh = num(batteryRaw, 'vehicle.batteryKwh', { min: 1, max: 500 });
+    }
+    const notes = optStr(body.notes, 'notes', { max: 500 });
+    const flat  = normalizeFlat(String(body.ownerFlat ?? ''));
+    if (!flat) throw new BadRequest('ownerFlat is required');
+    const email = ctx.identity!.email;
+    const name  = optStr(body.ownerName, 'ownerName', { max: 80 }) || (ctx.identity!.name || email);
+
+    const store = await loadRegistrations(ctx);
+    if (store.items.length >= REG_MAX_ACTIVE_ITEMS) {
+      throw new BadRequest(`ev-registrations file is full (${store.items.length}/${REG_MAX_ACTIVE_ITEMS})`);
+    }
+    // Reject duplicate active registration for the same plate + owner.
+    const dupe = store.items.find((it) => it.status === 'active' && it.vehicle.plate === plate && it.owner.email === email);
+    if (dupe) throw new BadRequest('plate is already registered for this account');
+
+    const nowIso = new Date().toISOString();
+    const item: EvRegistration = {
+      id: nextRegId(),
+      status: 'active',
+      owner: { email, name, flat },
+      vehicle: {
+        plate,
+        ...(make ? { make } : {}),
+        ...(model ? { model } : {}),
+        ...(connectorType ? { connectorType } : {}),
+        ...(batteryKwh !== undefined ? { batteryKwh } : {}),
+      },
+      ...(notes ? { notes } : {}),
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    };
+    const next = store.items.concat(item);
+    await saveRegistrations(ctx, next, store.sha, email, `create registration ${item.id}`);
+    await writeAudit(ctx.env, { actor: email, action: 'ev.registration.create', target: item.id, detail: `plate=${plate}` });
+    return ok(ctx.env, ctx.req, item);
+  });
+
+  r.get('/ev/registration', async (ctx: Ctx) => {
+    ensureAllowed(ctx, {
+      flags: [FEATURE, FEATURE_REGISTRATION],
+      requireIdentity: true,
+      roles: RESIDENT_UP,
+    });
+    const url = new URL(ctx.req.url);
+    const scope = (url.searchParams.get('scope') || 'own').toLowerCase();
+    if (!['own', 'all'].includes(scope)) throw new BadRequest('scope must be own|all');
+    if (scope === 'all' && !isStaff(ctx)) throw new Forbidden('scope=all requires Manager+');
+    const { items } = await loadRegistrations(ctx);
+    const email = ctx.identity!.email;
+    const filtered = scope === 'all' ? items : items.filter((it) => it.owner.email === email);
+    filtered.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+    return ok(ctx.env, ctx.req, { items: filtered });
+  });
+
+  r.patch('/ev/registration/:id', async (ctx: Ctx, params: Record<string, string>) => {
+    ensureAllowed(ctx, {
+      flags: [FEATURE, FEATURE_REGISTRATION],
+      requireIdentity: true,
+      roles: RESIDENT_UP,
+    });
+    const id = String(params.id || '');
+    if (!REG_ID_RE.test(id)) throw new BadRequest('bad id');
+    const body = await parseJson<{ status?: unknown; notes?: unknown }>(ctx.req);
+    const nextStatus = oneOf(body.status, 'status', REG_STATUSES);
+    const notes = optStr(body.notes, 'notes', { max: 500 });
+
+    const { items, sha } = await loadRegistrations(ctx);
+    const idx = items.findIndex((it) => it.id === id);
+    if (idx < 0) throw new NotFound('registration not found');
+    const it = items[idx]!;
+    const email = ctx.identity!.email;
+    if (it.owner.email !== email && !isStaff(ctx)) throw new Forbidden('not your registration');
+    if (it.status === nextStatus) {
+      // Idempotent no-op — return existing item without a save.
+      return ok(ctx.env, ctx.req, it);
+    }
+    const updated: EvRegistration = {
+      ...it,
+      status: nextStatus,
+      ...(notes ? { notes } : {}),
+      updatedAt: new Date().toISOString(),
+    };
+    const next = items.slice();
+    next[idx] = updated;
+    await saveRegistrations(ctx, next, sha, email, `${nextStatus} registration ${id}`);
+    await writeAudit(ctx.env, { actor: email, action: 'ev.registration.status', target: id, detail: `${it.status}->${nextStatus}` });
+    return ok(ctx.env, ctx.req, updated);
+  });
+
+  // ---- Support: config/ev-support-tickets.json -----------------------------
+
+  r.post('/ev/support', async (ctx: Ctx) => {
+    ensureAllowed(ctx, {
+      flags: [FEATURE, FEATURE_SUPPORT],
+      requireIdentity: true,
+      roles: RESIDENT_UP,
+    });
+    const body = await parseJson<{ category?: unknown; subject?: unknown; message?: unknown; relatedBookingId?: unknown; ownerFlat?: unknown; ownerName?: unknown }>(ctx.req);
+    const category = oneOf(body.category, 'category', SUPPORT_CATEGORIES);
+    const subject  = str(body.subject, 'subject', { min: 1, max: 120 });
+    const message  = str(body.message, 'message', { min: 1, max: 2000 });
+    const relatedBookingId = optStr(body.relatedBookingId, 'relatedBookingId', { max: 32 });
+    if (relatedBookingId && !EV_ID_RE.test(relatedBookingId)) {
+      throw new BadRequest('relatedBookingId is malformed');
+    }
+    const flat  = normalizeFlat(String(body.ownerFlat ?? ''));
+    if (!flat) throw new BadRequest('ownerFlat is required');
+    const email = ctx.identity!.email;
+    const name  = optStr(body.ownerName, 'ownerName', { max: 80 }) || (ctx.identity!.name || email);
+
+    const store = await loadSupportTickets(ctx);
+    if (store.items.length >= SUPPORT_MAX_ACTIVE_ITEMS) {
+      throw new BadRequest(`ev-support file is full (${store.items.length}/${SUPPORT_MAX_ACTIVE_ITEMS})`);
+    }
+    const nowIso = new Date().toISOString();
+    const item: SupportTicket = {
+      id: nextSupportId(),
+      category,
+      status: 'open',
+      owner: { email, name, flat },
+      subject,
+      message,
+      ...(relatedBookingId ? { relatedBookingId } : {}),
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    };
+    const next = store.items.concat(item);
+    await saveSupportTickets(ctx, next, store.sha, email, `open support ${item.id}`);
+    await writeAudit(ctx.env, { actor: email, action: 'ev.support.create', target: item.id, detail: `category=${category}` });
+    return ok(ctx.env, ctx.req, item);
+  });
+
+  r.get('/ev/support', async (ctx: Ctx) => {
+    ensureAllowed(ctx, {
+      flags: [FEATURE, FEATURE_SUPPORT],
+      requireIdentity: true,
+      roles: RESIDENT_UP,
+    });
+    const url = new URL(ctx.req.url);
+    const scope = (url.searchParams.get('scope') || 'own').toLowerCase();
+    if (!['own', 'all'].includes(scope)) throw new BadRequest('scope must be own|all');
+    if (scope === 'all' && !isStaff(ctx)) throw new Forbidden('scope=all requires Manager+');
+    const { items } = await loadSupportTickets(ctx);
+    const email = ctx.identity!.email;
+    const filtered = scope === 'all' ? items : items.filter((it) => it.owner.email === email);
+    filtered.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+    return ok(ctx.env, ctx.req, { items: filtered });
+  });
+
+  r.patch('/ev/support/:id', async (ctx: Ctx, params: Record<string, string>) => {
+    ensureAllowed(ctx, {
+      flags: [FEATURE, FEATURE_SUPPORT],
+      requireIdentity: true,
+      roles: RESIDENT_UP,
+    });
+    const id = String(params.id || '');
+    if (!SUPPORT_ID_RE.test(id)) throw new BadRequest('bad id');
+    const body = await parseJson<{ status?: unknown; resolutionNote?: unknown }>(ctx.req);
+    const nextStatus = oneOf(body.status, 'status', SUPPORT_STATUSES);
+    const resolutionNote = optStr(body.resolutionNote, 'resolutionNote', { max: 500 });
+
+    const { items, sha } = await loadSupportTickets(ctx);
+    const idx = items.findIndex((it) => it.id === id);
+    if (idx < 0) throw new NotFound('support ticket not found');
+    const it = items[idx]!;
+    const email = ctx.identity!.email;
+    // Only staff can update support ticket status. Residents can only
+    // "close" their own tickets.
+    const staff = isStaff(ctx);
+    const owner = it.owner.email === email;
+    if (!staff && !owner) throw new Forbidden('not your ticket');
+    if (!staff && nextStatus !== 'closed') throw new Forbidden('residents may only close');
+    if (!canTransitionSupport(it.status, nextStatus)) {
+      throw new BadRequest(`cannot go from ${it.status} to ${nextStatus}`);
+    }
+    const updated: SupportTicket = {
+      ...it,
+      status: nextStatus,
+      ...(resolutionNote ? { resolutionNote } : {}),
+      ...(staff ? { handledBy: email } : {}),
+      updatedAt: new Date().toISOString(),
+    };
+    const next = items.slice();
+    next[idx] = updated;
+    await saveSupportTickets(ctx, next, sha, email, `${nextStatus} support ${id}`);
+    await writeAudit(ctx.env, { actor: email, action: 'ev.support.status', target: id, detail: `${it.status}->${nextStatus}` });
+    return ok(ctx.env, ctx.req, updated);
   });
 };
