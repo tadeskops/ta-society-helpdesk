@@ -295,7 +295,12 @@
   .tsh-mob-sheet {
     position: fixed;
     inset: 0;
-    z-index: 60;
+    /* Must sit above the floating chrome (floatdock 950, back-to-top
+       940, sunarth-support 900, bottom-left tip 940) — otherwise the
+       transparent parts of those widgets on the right edge of the
+       viewport intercept taps on the sheet rows on iOS. Matches the
+       shared modal band (1000+). Bumped 2026-08-02. */
+    z-index: 1050;
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
@@ -470,5 +475,18 @@
   /* When the sheet is open, prevent background scroll. Applied by JS
      via body.tsh-mob-sheet-open. */
   body.tsh-mob-sheet-open { overflow: hidden; }
+
+  /* Hide every floating widget while the sheet is open, so nothing
+     overlaps the sheet rows and steals taps on iOS. The sheet itself
+     lives at z-index 1050 (above modals ceiling), but visually hiding
+     the dock/back-to-top/support pill keeps the sheet clean and also
+     prevents any residual tap-capture from their peek areas.
+     Added 2026-08-02 alongside the z-index bump. */
+  body.tsh-mob-sheet-open .tsh-floatdock,
+  body.tsh-mob-sheet-open .tsh-backtotop,
+  body.tsh-mob-sheet-open .tsh-tip,
+  body.tsh-mob-sheet-open .tsh-sunarth-fab {
+    display: none !important;
+  }
 }
 
