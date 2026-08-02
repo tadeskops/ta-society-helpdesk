@@ -476,8 +476,8 @@
       ],
       "provider": {
         "name": "SunArth Technologies",
-        "androidUrl": "",
-        "iosUrl": "",
+        "androidUrl": "https://play.google.com/store/apps/details?id=com.sunarthev&hl=en-US",
+        "iosUrl": "https://apps.apple.com/in/app/sunarth-ev-charging/id6736524617",
         "website": "https://www.sunarth.com",
         "email": "info@sunarth.com",
         "tollFree": "7797798887"

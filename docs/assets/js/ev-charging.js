@@ -275,6 +275,28 @@
     }).join('');
   }
 
+  // Renders the "Get the SunArth EV Charging app" strip on the FAQ tab.
+  // Sourced from data.provider.{iosUrl,androidUrl} on /ev/config — leaves
+  // the container empty (and thus invisible via CSS) when neither is set.
+  function renderProviderApps(provider) {
+    const host = $('#evProviderApps');
+    if (!host) return;
+    const ios = provider && typeof provider.iosUrl === 'string' ? provider.iosUrl.trim() : '';
+    const and = provider && typeof provider.androidUrl === 'string' ? provider.androidUrl.trim() : '';
+    if (!ios && !and) { host.hidden = true; host.innerHTML = ''; return; }
+    const btns = [];
+    if (ios) {
+      btns.push('<a class="tsh-sunarth-app tsh-sunarth-app-ios" href="' + esc(ios) + '" target="_blank" rel="noopener noreferrer" aria-label="Download SunArth EV Charging on the App Store"><i class="fab fa-apple"></i> Get App</a>');
+    }
+    if (and) {
+      btns.push('<a class="tsh-sunarth-app tsh-sunarth-app-android" href="' + esc(and) + '" target="_blank" rel="noopener noreferrer" aria-label="Download SunArth EV Charging on Google Play"><i class="fab fa-google-play"></i> Get App</a>');
+    }
+    host.hidden = false;
+    host.innerHTML =
+      '<p class="tsh-sunarth-apps-label"><i class="fas fa-mobile-screen-button"></i> Get the SunArth EV Charging app</p>' +
+      '<div class="tsh-sunarth-apps-row">' + btns.join('') + '</div>';
+  }
+
   // Hide any pill / panel whose sub-flag is off. `subFlags` comes from
   // GET /ev/config so we do not have to re-derive via Flags.on() per node.
   function applySubFlagVisibility(subFlags) {
@@ -841,6 +863,12 @@
     renderStationsBar(stationsList, stationId);
     renderGuidelines(data.usageGuidelines || []);
     renderFaqs(data.faqs || []);
+    renderProviderApps(data.provider || {});
+    // Hand the provider URLs to the SunArth chat modal so its "Get App"
+    // pills mirror whatever the admin saved in Settings.
+    if (root.SunarthSupport && typeof root.SunarthSupport.configure === 'function') {
+      root.SunarthSupport.configure(data.provider || {});
+    }
     wirePills();
     // Phase 2: booking UI. Kick off initial availability render on the
     // default (Book) tab once the context is primed above.

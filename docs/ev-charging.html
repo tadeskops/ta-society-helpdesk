@@ -12,7 +12,7 @@
   <link rel="stylesheet" href="./assets/css/theme.css?v=87" />
   <link rel="stylesheet" href="./assets/css/mobile-landing.css?v=14" />
   <link rel="stylesheet" href="./assets/css/ev-charging.css?v=14" />
-  <link rel="stylesheet" href="./assets/css/sunarth-support.css?v=1" />
+  <link rel="stylesheet" href="./assets/css/sunarth-support.css?v=2" />
 </head>
 <body class="tsh-page">
   <div data-include="header"></div>
@@ -233,6 +233,7 @@
           <p class="tsh-sub" style="margin:0;">Still stuck? The SunArth AI consultant on <a href="https://www.sunarth.com" target="_blank" rel="noopener">sunarth.com</a> answers common EV charger questions instantly. The Mobile App manual is available inside the app under <strong>Menu → Help → User Guide</strong>.</p>
           <button type="button" class="tsh-sunarth-inline" id="evFaqSunarthBtn"><i class="fas fa-comments"></i> Talk to SunArth</button>
         </div>
+        <div class="tsh-sunarth-apps tsh-ev-provider-apps" id="evProviderApps" hidden></div>
         <div class="tsh-ev-faq-list" id="evFaqList">
           <p class="tsh-sub">No FAQs configured yet. Ask an admin to add them via Settings → EV charging.</p>
         </div>
@@ -260,8 +261,8 @@
   <script src="./assets/js/flags.js?v=19"></script>
   <script src="./assets/js/ui.js?v=53"></script>
   <script src="./assets/js/mobile-landing.js?v=9"></script>
-  <script src="./assets/js/ev-charging.js?v=12"></script>
-  <script src="./assets/js/sunarth-support.js?v=1"></script>
+  <script src="./assets/js/ev-charging.js?v=13"></script>
+  <script src="./assets/js/sunarth-support.js?v=2"></script>
   <script>
   (async () => {
     await Partials.mount();

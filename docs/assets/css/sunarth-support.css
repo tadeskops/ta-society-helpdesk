@@ -172,6 +172,46 @@
 .tsh-sunarth-primary-text strong { font-size: 15px; }
 .tsh-sunarth-primary-text small { opacity: .85; font-size: 11px; }
 
+/* ---- Get-the-app pills (App Store / Google Play) ------------------------ */
+.tsh-sunarth-apps {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  text-align: center;
+}
+.tsh-sunarth-apps-label {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #065f46;
+  letter-spacing: .01em;
+}
+.tsh-sunarth-apps-row {
+  display: flex; flex-wrap: wrap; justify-content: center;
+  gap: 10px;
+}
+.tsh-sunarth-app {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 22px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1.5px solid #059669;
+  color: #065f46;
+  font: inherit; font-weight: 700; font-size: 14px;
+  text-decoration: none;
+  transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
+}
+.tsh-sunarth-app:hover {
+  transform: translateY(-1px);
+  background: #f0fdf4;
+  box-shadow: 0 6px 14px rgba(5, 150, 105, 0.22);
+}
+.tsh-sunarth-app i { font-size: 16px; }
+.tsh-sunarth-app-ios i     { color: #0f172a; }
+.tsh-sunarth-app-android i { color: #059669; }
+
 .tsh-sunarth-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;

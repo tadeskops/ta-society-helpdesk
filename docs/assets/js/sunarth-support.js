@@ -35,10 +35,29 @@
     whatsapp: '917797798881',           // wa.me format: country code + national number, no + or spaces
     email:    'info@sunarth.com',
     website:  'https://www.sunarth.com',
+    androidUrl: 'https://play.google.com/store/apps/details?id=com.sunarthev&hl=en-US',
+    iosUrl:     'https://apps.apple.com/in/app/sunarth-ev-charging/id6736524617',
   };
 
   var mounted = false;
   var overlay = null;
+
+  /**
+   * Override selected CONTACT fields at runtime — used by pages that
+   * pull the provider block from GET /ev/config so the modal reflects
+   * whatever an editor changed in Settings without a code deploy.
+   */
+  function configure (overrides) {
+    if (!overrides) return;
+    ['androidUrl', 'iosUrl', 'website', 'email', 'whatsapp', 'address', 'name'].forEach(function (k) {
+      if (typeof overrides[k] === 'string' && overrides[k]) CONTACT[k] = overrides[k];
+    });
+    // Reset the cached overlay so the next open() picks up the new links.
+    if (overlay && overlay.parentNode) {
+      overlay.parentNode.removeChild(overlay);
+      overlay = null;
+    }
+  }
 
   function el(tag, attrs, kids) {
     var node = document.createElement(tag);
@@ -89,6 +108,32 @@
           '<small>Opens sunarth.com in a new tab — the AI consultant greets you on arrival</small>' +
         '</span>',
     });
+
+    // Get-the-app pills — only rendered when at least one store URL is set.
+    var appRow = null;
+    if (CONTACT.iosUrl || CONTACT.androidUrl) {
+      appRow = el('div', { class: 'tsh-sunarth-apps' }, [
+        el('p', { class: 'tsh-sunarth-apps-label', text: 'Get the SunArth EV Charging app' }),
+      ]);
+      var appBtns = el('div', { class: 'tsh-sunarth-apps-row' });
+      if (CONTACT.iosUrl) {
+        appBtns.appendChild(el('a', {
+          class: 'tsh-sunarth-app tsh-sunarth-app-ios',
+          href: CONTACT.iosUrl, target: '_blank', rel: 'noopener noreferrer',
+          html: '<i class="fab fa-apple"></i> Get App',
+          'aria-label': 'Download SunArth EV Charging on the App Store',
+        }));
+      }
+      if (CONTACT.androidUrl) {
+        appBtns.appendChild(el('a', {
+          class: 'tsh-sunarth-app tsh-sunarth-app-android',
+          href: CONTACT.androidUrl, target: '_blank', rel: 'noopener noreferrer',
+          html: '<i class="fab fa-google-play"></i> Get App',
+          'aria-label': 'Download SunArth EV Charging on Google Play',
+        }));
+      }
+      appRow.appendChild(appBtns);
+    }
 
     var actions = el('div', { class: 'tsh-sunarth-actions' }, [
       el('a', {
@@ -144,7 +189,7 @@
       'Need something the app can\'t answer? WhatsApp is fastest. For billing disputes or safety issues, please <em>also</em> file a ticket in the EV Support tab so the society has a record.',
     });
 
-    var body = el('div', { class: 'tsh-sunarth-body' }, [ primary, actions, addr, footnote ]);
+    var body = el('div', { class: 'tsh-sunarth-body' }, [ primary, appRow, actions, addr, footnote ]);
 
     var card = el('div', {
       class: 'tsh-sunarth-card',
@@ -203,5 +248,5 @@
     }
   }
 
-  window.SunarthSupport = { mount: mount, open: open, close: close, CONTACT: CONTACT };
+  window.SunarthSupport = { mount: mount, open: open, close: close, configure: configure, CONTACT: CONTACT };
 }());
