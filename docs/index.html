@@ -1,8 +1,8 @@
 <!doctype html>
-<html lang="en">
+<html lang="en-IN">
 <head>
   <meta charset="utf-8" />
-  <title>The Address Â· Society Help Desk</title>
+  <title>The Address · Society Help Desk</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#1a1f2e" />
   <meta name="description" content="Tower Apartments â€” report daily issues or handover snags." />
@@ -267,7 +267,7 @@
   <script src="./assets/js/mobile-landing.js?v=10"></script>
   <script src="./assets/js/notify.js?v=1"></script>
   <script src="./assets/js/pdf-report.js?v=9"></script>
-  <script src="./assets/js/visitors.js?v=2"></script>
+  <script src="./assets/js/visit-counter.js?v=1"></script>
   <script src="./assets/js/banner.js?v=1"></script>
   <script src="./assets/js/announcements.js?v=3"></script>
   <script src="./assets/js/events.js?v=4"></script>
@@ -409,7 +409,7 @@
               for (const i of items) {
                 const firstLine = String(i.description || '').split('\n')[0].trim();
                 const titleText = firstLine ? (firstLine.length > 80 ? firstLine.slice(0, 80) + 'â€¦' : firstLine) : '(no description)';
-                const metaBits = [i.tower, i.category].filter(Boolean).join(' Â· ');
+                const metaBits = [i.tower, i.category].filter(Boolean).join(' · ');
                 const a = UI.el('a', {
                   class: 'tsh-recent-link',
                   href: './public-board.html?ids=' + encodeURIComponent(i.id),

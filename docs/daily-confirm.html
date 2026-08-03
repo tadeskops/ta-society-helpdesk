@@ -1,8 +1,8 @@
 <!doctype html>
-<html lang="en">
+<html lang="en-IN">
 <head>
   <meta charset="utf-8" />
-  <title>Report received Â· TSH</title>
+  <title>Report received · TA Society Help Desk</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#1a1f2e" />
   <link rel="icon" href="./assets/images/TaLogo.png" type="image/png" />
@@ -50,7 +50,7 @@
 
       <div class="tsh-form-actions">
         <button type="button" class="tsh-btn tsh-btn-primary" id="shareBtn" hidden><i class="fab fa-whatsapp"></i>Share on WhatsApp</button>
-        <a class="tsh-btn tsh-btn-ghost" href="./public-board.html"><i class="fas fa-list-check"></i>View public board</a>
+        <a class="tsh-btn tsh-btn-ghost" href="./public-board.html"><i class="fas fa-list-check"></i>View Issues Board</a>
         <a class="tsh-btn tsh-btn-ghost" href="./daily-report.html"><i class="fas fa-plus"></i>Report another</a>
       </div>
     </section>
@@ -70,7 +70,7 @@
   <script src="./assets/js/mobile-landing.js?v=10"></script>
   <script src="./assets/js/notify.js?v=1"></script>
   <script src="./assets/js/pdf-report.js?v=8"></script>
-  <script src="./assets/js/visitors.js?v=2"></script>
+  <script src="./assets/js/visit-counter.js?v=1"></script>
   <script>
   (async () => {
     await Partials.mount();
@@ -116,7 +116,7 @@
       const share = document.getElementById('shareBtn');
       share.hidden = false;
       share.addEventListener('click', () => {
-        const text = `I just reported issue ${id} on The Address Â· Society Help Desk. Track it at ${location.origin}${location.pathname}?id=${encodeURIComponent(id)}`;
+        const text = `I just reported issue ${id} on The Address · Society Help Desk. Track it at ${location.origin}${location.pathname}?id=${encodeURIComponent(id)}`;
         const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
         window.open(url, '_blank', 'noopener');
       });

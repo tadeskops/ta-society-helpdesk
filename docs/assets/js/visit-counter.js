@@ -1,8 +1,10 @@
-// docs/assets/js/visitors.js
-// Visitor counter shown in the footer. Reads /metrics/visit on every
-// load and POSTs an increment at most once per UTC day per browser
-// (gated by localStorage). All errors are swallowed — the counter is
-// decorative and must never block the page.
+// docs/assets/js/visit-counter.js
+// Site-wide daily-visit counter shown in the footer. Not to be confused
+// with the (planned) Visitors module — this widget only tracks anonymous
+// page-load counts. Reads /metrics/visit on every load and POSTs an
+// increment at most once per UTC day per browser (gated by localStorage).
+// All errors are swallowed — the counter is decorative and must never
+// block the page.
 (function (root) {
   'use strict';
 

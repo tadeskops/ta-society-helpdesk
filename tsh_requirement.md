@@ -547,7 +547,7 @@ Denied = redirect to `index.html` with a one-line toast. **"Committee+"** = ever
 │   │  [ Report now → ]        │  │  [ Open handover portal →]││
 │   └──────────────────────────┘  └──────────────────────────┘│
 │   ─── Already reported? ───                                 │
-│   [ View public board ]    [ View Full Report ]            │
+│   [ View Issues Board ]   [ View Full Report ]            │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -583,7 +583,7 @@ Both pages are flag-gated by `FEATURE_DAILY_KPI_DASHBOARD`. Data is derived clie
 
 Read-only. PII redacted. Filter pill: `All / New / In Progress / Resolved`. Search by ticket id. Anonymous-allowed.
 
-**PDF export invariant.** The "Export PDF" action on this page always covers the **full** public dataset (a fresh `GET /issues/public` at click time), regardless of the on-page status / search / "my reports" filters. Rationale: the filename says "Public Board — Report", so users expect a report of the whole board, not a snapshot of whatever narrowing happens to be active at the moment. If we later want a "filtered view" export, it should be an opt-in toggle in the wizard, not the default. Same principle applies to the manage-page export (§8.4).
+**PDF export invariant.** The "Export PDF" action on this page always covers the **full** public dataset (a fresh `GET /issues/public` at click time), regardless of the on-page status / search / "my issues" filters. Rationale: the filename says "Public Board — Report", so users expect a report of the whole board, not a snapshot of whatever narrowing happens to be active at the moment. If we later want a "filtered view" export, it should be an opt-in toggle in the wizard, not the default. Same principle applies to the manage-page export (§8.4).
 
 ### 8.7 Settings (`docs/settings.html`)
 
@@ -1331,6 +1331,73 @@ markAllRead(env, cfg, email, actor)
 - Recipients are deduplicated + lowercased. `@`-less entries are dropped.
 - `channels` defaults to `["in-app"]`. Reserved for `email` / `whatsapp` in a later phase; other transports are ignored today.
 - Emitter failures are swallowed by the caller (`try { emit(...) } catch {}`) so notifications never break the parent operation.
+
+## 24. Standard display-label conventions (Phase 1 naming pass, 2026-08-03)
+
+Residents recognise society-app features faster when the labels match what they already know from ApnaComplex / MyGate / ADDA / NoBrokerHood. The internal spec vocabulary (route names, feature flags, config field names, JSON keys) is **frozen** — only the user-facing **display labels** on pages, headers, tabs, `<title>` tags and buttons are standardised. This lets us evolve terminology without breaking bookmarks, PAT-authed API integrations, cron scripts, or existing tests.
+
+### 24.1 Frozen (internal) vs. free (display)
+
+| Concept | Frozen (never rename) | Free (Phase 1 display label) |
+|---|---|---|
+| Page URL | `docs/public-board.html` | "Public Issues Board" |
+| Page URL | `docs/daily-report.html` | "Report an Issue" |
+| Page URL | `docs/manage.html` | "Manage Issues" |
+| Page URL | `docs/manager-dashboard.html` | "Manager Dashboard" |
+| Page URL | `docs/committee-dashboard.html` | "Committee Dashboard" (title only; page is a redirect stub — see UI/UX §15.9) |
+| Page URL | `docs/reservations.html` | "Amenity Booking" (browser tab); the H1 stays "Reservations" during the transition |
+| Route | `POST /issues` | (no display) |
+| Route | `GET /issues/public` | (no display) |
+| Feature flag | `FEATURE_DAILY_PUBLIC_BOARD` | Board / Issues Board |
+| Feature flag | `FEATURE_DAILY_ANNOUNCEMENTS` | Notices / Notice Board (planned Phase 6 trailer) |
+| Filter key | `my=1` (query param) | "My Issues" |
+| JSON storage | `config/announcements.json` | Notice Board entries |
+| JSON storage | `data/visitors.json` | Site-wide visit counter (unrelated to the planned Visitors module — see §24.3 below) |
+
+### 24.2 Standard `<title>` format
+
+Every page follows `Page label · TA Society Help Desk`. Middle dot is U+00B7 (or the `&middot;` HTML entity where a source file prefers entities). Rationale: the previous `· TSH` suffix is meaningless to a first-time resident who just clicked a WhatsApp share link.
+
+Applied 2026-08-03 across all 14 pages:
+
+| Page | Title |
+|---|---|
+| `index.html` | `The Address · TA Society Help Desk` |
+| `daily-report.html` | `Report an Issue · TA Society Help Desk` |
+| `daily-confirm.html` | `Report received · TA Society Help Desk` |
+| `public-board.html` | `Public Issues Board · TA Society Help Desk` |
+| `directory.html` | `Directory · TA Society Help Desk` |
+| `reservations.html` | `Amenity Booking · TA Society Help Desk` |
+| `treasury.html` | `Treasury & Reimbursements · TA Society Help Desk` |
+| `vehicles.html` | `Vehicle Registry · TA Society Help Desk` |
+| `ev-charging.html` | `EV Charging · TA Society Help Desk` |
+| `ev-admin.html` | `EV Analytics · TA Society Help Desk` |
+| `manage.html` | `Manage Issues · TA Society Help Desk` |
+| `manager-dashboard.html` | `Manager Dashboard · TA Society Help Desk` |
+| `committee-dashboard.html` | `Committee Dashboard · TA Society Help Desk` |
+| `settings.html` | `Settings · TA Society Help Desk` |
+
+### 24.3 `visit-counter.js` (formerly `visitors.js`)
+
+The footer visit counter widget was renamed to `docs/assets/js/visit-counter.js` on 2026-08-03 to free the "visitors" namespace for the planned Visitors module (SRS §6.3 — pre-approved OTPs, guest categories, delivery / cab / cleaner tracking). The backend endpoint (`GET|POST /metrics/visit`), the flag (`FEATURE_DAILY_VISITOR_COUNTER`), and the storage file (`data/visitors.json`) are **not renamed** — those are wire contracts and would break running installations. Consumers refer to the frontend widget by its new file name; the backend keeps its historical names.
+
+Cache-buster was reset to `?v=1` on rename. Any future edit bumps this normally.
+
+### 24.4 `<html lang="en-IN">`
+
+All 14 pages under `docs/` now declare `<html lang="en-IN">` (was `lang="en"`). This flips the browser's default locale for date / number formatting utilities that read `document.documentElement.lang` and aligns with `Intl.NumberFormat('en-IN')` used across treasury, KPI, and EV. UI/UX §18 requirement is now met.
+
+### 24.5 What is **not** yet standardised
+
+The following display labels remain on the Lane A follow-up list (Phase 6 optional trailer per this session's plan):
+
+- Landing page: "Announcements" → "Notice Board" heading. Requires either a `home.js` heading tweak or a new wrapper section around `#tshAnnouncements`.
+- Mobile bottom tab bar: "Board" label. Currently unchanged; could shorten to "Issues" once user-tested.
+- Empty-state copy audit (UX §10.1 tone standardisation) — separate polish phase.
+
+### 24.6 Rule for future edits
+
+Whenever a display label changes, update §24 in the same commit. Do **not** rename routes, flag IDs, JSON schemas, or storage paths as part of a display-label pass — those changes require their own migration + versioning discussion (see §17 versioning notes).
 
 ### 19.3 API
 
