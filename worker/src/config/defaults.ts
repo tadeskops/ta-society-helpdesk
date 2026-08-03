@@ -593,6 +593,18 @@ export const DEFAULT_CONFIG: SiteConfig = {
         B: { floors: 13, unitsPerFloor: 6 },
         C: { floors: 13, unitsPerFloor: 4 },
       },
+      // Positions inside the seat map that are NOT residential flats
+      // (club house, gym, guard cabin, transformer room, ...). Keyed by
+      // the same flat-id string used everywhere else (`<tower><floor><unit>`
+      // with `<unit>` zero-padded to 2 digits). Values are the display
+      // label shown on the tile. Cells listed here render as a disabled
+      // muted tile — no click, no aria-pressed, no add / edit affordance
+      // — so vehicles can never be attached to them and residents can't
+      // accidentally open a details drawer for a common area. Tenants
+      // override from site.json → system.vehicles.nonFlatCells.
+      nonFlatCells: {
+        C102: 'Club House',
+      },
     },
     maintenance: {
       message: 'We are deploying new features and improvements. Please check back shortly.',

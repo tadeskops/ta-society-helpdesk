@@ -445,6 +445,11 @@ export const mountVehicles = (r: Router): void => {
     const sys = (ctx.config.system ?? {}) as Record<string, unknown>;
     const vCfg = isObj(sys['vehicles']) ? (sys['vehicles'] as Record<string, unknown>) : {};
     const towerLayouts = isObj(vCfg['towerLayouts']) ? vCfg['towerLayouts'] : undefined;
+    // Positions inside the seat map that are NOT residential flats
+    // (club house, guard cabin, transformer room…). Same shape as
+    // Record<flatId, displayLabel>. Client renders these as disabled
+    // muted tiles.
+    const nonFlatCells = isObj(vCfg['nonFlatCells']) ? vCfg['nonFlatCells'] : undefined;
     return ok(ctx.env, ctx.req, {
       version: file.version,
       vehicles,
@@ -460,6 +465,10 @@ export const mountVehicles = (r: Router): void => {
       // Per-tower floors × unitsPerFloor. Client falls back to
       // 10 × 4 for towers absent from this map.
       towerLayouts,
+      // Positions inside the seat map that are NOT residential flats
+      // (club house, guard cabin, ...). Optional; client omits the
+      // seat click / vehicles column when a flat-id matches a key.
+      nonFlatCells,
       // Per-flat parking bay assignments (independent of vehicles).
       flatParking: file.flatParking ?? {},
     });

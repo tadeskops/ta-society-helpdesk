@@ -678,6 +678,31 @@
     .veh-cell[aria-pressed="true"] {
       outline: 2px solid var(--tsh-accent, #b48a3c); outline-offset: 2px;
     }
+    /* Non-residential positions (club house, guard cabin, transformer
+       room, ...). Muted, non-interactive, no dashed empty-seat outline
+       so it reads as "occupied by a labelled amenity" rather than a
+       missing flat. Emitted as a <div> (not <button>) so it's not tab-
+       focusable and the click delegation on .veh-tower-grid ignores it. */
+    .veh-cell.veh-cell-nonflat {
+      cursor: default;
+      border-style: solid;
+      border-color: color-mix(in srgb, var(--tsh-accent, #b48a3c) 25%, #fff);
+      background: color-mix(in srgb, var(--tsh-accent, #b48a3c) 6%, #fff);
+      color: var(--tsh-accent-dark, #8a6b28);
+      transform: none;
+      box-shadow: none;
+      justify-content: center;
+    }
+    .veh-cell.veh-cell-nonflat:hover {
+      border-color: color-mix(in srgb, var(--tsh-accent, #b48a3c) 25%, #fff);
+      color: var(--tsh-accent-dark, #8a6b28);
+      transform: none;
+      box-shadow: none;
+    }
+    .veh-cell-nonflat-label {
+      font-weight: 700; font-size: .7rem; letter-spacing: .04em;
+      text-align: center; line-height: 1.1;
+    }
     .veh-cell-flat {
       font-weight: 700; letter-spacing: .02em; font-size: .8rem;
       text-align: center; line-height: 1.1;
@@ -1168,6 +1193,11 @@
     let canWrite = false;
     let editorRoles = [];
     let towerLayouts = null; // { A: { floors:13, unitsPerFloor:4 }, ... } from GET /vehicles
+    // Positions inside the seat map that are NOT residential flats
+    // (club house, guard cabin, transformer room, ...). Populated from
+    // GET /vehicles → nonFlatCells. Keyed by flat-id; value = display
+    // label. Empty object when the site hasn't configured any.
+    let nonFlatCells = {};
     // Per-flat parking bay assignments, e.g. { "B905": "P-104" }. Kept on
     // the server as VehicleFile.flatParking so a flat can hold a parking
     // slot without any vehicles yet.
@@ -1187,6 +1217,7 @@
       canWrite = !!data.canWrite;
       editorRoles = Array.isArray(data.editorRoles) ? data.editorRoles : [];
       towerLayouts = (data && typeof data.towerLayouts === 'object' && data.towerLayouts) ? data.towerLayouts : null;
+      nonFlatCells = (data && typeof data.nonFlatCells === 'object' && data.nonFlatCells) ? data.nonFlatCells : {};
       flatParking = (data && typeof data.flatParking === 'object' && data.flatParking) ? data.flatParking : {};
       rebuildIndex();
       renderManage();
@@ -2051,6 +2082,20 @@
         cells += '<div class="veh-floor-label" title="Floor ' + (f === 0 ? 'Ground' : f) + '">' + floorLabel + '</div>';
         for (let u = 1; u <= s.maxUnit; u++) {
           const flat = flatFromParts(tower, f, u);
+          // Non-residential position (club house, guard cabin, ...) —
+          // render a disabled muted tile with the configured label
+          // instead of a clickable seat. Omit data-flat so the click
+          // delegation on .veh-tower-grid ignores it.
+          const nonFlatLabel = nonFlatCells && Object.prototype.hasOwnProperty.call(nonFlatCells, flat)
+            ? String(nonFlatCells[flat] || '')
+            : '';
+          if (nonFlatLabel) {
+            cells += '<div class="veh-cell veh-cell-nonflat" aria-disabled="true"' +
+                     ' title="' + esc(nonFlatLabel) + ' (not a residential flat)">' +
+                     '<span class="veh-cell-nonflat-label">' + esc(nonFlatLabel) + '</span>' +
+                     '</div>';
+            continue;
+          }
           const rows = s.byFlat.get(flat) || [];
           const cls = cellClass(rows);
           const pressed = (flat === selectedFlat) ? 'true' : 'false';
@@ -2471,6 +2516,13 @@
     // working without re-binding.
     let flatDetailPanelCtrl = null;
     function selectFlat(flat, opts) {
+      // Guard: non-residential positions (club house, guard cabin, …)
+      // cannot be selected. Clear any current selection instead so the
+      // caller (search, hash navigation, …) can't accidentally open a
+      // details drawer for a common area.
+      if (flat && nonFlatCells && Object.prototype.hasOwnProperty.call(nonFlatCells, flat)) {
+        flat = null;
+      }
       selectedFlat = flat || null;
       // Update aria-pressed on all cells across all visible towers.
       for (const btn of towersEl.querySelectorAll('.veh-cell')) {
@@ -2602,11 +2654,14 @@
       });
     }
 
-    // Tower grid: cell click → select flat.
+    // Tower grid: cell click → select flat. Non-flat cells (club house,
+    // guard cabin, …) render without a data-flat attribute so they're
+    // ignored here — clicking one is a no-op, not a "clear selection".
     towersEl.addEventListener('click', (e) => {
       const cell = e.target.closest('.veh-cell');
       if (cell) {
-        selectFlat(cell.getAttribute('data-flat'));
+        const flat = cell.getAttribute('data-flat');
+        if (flat) selectFlat(flat);
       }
     });
 
