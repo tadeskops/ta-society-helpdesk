@@ -14,7 +14,7 @@
   <link rel="stylesheet" href="./assets/css/mobile-landing.css?v=19" />
   <style>
     /* ============================================================
-       Treasury page â€” merged Design 1 (Ledger Console) + Design 3
+       Treasury page — merged Design 1 (Ledger Console) + Design 3
        (Wallet Feed). Mobile-first architecture: base styles render a
        single-column card feed; @media (min-width) queries progressively
        enhance to a two-column tile grid (tablet) and then to a dense
@@ -24,7 +24,7 @@
        a card on phones and a table row on desktop via CSS.
        ============================================================ */
 
-    /* KPI strip â€” 2-up on phones, 4-up from small-tablet up. */
+    /* KPI strip — 2-up on phones, 4-up from small-tablet up. */
     .tr-kpi-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0; }
     .tr-kpi { background: var(--c-card-bg); border: 1px solid var(--c-border); border-radius: var(--rad-lg); padding: 10px 12px; display: flex; align-items: center; gap: 10px; min-width: 0; }
     .tr-kpi-icon { width: 32px; height: 32px; border-radius: 8px; display: grid; place-items: center; font-size: 14px; flex-shrink: 0; }
@@ -41,7 +41,7 @@
       .tr-kpi-label { font-size: 11px; }
     }
 
-    /* Tabs â€” scrollable pill row on mobile, static bar on desktop. */
+    /* Tabs — scrollable pill row on mobile, static bar on desktop. */
     .tr-tabs { display: flex; gap: 6px; padding: 4px; margin: 0 -4px 12px; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
     .tr-tabs::-webkit-scrollbar { display: none; }
     .tr-tab { flex-shrink: 0; padding: 8px 12px; background: var(--c-card-bg); border: 1px solid var(--c-border-soft); border-radius: 999px; color: var(--c-text-muted); font-size: var(--fs-xs); font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-family: inherit; }
@@ -78,7 +78,7 @@
     .tr-panel-head h3 { margin: 0; font-size: var(--fs-sm); color: var(--c-text); }
     .tr-panel-head .n { color: var(--c-text-muted); font-size: 11px; font-weight: 400; }
 
-    /* The list â€” mobile-first card layout. */
+    /* The list — mobile-first card layout. */
     .tr-list { list-style: none; margin: 0; padding: 8px; display: flex; flex-direction: column; gap: 8px; }
     .tr-item {
       background: var(--c-card-bg); border: 1px solid var(--c-border-soft); border-radius: 12px; padding: 12px;
@@ -208,7 +208,7 @@
     .tr-actions .tsh-btn-pay     { background: var(--c-primary); color: #1a1f2e; border-color: var(--c-primary); font-weight: 700; grid-column: 1 / -1; }
     .tr-actions .tsh-btn-close   { grid-column: 1 / -1; }
 
-    /* Floating action button â€” mobile/tablet only. */
+    /* Floating action button — mobile/tablet only. */
     .tr-fab { position: fixed; bottom: 20px; right: 20px; background: linear-gradient(135deg, var(--c-primary), var(--c-primary-2, var(--c-primary))); color: #1a1f2e; border: 0; padding: 14px 20px; border-radius: 999px; font-weight: 800; font-size: var(--fs-sm); cursor: pointer; box-shadow: var(--shadow-gold, 0 8px 20px rgba(0,0,0,.35)); display: inline-flex; align-items: center; gap: 8px; font-family: inherit; z-index: 20; }
     @media (min-width: 1100px) { .tr-fab { display: none; } }
 
@@ -435,7 +435,7 @@
   </button>
 
   <script src="./assets/js/config.js?v=11"></script>
-  <script src="./assets/js/partials.js?v=23"></script>
+  <script src="./assets/js/partials.js?v=24"></script>
   <script src="./assets/js/api.js?v=12"></script>
   <script src="./assets/js/auth.js?v=11"></script>
   <script src="./assets/js/flags.js?v=19"></script>

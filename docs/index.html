@@ -5,7 +5,7 @@
   <title>The Address · Society Help Desk</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#1a1f2e" />
-  <meta name="description" content="Tower Apartments â€” report daily issues or handover snags." />
+  <meta name="description" content="Tower Apartments — report daily issues or handover snags." />
   <link rel="icon" href="./assets/images/TaLogo.png" type="image/png" />
   <script>(function(){try{var t=localStorage.getItem('tsh_theme');if(t!=='dark'&&t!=='light'&&t!=='medium')t='light';if(t!=='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -32,7 +32,7 @@
              hidden
              aria-label="Society manager quick contact"></section>
 
-    <!-- 2. Primary actions â€” the two reporting tracks. Always the most
+    <!-- 2. Primary actions — the two reporting tracks. Always the most
          prominent thing on the page. Daily uses class-based disable so the
          card stays visible but greyed when FEATURE_DAILY_TRACK is off. -->
     <section id="tshHero" class="tsh-actions" aria-labelledby="tshActionsTitle">
@@ -175,7 +175,7 @@
           </summary>
           <ul class="tsh-svc-list">
             <li><a class="tsh-svc-row" href="./daily-report.html"
-                   title="Everyday society maintenance — lift, water, lights, cleaning, security etc. Goes to the helpdesk manager."><i class="fas fa-screwdriver-wrench" aria-hidden="true"></i><span>Report a daily issue</span></a></li>
+                   title="Everyday society maintenance — lift, water, lights, cleaning, security etc. Goes to the helpdesk manager."><i class="fas fa-screwdriver-wrench" aria-hidden="true"></i><span>Report an Issue</span></a></li>
             <li><a class="tsh-svc-row" data-tsh-handover-link href="#" hidden
                    title="Snags in your flat noticed during the builder-to-society handover window."><i class="fas fa-building" aria-hidden="true"></i><span>Report a handover issue</span></a></li>
             <!-- Reuses the footer's site-bug modal (any element carrying
@@ -193,7 +193,7 @@
       </div>
     </section>
 
-    <!-- 5. Recent issues â€” sleek, compact preview on the home page.
+    <!-- 5. Recent issues — sleek, compact preview on the home page.
          Shows the latest few public tickets with minimum details so
          visitors can see what's happening at a glance without going to
          the full Public Board. The full dashboards remain on Manage
@@ -214,7 +214,7 @@
       </a>
     </section>
 
-    <!-- 5. Information area â€” Announcements + (optional) Events + Polls.
+    <!-- 5. Information area — Announcements + (optional) Events + Polls.
          Each child renders its own card UI; the grid wrapper just gives
          them side-by-side flow on wider screens and stacks them on mobile. -->
     <div class="tsh-infogrid">
@@ -258,7 +258,7 @@
   <div data-include="footer"></div>
 
   <script src="./assets/js/config.js?v=11"></script>
-  <script src="./assets/js/partials.js?v=23"></script>
+  <script src="./assets/js/partials.js?v=24"></script>
   <script src="./assets/js/api.js?v=12"></script>
   <script src="./assets/js/auth.js?v=11"></script>
   <script src="./assets/js/flags.js?v=19"></script>
@@ -291,7 +291,7 @@
       // Admin-toggled announcements section.
       if (window.Announcements) Announcements.mountList(document.getElementById('tshAnnouncements'));
       // Polls (per-signed-in vote, SVG bar charts). The landing renders the
-      // compact density variant â€” strips expiry chips, alias/flat inputs and
+      // compact density variant — strips expiry chips, alias/flat inputs and
       // tightens spacing for a minimalist read. polls.js honours the
       // [data-density] attribute via CSS only; the editor on Manage is
       // unaffected.
@@ -299,11 +299,11 @@
       if (pollsHost) pollsHost.setAttribute('data-density', 'compact');
       if (window.Polls) Polls.mountList(pollsHost);
       // Upcoming events (compact list). No-op when FEATURE_DAILY_EVENTS is off
-      // or the events module hasn't shipped yet â€” the section just stays
+      // or the events module hasn't shipped yet — the section just stays
       // hidden.
       if (window.Events && window.Events.mountList) Events.mountList(document.getElementById('tshEvents'));
 
-      // Recent issues preview + KPI strip â€” single fetch, two widgets.
+      // Recent issues preview + KPI strip — single fetch, two widgets.
       // KPI strip: 4 at-a-glance tiles (Open / In Progress / Resolved 7d /
       // Breaches). Recent issues: latest 5 tickets, one row each.
       // Senior-friendly: numbers up top, scannable rows below.
@@ -408,7 +408,7 @@
               recentHost.innerHTML = '';
               for (const i of items) {
                 const firstLine = String(i.description || '').split('\n')[0].trim();
-                const titleText = firstLine ? (firstLine.length > 80 ? firstLine.slice(0, 80) + 'â€¦' : firstLine) : '(no description)';
+                const titleText = firstLine ? (firstLine.length > 80 ? firstLine.slice(0, 80) + '…' : firstLine) : '(no description)';
                 const metaBits = [i.tower, i.category].filter(Boolean).join(' · ');
                 const a = UI.el('a', {
                   class: 'tsh-recent-link',
@@ -427,11 +427,11 @@
           }
         }
       } catch (_e) {
-        // Silently skip â€” the home page is not blocked by a missing
+        // Silently skip — the home page is not blocked by a missing
         // public-issues endpoint or a transient API failure.
       }
 
-      // Handover portal â€” only shows if the URL is wired in site.json.
+      // Handover portal — only shows if the URL is wired in site.json.
       const handoverUrl = sys.handoverPortalUrl;
       const handover = document.querySelector('[data-tsh-handover-link]');
       if (handoverUrl && !/REPLACE_ME/i.test(handoverUrl) && handover) {
@@ -441,7 +441,7 @@
         handover.hidden = false;
       }
 
-      // Weekly & full report PDF tiles â€” gated by URL presence.
+      // Weekly & full report PDF tiles — gated by URL presence.
       const weeklyUrl = sys.weeklyReportUrl;
       const weeklyEl = document.querySelector('[data-tsh-weekly-report]');
       if (weeklyUrl && !/REPLACE_ME/i.test(weeklyUrl) && weeklyEl && Flags.on('FEATURE_DAILY_WEEKLY_REPORT')) {
@@ -459,7 +459,7 @@
         fullEl.hidden = false;
       }
 
-      // Daily-track master kill switch (section 14.2) â€” keep card visible but greyed.
+      // Daily-track master kill switch (section 14.2) — keep card visible but greyed.
       if (!Flags.on('FEATURE_DAILY_TRACK')) {
         const daily = document.querySelector('.tsh-track-daily');
         if (daily) daily.classList.add('tsh-disabled');
@@ -481,7 +481,7 @@
         });
       }
     } catch (e) {
-      UI.toast("Couldn't load site config â€” some links may be missing.", { kind: 'warn' });
+      UI.toast("Couldn't load site config — some links may be missing.", { kind: 'warn' });
       console.error(e);
     }
   })();
