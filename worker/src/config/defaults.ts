@@ -114,6 +114,18 @@ export interface SiteConfig {
        * tenants and add only for the ones that differ.
        */
       towerLayouts?: Record<string, { floors: number; unitsPerFloor: number }>;
+      /**
+       * Positions inside a tower's seat map that are NOT residential
+       * flats — common-area amenities like the club house, guard
+       * cabin, transformer room, etc. Keys are the flat-id string used
+       * everywhere else (`<tower><floor><unit-2-digit>`, e.g. `C102`);
+       * values are the short display label shown on the tile.
+       * Configured cells render as a muted non-clickable badge — no
+       * details drawer, no vehicle-add affordance — so vehicles can
+       * never be attached to them and residents can't accidentally
+       * open a details drawer for a common area.
+       */
+      nonFlatCells?: Record<string, string>;
     };
     /**
      * Optional per-site maintenance-mode copy. When FEATURE_MAINTENANCE_MODE

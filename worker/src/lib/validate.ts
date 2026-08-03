@@ -36,14 +36,15 @@ export const optBool = (v: unknown, field: string): boolean | undefined => {
   return bool(v, field);
 };
 
-export const num = (v: unknown, field: string, opts: { min?: number; max?: number } = {}): number => {
+export const num = (v: unknown, field: string, opts: { min?: number; max?: number; int?: boolean } = {}): number => {
   if (typeof v !== 'number' || !Number.isFinite(v)) throw new BadRequest(`${field} must be a number`);
+  if (opts.int && !Number.isInteger(v)) throw new BadRequest(`${field} must be an integer`);
   if (opts.min !== undefined && v < opts.min) throw new BadRequest(`${field} must be >= ${opts.min}`);
   if (opts.max !== undefined && v > opts.max) throw new BadRequest(`${field} must be <= ${opts.max}`);
   return v;
 };
 
-export const optNum = (v: unknown, field: string, opts: { min?: number; max?: number } = {}): number | undefined => {
+export const optNum = (v: unknown, field: string, opts: { min?: number; max?: number; int?: boolean } = {}): number | undefined => {
   if (v === undefined || v === null) return undefined;
   return num(v, field, opts);
 };
