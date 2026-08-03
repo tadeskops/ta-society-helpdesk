@@ -53,7 +53,7 @@
 
       const head = document.createElement('header');
       head.className = 'tsh-ann-panel-head';
-      head.innerHTML = '<h2 class="tsh-ann-list-title"><i class="fas fa-newspaper" aria-hidden="true"></i> Announcements</h2>';
+      head.innerHTML = '<h2 class="tsh-ann-list-title"><i class="fas fa-newspaper" aria-hidden="true"></i> Notice board</h2>';
       const counter = document.createElement('span');
       counter.className = 'tsh-ann-counter';
       counter.setAttribute('aria-live', 'polite');

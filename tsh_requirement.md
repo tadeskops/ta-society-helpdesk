@@ -1876,3 +1876,53 @@ Same visual affordance (disabled + `.is-busy` + `aria-busy="true"` + spinner ico
 - No `prefers-reduced-motion` audit (Phase 5 candidate).
 - No high-contrast theme retrofit (Phase 6 candidate).
 
+## 27. Resident-app naming pass — round 2 (Phase 4, 2026-08-04)
+
+Phase 4 finishes the display-label sweep started in Phase 1 (which shipped `lang="en-IN"` and standardised 14 pages of headings) by aligning three surfaces to modern resident-app terminology. **Only display strings change.** All identifiers, feature flag IDs, JSON schemas, API routes, `data-*` attributes, CSS classes, and JS symbols remain byte-identical.
+
+### 27.1 Mobile tab-bar `Board` → `Issues`
+
+- **Where:** `docs/partials/mobile-tabbar.html`, the second `<a>` inside `<nav class="tsh-mob-tabbar">`.
+- **Before:** visible text `Board`.
+- **After:** visible text `Issues`.
+- **Preserved:** `href="./public-board.html"`, `data-tsh-mob-tab="board"`, `data-tsh-feature="FEATURE_DAILY_PUBLIC_BOARD"`, the icon `<i class="fas fa-list-check">`, `.tsh-mob-*` classes.
+- **Why:** the destination is the public issues list; the modernised resident vocabulary calls it "Issues" everywhere else on the site (desktop menu, dashboards, mobile actions sheet). This eliminates a mismatch new residents notice within seconds.
+
+### 27.2 Reservations body H1 → `Amenity Booking`
+
+- **Where:** `docs/reservations.html` — the two `<h1>` inside `[data-res-signin]` and `[data-res-main]`, plus the sign-in `<p>` copy and the `#resSub` subtitle.
+- **Before:**
+  - Signed-out H1: `Reservations`; sign-in copy: `Sign in to view and manage facility reservations.`
+  - Signed-in H1: `Facility Reservations`; sub-title: `Reserve community facilities. Owner remains with you even if staff creates the booking on your behalf.`
+  - Page `<title>`: `Amenity Booking · TA Society Help Desk` (already set by an earlier tidy pass).
+- **After:**
+  - Both H1s read `Amenity Booking`.
+  - Sign-in copy: `Sign in to view and manage amenity bookings.`
+  - Sub-title: `Reserve community amenities. Owner remains with you even if staff creates the booking on your behalf.`
+- **Preserved:** `data-res-signin`, `data-res-main`, `#resSub`, `.tsh-tab[data-res-tab="mine"]` label `My reservations`, feature flag `FEATURE_TSH_RESERVATIONS`, worker routes `/reservations*`, `docs/assets/js/reservations.js` module name, all CSS classes.
+- **Deferred to Phase 5:** the `My reservations` tab label and other secondary "reservation" strings can flip in a separate naming-pass commit alongside the empty-state audit; the H1 is the load-bearing label for A13's dedicated-section aesthetic.
+
+### 27.3 Landing service row `Announcements` → `Notice board` (A13)
+
+- **Where:**
+  - `docs/index.html` L156 — the fourth `<li>` in the `See what's happening` bucket.
+  - `docs/assets/js/announcements.js` — the head string used by `Announcements.mountList()`.
+- **Before:** service row `Announcements`; mount head `Announcements`.
+- **After:** service row `Notice board`; mount head `Notice board`.
+- **Preserved:** anchor `href="#tshAnnouncements"`, section `id="tshAnnouncements"`, `FEATURE_DAILY_ANNOUNCEMENTS` flag, `/announcements` route + `config/announcements.json`, `Announcements.mountList()` / `mountEditor()` symbols, `.tsh-ann-*` CSS classes, admin-facing labels like `Manage announcements` on `manage.html` (these stay aligned with the internal identifiers so the admin who reads `announcements.json` isn't confused by resident-facing rename).
+- **Why:** A13 in the roadmap wanted "Notice board" as a dedicated section on Landing. The `#tshAnnouncements` section already IS a dedicated block with its own carousel + list; renaming its heading + the entry-point label makes it visually match resident vocabulary without adding a new flag or moving DOM.
+
+### 27.4 Not in Phase 4
+
+- No new server routes, schemas, or feature flags.
+- No changes to `config/announcements.json` schema; entries still look like `{ id, title, body, pinned }`.
+- No mobile tab-bar re-ordering; the tab still points to `public-board.html`.
+- No change to admin `manage.html` announcement editor labels — those stay aligned with the code-side identifier.
+
+### 27.5 Cache-busters bumped
+
+- `partials.js` VERSION `v=20` → `v=21` so the mobile-tabbar refetches with the new label.
+- 13 page `<script src="./assets/js/partials.js?v=25">` → `?v=26`.
+- `announcements.js?v=3` → `?v=4` on `index.html` and `manage.html`.
+
+
