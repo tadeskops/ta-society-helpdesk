@@ -540,6 +540,36 @@
       background: var(--tsh-surface, #fff);
       box-shadow: 0 1px 3px rgba(0,0,0,.04);
     }
+    /* Per-tower opaque tint so each card is notably identifiable at a
+       glance while staying aesthetically aligned with the site palette
+       (same hues used elsewhere: brand-gold for accents, 4-wheeler blue
+       for #4a90e2, 2-wheeler green for #6ab04c, plum for a 4th tower).
+       Kept intentionally light (~8-10 % mix on white) so seat cells,
+       legend chips, and headings still read cleanly on top. `color-mix`
+       is well supported on evergreen browsers; the plain `background`
+       property on `.veh-tower` above stays as a safe fallback. Also
+       tints the left border a shade stronger so the card gets a subtle
+       colour rail. */
+    .veh-tower[data-tower="A"] {
+      background: color-mix(in srgb, var(--tsh-accent, #b48a3c) 8%, #fff);
+      border-left: 3px solid color-mix(in srgb, var(--tsh-accent, #b48a3c) 55%, #fff);
+    }
+    .veh-tower[data-tower="B"] {
+      background: color-mix(in srgb, #4a90e2 8%, #fff);
+      border-left: 3px solid color-mix(in srgb, #4a90e2 45%, #fff);
+    }
+    .veh-tower[data-tower="C"] {
+      background: color-mix(in srgb, #6ab04c 8%, #fff);
+      border-left: 3px solid color-mix(in srgb, #6ab04c 45%, #fff);
+    }
+    .veh-tower[data-tower="D"] {
+      background: color-mix(in srgb, #a06fb0 8%, #fff);
+      border-left: 3px solid color-mix(in srgb, #a06fb0 45%, #fff);
+    }
+    .veh-tower[data-tower="E"] {
+      background: color-mix(in srgb, #d47a4a 8%, #fff);
+      border-left: 3px solid color-mix(in srgb, #d47a4a 45%, #fff);
+    }
     .veh-tower > summary {
       cursor: pointer; padding: .1rem 0;
       display: flex; align-items: baseline; gap: .5rem; flex-wrap: wrap;
