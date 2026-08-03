@@ -318,6 +318,15 @@ export const DEFAULT_CONFIG: SiteConfig = {
     FEATURE_TREASURY_MANAGER_PAY:            false,
     FEATURE_TREASURY_MANAGER_RECORD_EXPENSE: true,
     FEATURE_TREASURY_RESIDENT_RAISE:         true,
+    // Resident visibility of the "Treasury · this month" KPI card on
+    // the landing page (docs/index.html #tshHomeTreasury). Committee+
+    // roles (Treasurer / Chairman / Admin / Secretary) always see the
+    // card when FEATURE_TREASURY is on — this is their at-a-glance
+    // dashboard tile. When this flag is OFF (default) residents don't
+    // see the card at all. When ON, any signed-in resident who can
+    // read /treasury/summary sees the same 3 tiles (Total spend / Paid
+    // / Open). Editors flip this via Settings > Treasury.
+    FEATURE_TREASURY_HOME_SUMMARY_RESIDENT:  false,
     // Site-wide maintenance / "back soon" gate. When ON, non-admin
     // visitors see a full-page maintenance card on every page except
     // settings.html (so admins can still turn it off). Renders via

@@ -1926,3 +1926,31 @@ Phase 4 finishes the display-label sweep started in Phase 1 (which shipped `lang
 - `announcements.js?v=3` → `?v=4` on `index.html` and `manage.html`.
 
 
+
+## 28. Editor-toggled resident visibility for landing Treasury card + single-tower Vehicle grid width (Phase 5 kick-off, 2026-08-04)
+
+### 28.1 Landing "Treasury · this month" — resident-visibility flag
+
+- The 3-tile summary card on docs/index.html (section#tshHomeTreasury, rendered by docs/assets/js/home-treasury.js) is a **committee-facing dashboard tile** by default. Committee+ roles (Treasurer / Chairman / Admin / Secretary) always see it when `FEATURE_TREASURY` is on — behaviour unchanged.
+- New feature flag: **`FEATURE_TREASURY_HOME_SUMMARY_RESIDENT`** (default `false`, defined in worker/src/config/defaults.ts, editor-toggleable from Settings > Treasury & Reimbursements).
+- When the flag is `true`, signed-in residents also see the card on the landing page (same 3 tiles, same server call).
+- When the flag is `false`, residents don't see the card and the landing page shows the same layout it did before Phase 2 for that role.
+- Signed-out visitors never see the card, regardless of the flag.
+- `home-treasury.js` version bumped `v=1 → v=2` on `docs/index.html`.
+- **Server-side unchanged**: `/treasury/summary` continues to require ledger-viewer role. This flag is a **client-side visibility** switch for the landing widget only — it does not weaken auth on the summary endpoint.
+
+### 28.2 Vehicle Registry single-tower comfortable width
+
+- On docs/vehicles.html, when the tower filter is narrowed to a single letter (Tower A / Tower B / Tower C), the outer `#vehTowers` grid now caps the tower card's width at **42rem** (`minmax(0, 42rem)`) with `justify-content: start` instead of stretching the tower to the full page width (`1fr`).
+- Rationale: at `1fr` the seat tiles blew up 2-3× the "All" view size, which felt inconsistent with the multi-tower layout. 42rem sits between the 6-unit-tower minimum comfortable width (~452px) and the widest column the ratio row typically produces — visually consistent with "All".
+- No JS change (`applyTowerLayout` still clears the inline template when `data-single-tower` is set); only the `#vehTowers[data-single-tower="1"]` CSS rule changed.
+- On mobile / narrow viewports the `minmax(0, ...)` floor still lets the tower shrink to fit — no horizontal-scroll regression.
+
+### 28.3 Not in Phase 5 kick-off
+
+- No changes to config/* JSON schemas.
+- No changes to any URL route (`/treasury/summary`, `/vehicles*` etc.).
+- No changes to any `data-*` attribute, `.veh-*` CSS class, or JS symbol on `vehicles.html`.
+- No change to the treasury summary endpoint or the ledger-viewer role check.
+- No change to the committee-side rendering of the landing treasury card — still gated by `FEATURE_TREASURY` + role.
+

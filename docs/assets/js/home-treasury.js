@@ -11,9 +11,15 @@
 //
 // Gates (all must pass to render):
 //   1. FEATURE_TREASURY flag is on
-//   2. Whoami role is >= COMMITTEE (Treasurer/Chairman/Admin/Secretary
-//      each map to COMMITTEE+ tier; residents map to RESIDENT and are
-//      filtered here)
+//   2. Viewer role check:
+//        - Committee+ (Treasurer / Chairman / Admin / Secretary each map
+//          to COMMITTEE tier or higher) always pass this gate — the card
+//          is their at-a-glance dashboard tile.
+//        - Residents pass this gate ONLY when
+//          FEATURE_TREASURY_HOME_SUMMARY_RESIDENT is on. Default OFF,
+//          so residents don't see the card unless an editor explicitly
+//          opts in from Settings > Treasury. Signed-out visitors are
+//          always blocked.
 //   3. GET /treasury/summary?month=YYYY-MM succeeds (401/403 quietly
 //      hides the card without a toast — this is a passive widget, not
 //      a primary action)
@@ -74,6 +80,20 @@
     return false;
   }
 
+  // Editor-controlled toggle that lets residents also see the landing
+  // treasury card (default OFF). We still require the user to be signed
+  // in — signed-out visitors never get the card, so guessing at the flag
+  // can't leak any data.
+  async function isSignedInResident() {
+    try {
+      if (root.Flags && root.Flags.whoami) {
+        const who = await root.Flags.whoami();
+        return !!(who && who.primary);
+      }
+    } catch (_e) { /* signed-out or offline */ }
+    return false;
+  }
+
   function renderCard(host, summary) {
     const monthTxt = esc(monthLabel(summary.month));
     const totalTxt = esc(inr(summary.totalMonth));
@@ -128,8 +148,21 @@
     } catch (_e) { /* Flags not ready */ return; }
 
     // Gate 2: viewer role
-    const staff = await isLedgerViewer();
-    if (!staff) return;
+    //   - Committee+ always sees the card (dashboard tile).
+    //   - Residents see it only when the resident-visibility flag is on.
+    //   - Signed-out visitors are always blocked.
+    let allowed = await isLedgerViewer();
+    if (!allowed) {
+      let residentAllowed = false;
+      try {
+        if (root.Flags && root.Flags.on) {
+          residentAllowed = !!root.Flags.on('FEATURE_TREASURY_HOME_SUMMARY_RESIDENT');
+        }
+      } catch (_e) { /* flag missing → OFF */ }
+      if (!residentAllowed) return;
+      const signedIn = await isSignedInResident();
+      if (!signedIn) return;
+    }
 
     // Gate 3: server call
     const month = monthKeyIst();

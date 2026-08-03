@@ -799,10 +799,20 @@
       grid-template-columns: 1fr;
     }
     .veh-tower { margin-bottom: 0; min-width: 0; }
-    /* Filter narrowed to a single tower — let it span the row. Toggled
-       by applyTowerFilter() (activeTower !== null). applyTowerLayout()
-       clears the inline template while data-single-tower is set. */
-    #vehTowers[data-single-tower="1"] { grid-template-columns: 1fr !important; }
+    /* Filter narrowed to a single tower — cap the width so the tower
+       card renders at a comfortable reading width instead of stretching
+       the full page and blowing every flat tile up. 42rem (~672px) sits
+       between the min comfortable width of a 6-unit tower (~452px) and
+       the widest column the 3-tower ratio row typically uses, so a
+       single-tower view feels visually consistent with "All". Left-
+       aligned via justify-content so the card stays anchored to the
+       page-content rail on wide viewports. Toggled by applyTowerFilter()
+       (activeTower !== null). applyTowerLayout() clears the inline
+       template while data-single-tower is set so this rule wins. */
+    #vehTowers[data-single-tower="1"] {
+      grid-template-columns: minmax(0, 42rem) !important;
+      justify-content: start;
+    }
 
     /* ------- Design 10 wheel picker (mobile resident, flag-gated) ------- */
     .veh-wheel-toggle {
