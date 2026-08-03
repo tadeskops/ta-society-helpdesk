@@ -1830,3 +1830,49 @@ Closes matrix rows 11.3 and 15.5 (Treasury monthly summary visible from Landing,
 3. `GET /treasury/summary?month=YYYY-MM` succeeds (401/403 silently hides the card — no toast; this is not a primary action)
 
 Renders 3 KPI tiles (Total spend, Paid, Open) using the shared `.tsh-kpi-tile` component. `home-treasury.js` mounts idempotently and reads the same top-level scalars (`totalMonth`, `paidMonth`, `paidMonthCount`, `openLiability`, `openCount`) as `treasury.js`'s Summary tab — schema-safe against future `byCategory` extensions.
+
+## 26. Accessibility baseline (Phase 3, 2026-08-04)
+
+Phase 3 closes the four A-tier accessibility items in the roadmap (A2, A3, A4, A7). All shipped as additive `theme.css` Bundle 23 + `ui.js` helpers + a one-line skip-link in `docs/partials/header.html`. Zero server changes; access system + settings + flag IDs + routes + schemas untouched.
+
+### 26.1 Skip-link (A2)
+
+Every page renders `<a class="tsh-skip-link" href="#tshMain">Skip to main content</a>` as the first child of the header partial. The link is visually offscreen (`top: -100px`) until it receives keyboard focus, then slides in at `top: 0` with a white outline for high-contrast visibility. Activation jumps to `<main id="tshMain" tabindex="-1">` and shifts focus there. All 13 pages that carry a `<main class="tsh-main">` were updated to add `id="tshMain" tabindex="-1"` (committee-dashboard is a redirect stub and does not have a `<main>` — intentional).
+
+The skip target's default focus outline is suppressed via `main[tabindex="-1"]:focus { outline: none }` so the skipped-to section does not sprout a stray ring after activation.
+
+### 26.2 Focus rings (A3)
+
+Bundle 23 ships a low-specificity `:focus-visible` fallback that applies a 2 px `--c-primary` outline (2 px offset, 4 px radius) to every `a`, `button`, `[role="button"]`, `input`, `select`, `textarea`, `summary`, and `[tabindex="0"]` that does not already opt in via a component-specific rule. Component-specific `:focus-visible` rules (e.g. `.tsh-btn`, `.tsh-quick-tile`, `.tsh-kpi-tile`, `.tsh-svc-row`, `.tsh-manage-collapse > summary`) keep winning by specificity and remain the source of truth for their surfaces.
+
+Opt-out escape hatch: `[data-tsh-no-focus-ring]:focus-visible { outline: none }` is available for any element that intentionally wants no visual ring (e.g. the modal backdrop click target).
+
+### 26.3 Modal focus trap (A4) — `UI.trapFocus(el)`
+
+New `UI.trapFocus(el)` helper (docs/assets/js/ui.js). Signature: `trapFocus(el): () => void`. Focuses the first tabbable child on entry, keeps Tab and Shift+Tab inside `el` while active, and restores focus to `document.activeElement`-before-entry when the returned cleanup function is called. Falls back to focusing the container itself (setting `tabindex="-1"` if missing) if `el` has no tabbable children.
+
+Applied to:
+- `UI.modal()` — traps focus on `.tsh-modal-panel`, releases on close/backdrop/Escape/action.
+- `UI.Lightbox.open()` — traps focus on the lightbox host, releases on close/Escape.
+
+Other overlays (`UI.SidePanel`, drawers under `ev-charging.js`, page-level sheets) can opt in by wrapping their existing show/hide with a `trapFocus(el)` + cleanup pair.
+
+### 26.4 Inline button spinner helpers (A7) — `busyButton` + `setButtonBusy`
+
+`UI.busyButton(btn, asyncFn, opts)` already existed and is used across 5 consumers. Phase 3 adds a promise-based sibling:
+
+```js
+const p = Api.post('/foo', body);
+UI.setButtonBusy(btn, p, { label: 'Saving\u2026' });
+const res = await p;
+```
+
+Same visual affordance (disabled + `.is-busy` + `aria-busy="true"` + spinner icon + label), but the caller already has a Promise. Returns the same promise for chaining. Both helpers are the standard "inline spinner inside a button after click" — do not reinvent locally.
+
+### 26.5 Not in Phase 3
+
+- No new server routes, schemas, or feature flags.
+- No page-level `SidePanel` / drawer migration to `trapFocus` — those already had ad-hoc focus management; they can opt in incrementally.
+- No `prefers-reduced-motion` audit (Phase 5 candidate).
+- No high-contrast theme retrofit (Phase 6 candidate).
+

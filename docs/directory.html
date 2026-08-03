@@ -9,7 +9,7 @@
   <link rel="icon" href="./assets/images/TaLogo.png" type="image/png" />
   <script>(function(){try{var t=localStorage.getItem('tsh_theme');if(t!=='dark'&&t!=='light'&&t!=='medium')t='light';if(t!=='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="./assets/css/theme.css?v=87" />
+  <link rel="stylesheet" href="./assets/css/theme.css?v=88" />
   <!-- Mobile-only tab-bar overlay + WhatsApp-style bottom sheet. Loaded on every page so the same bottom nav appears in mobile view; hidden above 640px by the CSS media query. -->
   <link rel="stylesheet" href="./assets/css/mobile-landing.css?v=19" />
   <link rel="stylesheet" href="./assets/css/sunarth-support.css?v=2" />
@@ -20,7 +20,7 @@
   <div data-include="toast"></div>
   <div data-include="modal"></div>
 
-  <main class="tsh-main tsh-main-wide">
+  <main id="tshMain" tabindex="-1" class="tsh-main tsh-main-wide">
     <section class="tsh-card">
       <header class="tsh-card-head tsh-card-head-row">
         <div>
@@ -140,7 +140,7 @@
   <div data-include="footer"></div>
 
   <script src="./assets/js/config.js?v=11"></script>
-  <script src="./assets/js/partials.js?v=24"></script>
+  <script src="./assets/js/partials.js?v=25"></script>
   <script src="./assets/js/api.js?v=12"></script>
   <script src="./assets/js/auth.js?v=11"></script>
   <script src="./assets/js/flags.js?v=19"></script>

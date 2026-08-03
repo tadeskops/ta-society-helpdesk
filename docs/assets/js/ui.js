@@ -47,10 +47,12 @@
     actionsEl.innerHTML = '';
 
     return new Promise((resolve) => {
+      let untrap = null;
       const close = (value) => {
         m.hidden = true;
         m.removeEventListener('click', backdrop);
         document.removeEventListener('keydown', esc);
+        if (untrap) { try { untrap(); } catch (_e) {} untrap = null; }
         resolve(value);
       };
       const backdrop = (e) => {
@@ -72,6 +74,8 @@
       m.hidden = false;
       m.addEventListener('click', backdrop);
       document.addEventListener('keydown', esc);
+      const panel = m.querySelector('.tsh-modal-panel') || m;
+      untrap = trapFocus(panel);
       const firstBtn = actionsEl.querySelector('button');
       if (firstBtn) firstBtn.focus();
     });
@@ -154,6 +158,7 @@
   const Lightbox = (function () {
     let host = null;
     let imgEl, counterEl, driveEl, urls = [], idx = 0;
+    let untrap = null;
 
     function isDriveUrl(u) { return /drive\.google\.com|googleusercontent\.com/i.test(u); }
 
@@ -205,11 +210,13 @@
       paint();
       host.hidden = false;
       document.addEventListener('keydown', onKey);
+      untrap = trapFocus(host);
     }
     function close() {
       if (!host) return;
       host.hidden = true;
       document.removeEventListener('keydown', onKey);
+      if (untrap) { try { untrap(); } catch (_e) {} untrap = null; }
     }
 
     // Auto-wire any photo grid: pass `{ root: containerEl }` to make every
@@ -1431,6 +1438,57 @@
     return { show, hide, isOpen };
   })();
 
+  // ----- trapFocus: keep Tab/Shift-Tab inside `el` until cleanup runs -----
+  // Usage:
+  //   const untrap = UI.trapFocus(dialogEl);
+  //   // ...later, when closing:
+  //   untrap();
+  // Focuses the first tabbable child on entry, restores focus to whatever
+  // was focused before on cleanup. If no tabbable child exists, focuses
+  // the container itself (which should have tabindex="-1"). No-op if el
+  // is missing.
+  function trapFocus(el) {
+    if (!el) return function () {};
+    const SEL = [
+      'a[href]', 'area[href]', 'input:not([disabled])', 'select:not([disabled])',
+      'textarea:not([disabled])', 'button:not([disabled])', 'iframe', 'object',
+      'embed', '[tabindex]:not([tabindex="-1"])', '[contenteditable="true"]',
+    ].join(',');
+    const previouslyFocused = document.activeElement;
+    function tabbables() {
+      return Array.from(el.querySelectorAll(SEL)).filter(function (n) {
+        return !n.hasAttribute('disabled') && !n.hidden && n.offsetParent !== null;
+      });
+    }
+    function focusFirst() {
+      const list = tabbables();
+      if (list.length) list[0].focus();
+      else if (el.tabIndex >= 0 || el.hasAttribute('tabindex')) el.focus();
+      else { el.setAttribute('tabindex', '-1'); el.focus(); }
+    }
+    function onKey(e) {
+      if (e.key !== 'Tab') return;
+      const list = tabbables();
+      if (!list.length) { e.preventDefault(); return; }
+      const first = list[0];
+      const last  = list[list.length - 1];
+      const active = document.activeElement;
+      if (e.shiftKey) {
+        if (active === first || !el.contains(active)) { e.preventDefault(); last.focus(); }
+      } else {
+        if (active === last  || !el.contains(active)) { e.preventDefault(); first.focus(); }
+      }
+    }
+    focusFirst();
+    document.addEventListener('keydown', onKey, true);
+    return function untrap() {
+      document.removeEventListener('keydown', onKey, true);
+      if (previouslyFocused && typeof previouslyFocused.focus === 'function') {
+        try { previouslyFocused.focus(); } catch (_e) { /* detached node */ }
+      }
+    };
+  }
+
   // ----- busyButton: standard "saving…" affordance for any async click ----
   // Usage:  UI.busyButton(btnEl, async () => { await Api.put(...); }, { label: 'Saving\u2026' });
   // While the asyncFn runs the button is disabled, swapped for a spinner,
@@ -1453,6 +1511,33 @@
       btn.removeAttribute('aria-busy');
       btn.disabled = wasDisabled;
     }
+  }
+
+  // ----- setButtonBusy: promise-based sibling of busyButton --------------
+  // Same visual affordance but the caller already has a Promise in flight.
+  // Usage:
+  //   const p = Api.post('/foo', body);
+  //   UI.setButtonBusy(btn, p, { label: 'Saving\u2026' });
+  //   const res = await p;
+  // Restores the original button contents when the promise settles.
+  // Returns the same promise for chaining.
+  function setButtonBusy(btn, promise, opts) {
+    if (!btn || !promise || typeof promise.then !== 'function') return promise;
+    const label = (opts && opts.label) || 'Saving\u2026';
+    const original = btn.innerHTML;
+    const wasDisabled = btn.disabled;
+    btn.disabled = true;
+    btn.classList.add('is-busy');
+    btn.setAttribute('aria-busy', 'true');
+    btn.innerHTML = `<i class="fas fa-spinner fa-spin" aria-hidden="true"></i><span>${label}</span>`;
+    const restore = () => {
+      btn.innerHTML = original;
+      btn.classList.remove('is-busy');
+      btn.removeAttribute('aria-busy');
+      btn.disabled = wasDisabled;
+    };
+    promise.then(restore, restore);
+    return promise;
   }
 
   // ----- FilterBar: unified "All + dropdown + Go" filter widget --------
@@ -1663,7 +1748,7 @@
   root.UI = {
     el, $, toast, modal, confirmModal, formatRel, copyToClipboard,
     statusPill, statusText, severityPill, bindHeader,
-    stateLoading, stateEmpty, stateError, busyButton, busyOverlay, FilterBar,
+    stateLoading, stateEmpty, stateError, busyButton, setButtonBusy, busyOverlay, trapFocus, FilterBar,
     Lightbox, FontSize, ThemeSwitcher, FloatDock, IconLabel, SectionCollapse, CardCollapse,
     Draft, MyReports, PhotoTray, Tip,
     NetworkProgress,
