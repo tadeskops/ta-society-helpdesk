@@ -19,6 +19,20 @@
   <div data-include="modal"></div>
 
   <main id="tshMain" tabindex="-1" class="tsh-main tsh-main-wide">
+    <!-- Treasury monthly summary — primary surface for committee+ viewers.
+         Rendered by docs/assets/js/home-treasury.js#mountDashboard. The
+         page-level `Flags.ensureAuthorized('MANAGER')` gate below has
+         already run before the mount call, so no extra role check is
+         needed here; `/treasury/summary` on the server still enforces
+         ledger-viewer allow-list (Treasurer/Chairman/Admin/Secretary)
+         and 403s a bare Manager, at which point the card silently
+         hides. Reuses the `.tsh-home-treasury` wrapper CSS (theme.css
+         Bundle 12, no dashboard-specific rule). -->
+    <section id="tshDashboardTreasury" class="tsh-home-treasury"
+             data-tsh-feature="FEATURE_TREASURY"
+             hidden aria-label="Treasury summary — this month">
+    </section>
+
     <section class="tsh-card">
       <header class="tsh-card-head tsh-card-head-row">
         <div>
@@ -50,6 +64,7 @@
   <script src="./assets/js/notify.js?v=1"></script>
   <script src="./assets/js/pdf-report.js?v=8"></script>
   <script src="./assets/js/visit-counter.js?v=1"></script>
+  <script src="./assets/js/home-treasury.js?v=3"></script>
   <script src="./assets/js/kpi.js?v=1"></script>
   <script>
   (async () => {
@@ -69,6 +84,11 @@
       title.innerHTML = '<i class="fas fa-people-group gold-accent"></i> Dashboard (Committee)';
       document.getElementById('kpiSub').textContent = 'Live counters across all open daily-track issues plus weekly trend.';
     }
+
+    // Treasury monthly summary — always mounted on Dashboard when
+    // FEATURE_TREASURY is on. mountDashboard skips the resident-
+    // visibility flag because this page is committee-facing.
+    if (window.HomeTreasury) HomeTreasury.mountDashboard(document.getElementById('tshDashboardTreasury'));
 
     Kpi.boot({ role: who.primary, hostId: 'kpiGrid' });
 

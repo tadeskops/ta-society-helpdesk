@@ -1,25 +1,28 @@
 // docs/assets/js/home-treasury.js
-// Landing "Treasury this month" summary card. Renders a compact 3-tile
-// KPI strip (Total spend / Paid this month / Open liability) using the
+// "Treasury this month" summary card. Renders a compact 3-tile KPI
+// strip (Total spend / Paid this month / Open liability) using the
 // promoted `.tsh-kpi-tile` component from theme.css Bundle 12.
 //
-// Closes aspiration matrix rows 11.3 and 15.5 (Treasury monthly summary
-// visible from Landing, not only inside treasury.html). Fully additive:
-// the section starts `hidden`; the JS only unhides it when the current
-// user is authorized to read /treasury/summary. Residents / signed-out
-// visitors never see the card.
+// The same widget is mounted on two surfaces:
 //
-// Gates (all must pass to render):
-//   1. FEATURE_TREASURY flag is on
-//   2. Viewer role check:
-//        - Committee+ (Treasurer / Chairman / Admin / Secretary each map
-//          to COMMITTEE tier or higher) always pass this gate — the card
-//          is their at-a-glance dashboard tile.
-//        - Residents pass this gate ONLY when
-//          FEATURE_TREASURY_HOME_SUMMARY_RESIDENT is on. Default OFF,
-//          so residents don't see the card unless an editor explicitly
-//          opts in from Settings > Treasury. Signed-out visitors are
-//          always blocked.
+//   * Dashboard (docs/manager-dashboard.html — the "Dashboard" nav
+//     entry). This is the PRIMARY surface for committee+ viewers: the
+//     card is always shown here whenever `FEATURE_TREASURY` is on and
+//     the current user reached the dashboard page (the page itself
+//     already requires MANAGER+ via `Flags.ensureAuthorized('MANAGER')`,
+//     so no extra role gate is needed at mount time).
+//
+//   * Landing (docs/index.html). SECONDARY surface, opt-in only. The
+//     card renders here only when the editor-toggled feature flag
+//     `FEATURE_TREASURY_HOME_SUMMARY_RESIDENT` is on AND the viewer
+//     is signed-in. Editors do NOT get the card on Landing — they see
+//     it on the Dashboard.
+//
+// Gates:
+//   1. FEATURE_TREASURY must be on for either mount.
+//   2. `mountHome` additionally requires
+//      FEATURE_TREASURY_HOME_SUMMARY_RESIDENT to be on and the caller
+//      to be signed-in.
 //   3. GET /treasury/summary?month=YYYY-MM succeeds (401/403 quietly
 //      hides the card without a toast — this is a passive widget, not
 //      a primary action)
@@ -140,43 +143,52 @@
     host.hidden = false;
   }
 
-  HomeTreasury.mount = async function mount(host) {
-    if (!host) return;
-    // Gate 1: feature flag
-    try {
-      if (root.Flags && root.Flags.on && !root.Flags.on('FEATURE_TREASURY')) return;
-    } catch (_e) { /* Flags not ready */ return; }
-
-    // Gate 2: viewer role
-    //   - Committee+ always sees the card (dashboard tile).
-    //   - Residents see it only when the resident-visibility flag is on.
-    //   - Signed-out visitors are always blocked.
-    let allowed = await isLedgerViewer();
-    if (!allowed) {
-      let residentAllowed = false;
-      try {
-        if (root.Flags && root.Flags.on) {
-          residentAllowed = !!root.Flags.on('FEATURE_TREASURY_HOME_SUMMARY_RESIDENT');
-        }
-      } catch (_e) { /* flag missing → OFF */ }
-      if (!residentAllowed) return;
-      const signedIn = await isSignedInResident();
-      if (!signedIn) return;
-    }
-
-    // Gate 3: server call
+  async function fetchAndRender(host) {
+    // Shared server call + render for both mount surfaces. 401/403 or
+    // network error silently hides the widget — this is a passive
+    // dashboard tile, not a primary CTA. Editors on Dashboard reach
+    // this path unconditionally (page-level gate handled MANAGER+
+    // check); Landing residents reach it only when the resident
+    // visibility flag is on.
     const month = monthKeyIst();
     let summary;
     try {
       const res = await root.Api.get('/treasury/summary?month=' + encodeURIComponent(month));
       summary = (res && (res.data || res)) || null;
     } catch (_e) {
-      // 401 / 403 / network — passive widget, silent hide.
       return;
     }
     if (!summary || typeof summary.totalMonth !== 'number') return;
-
     renderCard(host, summary);
+  }
+
+  HomeTreasury.mount = async function mount(host) {
+    // LANDING (docs/index.html) surface. Editor-toggled, resident-facing.
+    // Committee+ viewers do NOT see this on Landing — they get the same
+    // widget on the Dashboard page via `mountDashboard`. The Landing
+    // mount is purely resident opt-in.
+    if (!host) return;
+    try {
+      if (root.Flags && root.Flags.on && !root.Flags.on('FEATURE_TREASURY')) return;
+      if (root.Flags && root.Flags.on && !root.Flags.on('FEATURE_TREASURY_HOME_SUMMARY_RESIDENT')) return;
+    } catch (_e) { return; }
+    const signedIn = await isSignedInResident();
+    if (!signedIn) return;
+    await fetchAndRender(host);
+  };
+
+  HomeTreasury.mountDashboard = async function mountDashboard(host) {
+    // DASHBOARD (docs/manager-dashboard.html) surface. Page-level gate
+    // (`Flags.ensureAuthorized('MANAGER')`) already ran before this is
+    // called, so we only need the feature-flag check here. Server-side
+    // `ensureCanViewLedger` still enforces the treasurer/chairman/admin/
+    // secretary allow-list on `/treasury/summary` — Manager without a
+    // treasury role will get 403 and the card silently hides.
+    if (!host) return;
+    try {
+      if (root.Flags && root.Flags.on && !root.Flags.on('FEATURE_TREASURY')) return;
+    } catch (_e) { return; }
+    await fetchAndRender(host);
   };
 
   root.HomeTreasury = HomeTreasury;

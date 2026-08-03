@@ -1929,15 +1929,15 @@ Phase 4 finishes the display-label sweep started in Phase 1 (which shipped `lang
 
 ## 28. Editor-toggled resident visibility for landing Treasury card + single-tower Vehicle grid width (Phase 5 kick-off, 2026-08-04)
 
-### 28.1 Landing "Treasury · this month" — resident-visibility flag
+### 28.1 "Treasury · this month" widget — Dashboard-first, Landing opt-in for residents
 
-- The 3-tile summary card on docs/index.html (section#tshHomeTreasury, rendered by docs/assets/js/home-treasury.js) is a **committee-facing dashboard tile** by default. Committee+ roles (Treasurer / Chairman / Admin / Secretary) always see it when `FEATURE_TREASURY` is on — behaviour unchanged.
-- New feature flag: **`FEATURE_TREASURY_HOME_SUMMARY_RESIDENT`** (default `false`, defined in worker/src/config/defaults.ts, editor-toggleable from Settings > Treasury & Reimbursements).
-- When the flag is `true`, signed-in residents also see the card on the landing page (same 3 tiles, same server call).
-- When the flag is `false`, residents don't see the card and the landing page shows the same layout it did before Phase 2 for that role.
-- Signed-out visitors never see the card, regardless of the flag.
-- `home-treasury.js` version bumped `v=1 → v=2` on `docs/index.html`.
-- **Server-side unchanged**: `/treasury/summary` continues to require ledger-viewer role. This flag is a **client-side visibility** switch for the landing widget only — it does not weaken auth on the summary endpoint.
+- The 3-tile summary card (Total spend / Paid / Open) rendered by `docs/assets/js/home-treasury.js` is mounted on two surfaces:
+  - **Dashboard (`docs/manager-dashboard.html`) — primary.** Always shown to any viewer who reaches the Dashboard page (which is itself gated by `Flags.ensureAuthorized('MANAGER')`), when `FEATURE_TREASURY` is on. Mount function: `HomeTreasury.mountDashboard(host)` — skips the resident-visibility flag because the page is committee-facing. Section id: `#tshDashboardTreasury`.
+  - **Landing (`docs/index.html`) — resident opt-in.** Shown ONLY when the editor-toggled feature flag `FEATURE_TREASURY_HOME_SUMMARY_RESIDENT` is on AND the viewer is signed-in. Committee+ / editors do NOT see the card on Landing (they use the Dashboard mount). Mount function: `HomeTreasury.mount(host)`. Section id: `#tshHomeTreasury`.
+- Feature flag `FEATURE_TREASURY_HOME_SUMMARY_RESIDENT` (default `false`, defined in `worker/src/config/defaults.ts`, editor-toggleable from Settings > Treasury & Reimbursements) governs Landing visibility only. Turning it off restores the pre-Phase-2 Landing layout for every visitor.
+- Signed-out visitors never see the card on either surface.
+- `home-treasury.js` version bumped `v=2 → v=3` on both `docs/index.html` and `docs/manager-dashboard.html`.
+- **Server-side unchanged**: `/treasury/summary` continues to require ledger-viewer role (Treasurer/Chairman/Admin/Secretary). This flag is a **client-side visibility** switch for the Landing widget only — it does not weaken auth on the summary endpoint. A resident who reaches the Landing card (flag on) but has no ledger role will still get a 403 from the server and the card silently hides.
 
 ### 28.2 Vehicle Registry single-tower comfortable width
 
