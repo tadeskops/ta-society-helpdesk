@@ -12,7 +12,6 @@
   <link rel="stylesheet" href="./assets/css/theme.css?v=88" />
   <!-- Mobile-only tab-bar overlay + WhatsApp-style bottom sheet. Loaded on every page so the same bottom nav appears in mobile view; hidden above 640px by the CSS media query. -->
   <link rel="stylesheet" href="./assets/css/mobile-landing.css?v=19" />
-  <link rel="stylesheet" href="./assets/css/sunarth-support.css?v=2" />
 </head>
 <body class="tsh-page">
   <div data-include="header"></div>
@@ -151,7 +150,6 @@
   <script src="./assets/js/pdf-report.js?v=9"></script>
   <script src="./assets/js/visit-counter.js?v=1"></script>
   <script src="./assets/js/directory.js?v=13"></script>
-  <script src="./assets/js/sunarth-support.js?v=2"></script>
   <script>
   (async () => {
     await Partials.mount();
@@ -200,10 +198,6 @@
     };
     activateFromHash();
     window.addEventListener('hashchange', activateFromHash);
-
-    // Mount the SunArth chat launcher — residents can reach the EV
-    // charger vendor directly from the directory.
-    if (window.SunarthSupport) SunarthSupport.mount({ fab: true });
   })();
   </script>
 </body>
