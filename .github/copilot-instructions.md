@@ -285,15 +285,84 @@ checklist:
 
 If any answer is "no", finish the doc update before closing out.
 
+## 1.1 Aspirational planning reference (`ref/` folder)
+
+The folder [`ref/`](../ref/) at the repo root holds a **stable planning
+baseline** for the next-generation Society Management System. It
+supplements `tsh_requirement.md` — it does **not** replace it. Five
+files live there:
+
+- `ref/SRS_Society_Management_System.md` — vision, architecture,
+  module list, functional + non-functional requirements.
+- `ref/UI_UX_Requirements.md` — design system, layout, accessibility,
+  page-by-page UX, motion, theming.
+- `ref/CURRENTLY_IMPLEMENTED_FEATURES.md` — honest inventory of what
+  is shipped / partial / missing today, mapped section-by-section
+  against the SRS + UI/UX docs.
+- `ref/ASPIRATION_VS_IMPLEMENTATION.md` — precision exact-match
+  matrix. Every aspirational bullet (SRS §6 / §7 / §9 + UI/UX §4 /
+  §8 / §15 / §20) becomes one row with Status · Evidence · Gap ·
+  Lane. Ground-truth verified against shipped routes / files /
+  flags. **Update this in the same commit that ships a Lane A or B
+  polish** (flip the Status column, update Evidence, clear the Gap).
+- `ref/GAP_ANALYSIS_AND_ROADMAP.md` — three-lane roadmap (A = polish
+  shipped, B = complete partials, C = future) plus suggested push
+  sequence.
+
+### When you MUST consult `ref/`
+
+Read the relevant section(s) of these five files **before** proposing
+work that touches:
+
+- Any new module (Visitors, Guard, Documents, Events full, Assets AMC
+  generic, etc.).
+- Any page-scale rewrite or new page.
+- Any roadmap-scale discussion ("what should we build next", "compare
+  against MyGate / ADDA / ApnaComplex / NoBrokerHood", "which polish
+  items ship first").
+- Any design-system promotion (KPI tile, doc card, renewal chip, etc.).
+- Any UX polish sweep (skeletons, skip-links, focus rings, tone).
+- Any privacy-boundary / PII-mirror discussion.
+
+For narrow bug fixes, single-file refactors, or feature work already
+covered by `tsh_requirement.md`, `ref/` reading can be skipped — but
+still update the inventory doc when a Lane B item ships (see below).
+
+### Source-of-truth ordering (when docs disagree)
+
+1. Shipped code under `docs/`, `worker/`, `config/` — ground truth.
+2. `tsh_requirement.md` — day-to-day spec.
+3. `ref/CURRENTLY_IMPLEMENTED_FEATURES.md` — planning inventory.
+4. `ref/ASPIRATION_VS_IMPLEMENTATION.md` — precise per-item matrix.
+5. `ref/GAP_ANALYSIS_AND_ROADMAP.md` — planning roadmap.
+6. `ref/SRS_*.md` + `ref/UI_UX_*.md` — aspirational vision.
+
+### Standing user preference (roadmap sequencing)
+
+The user has explicitly stated: **finish and polish already-implemented
+features first (Lane A + Lane B); treat Lane C as future enhancements.**
+Do not suggest Lane C work unless the user asks for it by name or the
+prerequisite Lane B items have already shipped.
+
+### When a Lane B item ships
+
+Update **all three** of `ref/CURRENTLY_IMPLEMENTED_FEATURES.md`,
+`ref/ASPIRATION_VS_IMPLEMENTATION.md`, and
+`ref/GAP_ANALYSIS_AND_ROADMAP.md` in the same commit that ships the
+code, exactly as you would update `tsh_requirement.md` per §1. Do not
+split into a follow-up commit; do not leave "known drift" in the
+inventory.
+
 ## 2. Other standing rules
 
 - **Do not create stray markdown files** to document changes — keep
-  history in commit messages / PR descriptions. The only docs that
-  ship with the repo are `README.md`, `tsh_requirement.md`, and the
-  files under `.github/`. Anything else under `docs/` (the GitHub
-  Pages site root) belongs to the live web app, not to documentation
-  — discuss with the user before adding documentation files outside
-  these locations.
+  history in commit messages / PR descriptions. The docs that ship
+  with the repo are `README.md`, `tsh_requirement.md`, the files
+  under `.github/`, and the five planning docs under `ref/`
+  (see §1.1). Anything else under `docs/` (the GitHub Pages site
+  root) belongs to the live web app, not to documentation — discuss
+  with the user before adding documentation files outside these
+  locations.
 - **Honor existing patterns.** Issue creation goes through the
   Worker's `POST /issues` endpoint, never via direct GitHub API calls
   from the static page. Auth flows always verify the Google JWT
