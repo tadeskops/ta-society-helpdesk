@@ -3225,11 +3225,19 @@ a.tsh-banner-inner:focus-visible {
 }
 
 /* ===== Bundle 12: KPI dashboard tiles (item 4) ==========================
-   Counter-tile grid for /manager-dashboard.html. Each tile is an <a> so
-   click + keyboard nav come free; the hero tile (Open total) spans 2 cols
-   on desktop. Severity-tone modifiers tint the count number to keep the
-   page readable at a glance. Auto-fit grid handles all viewports without
-   media queries. */
+   Counter-tile grid used by /manager-dashboard.html and the Landing
+   "Treasury this month" summary card (home-treasury.js, added in Phase 2).
+   Each tile is an <a> so click + keyboard nav come free; the hero tile
+   (Open total) spans 2 cols on desktop. Severity-tone modifiers tint the
+   count number to keep the page readable at a glance. Auto-fit grid
+   handles all viewports without media queries.
+   Phase 2 (2026-08-03): Promoted from single-page use to a shared
+   design-system component. Consumers now: manager-dashboard.html,
+   index.html (landing treasury summary). Future consumers: committee-
+   dashboard.html (currently redirect stub), any future analytics view.
+   Rule: use `.tsh-kpi-tile` for any 3-6 tile counter grid — DO NOT
+   reinvent locally. Add page-specific tone via existing `--hero/--crit/
+   --high/--med/--low` modifiers before creating new ones. */
 .tsh-kpi-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -5570,4 +5578,267 @@ select.tsh-tabs-mobile::-ms-expand { display: none; }
   .tsh-home-mgr-phone { row-gap: 4px; }
   .tsh-home-mgr-btn span { display: none; }
   .tsh-home-mgr-btn { padding: 8px 10px; font-size: 0.9rem; }
+}
+
+/* ===== Bundle 20: Renewal ticker chip + banner (Phase 2, 2026-08-03) =====
+   Promoted from EV admin's inline ".tsh-chip + tsh-chip-danger" pattern
+   in ev-amc.js so any surface with a "renews in N days" deadline can
+   share the same visual language.
+
+   Two shapes:
+     .tsh-renewal-chip   — inline pill, sits inside a heading or nav bar.
+     .tsh-renewal-banner — page-level strip, sits above content when the
+                           whole page needs a "your contract renews soon"
+                           call-out (aspirational row 17.13 in matrix).
+
+   Four tones map to the standard T-60 / T-30 / T-7 / expired thresholds:
+     --ok       green   (60d+ away or explicit "no expiry")
+     --warn     amber   (T-60 to T-30)
+     --danger   red     (T-30 or T-7 to today)
+     --expired  crimson (past due, negative days)
+
+   Consumers should pick tone based on `daysUntilEnd()` bands defined in
+   worker/src/lib/ev-amc.ts so every surface agrees. Do NOT introduce a
+   fifth tone without design review. */
+
+.tsh-renewal-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.6;
+  border: 1px solid transparent;
+  background: color-mix(in srgb, var(--c-success, #16a34a) 12%, transparent);
+  color: var(--c-success, #15803d);
+  border-color: color-mix(in srgb, var(--c-success, #16a34a) 30%, transparent);
+  white-space: nowrap;
+}
+.tsh-renewal-chip::before {
+  content: '\f017'; /* fa-clock */
+  font-family: 'Font Awesome 6 Free', 'Font Awesome 5 Free', sans-serif;
+  font-weight: 900;
+  font-size: 0.68rem;
+}
+.tsh-renewal-chip--warn {
+  background: color-mix(in srgb, var(--c-warning, #d97706) 14%, transparent);
+  color: var(--c-warning, #b45309);
+  border-color: color-mix(in srgb, var(--c-warning, #d97706) 34%, transparent);
+}
+.tsh-renewal-chip--danger {
+  background: color-mix(in srgb, var(--c-danger, #dc2626) 14%, transparent);
+  color: var(--c-danger, #b91c1c);
+  border-color: color-mix(in srgb, var(--c-danger, #dc2626) 34%, transparent);
+}
+.tsh-renewal-chip--expired {
+  background: var(--c-danger, #dc2626);
+  color: #ffffff;
+  border-color: var(--c-danger, #b91c1c);
+}
+.tsh-renewal-chip--expired::before { content: '\f071'; /* fa-triangle-exclamation */ }
+
+/* Page-level banner variant — same tones, wider footprint. */
+.tsh-renewal-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: var(--rad-md, 10px);
+  border: 1px solid transparent;
+  background: color-mix(in srgb, var(--c-success, #16a34a) 10%, transparent);
+  color: var(--c-text, #111827);
+  border-color: color-mix(in srgb, var(--c-success, #16a34a) 28%, transparent);
+  margin: var(--sp-3, 12px) 0;
+  font-size: 0.9rem;
+}
+.tsh-renewal-banner::before {
+  content: '\f017';
+  font-family: 'Font Awesome 6 Free', 'Font Awesome 5 Free', sans-serif;
+  font-weight: 900;
+  font-size: 1.05rem;
+  color: var(--c-success, #15803d);
+}
+.tsh-renewal-banner--warn {
+  background: color-mix(in srgb, var(--c-warning, #d97706) 12%, transparent);
+  border-color: color-mix(in srgb, var(--c-warning, #d97706) 32%, transparent);
+}
+.tsh-renewal-banner--warn::before { color: var(--c-warning, #b45309); }
+.tsh-renewal-banner--danger,
+.tsh-renewal-banner--expired {
+  background: color-mix(in srgb, var(--c-danger, #dc2626) 12%, transparent);
+  border-color: color-mix(in srgb, var(--c-danger, #dc2626) 32%, transparent);
+}
+.tsh-renewal-banner--danger::before,
+.tsh-renewal-banner--expired::before { color: var(--c-danger, #b91c1c); }
+.tsh-renewal-banner--expired::before { content: '\f071'; }
+.tsh-renewal-banner-body { flex: 1; min-width: 0; }
+.tsh-renewal-banner-title { font-weight: 600; margin: 0 0 2px; }
+.tsh-renewal-banner-meta { font-size: 0.82rem; color: var(--c-text-muted, #6b7280); }
+.tsh-renewal-banner-cta {
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: var(--c-card-bg, #ffffff);
+  color: var(--c-text, #111827);
+  border: 1px solid var(--c-border, #e5e7eb);
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.tsh-renewal-banner-cta:hover { border-color: var(--c-primary, #1d4ed8); }
+
+/* ===== Bundle 21: Generic doc card (Phase 2, 2026-08-03) =================
+   Promoted from EV admin's `.tsh-ev-amc-doc*` block in ev-charging.css so
+   the Documents lane (aspirational rows 6.5, 17.9), Bye-law browser, and
+   any Contract/AMC surface can reuse the same visual language.
+
+   Structure (mirrors ev-amc.js output):
+     <li class="tsh-doc-card [tsh-doc-card--archived]">
+       <div class="tsh-doc-card-icon"><i class="fas fa-file-…"/></div>
+       <div class="tsh-doc-card-body">
+         <div class="tsh-doc-card-title">Contract 2026.pdf
+           <span class="tsh-doc-card-kind">(contract)</span></div>
+         <div class="tsh-doc-card-meta">Uploaded 2 days ago · 245 KB</div>
+         <div class="tsh-doc-card-path">documents/foo/bar.pdf</div>
+       </div>
+       <div class="tsh-doc-card-actions">…</div>
+     </li>
+
+   Modifiers:
+     .tsh-doc-card--archived   dim + strike affordance
+     .tsh-doc-card--expired    danger border (uses --c-danger)
+     .tsh-doc-card--pinned     primary border (uses --c-primary)
+
+   The EV admin page continues to use `.tsh-ev-amc-doc*` for now — those
+   styles live in ev-charging.css and are unchanged by this bundle. When
+   the Documents lane ships, ev-amc.js will migrate to `.tsh-doc-card` in
+   a small follow-up patch. */
+
+.tsh-doc-card-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.tsh-doc-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--c-border, #e5e7eb);
+  border-radius: var(--rad-md, 10px);
+  margin-bottom: 8px;
+  background: var(--c-card-bg, #ffffff);
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+.tsh-doc-card:hover,
+.tsh-doc-card:focus-within {
+  border-color: var(--c-primary, #1d4ed8);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--c-shadow, rgba(0, 0, 0, 0.1)) 40%, transparent);
+}
+.tsh-doc-card--archived { opacity: 0.55; }
+.tsh-doc-card--archived .tsh-doc-card-title { text-decoration: line-through; }
+.tsh-doc-card--expired { border-color: color-mix(in srgb, var(--c-danger, #dc2626) 45%, var(--c-border, #e5e7eb)); }
+.tsh-doc-card--pinned  { border-color: color-mix(in srgb, var(--c-primary, #1d4ed8) 45%, var(--c-border, #e5e7eb)); }
+
+.tsh-doc-card-icon {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--c-warning, #fef3c7) 35%, var(--c-card-bg, #ffffff));
+  color: var(--c-warning-fg, #92400e);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+.tsh-doc-card--pinned .tsh-doc-card-icon {
+  background: color-mix(in srgb, var(--c-primary, #1d4ed8) 15%, var(--c-card-bg, #ffffff));
+  color: var(--c-primary, #1d4ed8);
+}
+.tsh-doc-card--expired .tsh-doc-card-icon {
+  background: color-mix(in srgb, var(--c-danger, #dc2626) 15%, var(--c-card-bg, #ffffff));
+  color: var(--c-danger, #b91c1c);
+}
+.tsh-doc-card-body {
+  flex: 1;
+  min-width: 0;
+}
+.tsh-doc-card-title {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--c-text, #111827);
+  line-height: 1.35;
+}
+.tsh-doc-card-kind {
+  font-weight: 400;
+  color: var(--c-text-muted, #6b7280);
+  font-size: 0.75rem;
+}
+.tsh-doc-card-meta {
+  font-size: 0.75rem;
+  color: var(--c-text-muted, #6b7280);
+  margin-top: 2px;
+}
+.tsh-doc-card-path {
+  font-size: 0.68rem;
+  color: color-mix(in srgb, var(--c-text-muted, #6b7280) 80%, transparent);
+  font-family: ui-monospace, SFMono-Regular, "Menlo", monospace;
+  margin-top: 2px;
+  word-break: break-all;
+}
+.tsh-doc-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+@media (max-width: 480px) {
+  .tsh-doc-card { padding: 10px; gap: 10px; }
+  .tsh-doc-card-icon { width: 34px; height: 34px; flex-basis: 34px; font-size: 15px; }
+  .tsh-doc-card-title { font-size: 0.85rem; }
+}
+
+/* ===== Bundle 22: Landing "Treasury this month" summary card (Phase 2) ===
+   Wrapper for the compact summary card rendered by home-treasury.js on
+   index.html. Silently no-op for residents (the JS hides the whole
+   section when whoami is not ledger-authorized). Uses the shared
+   `.tsh-kpi-tile` component from Bundle 12 so the tiles look identical
+   to the manager dashboard. */
+
+.tsh-home-treasury {
+  margin: var(--sp-3, 12px) 0;
+}
+.tsh-home-treasury[hidden] { display: none; }
+.tsh-home-treasury-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: var(--sp-2, 8px);
+}
+.tsh-home-treasury-h {
+  margin: 0;
+  font-size: var(--fs-base, 1rem);
+  font-weight: 600;
+  color: var(--c-text-muted, #6b7280);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.tsh-home-treasury-link {
+  font-size: 0.82rem;
+  color: var(--c-primary, #1d4ed8);
+  text-decoration: none;
+  font-weight: 500;
+}
+.tsh-home-treasury-link:hover { text-decoration: underline; }
+.tsh-home-treasury-empty {
+  padding: var(--sp-3, 12px);
+  color: var(--c-text-muted, #6b7280);
+  font-size: 0.85rem;
+  text-align: center;
+  border: 1px dashed var(--c-border, #e5e7eb);
+  border-radius: var(--rad-md, 10px);
 }

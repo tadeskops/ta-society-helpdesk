@@ -108,6 +108,19 @@
       </div>
     </section>
 
+    <!-- 3c. Landing "Treasury this month" summary — Phase 2 (2026-08-03).
+         Ledger-viewer-only card that renders 3 KPI tiles (Total spend,
+         Paid, Open liability) from /treasury/summary?month=current.
+         home-treasury.js keeps the section hidden until it verifies:
+         (a) FEATURE_TREASURY is on, (b) whoami role >= COMMITTEE, and
+         (c) the summary fetch succeeds. Residents and signed-out
+         visitors never see this section. Uses the promoted
+         .tsh-kpi-tile component from theme.css Bundle 12. -->
+    <section id="tshHomeTreasury" class="tsh-home-treasury"
+             data-tsh-feature="FEATURE_TREASURY"
+             hidden aria-label="Treasury summary — this month">
+    </section>
+
     <!-- 4. KPIs at-a-glance — sleek 4-tile strip. Computed client-side
          from the same /issues/public payload that feeds the Recent
          issues list below, so it's free (one round-trip). Full triage
@@ -273,6 +286,7 @@
   <script src="./assets/js/events.js?v=4"></script>
   <script src="./assets/js/polls.js?v=1"></script>
   <script src="./assets/js/home-manager.js?v=1"></script>
+  <script src="./assets/js/home-treasury.js?v=1"></script>
   <script>
   (async () => {
     await Partials.mount();
@@ -288,6 +302,10 @@
       if (window.Banner) Banner.mountStrip(document.getElementById('tshBannerStrip'));
       // Society Manager quick-call card (pinned emergency contacts).
       if (window.HomeManager) HomeManager.mount(document.getElementById('tshHomeMgr'));
+      // Treasury monthly summary card — Phase 2 (2026-08-03). Ledger-
+      // viewer only; home-treasury.js keeps the section hidden for
+      // residents and signed-out visitors.
+      if (window.HomeTreasury) HomeTreasury.mount(document.getElementById('tshHomeTreasury'));
       // Admin-toggled announcements section.
       if (window.Announcements) Announcements.mountList(document.getElementById('tshAnnouncements'));
       // Polls (per-signed-in vote, SVG bar charts). The landing renders the

@@ -87,16 +87,21 @@
       return;
     }
     chip.hidden = false;
-    var cls = 'tsh-chip';
+    // Emit both the legacy `tsh-chip` classes (back-compat with any
+    // existing skin) AND the promoted Phase-2 `tsh-renewal-chip` classes
+    // from theme.css Bundle 20. Tone bands match daysUntilEnd() in
+    // worker/src/lib/ev-amc.ts: expired (<0), danger (<30), warn (<60),
+    // ok (else). Do NOT introduce a fifth band without design review.
+    var cls = 'tsh-chip tsh-renewal-chip';
     var label;
     if (d < 0) {
-      cls += ' tsh-chip-danger';
+      cls += ' tsh-chip-danger tsh-renewal-chip--expired';
       label = 'Expired ' + Math.abs(d) + ' day(s) ago';
     } else if (d < 30) {
-      cls += ' tsh-chip-danger';
+      cls += ' tsh-chip-danger tsh-renewal-chip--danger';
       label = 'Renews in ' + d + ' day(s)';
     } else if (d < 60) {
-      cls += ' tsh-chip-warn';
+      cls += ' tsh-chip-warn tsh-renewal-chip--warn';
       label = 'Renews in ' + d + ' day(s)';
     } else {
       cls += ' tsh-chip-ok';

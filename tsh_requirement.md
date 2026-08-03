@@ -1777,3 +1777,56 @@ The empty scaffold returned on first read is pre-seeded with SunArth vendor deta
 **UI**: single section on `docs/ev-admin.html` (`#evAmcSection`, `data-tsh-feature="FEATURE_TSH_EV_AMC"`), controller in `docs/assets/js/ev-amc.js` (`window.EvAmc.init()`), styles in `docs/assets/css/ev-charging.css` (`.tsh-ev-amc*` classes). Init sequence: `await Flags.ready()` → `Flags.ensureFeature('FEATURE_TSH_EV_CHARGING', …)` + `Flags.ensureFeature('FEATURE_TSH_EV_AMC', …)` → `Flags.ensureAuthorized('MANAGER')` → `GET /ev/admin/amc` → render. Never call `ensureFeature` without `await Flags.ready()` first (see user memory: *FEATURE_X disabled gate shows when flag is ON*).
 
 **Retention.** No automatic deletion. Editors archive individual documents; a full record purge is a manual `PUT /ev/admin/amc` with empty arrays plus a manual delete of the binaries in the EV repo. Because the section is committee-only and the private repo mirrors it, retention follows society-record policy rather than PII policy.
+
+## 25. Standard shared design-system components (Phase 2, 2026-08-03)
+
+Phase 2 promotes three EV-admin-only patterns to `docs/assets/css/theme.css` so any surface can reuse them. Rule: **any new counter grid, renewal-deadline chip, or file-preview card MUST use these classes** — do not reinvent locally. Introduce a new component only after design review.
+
+### 25.1 `.tsh-kpi-tile` — counter tile grid (Bundle 12)
+
+Was: manager-dashboard.html only. Now: manager-dashboard.html, **Landing "Treasury this month" summary card** (`home-treasury.js`), and any future analytics view. Structure: `<div class="tsh-kpi-grid"><a class="tsh-kpi-tile tsh-kpi-tile--hero">…</a>…</div>` — the `.tsh-kpi-tile` anchor MUST be a direct child of `.tsh-kpi-grid` (the grid track sizing + `grid-column: span 2` on the hero relies on it — do NOT wrap in `<li>`). Modifiers: `--hero` (spans 2 cols), `--crit` (red), `--high` (amber), `--med` (blue), `--low` (green). Mobile media query at 480px pins the grid to `repeat(2, 1fr)` with the hero spanning both cols.
+
+### 25.2 `.tsh-renewal-chip` + `.tsh-renewal-banner` — renewal deadline widgets (Bundle 20)
+
+Promoted from EV admin's inline `.tsh-chip + tsh-chip-danger` pattern in `ev-amc.js`. Two shapes:
+- `.tsh-renewal-chip` — inline pill; sits inside a heading or nav bar.
+- `.tsh-renewal-banner` — page-level strip; sits above content when the whole page needs a "your contract renews soon" call-out (matrix row 17.13).
+
+Four tones bound to the standard T-60 / T-30 / T-7 / expired thresholds from `worker/src/lib/ev-amc.ts` `daysUntilEnd()`:
+- `--ok` (green, 60d+ away)
+- `--warn` (amber, T-60 to T-30)
+- `--danger` (red, T-30 or T-7 to today)
+- `--expired` (crimson, past due)
+
+`ev-amc.js` `renderRenewalChip` emits BOTH the legacy `.tsh-chip*` classes (back-compat) AND the new `.tsh-renewal-chip*` classes so downstream consumers can adopt the new class-name without waiting on a migration. Do NOT introduce a fifth tone without design review.
+
+### 25.3 `.tsh-doc-card` — generic file-preview card (Bundle 21)
+
+Promoted from EV admin's `.tsh-ev-amc-doc*` block in `ev-charging.css`. Structure mirrors `ev-amc.js` output:
+
+```html
+<ul class="tsh-doc-card-list">
+  <li class="tsh-doc-card [tsh-doc-card--archived|--expired|--pinned]">
+    <div class="tsh-doc-card-icon"><i class="fas fa-file-..."/></div>
+    <div class="tsh-doc-card-body">
+      <div class="tsh-doc-card-title">Contract 2026.pdf
+        <span class="tsh-doc-card-kind">(contract)</span></div>
+      <div class="tsh-doc-card-meta">Uploaded 2 days ago · 245 KB</div>
+      <div class="tsh-doc-card-path">documents/foo/bar.pdf</div>
+    </div>
+    <div class="tsh-doc-card-actions">…</div>
+  </li>
+</ul>
+```
+
+Modifiers: `--archived` (dim + strike affordance), `--expired` (danger border), `--pinned` (primary border). The EV admin page continues to use `.tsh-ev-amc-doc*` for now (styles unchanged in `ev-charging.css`); ev-amc.js will migrate to `.tsh-doc-card` in a small follow-up patch when the Documents lane ships.
+
+### 25.4 Landing "Treasury this month" summary (Bundle 22 + `home-treasury.js`)
+
+Closes matrix rows 11.3 and 15.5 (Treasury monthly summary visible from Landing, not only inside `treasury.html`). Passive widget — the whole `<section id="tshHomeTreasury">` on `docs/index.html` starts `hidden` and stays hidden unless all three gates pass:
+
+1. `FEATURE_TREASURY` flag is on
+2. Whoami role is >= COMMITTEE (Treasurer/Chairman/Admin/Secretary all resolve to COMMITTEE+; residents map to RESIDENT and are filtered)
+3. `GET /treasury/summary?month=YYYY-MM` succeeds (401/403 silently hides the card — no toast; this is not a primary action)
+
+Renders 3 KPI tiles (Total spend, Paid, Open) using the shared `.tsh-kpi-tile` component. `home-treasury.js` mounts idempotently and reads the same top-level scalars (`totalMonth`, `paidMonth`, `paidMonthCount`, `openLiability`, `openCount`) as `treasury.js`'s Summary tab — schema-safe against future `byCategory` extensions.
