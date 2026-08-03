@@ -151,3 +151,4 @@
 {"at":"2026-08-01T18:51:28.233Z","actor":"ta.deskops@gmail.com","action":"vehicles:flat-parking-set","target":"config/vehicles.json","detail":"flat=B805 parkingNos=105"}
 {"at":"2026-08-02T06:58:44.366Z","actor":"ta.deskops@gmail.com","action":"ev.station.toggle","target":"ev-2w-1","detail":"maintenance: Temporarily unavailable"}
 {"at":"2026-08-02T06:59:14.731Z","actor":"ta.deskops@gmail.com","action":"ev.station.toggle","target":"ev-2w-1","detail":"online"}
+{"at":"2026-08-03T20:49:28.843Z","actor":"ta.deskops@gmail.com","action":"directory:put","target":"config/directory.json","detail":"vendors=2 contacts=12 resources=1 services=33 emergency=0"}
