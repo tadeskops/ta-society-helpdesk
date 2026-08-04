@@ -153,3 +153,4 @@
 {"at":"2026-08-02T06:59:14.731Z","actor":"ta.deskops@gmail.com","action":"ev.station.toggle","target":"ev-2w-1","detail":"online"}
 {"at":"2026-08-03T20:49:28.843Z","actor":"ta.deskops@gmail.com","action":"directory:put","target":"config/directory.json","detail":"vendors=2 contacts=12 resources=1 services=33 emergency=0"}
 {"at":"2026-08-04T16:53:33.858Z","actor":"sporthubpune@gmail.com","action":"ev-booking:create","target":"EV-0408262223","detail":"2026-08-04 1200-1230 flat=A103 status=confirmed"}
+{"at":"2026-08-04T17:26:25.486Z","actor":"adi2huh.uno@gmail.com","action":"reservations:create","target":"GA-0408262256","detail":"facility=gym-area date=2026-08-05 time=06:00-10:00 owner=adi2huh.uno@gmail.com"}
