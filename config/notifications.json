@@ -941,6 +941,110 @@
       "link": "reservations.html?open=CH-0707261332",
       "actor": "ta.deskops@gmail.com",
       "readAt": "2026-07-07T08:04:27.735Z"
+    },
+    {
+      "id": "NTF-msexjnvp-2",
+      "recipient": "ta.deskops@gmail.com",
+      "event": "reservation-created",
+      "title": "New reservation · Gym Area",
+      "body": "2026-08-05 · 06:00–10:00 · A-101(Test) · Sample purpose (Test)",
+      "createdAt": "2026-08-04T17:26:26.725Z",
+      "channels": [
+        "in-app"
+      ],
+      "link": "reservations.html?open=GA-0408262256",
+      "actor": "adi2huh.uno@gmail.com"
+    },
+    {
+      "id": "NTF-msexjnvp-3",
+      "recipient": "dhiman.parekh89@gmail.com",
+      "event": "reservation-created",
+      "title": "New reservation · Gym Area",
+      "body": "2026-08-05 · 06:00–10:00 · A-101(Test) · Sample purpose (Test)",
+      "createdAt": "2026-08-04T17:26:26.725Z",
+      "channels": [
+        "in-app"
+      ],
+      "link": "reservations.html?open=GA-0408262256",
+      "actor": "adi2huh.uno@gmail.com"
+    },
+    {
+      "id": "NTF-msexjnvp-4",
+      "recipient": "jayantr55@gmail.com",
+      "event": "reservation-created",
+      "title": "New reservation · Gym Area",
+      "body": "2026-08-05 · 06:00–10:00 · A-101(Test) · Sample purpose (Test)",
+      "createdAt": "2026-08-04T17:26:26.725Z",
+      "channels": [
+        "in-app"
+      ],
+      "link": "reservations.html?open=GA-0408262256",
+      "actor": "adi2huh.uno@gmail.com"
+    },
+    {
+      "id": "NTF-msexjnvp-5",
+      "recipient": "sharmaanushka2802@gmail.com",
+      "event": "reservation-created",
+      "title": "New reservation · Gym Area",
+      "body": "2026-08-05 · 06:00–10:00 · A-101(Test) · Sample purpose (Test)",
+      "createdAt": "2026-08-04T17:26:26.725Z",
+      "channels": [
+        "in-app"
+      ],
+      "link": "reservations.html?open=GA-0408262256",
+      "actor": "adi2huh.uno@gmail.com"
+    },
+    {
+      "id": "NTF-msexjnvp-1",
+      "recipient": "vibhumaitreya@gmail.com",
+      "event": "reservation-created",
+      "title": "New reservation · Gym Area",
+      "body": "2026-08-05 · 06:00–10:00 · A-101(Test) · Sample purpose (Test)",
+      "createdAt": "2026-08-04T17:26:26.725Z",
+      "channels": [
+        "in-app"
+      ],
+      "link": "reservations.html?open=GA-0408262256",
+      "actor": "adi2huh.uno@gmail.com"
+    },
+    {
+      "id": "NTF-msexjnvp-6",
+      "recipient": "gayatri9990@gmail.com",
+      "event": "reservation-created",
+      "title": "New reservation · Gym Area",
+      "body": "2026-08-05 · 06:00–10:00 · A-101(Test) · Sample purpose (Test)",
+      "createdAt": "2026-08-04T17:26:26.725Z",
+      "channels": [
+        "in-app"
+      ],
+      "link": "reservations.html?open=GA-0408262256",
+      "actor": "adi2huh.uno@gmail.com"
+    },
+    {
+      "id": "NTF-msexjnvp-7",
+      "recipient": "haresh5hirani@gmail.com",
+      "event": "reservation-created",
+      "title": "New reservation · Gym Area",
+      "body": "2026-08-05 · 06:00–10:00 · A-101(Test) · Sample purpose (Test)",
+      "createdAt": "2026-08-04T17:26:26.725Z",
+      "channels": [
+        "in-app"
+      ],
+      "link": "reservations.html?open=GA-0408262256",
+      "actor": "adi2huh.uno@gmail.com"
+    },
+    {
+      "id": "NTF-msexjnvp-8",
+      "recipient": "samanasippa@gmail.com",
+      "event": "reservation-created",
+      "title": "New reservation · Gym Area",
+      "body": "2026-08-05 · 06:00–10:00 · A-101(Test) · Sample purpose (Test)",
+      "createdAt": "2026-08-04T17:26:26.725Z",
+      "channels": [
+        "in-app"
+      ],
+      "link": "reservations.html?open=GA-0408262256",
+      "actor": "adi2huh.uno@gmail.com"
     }
   ]
 }
