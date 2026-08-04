@@ -1,4 +1,25 @@
 {
   "version": 1,
-  "items": []
+  "items": [
+    {
+      "id": "EV-0408262223",
+      "stationId": "ev-4w-1",
+      "date": "2026-08-04",
+      "startMin": 1200,
+      "endMin": 1230,
+      "status": "confirmed",
+      "owner": {
+        "email": "sporthubpune@gmail.com",
+        "flat": "A103",
+        "name": "Niharika"
+      },
+      "createdBy": {
+        "email": "sporthubpune@gmail.com",
+        "name": "Neharika Relan",
+        "role": "RESIDENT"
+      },
+      "createdAt": "2026-08-04T16:53:32.434Z",
+      "updatedAt": "2026-08-04T16:53:32.434Z"
+    }
+  ]
 }
