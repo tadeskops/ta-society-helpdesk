@@ -332,6 +332,38 @@
         "verifiedAt": "2026-07-07T08:03:59.043Z",
         "verifiedBy": "ta.deskops@gmail.com"
       }
+    },
+    {
+      "id": "GA-0408262256",
+      "facilityId": "gym-area",
+      "facilityLabel": "Gym Area",
+      "date": "2026-08-05",
+      "startMin": 360,
+      "endMin": 600,
+      "purpose": "Sample purpose (Test)",
+      "status": "confirmed",
+      "owner": {
+        "email": "adi2huh.uno@gmail.com",
+        "flat": "A-101(Test)",
+        "phone": "9696585858"
+      },
+      "createdBy": {
+        "email": "adi2huh.uno@gmail.com",
+        "role": "RESIDENT"
+      },
+      "createdAt": "2026-08-04T17:26:24.258Z",
+      "updatedAt": "2026-08-04T17:26:24.258Z",
+      "timeline": [
+        {
+          "at": "2026-08-04T17:26:24.258Z",
+          "by": {
+            "email": "adi2huh.uno@gmail.com",
+            "role": "RESIDENT"
+          },
+          "event": "created",
+          "note": "Auto-confirmed by facility policy."
+        }
+      ]
     }
   ]
 }
